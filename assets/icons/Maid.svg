@@ -1,0 +1,9 @@
+<!--
+  SceneView ツールバー「メイド」アイコン (32x32)。人物シルエット。
+  白地に黒縁取りで、明るいシーン上でも暗いシーン上でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <circle cx="16" cy="10" r="5.2" fill="#ffffff" stroke="#000000" stroke-width="0.8" />
+  <path d="M 6 27 C 6 20.5 10.5 17.5 16 17.5 C 21.5 17.5 26 20.5 26 27 Z"
+    fill="#ffffff" stroke="#000000" stroke-width="0.8" stroke-linejoin="round" />
+</svg>

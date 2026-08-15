@@ -1,0 +1,14 @@
+<!--
+  シーンプリセット自動ロード指定 OFF の「ホーム」アイコン (32x32)。家の輪郭線。
+  白地に黒縁取りで、明るいサムネ上でも暗いサムネ上でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="none" stroke="#000000" stroke-width="4.4" stroke-linejoin="round">
+    <path d="M 16 4 L 29 15 L 26 15 L 26 28 L 6 28 L 6 15 L 3 15 Z" />
+    <path d="M 13 28 L 13 20 L 19 20 L 19 28" />
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M 16 4 L 29 15 L 26 15 L 26 28 L 6 28 L 6 15 L 3 15 Z" />
+    <path d="M 13 28 L 13 20 L 19 20 L 19 28" />
+  </g>
+</svg>

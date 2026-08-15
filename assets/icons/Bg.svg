@@ -1,0 +1,13 @@
+<!--
+  SceneView ツールバー「背景」アイコン (32x32)。山と太陽の風景。
+  白地に黒縁取りで、明るいシーン上でも暗いシーン上でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect x="4" y="6" width="24" height="20" rx="2"
+    fill="none" stroke="#ffffff" stroke-width="2.4" />
+  <rect x="4" y="6" width="24" height="20" rx="2"
+    fill="none" stroke="#000000" stroke-width="0.8" />
+  <circle cx="21.5" cy="12.5" r="2.6" fill="#ffffff" stroke="#000000" stroke-width="0.8" />
+  <polygon points="6,24 12.5,14.5 17,20.5 20,17 26,24"
+    fill="#ffffff" stroke="#000000" stroke-width="0.8" stroke-linejoin="round" />
+</svg>

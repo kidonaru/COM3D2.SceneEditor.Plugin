@@ -1,0 +1,10 @@
+<!--
+  シーンプリセット自動ロード指定 ON の「ホーム」アイコン (32x32)。塗りつぶした家。
+  ON 状態が一目で分かるよう緑塗り + 黒縁取りにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- 家のシルエット (屋根 + 壁)。ドアはくり抜きで表現する -->
+  <path d="M 16 4 L 29 15 L 26 15 L 26 28 L 6 28 L 6 15 L 3 15 Z
+           M 13 28 L 13 20 L 19 20 L 19 28 Z"
+        fill="#4caf50" stroke="#000000" stroke-width="2.4" stroke-linejoin="round" fill-rule="evenodd" />
+</svg>
