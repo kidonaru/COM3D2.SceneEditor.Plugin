@@ -1,0 +1,3 @@
+* text=auto
+# バッチファイルは CRLF でないと cmd.exe がパースに失敗する
+*.bat text eol=crlf

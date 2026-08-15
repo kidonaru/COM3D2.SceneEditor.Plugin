@@ -1,0 +1,4 @@
+[submodule "source/COM3D2.SceneEditor.Plugin/MTEUtils"]
+	path = source/COM3D2.SceneEditor.Plugin/MTEUtils
+	url = https://github.com/kidonaru/COM3D2.MTEUtils.git
+	branch = master

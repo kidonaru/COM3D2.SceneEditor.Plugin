@@ -1,0 +1,10 @@
+bin/
+obj/
+.env
+*.user
+UnityInjector/
+UnityInjector25/
+build.log
+build.err.log
+node_modules/
+package-lock.json
