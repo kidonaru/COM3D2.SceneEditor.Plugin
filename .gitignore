@@ -2,6 +2,7 @@ bin/
 obj/
 .env
 *.user
+.vscode
 output/
 
 # ビルド成果物。release.bat が build.bat 経由で毎回生成するため追跡しない
