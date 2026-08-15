@@ -14,5 +14,39 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
+rem .env からゲームのインストール先を読み込んで配布用 Config をコピーする
+set ENV_FILE=%~dp0.env
+if not exist "%ENV_FILE%" (
+    echo .env が見つかりません: %ENV_FILE%
+    exit /b 1
+)
+for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%ENV_FILE%") do set "%%a=%%b"
+if "%COM3D2_DIR%"=="" (
+    echo .env に COM3D2_DIR が設定されていません
+    exit /b 1
+)
+if "%COM3D25_DIR%"=="" (
+    echo .env に COM3D25_DIR が設定されていません
+    exit /b 1
+)
+
+rem 以降は if ブロック内で ERRORLEVEL を見るため遅延展開が要る。
+rem ※ .env の読み込みより後で有効化すること (有効な状態だとパス中の ! が失われる)
+setlocal enabledelayedexpansion
+
+rem Config は dll と同じ Sybaris\UnityInjector 配下に置く必要がある
+if not "%TARGET%"=="com3d25" (
+    xcopy .\UnityInjector\Config "%COM3D2_DIR%\Sybaris\UnityInjector\Config" /E /I /Y >nul
+    if !ERRORLEVEL! neq 0 (
+        echo 警告: COM3D2 への Config コピーに失敗しました
+    )
+)
+if not "%TARGET%"=="com3d2" (
+    xcopy .\UnityInjector\Config "%COM3D25_DIR%\Sybaris\UnityInjector\Config" /E /I /Y >nul
+    if !ERRORLEVEL! neq 0 (
+        echo 警告: COM3D2.5 への Config コピーに失敗しました
+    )
+)
+
 echo ビルドに成功しました
 exit /b 0

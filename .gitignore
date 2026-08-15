@@ -2,7 +2,11 @@ bin/
 obj/
 .env
 *.user
-UnityInjector/
+output/
+
+# ビルド成果物。release.bat が build.bat 経由で毎回生成するため追跡しない
+# ※ UnityInjector/Config は配布物なので追跡する
+UnityInjector/*.dll
 UnityInjector25/
 build.log
 build.err.log

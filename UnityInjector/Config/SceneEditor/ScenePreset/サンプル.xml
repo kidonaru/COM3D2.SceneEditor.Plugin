@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<ScenePresetData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="14">
+  <camera>
+    <targetPos>
+      <x>0</x>
+      <y>1.18</y>
+      <z>0</z>
+    </targetPos>
+    <yaw>180</yaw>
+    <pitch>0</pitch>
+    <roll>0</roll>
+    <distance>1.2</distance>
+    <fov>35</fov>
+  </camera>
+  <background deleted="false" bgId="1100" hasBgColor="true">
+    <position>
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </position>
+    <rotation>
+      <x>-0</x>
+      <y>0</y>
+      <z>0</z>
+    </rotation>
+    <bgColor>
+      <r>0</r>
+      <g>0</g>
+      <b>0</b>
+      <a>1</a>
+    </bgColor>
+  </background>
+  <light hasMain="true">
+    <mainRotation>
+      <x>40.000042</x>
+      <y>180</y>
+      <z>18.0000038</z>
+    </mainRotation>
+    <mainColor>
+      <r>1</r>
+      <g>1</g>
+      <b>1</b>
+      <a>1</a>
+    </mainColor>
+    <mainIntensity>0.95</mainIntensity>
+    <mainShadowStrength>0.098</mainShadowStrength>
+  </light>
+  <pngPlacement />
+  <maid guid="96228abc-1a07-49cd-8141-e9c4ff3d647c">
+    <position>
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </position>
+    <rotation>
+      <x>-0</x>
+      <y>0</y>
+      <z>0</z>
+    </rotation>
+    <visible>true</visible>
+    <mabataki>true</mabataki>
+    <motion id="6000" file="stand000_sudati.anm" name="素立ち" />
+    <morph name="eyeclose" value="0.0960000157" />
+    <morph name="mouthup" value="0.5" />
+    <undress />
+    <gravity category="hair" enabled="false">
+      <offset>
+        <x>0</x>
+        <y>0</y>
+        <z>0</z>
+      </offset>
+    </gravity>
+    <gravity category="skirt" enabled="false">
+      <offset>
+        <x>0</x>
+        <y>0</y>
+        <z>0</z>
+      </offset>
+    </gravity>
+    <ikParams>
+      <isGroundingFootL>false</isGroundingFootL>
+      <isGroundingFootR>false</isGroundingFootR>
+      <floorHeight>0</floorHeight>
+      <footBaseOffset>0.05</footBaseOffset>
+      <footStretchHeight>0.1</footStretchHeight>
+      <footStretchAngle>45</footStretchAngle>
+      <footGroundAngle>90</footGroundAngle>
+    </ikParams>
+    <look mode="マウス">
+      <lookX>0</lookX>
+      <lookY>0</lookY>
+    </look>
+  </maid>
+  <external id="ModItemExplorer.ModelPlacement" file="サンプル.ModItemExplorer.ModelPlacement.xml" />
+  <external id="PostEffects" file="サンプル.PostEffects.xml" />
+</ScenePresetData>
