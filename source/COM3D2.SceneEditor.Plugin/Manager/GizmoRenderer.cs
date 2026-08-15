@@ -1,0 +1,448 @@
+using System;
+using COM3D2.MotionTimelineEditor;
+using UnityEngine;
+
+namespace COM3D2.SceneEditor.Plugin
+{
+    /// <summary>
+    /// カメラの OnPostRender で選択オブジェクトのギズモを描画し、
+    /// 軸・面ドラッグによる移動・回転・拡縮を解決する。
+    /// ギズモ本体は MTEUtils の TransformGizmo に委譲し、
+    /// ここは SceneEditor 固有の描画 (視錐台・ライト・選択バウンズ) と
+    /// static な UI 設定・選択対象の反映を担う
+    /// </summary>
+    public class GizmoRenderer : MonoBehaviour
+    {
+        /// <summary>
+        /// 操作種別と軸空間。SceneView と GameView のギズモで共有するため static で持つ。
+        /// 切り替え UI は Inspector にある
+        /// </summary>
+        public static GizmoTool currentTool { get; set; } = GizmoTool.Move;
+        public static bool useLocalSpace { get; set; } = true;
+
+        private static readonly Color BoundsColor = new Color(1f, 0.6f, 0f, 0.8f);
+        private static readonly Color FrustumColor = new Color(0.4f, 0.8f, 1f, 0.9f);
+
+        // メインカメラの視錐台を表示する奥行き (m)
+        private const float FrustumDisplayDistance = 8f;
+
+        // ライトギズモ。アイコンはカメラ距離比例、照射範囲は実寸で描く
+        private const int LightIconRays = 8;               // アイコンから伸ばす放射線の本数
+        private const float LightIconRadiusRatio = 0.2f;   // ギズモサイズに対する中心円の半径
+        private const float LightIconRayRatio = 0.4f;      // 同・放射線の外端
+        private const int LightRangeSegments = 40;         // 照射範囲の円周分割
+        private const int SpotConeEdges = 8;               // 円錐の稜線の本数
+        private static readonly Color LightRangeColor = new Color(1f, 0.9f, 0.3f, 0.5f);
+        /// <summary>無効なライトのアイコンは薄く描いて有効なものと区別する</summary>
+        private const float DisabledLightAlpha = 0.3f;
+
+        // 毎フレームの GC を避けるため使い回す
+        private readonly Vector3[] _nearCorners = new Vector3[4];
+        private readonly Vector3[] _farCorners = new Vector3[4];
+        private readonly Vector3[] _boundsCorners = new Vector3[8];
+
+        private Camera _camera;
+        private Material _lineMaterial;
+
+        /// <summary>ギズモ本体。描画・ヒット判定・ドラッグ解決はすべてここが持つ</summary>
+        private readonly TransformGizmo _gizmo = new TransformGizmo();
+
+        /// <summary>SceneView ツールバーからのギズモ表示切替。false の間は描画もドラッグ開始もしない</summary>
+        public bool drawEnabled = true;
+
+        public bool isDragging => _gizmo.isDragging;
+
+        private static SelectionManager selectionManager => SelectionManager.instance;
+
+        /// <summary>
+        /// ギズモを描画・操作してよいか (ホスト側の表示状態)。
+        /// 既定は SceneView で、GameView 側は生成時に差し替える。
+        /// 最大化中は GameView ウィンドウ非表示のままギズモだけ全画面で生かすため、
+        /// isShowWnd 直接参照ではなくデリゲートで持つ
+        /// </summary>
+        public Func<bool> isHostActive = () => SceneViewWindow.instance.isShowWnd;
+
+        /// <summary>
+        /// 選択オブジェクトのバウンズ枠 (オレンジ) を描くか。
+        /// ゲーム画面の見た目を汚さないよう GameView 側は false にする
+        /// </summary>
+        public bool showSelectionBounds = true;
+
+        /// <summary>
+        /// 追加ライトのアイコン・照射範囲を描くか。
+        /// バウンズ枠と同じくゲーム画面を汚さないよう GameView 側は false にする
+        /// </summary>
+        public bool showLightGizmos = true;
+
+        private void Awake()
+        {
+            _camera = GetComponent<Camera>();
+
+            // GL 描画用の頂点カラーシェーダ。ゲームのビルドに含まれない可能性があるため
+            // 取得できなければ固有描画だけ諦める (選択・カメラ操作は動く)
+            var shader = Shader.Find("Hidden/Internal-Colored");
+            if (shader == null)
+            {
+                MTEUtils.LogError("ギズモ描画用シェーダ (Hidden/Internal-Colored) が見つかりません。ギズモは表示されません");
+                return;
+            }
+
+            _lineMaterial = new Material(shader);
+            _lineMaterial.hideFlags = HideFlags.HideAndDontSave;
+            // ギズモは常に手前に見せたいので深度テストを無効化する
+            _lineMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+        }
+
+        private void OnDestroy()
+        {
+            if (_lineMaterial != null)
+            {
+                Destroy(_lineMaterial);
+                _lineMaterial = null;
+            }
+        }
+
+        /// <summary>
+        /// 選択オブジェクトの代わりにギズモ対象を差し替える外部フック (ボーン編集用)。
+        /// SelectionManager の選択規約 (ボーンヒットはメイドルートへ丸める) を壊さずに
+        /// ボーン Transform を直接掴ませるために設ける
+        /// </summary>
+        public static Func<GameObject> externalTargetProvider;
+
+        private GameObject target
+        {
+            get
+            {
+                var external = externalTargetProvider != null ? externalTargetProvider() : null;
+                return external != null ? external : selectionManager.selectedObject;
+            }
+        }
+
+        /// <summary>
+        /// ギズモ本体の対象。抑止中は選択オブジェクトを対象にしない
+        /// （選択バウンズ・ライトギズモは target を使い続けるので抑止の影響を受けない）
+        /// </summary>
+        private GameObject gizmoTarget
+        {
+            get
+            {
+                var external = externalTargetProvider != null ? externalTargetProvider() : null;
+                if (external != null)
+                {
+                    return external;
+                }
+                return selectionManager.gizmoSuppressed ? null : selectionManager.selectedObject;
+            }
+        }
+
+        /// <summary>static な UI 設定と選択対象をギズモ本体へ反映する</summary>
+        private void SyncGizmo()
+        {
+            var go = gizmoTarget;
+            _gizmo.target = go != null ? go.transform : null;
+            _gizmo.tool = currentTool;
+            _gizmo.useLocalSpace = useLocalSpace;
+        }
+
+        /// <summary>ギズモの世界サイズ。カメラ距離に比例させ見かけの大きさを一定に保つ</summary>
+        private float GizmoSize(Vector3 position)
+        {
+            return TransformGizmo.CalcGizmoSize(_camera, position);
+        }
+
+        private void OnPostRender()
+        {
+            // プラグイン無効・ビュー非表示時は外部ギズモも含めて描かない
+            if (!SceneEditorPlugin.instance.isEnable || !isHostActive())
+            {
+                return;
+            }
+
+            // 外部プラグインのギズモはツールバーの自前ギズモ表示 (drawEnabled) と
+            // 自前マテリアルの成否に依存せず描く
+            GizmoHost.DrawExternals(_camera);
+
+            if (_lineMaterial == null || !drawEnabled)
+            {
+                return;
+            }
+
+            _lineMaterial.SetPass(0);
+            GL.PushMatrix();
+            GL.LoadProjectionMatrix(_camera.projectionMatrix);
+            GL.modelview = _camera.worldToCameraMatrix;
+
+            DrawMainCameraFrustum();
+
+            if (showLightGizmos)
+            {
+                DrawStudioLights();
+            }
+
+            if (target != null && showSelectionBounds)
+            {
+                DrawBoundsWire(PluginUtils.CalcObjectBounds(target));
+            }
+
+            GL.PopMatrix();
+
+            // ギズモ本体は自前でマトリクスとマテリアルを設定するため、固有描画の外で呼ぶ
+            SyncGizmo();
+            _gizmo.Draw(_camera);
+        }
+
+        /// <summary>
+        /// ゲームのメインカメラの描画範囲を視錐台のワイヤーで表示する。
+        /// 遠クリップ面は数百 m 先にあり線が伸びすぎて見づらいため、表示距離は打ち切る
+        /// </summary>
+        private void DrawMainCameraFrustum()
+        {
+            var gameMain = GameMain.Instance;
+            var mainCameraMain = gameMain != null ? gameMain.MainCamera : null;
+            var mainCamera = mainCameraMain != null ? mainCameraMain.camera : null;
+            if (mainCamera == null || mainCamera == _camera)
+            {
+                return;
+            }
+
+            var near = mainCamera.nearClipPlane;
+            var far = Mathf.Min(mainCamera.farClipPlane, FrustumDisplayDistance);
+            if (far <= near)
+            {
+                return;
+            }
+
+            CalcFrustumCorners(mainCamera, near, _nearCorners);
+            CalcFrustumCorners(mainCamera, far, _farCorners);
+
+            GL.Begin(GL.LINES);
+            GL.Color(FrustumColor);
+            for (var i = 0; i < 4; i++)
+            {
+                var next = (i + 1) % 4;
+                GL.Vertex(_nearCorners[i]);
+                GL.Vertex(_nearCorners[next]);
+                GL.Vertex(_farCorners[i]);
+                GL.Vertex(_farCorners[next]);
+                GL.Vertex(_nearCorners[i]);
+                GL.Vertex(_farCorners[i]);
+            }
+            GL.End();
+        }
+
+        /// <summary>指定距離での視錐台断面の 4 隅 (左下・右下・右上・左上)</summary>
+        private static void CalcFrustumCorners(Camera camera, float distance, Vector3[] corners)
+        {
+            var halfHeight = camera.orthographic
+                ? camera.orthographicSize
+                : Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * distance;
+            var halfWidth = halfHeight * camera.aspect;
+
+            var t = camera.transform;
+            var center = t.position + t.forward * distance;
+            var right = t.right * halfWidth;
+            var up = t.up * halfHeight;
+
+            corners[0] = center - right - up;
+            corners[1] = center + right - up;
+            corners[2] = center + right + up;
+            corners[3] = center - right + up;
+        }
+
+        /// <summary>
+        /// 追加ライトの位置をアイコンで示し、選択中の 1 灯だけ照射範囲も描く。
+        /// メインライトは平行光源で位置に意味がないため対象外
+        /// </summary>
+        private void DrawStudioLights()
+        {
+            foreach (var light in StudioLightManager.instance.lights)
+            {
+                if (light == null)
+                {
+                    continue;
+                }
+
+                var position = light.transform.position;
+                var color = light.color;
+                color.a = light.enabled ? 1f : DisabledLightAlpha;
+                DrawLightIcon(position, color, GizmoSize(position));
+
+                if (light.gameObject != target)
+                {
+                    continue;
+                }
+
+                // range / spotAngle はワールド実寸なのでギズモサイズには連動させない
+                if (light.type == LightType.Spot)
+                {
+                    DrawSpotCone(light);
+                }
+                else
+                {
+                    DrawRangeCircle(position, light.range);
+                }
+            }
+        }
+
+        /// <summary>ライトの位置を示すアイコン。カメラを向いた円から放射線を伸ばす</summary>
+        private void DrawLightIcon(Vector3 center, Color color, float size)
+        {
+            var toCamera = _camera.transform.position - center;
+            if (toCamera.sqrMagnitude < TransformGizmo.DegenerateEpsilon)
+            {
+                // カメラがライトに重なっていると向きが定まらない
+                return;
+            }
+
+            Vector3 basis1, basis2;
+            TransformGizmo.CalcCircleBasis(toCamera.normalized, out basis1, out basis2);
+
+            var radius = size * LightIconRadiusRatio;
+            DrawCircleWire(center, basis1, basis2, radius, color);
+
+            GL.Begin(GL.LINES);
+            GL.Color(color);
+            for (var i = 0; i < LightIconRays; i++)
+            {
+                var angle = i * Mathf.PI * 2f / LightIconRays;
+                var dir = basis1 * Mathf.Cos(angle) + basis2 * Mathf.Sin(angle);
+                GL.Vertex(center + dir * radius);
+                GL.Vertex(center + dir * (size * LightIconRayRatio));
+            }
+            GL.End();
+        }
+
+        /// <summary>
+        /// ポイントライトの届く範囲。全方向に等しく届くので向きの情報は要らず、
+        /// 線が増えて見づらくなるのを避けるためカメラを向いた円 1 つで示す
+        /// </summary>
+        private void DrawRangeCircle(Vector3 center, float radius)
+        {
+            var toCamera = _camera.transform.position - center;
+            if (radius <= 0f || toCamera.sqrMagnitude < TransformGizmo.DegenerateEpsilon)
+            {
+                return;
+            }
+
+            Vector3 basis1, basis2;
+            TransformGizmo.CalcCircleBasis(toCamera.normalized, out basis1, out basis2);
+            DrawCircleWire(center, basis1, basis2, radius, LightRangeColor);
+        }
+
+        /// <summary>スポットライトの照射範囲。頂点から底面の円へ稜線を張った円錐で示す</summary>
+        private void DrawSpotCone(Light light)
+        {
+            var range = light.range;
+            if (range <= 0f)
+            {
+                return;
+            }
+
+            var t = light.transform;
+            var apex = t.position;
+            var dir = t.forward;
+            var baseCenter = apex + dir * range;
+            // spotAngle は円錐の全角なので、底面半径は半角のタンジェント × 距離
+            var radius = Mathf.Tan(light.spotAngle * 0.5f * Mathf.Deg2Rad) * range;
+
+            // 稜線の周方向の位置を軸だけで決めると、視線によっては稜線が円錐の輪郭から
+            // ずれて円錐全体が回転して見える。カメラ方向を基準にして輪郭線に重ねる
+            var basis1 = Vector3.Cross(dir, _camera.transform.position - apex);
+            if (basis1.sqrMagnitude < TransformGizmo.DegenerateEpsilon)
+            {
+                // カメラが軸の真上／真下にあると外積が潰れる
+                TransformGizmo.CalcCircleBasis(dir, out basis1, out _);
+            }
+            basis1 = basis1.normalized;
+            var basis2 = Vector3.Cross(basis1, dir).normalized;
+
+            DrawCircleWire(baseCenter, basis1, basis2, radius, LightRangeColor);
+
+            GL.Begin(GL.LINES);
+            GL.Color(LightRangeColor);
+            for (var i = 0; i < SpotConeEdges; i++)
+            {
+                var angle = i * Mathf.PI * 2f / SpotConeEdges;
+                GL.Vertex(apex);
+                GL.Vertex(baseCenter + (basis1 * Mathf.Cos(angle) + basis2 * Mathf.Sin(angle)) * radius);
+            }
+            GL.End();
+        }
+
+        /// <summary>基底 2 軸が張る平面上の円</summary>
+        private static void DrawCircleWire(
+            Vector3 center, Vector3 basis1, Vector3 basis2, float radius, Color color)
+        {
+            GL.Begin(GL.LINES);
+            GL.Color(color);
+            for (var i = 0; i < LightRangeSegments; i++)
+            {
+                var a0 = i * Mathf.PI * 2f / LightRangeSegments;
+                var a1 = (i + 1) * Mathf.PI * 2f / LightRangeSegments;
+                GL.Vertex(center + (basis1 * Mathf.Cos(a0) + basis2 * Mathf.Sin(a0)) * radius);
+                GL.Vertex(center + (basis1 * Mathf.Cos(a1) + basis2 * Mathf.Sin(a1)) * radius);
+            }
+            GL.End();
+        }
+
+        private void DrawBoundsWire(Bounds bounds)
+        {
+            PluginUtils.GetBoundsCorners(bounds, _boundsCorners);
+
+            int[,] edges =
+            {
+                {0,1},{2,3},{4,5},{6,7},
+                {0,2},{1,3},{4,6},{5,7},
+                {0,4},{1,5},{2,6},{3,7},
+            };
+
+            GL.Begin(GL.LINES);
+            GL.Color(BoundsColor);
+            for (var i = 0; i < 12; i++)
+            {
+                GL.Vertex(_boundsCorners[edges[i, 0]]);
+                GL.Vertex(_boundsCorners[edges[i, 1]]);
+            }
+            GL.End();
+        }
+
+        // ---- ヒット判定・ドラッグ (TransformGizmo へ委譲) ----
+
+        /// <summary>rtPoint がいずれかのギズモ要素上ならドラッグを開始して true</summary>
+        public bool TryBeginDrag(Vector2 rtPoint)
+        {
+            // 非表示のギズモは掴めない (呼び出し側は通常のオブジェクト選択へフォールバックする)
+            if (!drawEnabled)
+            {
+                return false;
+            }
+
+            SyncGizmo();
+            var began = _gizmo.TryBeginDrag(_camera, rtPoint);
+
+            // ボーン編集 (externalTargetProvider) 中は BoneEditManager 側が
+            // Pose スコープで記録するため、通常のオブジェクト操作だけ記録する
+            if (began && externalTargetProvider?.Invoke() == null)
+            {
+                var go = gizmoTarget;
+                if (go != null)
+                {
+                    HistoryManager.instance.BeforeEdit(
+                        go.GetComponent<Maid>(), HistoryScope.Object,
+                        "ギズモ操作: " + go.name, new[] { go.transform });
+                }
+            }
+            return began;
+        }
+
+        public void UpdateDrag(Vector2 rtPoint)
+        {
+            _gizmo.UpdateDrag(rtPoint);
+        }
+
+        public void EndDrag()
+        {
+            _gizmo.EndDrag();
+        }
+    }
+}
