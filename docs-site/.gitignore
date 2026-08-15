@@ -1,0 +1,5 @@
+node_modules/
+.vitepress/dist/
+.vitepress/cache/
+# ルートの .gitignore が package-lock.json を全体除外しているが、CI の npm ci に必要
+!package-lock.json
