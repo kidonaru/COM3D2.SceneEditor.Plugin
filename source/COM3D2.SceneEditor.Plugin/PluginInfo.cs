@@ -9,26 +9,18 @@ namespace COM3D2.SceneEditor.Plugin
         public const string PluginVersion = "0.1.0.0";
         public const string WindowName = PluginName + " " + PluginVersion;
 
-        // ギアメニュー用アイコン (専用デザイン: モノクロのアイソメトリック立方体、32x32 PNG)
+        // ギアメニュー用アイコン。docs-site/public/favicon.svg を 32x32 PNG 化したもので、
+        // 差し替えるときは assets/icons/generate.js を実行して出力を貼り替えること
         public static readonly byte[] Icon = Convert.FromBase64String(
-"iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFD0lEQVR4nMVXXUhUaRh+vnPOjPbj+DPaokigTa1LCBWBpmwqelVd" +
-            "KC6CBEWSYOGVXnspWNcRidRVGSwbdpV1EbE3K4uI0Q+74qD9SBabZDP9OH/nLM+787mz45xpdINeOMyc73zv+zzvz/d+36fwrygA" +
-            "jn4JBAI+r9drhUIh/B/x+XyIRqPxYDAYyoSl0gas6urqXgBd5OA4jjdlzlbFUUpFAQQB/LywsDAGIK4xFQADgL179+5yy7J+MU2z" +
-            "wXEc8PmaopSSJ5FI/BaPx3968eLFMrGFQCAQ8Ni2/atpmnXxeDyqlDKTxFzFMAzYti1ELcui4S9xsB3HSViW5U0kEr8bhtEUDAZj" +
-            "4r1t2z0p4Aw7CahMD8U0TRUOh5XjOPJ/dXVVGYYhj5sebdI2MYhFTGJrL7sdx7GTnruGkJ5Go1G8e/cOhw8fxrVr1zA+Po7W1laE" +
-            "w2F8/vxZ5nBuFjsmsYgp736/v8Dn880ZhlHu/JP4DdqmaSIej4MrYs+ePTh//jw6OjpknCpMx927d3Hp0iU8evQIO3fuhNfrdUsL" +
-            "i1LZtr0cCoW+VxUVFf68vLw/DMMoSydAw5T379+jsLAQp0+fxpkzZ1BWViZjqYXK5fbhwweJyNjYGF6/fi06tJFGRBP4KxKJ/KAq" +
-            "KytLPB7Pn5kIfPr0ScJ57Ngx9Pf3Y//+/RLqWCwm3qcKQThG0MXFRVy5cgW3bt3C2toaduzYkZqWdQKxWKzGlQCZE7C3t1dyTNCP" +
-            "Hz8KSLYcM1Xbtm2TZ2pqCqOjo5iZmZHxnAgodo1oFLt27cL169dRU1ODN2/eyJLzeDyuwOkk6Et5ebnonjp1Ck+fPhVStm3/h4CR" +
-            "rsxQMp9VVVXo7u7GhQsXpKBKSkrkG4m4CUG1fkFBAa5evYrjx49L8RYVFaVGYV0MN0NtbW3o6urC7du30d7eLlVeXFwsXmgP071m" +
-            "hPx+P6anp4X8yMgIKisrUVtb60racPvAimYa+vr6cODAAQwNDckKWFhYkHHWAr3VFV5aWoq3b99iYGAAZ8+eFf2WlhYZj0QirgQs" +
-            "V2aGIYXH5nLw4EEpyPv37+PkyZPo7OzEuXPnJCJMCSv98uXL0pio19DQgPz8fBmnZCtay/VLUpEGWf38PXHihHTAO3fu4N69exgc" +
-            "HJRld/HiRbx8+VJCrT0meDbgnAikNyQWEwF7enrw+PFjDA8Py1ggEEBzc7PUASOmd75cxMppVgoRgqyuruLQoUPSqB4+fIh9+/YJ" +
-            "kc0Ar9vEJkWnhZ6yX7AGGPKtgG+JQCoRDbgV4C8ScL7iiSibLSPTID3iMqJk63y5Amc7IxgbBpL5nZ2dFaVk/950RPRRjQ2LWzOX" +
-            "pV5NOa2CyclJ2UCampqwd+9e6XgsukxG0oE5h+BcLdyaV1ZWZCxTFCzbtjPGhp4vLS3hxo0b0gWPHj0quxs9yZQWAhOA+wGX5/Pn" +
-            "z7G8vCxzSSZTBIltRSKRaF5e3oZtiorcBSlsOvPz86irq0N9fT22b98uBrVR/hKYUSIwHy5NAruBc/8itrWyshIuLCwMKqW+Sx5I" +
-            "1o86WpHRoPEHDx7gyZMnaGxsxJEjR4SgPqyyFT979kxOTMw7CbncL3j4pQSJrWvgplLqR8dx9J1gQzQIxKMVz4ITExOYm5uTPZ+e" +
-            "shu+evVK8pwFWDuVSB79b/J90xcT3YB0VettWQNv9mKitno10xWtiy+X+W5XM3zry+k6yW9xPf8bhXMHfrHItSkAAAAASUVORK5C" +
-            "YII=");
+"iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACsklEQVR42u2X32tSYRjHhbH7EG8GXuSVwlgz2RTbqMUWYtqcsswf" +
+            "0w1MEwO1JoaZuYmVFl0sb7qZDTM2yFoM+gGLGNGNN6ldCrWbBf0X33jeOtKcYsdf3XTgCwfO+76fzznvC+d5BIK6a3Bw8LhQKAyI" +
+            "RKJ4N0Nr0tqCZtfAwMAxsVi8LZPJ0MsMDQ09IdYRuEQiKfUazoVYhyT68eYNvsRGbc/7DefCzoRQKAz+KwFiC0Qi0Uo7k5VKJSKR" +
+            "CAvdt7MGsXkLyOVy2O127O3t4eDggIXuzWYze9YzAalUCp1Oh83NzRq4PvSMxtDYrgpMT08jnU6jWq02hXOhMTSW5nQsoFKpEAgE" +
+            "UCwWW4LrQ3O8Xi9boy0BmhgOh3mD6xMKhaBQKPgL0CckAavVip2dHd5gmmMwGLCwsAC1Wt2ewNbWFrLZLDweD3w+HyqVSkswjXG7" +
+            "3TCZTOwFYrFYZwJcMpkMLBYLkslkU3gikYBWq4Xf72dgLl0R4EIQo9GIXC5XA9O9RqOBy+U6BO6JACWfz7PD5VhzwPrQCpvNhmg0" +
+            "2hDeEwEuzoITjueOpuCeCyy9XMLii8X/At0XmDoxgl2DDm8zjzoWuLb6GJrwLkbGp/gJfJ7T4fu8AWXXErbX13kL3Ijfx8VkERce" +
+            "/IB2pcJPgMutyVOommaZyKflIApPcy0Fbt5Owrn6moF1d75CPR/r7Hc8NjyM7MxZJvHNbMKH1N2mAlcTzzCb2mfwM54NDI+Oda8g" +
+            "0Z+U4432HBP54rCy88EJ0D6bkiUGnrn+DqMT+r8vSPgWpS7lOEpzeiZSWL6CS2vvf+1zvIIxzWX+RWk7ZTlty73TkwjGP2I+vY8J" +
+            "W6rl525alv9uTF61U9VqtOdZOmpM/mjNyn1szcoN+0Oy6kdLdgTeoD0P0gntZmjNRu35T723FVGIWWuUAAAAAElFTkSuQmCC");
     }
 }

@@ -17,7 +17,13 @@ const { Resvg } = require('../cursors/node_modules/@resvg/resvg-js');
 const SIZE = 32;
 
 // ToolbarIcons.Kind と対応させること
-const ICONS = ['Bg', 'Maid', 'Gizmo', 'Ortho', 'Change', 'Link', 'HomeOff', 'HomeOn'];
+const ICONS = ['Bg', 'Maid', 'Gizmo', 'Ortho', 'Change', 'Link', 'Home'];
+
+// ギアメニュー用アイコン。ドキュメントサイトの favicon を唯一の原本として共用する
+// (出力先の PluginIcon.png はこのフォルダ、貼り付け先は PluginInfo.Icon)
+const EXTRA_ICONS = [
+    { name: 'PluginIcon', src: path.join(__dirname, '../../docs-site/public/favicon.svg') },
+];
 
 const CRC_TABLE = (() => {
     const table = new Int32Array(256);
@@ -72,8 +78,13 @@ function encodePng(rgba, width, height) {
     ]);
 }
 
-for (const name of ICONS) {
-    const svg = fs.readFileSync(path.join(__dirname, `${name}.svg`), 'utf8');
+const TARGETS = [
+    ...ICONS.map(name => ({ name, src: path.join(__dirname, `${name}.svg`) })),
+    ...EXTRA_ICONS,
+];
+
+for (const { name, src } of TARGETS) {
+    const svg = fs.readFileSync(src, 'utf8');
     const rendered = new Resvg(svg, { fitTo: { mode: 'width', value: SIZE } }).render();
     const png = encodePng(rendered.pixels, rendered.width, rendered.height);
     fs.writeFileSync(path.join(__dirname, `${name}.png`), png);

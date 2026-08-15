@@ -27,9 +27,22 @@ namespace COM3D2.SceneEditor.Plugin
             ToolbarIcons.GetTexture(ToolbarIcons.Kind.Change) ?? base.changeIcon;
         // タイルのお気に入りボタン機構はプリセットの自動ロード指定に使うため、ホームアイコンを割り当てる
         public override Texture2D favoriteOffIcon =>
-            ToolbarIcons.GetTexture(ToolbarIcons.Kind.HomeOff);
-        public override Texture2D favoriteOnIcon =>
-            ToolbarIcons.GetTexture(ToolbarIcons.Kind.HomeOn);
+            ToolbarIcons.GetTexture(ToolbarIcons.Kind.Home);
+        // 毎フレーム参照されるため、生成したテクスチャは保持して使い回す
+        private Texture2D _favoriteOnIcon = null;
+        // ON 状態は同じホームアイコンにアクセント色を乗算して表す
+        public override Texture2D favoriteOnIcon
+        {
+            get
+            {
+                if (_favoriteOnIcon == null)
+                {
+                    _favoriteOnIcon = ToolbarIcons.CreateTintedTexture(
+                        ToolbarIcons.Kind.Home, EditorSubWindow.ACCENT_COLOR);
+                }
+                return _favoriteOnIcon;
+            }
+        }
 
         private static Config config => ConfigManager.instance.config;
     }

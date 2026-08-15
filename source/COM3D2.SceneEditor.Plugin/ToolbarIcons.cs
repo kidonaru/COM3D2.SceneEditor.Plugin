@@ -25,10 +25,8 @@ namespace COM3D2.SceneEditor.Plugin
             Change,
             // XYZ連動 (鎖)
             Link,
-            // シーンプリセット自動ロード指定 OFF (家の輪郭線)
-            HomeOff,
-            // シーンプリセット自動ロード指定 ON (緑塗りの家)
-            HomeOn,
+            // シーンプリセット自動ロード指定 (家の輪郭線)。ON 状態は色を乗算して表す
+            Home,
         }
 
         // 32x32 PNG (base64)。添字は Kind と対応させること
@@ -41,7 +39,6 @@ namespace COM3D2.SceneEditor.Plugin
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABYUlEQVR42u1X0Y2EIBSkBEuwBDqA/7si7OC2g6UD7QA68DrRDrQD6YC7IY8LMZgsLOFjbyd5MavxzSxvGJWxN14IHWNM0LE5OGPs4Jw7HOl3U3xP0+QArbXrug5ChpYCjFLKBSzL0lwEltwaY1Ii7s80FRn19UvmwiiAbdsc+ULnkuu+750Qoqjgg4DjOLJFcJDjxlpAL/R8dHd4AdbaagLQK0eAdzVukFIWVWxGkNMITIkJ5ak+yWwyUTeYMJ7/vu/F5Llp56/F5Ou6hm2oapAPaDbPs2+OrYb0i5MwDqKIfKhGjmAJANlpWf+iGPOvSX4/k4MAqZcYgaXx2FoPI42GcR7Q0jsy4lUafiTO86fJYbDSZKQM+OdJSMbsH05CjCAWAfOVJiP9++ww8iKQZgHjOAYT3i7S8KqKd4XC0iFYYjO2fu8bziISQdRGRHjKJaK43Xtf7bQr+fiQ72+wl8IPqIQOPusaykEAAAAASUVORK5CYII=",
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACrElEQVR42r1X0a2jQAx0CXRwlEAH8H8nhb+7v9BB6AA6gA5CB9ABdAAdQAehg30MstHCC7AE3llCUQjLjL2e8Ybo2rCIyCWiiIgS/nT5/o+GxYDKtm11u91UFEXjJ77jPhHlP0XEI6LW8zzVtq16F6/XS/m+DxIvIvKvBA+QXZIkyiTyPFeWZamrSIzgz+dzAuj7XsVxrFAN/OY4jgqCYLyvk+BKWGfLPgNvmkb2uxguh5+zB6AUWVdVNT3L25GfIVCEYTgD59KGa9XC71IJ9AQ35sdVyJDFAjzYWZNiOySwPVzJjwKl7TWJBSZrACoBMsPN+IzR/Caif0zGNCYCaFZUxXQhAFsxGtd1pey46uG3u8E7HKhj0Yi7FUA31ygd5IPm0aOu69HxeCvKnabK9cblNd6uzgGwFyDGTVWvkAgBKAl0Xbergm8mg0jTVCELlBJ7CAXoJNiAyncSRLUk+LnUGBxAnGHH+4YrgxJ0aWn6XgVHEvweyxicGy7mnmgZBJn+Gny9Ebvlzu7WwLMsE4Kesb0uTKYFCDJlHddMouIXd0wy2gAP1vTdojwb4KOO9cHCJDBYnizVUa7YriPgo03qGt2w1wrP6SREivCGx+PxrXFNwJH9dJjAy1mj4cqzDTLUSawF98SuVXsAlIDMeKRuEa6wZilFSaAoClFNo43m1YhlsmkatQ0PJAAYtwvrtOHUHRk0KTKRWOjYZCr+JaI/DOh9MuPjN3PatAKSdXtwKs574M2c3huTM5PhyZadOdPPjks7J5zH0mS4cT8mMJ7x9EYsy1JIJFpp0c0lSn7EXo9UoYd89MFyv9+lJ0ajgeHoZwITkzkSPrLWSWwFT7XLwCcSqAS2Y83pcJhgr+jOln1rOwqRGMjIvx3NaNL/9Y/XY4NJeTZ4VwN/ATB4H8FIkCRfAAAAAElFTkSuQmCC",
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABs0lEQVR42tVXi5GDIBDdEizBEuzgKCEl2AGWYAfagXagHaQE7UQ68O4xi0OIBkE9JzuzMwT28xYerCH6cklZb5GKiGbW6j8TJ0T0zLJsnqZJK8aY47VLJSOiIc9zndgIxpjDGttclnySUi6Jx3HUagRrsLkCRI6zbppmSdb3/ZwkiVaMjcCGeZGfRjYkGYZhSVLXNRIoInqwKswZgS18jpIThGpAMDs5n7VythljhTUbBJOziSEnHAYhxEI2pdSM338VjxsBMTfCBraGnOwzhIDQZLOrAdG4mtYTCGstbG1y8q7tIifOc6qq6iU5n2cdsIM1fGwQiMkgHltOEk5d1y1ObdseYbS+OYhhBLG5GOkaNy7Ti6JYI1vM26EQa+WG1HZDeXnZDIG4+vRgs/LG1kaGubawkTgAAL5vcZHLLa60OttlAOwcnPNtu4odAGD3s6HpDgDFp2MVHgClU8WalgHxggCsEspD3FMBrBLKQ9zrALhbfxeAwkPcywGISJ/vAiD5jsuNNRnoI2JfrjmAhHPsy7rrqsXKHgCbjemoWA3I+2m257mN1TKkj4uT9bY/sR/lF/JXOcaDre15AAAAAElFTkSuQmCC",
-            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABbUlEQVR42mNgGAWUAQUoHhAQwMDA8B6KA+hteT4DA8N/NJxPL8vnwyxl5WYFYyRHzKelxQIMDAz7YZbxKfL/d1/iDcYgNpIj9kPVUhUYMDAwnIdZIusoB7bYZ30AGIPYIDEkR5yH6qGa5e9hhiv6KMMtRscgOSRHvKeGIxKQE5pBrhFOy2EYpAYtcSaQa3k/cmKz63MkaDkMg9SiJc5+UhPbfOTERorlyI5AS5zziUmcAsiJTVhHBCWxkYpBekFmoCVOAaISm4S5JNkWo2OQWYQSpwKy5bB4d57pRrHlIDPQ0gPMEQLoDviAXrxaNttQ7ACQGViK7Q/YKjGQgANQsoCGDiiA2oG3BnWgoQMciMmGeB0AilPLFhusGFuaoaoDcCQovAmXqg7AkaDwJlxaOgCWoPAmXFo6wIFCPaMOGAIO0E7WRcnnID5aK9geivOJ1EOaA2iAiXIA1oqJCvgDKa1lBaQ8Ti08YF24wQ0AvNYiMAQDHJMAAAAASUVORK5CYII=",
         };
 
         private static readonly Texture2D[] _textures = new Texture2D[PNG_BASE64.Length];
@@ -58,6 +55,31 @@ namespace COM3D2.SceneEditor.Plugin
                 _failed[index] = _textures[index] == null;
             }
             return _textures[index];
+        }
+
+        /// <summary>
+        /// アイコンに色を乗算したテクスチャを生成する。読み込めなければ null。
+        /// 呼び出しごとに新しいテクスチャを作るため、結果は呼び出し側でキャッシュすること
+        /// </summary>
+        public static Texture2D CreateTintedTexture(Kind kind, Color tint)
+        {
+            var source = GetTexture(kind);
+            if (source == null)
+            {
+                return null;
+            }
+
+            // LoadImage で作ったテクスチャは読み取り可能なので、そのまま画素を取り出せる
+            var pixels = source.GetPixels();
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] *= tint;
+            }
+
+            var texture = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
         }
 
         private static Texture2D CreateTexture(string base64)
