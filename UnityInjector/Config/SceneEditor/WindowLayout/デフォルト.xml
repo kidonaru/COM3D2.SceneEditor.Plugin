@@ -5,7 +5,7 @@
   <window windowId="8903350">
     <x>0</x>
     <y>28</y>
-    <width>557</width>
+    <width>527</width>
     <height>577</height>
     <visible>true</visible>
   </window>
@@ -24,9 +24,9 @@
     <visible>true</visible>
   </window>
   <window windowId="8903353">
-    <x>565</x>
+    <x>535</x>
     <y>242</y>
-    <width>393</width>
+    <width>423</width>
     <height>167</height>
     <visible>true</visible>
   </window>
@@ -66,9 +66,9 @@
     <visible>true</visible>
   </window>
   <window windowId="8903380">
-    <x>565</x>
+    <x>535</x>
     <y>242</y>
-    <width>393</width>
+    <width>423</width>
     <height>167</height>
     <visible>true</visible>
   </window>
@@ -80,65 +80,66 @@
     <visible>true</visible>
   </window>
   <window windowId="8903359">
-    <x>565</x>
+    <x>535</x>
     <y>439</y>
-    <width>391</width>
+    <width>421</width>
     <height>166</height>
     <visible>true</visible>
   </window>
   <window windowId="8903366">
     <x>703</x>
-    <y>635</y>
+    <y>630</y>
     <width>425</width>
-    <height>415</height>
+    <height>420</height>
     <visible>true</visible>
   </window>
   <window windowId="8903374">
-    <x>565</x>
+    <x>535</x>
     <y>242</y>
-    <width>393</width>
+    <width>423</width>
     <height>167</height>
     <visible>true</visible>
   </window>
   <window windowId="8903368">
     <x>703</x>
-    <y>635</y>
+    <y>630</y>
     <width>425</width>
-    <height>415</height>
+    <height>420</height>
     <visible>true</visible>
   </window>
   <window windowId="8903381">
     <x>703</x>
-    <y>635</y>
+    <y>630</y>
     <width>425</width>
-    <height>415</height>
+    <height>420</height>
     <visible>true</visible>
   </window>
   <window windowId="8903362">
-    <x>561</x>
+    <x>535</x>
     <y>28</y>
-    <width>395</width>
+    <width>421</width>
     <height>184</height>
     <visible>true</visible>
   </window>
   <window windowId="8903372">
-    <x>565</x>
+    <x>535</x>
     <y>439</y>
-    <width>391</width>
+    <width>421</width>
     <height>166</height>
     <visible>true</visible>
   </window>
   <window windowId="8903373">
-    <x>565</x>
+    <x>535</x>
     <y>439</y>
-    <width>391</width>
+    <width>421</width>
     <height>166</height>
     <visible>true</visible>
   </window>
   <tabGroup>8903355:8903355,8903356,8903360,8903369,8903354,8903371</tabGroup>
   <tabGroup>8903359:8903359,8903372,8903373</tabGroup>
   <tabGroup>8903353:8903353,8903374,8903380</tabGroup>
-  <tabGroup>8903366:8903366,8903368,8903381</tabGroup>
+  <tabGroup>8903366:8903366,8903368,8903381,815377</tabGroup>
+  <connectGroup>8903350,8903359</connectGroup>
   <gameViewMaximized>false</gameViewMaximized>
   <gameView windowId="8903349">
     <x>964</x>
