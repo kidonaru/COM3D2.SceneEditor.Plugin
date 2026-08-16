@@ -35,6 +35,9 @@ namespace COM3D2.SceneEditor.Plugin
         public int gameViewWidth = 960;
         public int gameViewHeight = 560;
 
+        // GameView の最大化状態。プラグイン再有効化・再起動をまたいで復元する
+        public bool gameViewMaximized = false;
+
         // メニューバーウィンドウ (-1 は未初期化。初回は画面左上に配置)
         public int menuBarPosX = -1;
         public int menuBarPosY = -1;

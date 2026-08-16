@@ -166,8 +166,8 @@ namespace COM3D2.SceneEditor.Plugin
                 DestroyClearCamera();
                 isMaximized = true;
                 GameViewWindow.instance.isShowWnd = false;
-                // 非表示になるため連結グループからも外す。最大化は一時的な表示切替なので
-                // config の保存済みグループ構成は上書きしない (次回起動時の復元を残す)
+                // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
+                // させたいので、config の保存済みグループ構成は上書きしない
                 WindowConnectManager.instance.OnWindowHidden(GameViewWindow.instance, save: false);
                 MTEUtils.Log("GameViewを最大化しました");
             }
@@ -183,6 +183,23 @@ namespace COM3D2.SceneEditor.Plugin
                 isMaximized = false;
                 GameViewWindow.instance.isShowWnd = true;
                 MTEUtils.Log("GameViewをウィンドウ化しました ({0}x{1})", _rtWidth, _rtHeight);
+            }
+
+            // ExitWindowMode の解除 (モード終了) と違い、ここはユーザー操作・レイアウト適用に
+            // よる切替なので、次回の有効化で復元できるよう config へ残す
+            config.gameViewMaximized = maximized;
+            config.dirty = true;
+        }
+
+        /// <summary>
+        /// config に保存された最大化状態を復元する。
+        /// ExitWindowMode で isMaximized は落ちるため、再有効化時に呼び直す必要がある
+        /// </summary>
+        public void RestoreMaximized()
+        {
+            if (config.gameViewMaximized)
+            {
+                SetMaximized(true);
             }
         }
 

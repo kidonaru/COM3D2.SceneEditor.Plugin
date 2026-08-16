@@ -439,6 +439,8 @@ namespace COM3D2.SceneEditor.Plugin
             GameViewManager.instance.EnterWindowMode();
             // 前回モードを終了した時点の SceneView 等の表示状態を復元する
             windowManager.RestoreVisibility();
+            // 最大化は GameView を連結グループから外すため、グループ復元の後に行う
+            GameViewManager.instance.RestoreMaximized();
 
             // 初回起動時は復元元の配置が無いため、同梱の既定レイアウトで初期配置を整える。
             // 表示状態も上書きするので RestoreVisibility の後に適用すること

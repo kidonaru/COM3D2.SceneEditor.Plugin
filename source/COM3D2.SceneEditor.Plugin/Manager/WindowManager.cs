@@ -15,7 +15,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// プラグインのウィンドウを一時的に隠しているか。
         /// isShowWnd を書き換えずに描画だけ止めるため、復帰時は配置・タブ・連結がそのまま戻る。
-        /// 最大化と同様に一時的な表示切替なので config へは保存しない (セッション限り)
+        /// 一時的な表示切替なので config へは保存しない (セッション限り)
         /// </summary>
         public bool isWindowsHidden { get; set; }
 
