@@ -174,9 +174,6 @@ namespace COM3D2.SceneEditor.Plugin
             else
             {
                 SetUIVisible(false);
-                // 復帰用のバートグルは最大化中しか出ないため、隠したままウィンドウ化すると
-                // ウィンドウを戻す手段が無くなる。ウィンドウ化と同時に一時非表示も解除する
-                WindowManager.instance.isWindowsHidden = false;
                 CreateRenderTexture(Screen.width, Screen.height);
                 CreateClearCamera();
                 camera.targetTexture = renderTexture;

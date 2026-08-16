@@ -216,8 +216,6 @@ namespace COM3D2.SceneEditor.Plugin
                         var manager = WindowManager.instance;
                         manager.isWindowsHidden = !manager.isWindowsHidden;
                     },
-                    // ゲーム画面を丸ごと見たいときの機能なので最大化中のみ出す
-                    visible = () => GameViewManager.instance.isMaximized,
                 },
             };
 
@@ -370,7 +368,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 「ウィンドウ表示」など表示条件付きトグルがあるため、バー幅は毎フレーム計算する
+            // 表示条件付きトグルが増えても追従できるよう、バー幅は毎フレーム計算する
             _windowRect.width = CalcBarWidth();
 
             _windowRect = GUI.Window(WINDOW_ID, _windowRect, DrawBar, "", GUIView.gsWin);
