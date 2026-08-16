@@ -4,9 +4,11 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メインライトと追加ライトを編集するウィンドウ。
-    /// メインライトは LightMain を直接操作し、追加ライトは StudioLightManager が実体を持つ。
-    /// 位置・回転の編集は既存方針どおり Inspector に寄せる（一覧から選択連動）
+    /// ライトを編集するウィンドウ。一覧から 1 灯選び、下の編集欄でパラメータを変える。
+    /// 一覧にはメインライトと追加ライトが並ぶが、メインライトはゲーム側の実体のため
+    /// 削除・種別変更ができず、操作も LightMain 経由で行う。
+    /// 追加ライトの実体は StudioLightManager が持つ。
+    /// 向きはここで直接編集でき、位置の編集は Inspector に寄せる（一覧から選択連動）
     /// </summary>
     public class LightWindow : EditorSubWindow
     {
@@ -17,13 +19,17 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
+        private static readonly int TYPE_BUTTON_WIDTH = 70;
 
         // メインライトのリセット既定値（LightMain.Reset と同じ）
         private static readonly Vector3 DefaultMainRotation = new Vector3(40f, 180f, 18f);
         private const float DefaultMainIntensity = 0.95f;
         private const float DefaultMainShadowStrength = 0.098f;
 
-        /// <summary>選択中の追加ライト。破棄・削除で null になりうる</summary>
+        /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
+        private static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
+
+        /// <summary>編集中のライト（メイン / 追加）。破棄・削除で null になりうる</summary>
         private Light _selectedLight = null;
 
         private readonly GUIView _view = new GUIView();
@@ -46,6 +52,16 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private static StudioLightManager lightManager => StudioLightManager.instance;
+
+        /// <summary>メインライトの Light。シーンによっては取得できず null になる</summary>
+        private static Light mainLightComponent
+        {
+            get
+            {
+                var lightMain = lightManager.mainLight;
+                return lightMain != null ? lightMain.GetComponent<Light>() : null;
+            }
+        }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
@@ -78,37 +94,130 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            DrawMainLightSection();
-            _view.DrawHorizontalLine();
-            DrawAdditionalLightSection();
+            // GetComponent を挟むため 1 描画につき 1 回だけ引いて使い回す
+            var mainLight = mainLightComponent;
+
+            DrawLightListSection(mainLight);
+
+            if (_selectedLight != null)
+            {
+                _view.DrawHorizontalLine();
+                DrawLightEditSection(_selectedLight, mainLight);
+            }
 
             _view.EndScrollView();
         }
 
-        /// <summary>メインライト（回転・色・強度・影の濃さ・リセット）</summary>
-        private void DrawMainLightSection()
+        /// <summary>ライト一覧（メインライト + 追加ライト）と、追加ライトの追加・削除</summary>
+        private void DrawLightListSection(Light mainLight)
         {
-            _view.DrawLabel("メインライト", -1, ROW_HEIGHT);
+            _view.DrawLabel("ライト一覧", -1, ROW_HEIGHT);
 
-            var lightMain = lightManager.mainLight;
-            var light = lightMain != null ? lightMain.GetComponent<Light>() : null;
-            if (light == null)
+            _view.BeginHorizontal();
+            {
+                if (_view.DrawButton("追加", 60, ROW_HEIGHT))
+                {
+                    RecordLightEdit("追加");
+                    SelectLight(lightManager.AddLight(), mainLight);
+                }
+
+                // メインライトはゲーム側の実体なので削除させない
+                if (_view.DrawButton("削除", 60, ROW_HEIGHT,
+                    _selectedLight != null && _selectedLight != mainLight))
+                {
+                    RemoveSelectedLight();
+                }
+            }
+            _view.EndLayout();
+
+            if (mainLight != null)
+            {
+                DrawLightRow(mainLight, "メインライト", mainLight);
+            }
+            else
             {
                 _view.DrawLabel("メインライトが見つかりません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
+            }
+
+            foreach (var light in lightManager.lights)
+            {
+                if (light == null)
+                {
+                    continue;
+                }
+                DrawLightRow(light, light.gameObject.name, mainLight);
+            }
+        }
+
+        /// <summary>一覧の 1 行。クリックで編集対象にする</summary>
+        private void DrawLightRow(Light light, string label, Light mainLight)
+        {
+            var isSelected = light == _selectedLight;
+            if (_view.DrawButton(label, -1, ROW_HEIGHT, true,
+                isSelected ? Color.cyan : Color.white))
+            {
+                SelectLight(light, mainLight);
+            }
+        }
+
+        /// <summary>
+        /// 編集対象を切り替える。追加ライトは Inspector・ギズモからも動かせるよう選択に載せるが、
+        /// メインライトは LightMain 経由でしか正しく編集できないため載せない
+        /// </summary>
+        private void SelectLight(Light light, Light mainLight)
+        {
+            _selectedLight = light;
+            SelectionManager.instance.Select(
+                light != null && light != mainLight ? light.gameObject : null);
+        }
+
+        /// <summary>選択中の追加ライトを削除する</summary>
+        private void RemoveSelectedLight()
+        {
+            // 呼び出し元のボタン活性だけに安全性を委ねない
+            if (_selectedLight == null)
+            {
                 return;
             }
 
-            var eulerAngles = light.transform.eulerAngles;
-            var pitch = NormalizeAngle(eulerAngles.x);
-            var yaw = NormalizeAngle(eulerAngles.y);
+            RecordLightEdit("削除");
 
-            DrawAxisSlider("縦回転", pitch, -90f, 90f, 0.1f, DefaultMainRotation.x,
-                value => lightMain.SetRotation(new Vector3(value, yaw, eulerAngles.z)));
-            // 既定の 180 度はスライダー範囲の両端どちらでも同じ向きになる。
+            // 消したライトを Inspector に残さない
+            if (SelectionManager.instance.selectedObject == _selectedLight.gameObject)
+            {
+                SelectionManager.instance.Select(null);
+            }
+            lightManager.RemoveLight(_selectedLight);
+            _selectedLight = null;
+        }
+
+        /// <summary>選択中ライトの編集欄。メインライトと追加ライトで項目が異なる</summary>
+        private void DrawLightEditSection(Light light, Light mainLight)
+        {
+            _view.DrawLabel("ライト編集", -1, ROW_HEIGHT);
+
+            if (light == mainLight)
+            {
+                DrawMainLightParams(light);
+            }
+            else
+            {
+                DrawAdditionalLightParams(light);
+            }
+        }
+
+        /// <summary>メインライトのパラメータ（回転・強度・影の濃さ・色・リセット）</summary>
+        private void DrawMainLightParams(Light light)
+        {
+            var lightMain = lightManager.mainLight;
+
+            // 既定の横回転 180 度はスライダー範囲の両端どちらでも同じ向きになる。
             // 正規化表示 (-180, 180] と符号を揃えるため -180 側を既定値にする
-            DrawAxisSlider("横回転", yaw, -180f, 180f, 0.1f, DefaultMainRotation.y - 360f,
-                value => lightMain.SetRotation(new Vector3(pitch, value, eulerAngles.z)));
+            DrawRotationSliders(
+                light.transform.eulerAngles,
+                new Vector3(DefaultMainRotation.x, DefaultMainRotation.y - 360f),
+                lightMain.SetRotation);
 
             DrawAxisSlider("強度", light.intensity, 0f, 5f, 0.01f, DefaultMainIntensity,
                 value => lightMain.SetIntensity(value));
@@ -126,78 +235,18 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>追加ライトの一覧・追加・削除と、選択中ライトのパラメータ編集</summary>
-        private void DrawAdditionalLightSection()
-        {
-            _view.DrawLabel("追加ライト", -1, ROW_HEIGHT);
-
-            _view.BeginHorizontal();
-            {
-                if (_view.DrawButton("追加", 60, ROW_HEIGHT))
-                {
-                    RecordLightEdit("追加");
-                    _selectedLight = lightManager.AddLight();
-                    SelectionManager.instance.Select(_selectedLight.gameObject);
-                }
-                if (_view.DrawButton("削除", 60, ROW_HEIGHT, _selectedLight != null))
-                {
-                    RecordLightEdit("削除");
-
-                    // 消したライトを Inspector に残さない
-                    if (SelectionManager.instance.selectedObject == _selectedLight.gameObject)
-                    {
-                        SelectionManager.instance.Select(null);
-                    }
-                    lightManager.RemoveLight(_selectedLight);
-                    _selectedLight = null;
-                }
-            }
-            _view.EndLayout();
-
-            foreach (var light in lightManager.lights)
-            {
-                if (light == null)
-                {
-                    continue;
-                }
-
-                var isSelected = light == _selectedLight;
-                if (_view.DrawButton(light.gameObject.name, -1, ROW_HEIGHT, true,
-                    isSelected ? Color.cyan : Color.white))
-                {
-                    // 選択と同時に Inspector で位置・回転を編集できるようにする
-                    _selectedLight = light;
-                    SelectionManager.instance.Select(light.gameObject);
-                }
-            }
-
-            if (_selectedLight == null)
-            {
-                return;
-            }
-
-            _view.DrawHorizontalLine();
-            DrawSelectedLightParams(_selectedLight);
-        }
-
-        /// <summary>選択中の追加ライトのパラメータ（種別・有効・色・強度・範囲・スポット角度）</summary>
-        private void DrawSelectedLightParams(Light light)
+        /// <summary>
+        /// 追加ライトのパラメータ
+        /// （種別・有効・回転・強度・範囲・スポット角度・色）
+        /// </summary>
+        private void DrawAdditionalLightParams(Light light)
         {
             _view.BeginHorizontal();
             {
                 _view.DrawLabel("種別", LABEL_WIDTH, ROW_HEIGHT);
-                if (_view.DrawButton("ポイント", 80, ROW_HEIGHT, true,
-                    light.type == LightType.Point ? Color.cyan : Color.white))
-                {
-                    RecordLightEdit("種別");
-                    lightManager.SetLightType(light, LightType.Point);
-                }
-                if (_view.DrawButton("スポット", 80, ROW_HEIGHT, true,
-                    light.type == LightType.Spot ? Color.cyan : Color.white))
-                {
-                    RecordLightEdit("種別");
-                    lightManager.SetLightType(light, LightType.Spot);
-                }
+                DrawLightTypeButton(light, LightType.Point, "ポイント");
+                DrawLightTypeButton(light, LightType.Spot, "スポット");
+                DrawLightTypeButton(light, LightType.Directional, "平行");
             }
             _view.EndLayout();
 
@@ -208,10 +257,24 @@ namespace COM3D2.SceneEditor.Plugin
                     light.enabled = value;
                 });
 
+            // ポイントライトは全方位へ照らすため向きを持たない
+            if (light.type != LightType.Point)
+            {
+                DrawRotationSliders(
+                    light.transform.eulerAngles,
+                    DefaultAdditionalRotation,
+                    value => light.transform.eulerAngles = value);
+            }
+
             DrawAxisSlider("強度", light.intensity, 0f, 5f, 0.01f,
                 StudioLightManager.DefaultIntensity, value => light.intensity = value);
-            DrawAxisSlider("範囲", light.range, 0f, 30f, 0.01f,
-                StudioLightManager.DefaultRange, value => light.range = value);
+
+            // 平行光源は位置・減衰を持たないため範囲は編集させない
+            if (light.type != LightType.Directional)
+            {
+                DrawAxisSlider("範囲", light.range, 0f, 30f, 0.01f,
+                    StudioLightManager.DefaultRange, value => light.range = value);
+            }
 
             if (light.type == LightType.Spot)
             {
@@ -220,6 +283,31 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             DrawColorRow("追加色", light, Color.white);
+        }
+
+        /// <summary>ライトの向き（縦回転・横回転）。ロールは扱わず元の値を保つ</summary>
+        private void DrawRotationSliders(
+            Vector3 eulerAngles, Vector3 defaultRotation, System.Action<Vector3> onChanged)
+        {
+            var pitch = NormalizeAngle(eulerAngles.x);
+            var yaw = NormalizeAngle(eulerAngles.y);
+
+            DrawAxisSlider("縦回転", pitch, -90f, 90f, 0.1f, defaultRotation.x,
+                value => onChanged(new Vector3(value, yaw, eulerAngles.z)));
+            DrawAxisSlider("横回転", yaw, -180f, 180f, 0.1f, defaultRotation.y,
+                value => onChanged(new Vector3(pitch, value, eulerAngles.z)));
+        }
+
+        /// <summary>種別切替ボタン 1 つ。選択中はアクセント色で示す</summary>
+        private void DrawLightTypeButton(Light light, LightType type, string label)
+        {
+            var isCurrent = light.type == type;
+            if (_view.DrawButton(label, TYPE_BUTTON_WIDTH, ROW_HEIGHT, true,
+                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            {
+                RecordLightEdit("種別");
+                lightManager.SetLightType(light, type);
+            }
         }
 
         /// <summary>ライトの色を DrawColor（ColorPickerWindow 連携）で編集する 1 行</summary>
