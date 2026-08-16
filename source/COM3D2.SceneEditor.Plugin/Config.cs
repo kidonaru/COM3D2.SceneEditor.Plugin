@@ -54,6 +54,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool sceneViewShowMaid = true;
         public bool sceneViewShowGizmo = true;
         public bool sceneViewOrthographic = false;
+        // 選択・配置に連動した自動フォーカス。OFF でも Inspector のフォーカスボタンと F キーは効く
+        public bool sceneViewAutoFocus = true;
 
         public int hierarchyPosX = -1;
         public int hierarchyPosY = -1;

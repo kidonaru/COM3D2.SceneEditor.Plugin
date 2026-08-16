@@ -529,10 +529,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>Inspector・ギズモで動かせるよう選択も切り替える</summary>
+        /// <summary>
+        /// Inspector・ギズモで動かせるよう選択も切り替える。
+        /// 新規配置・一覧からの再選択のどちらも画像が画面外にあることが多いので
+        /// SceneView も対象へ寄せる
+        /// </summary>
         private static void SelectPng(PngObjectData data)
         {
-            SelectionManager.instance.Select(data.rootObject);
+            SelectionManager.instance.Select(data.rootObject, true, true);
         }
 
         private void RemovePng(PngObjectData data)

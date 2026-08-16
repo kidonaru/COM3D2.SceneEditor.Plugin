@@ -565,7 +565,8 @@ namespace COM3D2.SceneEditor.Plugin
                 var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
                 if (_view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
                 {
-                    SceneViewWindow.instance.FocusOn(go);
+                    // 明示的なフォーカス要求なのでオートフォーカス設定に関わらず寄せる
+                    SceneViewWindow.instance.FocusOn(go, true);
                 }
             }
             _view.EndLayout();

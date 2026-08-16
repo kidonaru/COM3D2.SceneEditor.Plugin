@@ -180,10 +180,24 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 対象の全 Renderer が収まる位置までカメラを寄せる (Hierarchy ダブルクリック等の外部起点用)。
-        /// SceneView 非表示・カメラ未生成時は何もしない
+        /// 選択・配置に連動した自動フォーカスなので、オートフォーカス OFF のときは何もしない
         /// </summary>
         public void FocusOn(GameObject go)
         {
+            FocusOn(go, false);
+        }
+
+        /// <summary>
+        /// force = true ならオートフォーカス設定を無視して必ず寄せる
+        /// (フォーカスボタン・F キーのようにユーザーが明示的に要求した経路用)。
+        /// SceneView 非表示・カメラ未生成時は何もしない
+        /// </summary>
+        public void FocusOn(GameObject go, bool force)
+        {
+            if (!force && !config.sceneViewAutoFocus)
+            {
+                return;
+            }
             if (go == null || _cameraController == null || !sceneViewManager.isActive)
             {
                 return;
@@ -241,18 +255,20 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>背景/メイド/ギズモ表示とパースのトグル列。シーン描画に重ねて表示する</summary>
+        /// <summary>背景/メイド/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
         protected override void DrawToolbar()
         {
             var bgIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg);
             var maidIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Maid);
             var gizmoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Gizmo);
             var orthoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Ortho);
+            var autoFocusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
 
-            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 3 箇所分
-            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 3 +
+            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 4 箇所分
+            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 4 +
                 GetToolbarToggleWidth(bgIcon) + GetToolbarToggleWidth(maidIcon) +
-                GetToolbarToggleWidth(gizmoIcon) + GetToolbarToggleWidth(orthoIcon);
+                GetToolbarToggleWidth(gizmoIcon) + GetToolbarToggleWidth(orthoIcon) +
+                GetToolbarToggleWidth(autoFocusIcon);
             _toolbarLocalRect = new Rect(0, HEADER_HEIGHT, totalWidth, TOOLBAR_HEIGHT);
 
             var prevColor = GUI.color;
@@ -272,6 +288,9 @@ namespace COM3D2.SceneEditor.Plugin
                 value => config.sceneViewShowGizmo = value);
             DrawToolbarToggle(view, orthoIcon, "平行投影", config.sceneViewOrthographic,
                 value => config.sceneViewOrthographic = value);
+            // カメラ設定ではないので描画設定の再適用は不要
+            DrawToolbarToggle(view, autoFocusIcon, "追従", config.sceneViewAutoFocus,
+                value => config.sceneViewAutoFocus = value, applyViewSettings: false);
 
             view.EndLayout();
 
@@ -351,15 +370,22 @@ namespace COM3D2.SceneEditor.Plugin
             return icon != null ? TOOLBAR_ITEM_HEIGHT : TOOLBAR_TOGGLE_WIDTH;
         }
 
-        /// <summary>変更されたときだけ config を更新し、カメラ・フィルタへ反映する</summary>
+        /// <summary>
+        /// 変更されたときだけ config を更新する。
+        /// applyViewSettings が true のときのみカメラ・フィルタへ反映する
+        /// </summary>
         private void DrawToolbarToggle(
-            GUIView view, Texture2D icon, string label, bool value, Action<bool> setValue)
+            GUIView view, Texture2D icon, string label, bool value, Action<bool> setValue,
+            bool applyViewSettings = true)
         {
             Action<bool> onChanged = newValue =>
             {
                 setValue(newValue);
                 config.dirty = true;
-                sceneViewManager.ApplyViewSettings();
+                if (applyViewSettings)
+                {
+                    sceneViewManager.ApplyViewSettings();
+                }
             };
 
             // アイコンを読み込めなかったときはテキストトグルにフォールバックする
@@ -600,7 +626,7 @@ namespace COM3D2.SceneEditor.Plugin
             // F: 選択対象へフォーカス
             if (isActiveAt && Input.GetKeyDown(KeyCode.F))
             {
-                FocusOn(selectionManager.selectedObject);
+                FocusOn(selectionManager.selectedObject, true);
             }
         }
 
