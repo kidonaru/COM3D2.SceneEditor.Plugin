@@ -30,23 +30,6 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class SceneCapturePresetLoader
     {
-        /// <summary>ルート要素だけ見て SceneCapture 形式かを判定する。読めないファイルは false</summary>
-        public static bool IsSceneCaptureXml(string path)
-        {
-            try
-            {
-                using (var reader = System.Xml.XmlReader.Create(path))
-                {
-                    reader.MoveToContent();
-                    return reader.Name == "Preset";
-                }
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
         public static SceneCaptureConvertedPreset Parse(string xmlText)
         {
             var doc = XDocument.Parse(xmlText);

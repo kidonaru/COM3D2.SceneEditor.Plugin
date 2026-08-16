@@ -473,6 +473,16 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
+                // SceneCapture プリセットはフォーマットも適用経路も別物のため専用処理へ
+                if (item.isSceneCapture)
+                {
+                    ApplySceneCapturePreset(item);
+                    // SceneEditor 形式のキー体系に乗らないため未選択へ戻す
+                    currentPresetKey = "";
+                    UpdateSelection(rootItem);
+                    return;
+                }
+
                 var data = preloaded;
                 if (data == null)
                 {
@@ -489,6 +499,71 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogException(e);
                 DialogPopupWindow.ShowDialog("プリセットの読み込みに失敗しました");
+            }
+        }
+
+        /// <summary>
+        /// SceneCapture プリセットを適用する。カメラ・背景・ライトは本体で、
+        /// Models / Effects は ApplySceneCaptureXml を実装した外部プロバイダへ委譲する。
+        /// メイドには一切触らない
+        /// </summary>
+        private static void ApplySceneCapturePreset(ScenePresetItem item)
+        {
+            var converted = SceneCapturePresetLoader.Parse(File.ReadAllText(item.path));
+
+            // シーンの見た目を書き換えるため、既存の履歴は復元先を失う
+            HistoryManager.instance.ClearHistory();
+            MTEUtils.Log("SceneCapture プリセット適用のため操作履歴をクリアしました");
+
+            CameraSnapshot.ApplyState(converted.camera);
+            BackgroundSnapshot.ApplyState(converted.background);
+            LightSnapshot.ApplyState(converted.light);
+
+            if (converted.hasModels || converted.hasEffects)
+            {
+                ApplySceneCaptureExternals(converted.rawXml);
+            }
+
+            MTEUtils.Log("SceneCapture プリセットを適用しました: {0}", item.name);
+        }
+
+        /// <summary>
+        /// ApplySceneCaptureXml を実装している全プロバイダへ生 XML を渡す。
+        /// どのセクションを読むかはプロバイダの責務。1 件の失敗で他を止めない
+        /// </summary>
+        private static void ApplySceneCaptureExternals(string rawXml)
+        {
+            // 保存ポップアップを開かずに読み込んだ場合、遅延ロードされたプラグインを
+            // 取りこぼすためここでも走査し直す
+            ScenePresetProviderRegistry.Refresh();
+
+            var handled = false;
+            foreach (var provider in ScenePresetProviderRegistry.providers)
+            {
+                if (provider.applySceneCaptureXml == null)
+                {
+                    continue;
+                }
+                handled = true;
+                try
+                {
+                    if (!provider.applySceneCaptureXml(rawXml))
+                    {
+                        MTEUtils.LogWarning(
+                            "SceneCapture プリセットの適用に失敗しました: {0}", provider.id);
+                    }
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogError("SceneCapture プリセットの適用に失敗しました: " + provider.id);
+                    MTEUtils.LogException(e);
+                }
+            }
+
+            if (!handled)
+            {
+                MTEUtils.LogWarning(
+                    "SceneCapture のモデル・エフェクトを適用できる外部プラグインが見つかりません");
             }
         }
 
