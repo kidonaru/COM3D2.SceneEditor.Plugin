@@ -13,8 +13,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int TAB_WIDTH = 80;
 
-        /// <summary>選択中のカテゴリ。カテゴリ定義が変わっても壊れないよう id で保持する</summary>
-        private string _selectedCategoryId = null;
+        /// <summary>ウィンドウ内の内部タブ。MaidGravityController.categories と同じ並び</summary>
+        private enum GravityTabType
+        {
+            髪,
+            スカート,
+        }
+
+        private GravityTabType _tabType = GravityTabType.髪;
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "重力";
@@ -73,49 +79,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var category = DrawCategoryTabs();
+            _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
 
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            DrawCategory(target, category);
+            DrawCategory(target, MaidGravityController.categories[(int)_tabType]);
 
             view.EndScrollView();
-        }
-
-        /// <summary>
-        /// カテゴリをタブとして描き、選択中のカテゴリを返す。
-        /// カテゴリはデータ定義（enum ではない）なので DrawInnerTabs は使わず自前で並べる。
-        /// カテゴリは少数固定の前提で、DrawTabs のような折り返しは行わない
-        /// </summary>
-        private GravityCategory DrawCategoryTabs()
-        {
-            var categories = MaidGravityController.categories;
-
-            // 初回表示、または定義から消えた id が残っている場合は先頭へ戻す。
-            // 描画より先に確定させないと 1 フレームどのタブも点灯しない
-            var selected = MaidGravityController.FindCategory(_selectedCategoryId);
-            if (selected == null)
-            {
-                selected = categories[0];
-                _selectedCategoryId = selected.id;
-            }
-
-            view.BeginHorizontal();
-            {
-                foreach (var item in categories)
-                {
-                    var color = item == selected ? GUIView.option.accentColor : Color.white;
-                    if (view.DrawButton(item.name, TAB_WIDTH, ROW_HEIGHT, true, color))
-                    {
-                        _selectedCategoryId = item.id;
-                        selected = item;
-                    }
-                }
-            }
-            view.EndLayout();
-
-            return selected;
         }
 
         private void DrawCategory(Maid target, GravityCategory category)
