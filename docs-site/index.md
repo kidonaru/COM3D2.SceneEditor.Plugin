@@ -1,9 +1,23 @@
+<script setup>
+import VueTweet from 'vue-tweet'
+</script>
+
 # はじめに
 
 **COM3D2.SceneEditor.Plugin** は、3D シーンの描画を移動・リサイズできるウィンドウ（GameView）の中に収め、
 ゲーム標準の UI を隠した「エディタ風モード」を提供する UnityInjector 形式プラグインです。
 
 メイドのポーズ・表情・衣装、カメラ、ライト、背景、BGM をその場で編集し、撮影まで完結できます。
+
+## 紹介動画
+
+<ClientOnly>
+  <VueTweet tweet-url="https://x.com/kidonaru/status/2088985379563348236">
+    <template #error>
+      動画が表示できない場合は <a href="https://x.com/kidonaru/status/2088985379563348236" target="_blank" rel="noreferrer">X で見る</a>。
+    </template>
+  </VueTweet>
+</ClientOnly>
 
 ## 特徴
 
