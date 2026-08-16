@@ -31,6 +31,9 @@ namespace COM3D2.SceneEditor.Plugin
         private const float LightIconRadiusRatio = 0.2f;   // ギズモサイズに対する中心円の半径
         private const float LightIconRayRatio = 0.4f;      // 同・放射線の外端
         private const int LightRangeSegments = 40;         // 照射範囲の円周分割
+        private const int DirectionalRays = 5;             // 平行光源の光線の本数
+        private const float DirectionalRadiusRatio = 0.3f; // ギズモサイズに対する光線の配置円の半径
+        private const float DirectionalRayRatio = 1.2f;    // 同・光線の長さ
         private const int SpotConeEdges = 8;               // 円錐の稜線の本数
         private static readonly Color LightRangeColor = new Color(1f, 0.9f, 0.3f, 0.5f);
         /// <summary>無効なライトのアイコンは薄く描いて有効なものと区別する</summary>
@@ -265,19 +268,30 @@ namespace COM3D2.SceneEditor.Plugin
                 var position = light.transform.position;
                 var color = light.color;
                 color.a = light.enabled ? 1f : DisabledLightAlpha;
-                DrawLightIcon(position, color, GizmoSize(position));
+                var size = GizmoSize(position);
+
+                if (light.type == LightType.Directional)
+                {
+                    DrawDirectionalLightIcon(light, color, size);
+                }
+                else
+                {
+                    DrawLightIcon(position, color, size);
+                }
 
                 if (light.gameObject != target)
                 {
                     continue;
                 }
 
-                // range / spotAngle はワールド実寸なのでギズモサイズには連動させない
+                // range / spotAngle はワールド実寸なのでギズモサイズには連動させない。
+                // 平行光源は届く範囲を持たないため何も描かない
+                // (追加ライトの種別は StudioLightManager.IsSupportedType の 3 種のみ)
                 if (light.type == LightType.Spot)
                 {
                     DrawSpotCone(light);
                 }
-                else
+                else if (light.type == LightType.Point)
                 {
                     DrawRangeCircle(position, light.range);
                 }
@@ -309,6 +323,38 @@ namespace COM3D2.SceneEditor.Plugin
                 GL.Vertex(center + dir * radius);
                 GL.Vertex(center + dir * (size * LightIconRayRatio));
             }
+            GL.End();
+        }
+
+        /// <summary>
+        /// 平行光源のアイコン。位置ではなく向きだけが効くため、
+        /// 光の進行方向に垂直な円と、そこから伸びる平行光線で向きを示す
+        /// </summary>
+        private void DrawDirectionalLightIcon(Light light, Color color, float size)
+        {
+            var center = light.transform.position;
+            var dir = light.transform.forward;
+
+            Vector3 basis1, basis2;
+            TransformGizmo.CalcCircleBasis(dir, out basis1, out basis2);
+
+            var radius = size * DirectionalRadiusRatio;
+            DrawCircleWire(center, basis1, basis2, radius, color);
+
+            var rayLength = size * DirectionalRayRatio;
+
+            GL.Begin(GL.LINES);
+            GL.Color(color);
+            for (var i = 0; i < DirectionalRays; i++)
+            {
+                var angle = i * Mathf.PI * 2f / DirectionalRays;
+                var offset = (basis1 * Mathf.Cos(angle) + basis2 * Mathf.Sin(angle)) * radius;
+                GL.Vertex(center + offset);
+                GL.Vertex(center + offset + dir * rayLength);
+            }
+            // 中心の 1 本。円周の光線だけだと軸を真横から見たとき向きが読み取りにくい
+            GL.Vertex(center);
+            GL.Vertex(center + dir * rayLength);
             GL.End();
         }
 
