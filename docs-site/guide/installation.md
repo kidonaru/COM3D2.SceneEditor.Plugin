@@ -29,6 +29,15 @@
 
 3. ゲームを起動し、事務所などのシーンで `F10` を押してエディタウィンドウモードが起動すれば導入完了です
 
+## 推奨プラグイン（連携対応）
+
+以下のプラグインは SceneEditor との連携に対応しています。導入すると、タブドッキングやシーンプリセットへの相乗り（モデル配置・ポストエフェクトの保存/復元）が利用できます。
+
+| プラグイン | 連携内容 | 対応バージョン |
+|---|---|---|
+| [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases) | MOD アイテムの閲覧・モデル配置。配置したモデルをシーンプリセットに保存/復元できます | v2.0.0.0 以降 |
+| [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト。エフェクト設定をシーンプリセットに保存/復元できます | v2.0.0.0 以降 |
+
 ## アンインストール
 
 配置した `COM3D2.SceneEditor.Plugin.dll` を削除してください。

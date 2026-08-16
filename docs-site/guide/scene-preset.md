@@ -31,6 +31,14 @@
 ## 外部プラグインとの連携
 
 シーンプリセットには他プラグインが独自のデータを相乗りできる公開 API があります。
+
+現在、以下のプラグインが連携に対応しています（[インストール](/guide/installation#推奨プラグイン連携対応)も参照）。
+
+| プラグイン | 保存/復元される内容 | 対応バージョン |
+|---|---|---|
+| [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases) | モデル配置 | v2.0.0.0 以降 |
+| [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト設定 | v2.0.0.0 以降 |
+
 開発者向けの詳細は
 [scene-preset-provider-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/scene-preset-provider-guide.md)
 を参照してください。
