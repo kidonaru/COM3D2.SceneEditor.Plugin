@@ -566,9 +566,15 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.ClearHistory();
             MTEUtils.Log("SceneCapture プリセット適用のため操作履歴をクリアしました");
 
-            CameraSnapshot.ApplyState(converted.camera);
-            BackgroundSnapshot.ApplyState(converted.background);
-            LightSnapshot.ApplyState(converted.light);
+            if (config.scenePresetLoadCamera)
+            {
+                CameraSnapshot.ApplyState(converted.camera);
+            }
+            if (config.scenePresetLoadBackground)
+            {
+                BackgroundSnapshot.ApplyState(converted.background);
+                LightSnapshot.ApplyState(converted.light);
+            }
 
             if (converted.hasModels || converted.hasEffects)
             {
@@ -589,10 +595,17 @@ namespace COM3D2.SceneEditor.Plugin
             ScenePresetProviderRegistry.Refresh();
 
             var handled = false;
+            // トグルで切られただけの場合に「見つかりません」と誤解させないための区別
+            var skippedByOption = false;
             foreach (var provider in ScenePresetProviderRegistry.providers)
             {
                 if (provider.applySceneCaptureXml == null)
                 {
+                    continue;
+                }
+                if (!IsProviderLoadEnabled(provider.id))
+                {
+                    skippedByOption = true;
                     continue;
                 }
                 handled = true;
@@ -611,7 +624,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            if (!handled)
+            if (!handled && !skippedByOption)
             {
                 MTEUtils.LogWarning(
                     "SceneCapture のモデル・エフェクトを適用できる外部プラグインが見つかりません");
@@ -983,27 +996,35 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ApplyScenery(data);
             }
-            PngPlacementSnapshot.ApplyState(data.pngPlacement);
-
-            var assignments = AssignMaids(data.maids);
-
-            // メイド未保存（カメラ・背景のみ等）のプリセットと「保存時に 0 体」は
-            // XML 上区別できないため、1 体以上保存されている場合だけ解除まで行う
-            if (data.maids != null && data.maids.Count > 0)
+            // PNG 配置も背景カテゴリに含める
+            if (config.scenePresetLoadBackground)
             {
-                ReleaseUnassignedMaids(assignments);
+                PngPlacementSnapshot.ApplyState(data.pngPlacement);
             }
 
-            foreach (var pair in assignments)
+            // メイドの読込が OFF のときは呼出も解除も行わず、現在のメイドをそのまま残す
+            if (config.scenePresetLoadMaids)
             {
-                // 新規呼出はロード完了までポーズ・位置を適用できないため保留に積む
-                if (maidManager.IsLoading(pair.Key))
+                var assignments = AssignMaids(data.maids);
+
+                // メイド未保存（カメラ・背景のみ等）のプリセットと「保存時に 0 体」は
+                // XML 上区別できないため、1 体以上保存されている場合だけ解除まで行う
+                if (data.maids != null && data.maids.Count > 0)
                 {
-                    _pendingApplies.Add(pair);
+                    ReleaseUnassignedMaids(assignments);
                 }
-                else
+
+                foreach (var pair in assignments)
                 {
-                    ApplyMaid(pair.Key, pair.Value);
+                    // 新規呼出はロード完了までポーズ・位置を適用できないため保留に積む
+                    if (maidManager.IsLoading(pair.Key))
+                    {
+                        _pendingApplies.Add(pair);
+                    }
+                    else
+                    {
+                        ApplyMaid(pair.Key, pair.Value);
+                    }
                 }
             }
 
@@ -1021,13 +1042,21 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// メイドを伴わない情景 (カメラ・背景・ライト) を適用する。
-        /// 本適用と先出し適用で順序を揃えるため 1 箇所にまとめている
+        /// 本適用と先出し適用で順序を揃えるため 1 箇所にまとめている。
+        /// 読込トグルで OFF にされたカテゴリは触らない
         /// </summary>
         private static void ApplyScenery(ScenePresetData data)
         {
-            CameraSnapshot.ApplyState(data.camera);
-            BackgroundSnapshot.ApplyState(data.background);
-            LightSnapshot.ApplyState(data.light);
+            if (config.scenePresetLoadCamera)
+            {
+                CameraSnapshot.ApplyState(data.camera);
+            }
+            // ライトは背景カテゴリに含めている (UI のトグルを 1 つにまとめているため)
+            if (config.scenePresetLoadBackground)
+            {
+                BackgroundSnapshot.ApplyState(data.background);
+                LightSnapshot.ApplyState(data.light);
+            }
         }
 
         /// <summary>
@@ -1238,13 +1267,22 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 全メイドのロード完了後にまとめて行う仕上げ。
-        /// 視線は他メイドを参照しうるため、外部プロバイダと同じくここで反映する
+        /// 視線は他メイドを参照しうるため、外部プロバイダと同じくここで反映する。
+        /// メイドの読込が OFF のときは AssignMaids ごと飛ばしているため、
+        /// 無関係な既存メイドへ視線・フォーカスを当てないよう合わせて飛ばす
         /// </summary>
         private static void FinishApply(ScenePresetData data)
         {
-            ApplyLooks(data);
+            var applyMaids = config.scenePresetLoadMaids;
+            if (applyMaids)
+            {
+                ApplyLooks(data);
+            }
             ApplyExternals(data);
-            RequestFocusOnAppliedMaid(data);
+            if (applyMaids)
+            {
+                RequestFocusOnAppliedMaid(data);
+            }
         }
 
         /// <summary>
@@ -1400,6 +1438,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var external in data.externals)
             {
+                // 読込トグルで OFF にされたプロバイダは、プラグイン未導入の警告も出さずに飛ばす
+                if (!IsProviderLoadEnabled(external.id))
+                {
+                    continue;
+                }
+
                 var provider = ScenePresetProviderRegistry.GetProvider(external.id);
                 if (provider == null)
                 {
