@@ -21,13 +21,22 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int HEADER_BUTTON_HEIGHT = 16;
         public static readonly int HEADER_BUTTON_MARGIN = 2;
         public static readonly int MAXIMIZE_BUTTON_WIDTH = 20;
-        public static readonly int CONNECT_BUTTON_WIDTH = 20;
+        public static readonly int LOCK_BUTTON_WIDTH = 20;
 
         private static Config config => ConfigManager.instance.config;
         private static GameViewManager gameViewManager => GameViewManager.instance;
 
         public int windowIndex { get; set; }
         public bool isShowWnd { get; set; }
+
+        /// <summary>ロック中 (移動・リサイズ禁止) か。誤動作防止用で config に永続化する</summary>
+        public bool isLocked => config.IsWindowLocked(WINDOW_ID);
+
+        private void ToggleLock()
+        {
+            config.SetWindowLocked(WINDOW_ID, !isLocked);
+            config.dirty = true;
+        }
 
         // IConnectableWindow 実装。タブドッキング非対応のため常に独立ウィンドウ扱い
         public bool isTabVisible => true;
@@ -192,26 +201,27 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // コネクトボタン (EditorSubWindow と同じ流儀)。隣接時か連結中だけ出す
-            var buttonsLeft = maximizeRect.x;
-            if (WindowConnectManager.instance.IsConnected(this) ||
-                WindowConnectManager.instance.HasAdjacent(this))
-            {
-                var connectRect = new Rect(
-                    maximizeRect.x - CONNECT_BUTTON_WIDTH - HEADER_BUTTON_MARGIN,
-                    maximizeRect.y,
-                    CONNECT_BUTTON_WIDTH,
-                    HEADER_BUTTON_HEIGHT);
-                buttonsLeft = connectRect.x;
+            // ロックボタン (最大化ボタンの左隣)。見た目は EditorSubWindow と同じ流儀
+            var lockRect = new Rect(
+                maximizeRect.x - LOCK_BUTTON_WIDTH - HEADER_BUTTON_MARGIN,
+                maximizeRect.y,
+                LOCK_BUTTON_WIDTH,
+                HEADER_BUTTON_HEIGHT);
+            var buttonsLeft = lockRect.x;
 
-                var isConnected = WindowConnectManager.instance.IsConnected(this);
-                var oldColor = GUI.color;
-                GUI.color = isConnected ? EditorSubWindow.ACCENT_COLOR : Color.white;
-                if (GUI.Button(connectRect, isConnected ? "◆" : "◇"))
-                {
-                    WindowConnectManager.instance.ToggleConnect(this);
-                }
-                GUI.color = oldColor;
+            var oldColor = GUI.color;
+            // ロック中はアクセントカラーで塗って状態を示す
+            GUI.color = isLocked ? EditorSubWindow.ACCENT_COLOR : Color.white;
+            if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
+            {
+                ToggleLock();
+            }
+            GUI.color = oldColor;
+
+            // ロック中は移動・リサイズ・スナップ起点の入力を受け付けない (誤動作防止)
+            if (isLocked)
+            {
+                return;
             }
 
             // モード終了ボタンは先に描いているので、重なる右上角より優先して押せる。
@@ -245,7 +255,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public bool IsOverResizeHandle(Vector2 guiPos)
         {
-            return _resize.IsOverHandle(_windowRect, guiPos);
+            // ロック中はリサイズ不可なのでつかみ範囲も存在しない扱いにする
+            return !isLocked && _resize.IsOverHandle(_windowRect, guiPos);
         }
 
         // スクリーンGUI座標の矩形を GUI.Window 内のローカル座標へ変換する
@@ -257,7 +268,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool isResizing => _resize.isResizing;
 
         public ResizeCursor.Kind desiredCursorKind =>
-            _resize.GetCursorKind(_windowRect, isShowWnd && gameViewManager.isWindowMode, WINDOW_ID);
+            _resize.GetCursorKind(
+                _windowRect, isShowWnd && gameViewManager.isWindowMode && !isLocked, WINDOW_ID);
 
         public void Update()
         {
