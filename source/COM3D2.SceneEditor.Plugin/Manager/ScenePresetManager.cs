@@ -684,6 +684,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var data = new ScenePresetData();
 
+            // 適用時に「保存していない」と「保存した結果が空」を区別できるよう、選択内容を残す
+            data.savedCamera = options.saveCamera;
+            data.savedMaids = options.saveMaids;
+            data.savedBackground = options.saveBackground;
+
             if (options.saveCamera)
             {
                 data.camera = CameraSnapshot.CaptureState();
@@ -697,14 +702,13 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            // 背景は保存対象の選択肢を設けていないため常に記録する
-            data.background = BackgroundSnapshot.CaptureState();
-
-            // ライトは背景と同じく保存対象の選択肢を設けず常に記録する
-            data.light = LightSnapshot.CaptureState();
-
-            // PNG 配置も背景・ライトと同じく常に記録する
-            data.pngPlacement = PngPlacementSnapshot.CaptureState();
+            // ライトと PNG 配置は UI 上「背景」カテゴリにまとめている
+            if (options.saveBackground)
+            {
+                data.background = BackgroundSnapshot.CaptureState();
+                data.light = LightSnapshot.CaptureState();
+                data.pngPlacement = PngPlacementSnapshot.CaptureState();
+            }
 
             CaptureExternals(data, options.enabledProviderIds);
 
