@@ -26,6 +26,12 @@ namespace COM3D2.SceneEditor.Plugin
         public Func<byte[]> captureBinary;
         public Func<byte[], bool> applyBinary;
 
+        /// <summary>
+        /// SceneCapture 形式のプリセット XML（&lt;Preset&gt; 全体）を適用する任意メソッド。
+        /// 未実装のプロバイダは null のままで、SceneCapture プリセット適用の対象外になる
+        /// </summary>
+        public Func<string, bool> applySceneCaptureXml;
+
         /// <summary>サイドカーをバイナリとして読み書きするか</summary>
         public bool isBinary => captureBinary != null;
     }
@@ -39,7 +45,9 @@ namespace COM3D2.SceneEditor.Plugin
     /// テキスト対 (string CapturePresetXml() / bool ApplyPresetXml(string xml)) か
     /// バイナリ対 (byte[] CapturePresetBinary() / bool ApplyPresetBinary(byte[] data)) の
     /// どちらか一方を持つこと。任意メンバ string PresetProviderFileExtension で
-    /// サイドカーの拡張子を指定できる
+    /// サイドカーの拡張子を指定できる。
+    /// 任意メンバ bool ApplySceneCaptureXml(string xml) を実装すると、
+    /// SceneCapture プリセットの読み込み時に生 XML が渡される
     /// </summary>
     public static class ScenePresetProviderRegistry
     {
@@ -219,6 +227,16 @@ namespace COM3D2.SceneEditor.Plugin
                     typeof(Func<string>), captureXmlMethod);
                 provider.applyXml = (Func<string, bool>)Delegate.CreateDelegate(
                     typeof(Func<string, bool>), applyXmlMethod);
+            }
+
+            // SceneCapture 形式の適用は任意メンバ。シグネチャ不一致は契約不備として扱わず単に無視する
+            var applySceneCaptureMethod = type.GetMethod(
+                "ApplySceneCaptureXml", flags, null, new[] { typeof(string) }, null);
+            if (applySceneCaptureMethod != null
+                && applySceneCaptureMethod.ReturnType == typeof(bool))
+            {
+                provider.applySceneCaptureXml = (Func<string, bool>)Delegate.CreateDelegate(
+                    typeof(Func<string, bool>), applySceneCaptureMethod);
             }
 
             return provider;
