@@ -77,6 +77,11 @@ public static class ModelPlacementPresetProvider
 | `ApplyPresetXml(string)` | `bool` を返す `string` 1 引数メソッド | テキスト対 | テキストを適用し、成功可否を返す |
 | `CapturePresetBinary()` | `byte[]` を返す引数なしメソッド | バイナリ対 | 現在状態をバイナリで返す |
 | `ApplyPresetBinary(byte[])` | `bool` を返す `byte[]` 1 引数メソッド | バイナリ対 | バイナリを適用し、成功可否を返す |
+| `ApplySceneCaptureXml(string)` | `bool` を返す `string` 1 引数メソッド | 任意 | SceneCapture プリセット XML（`<Preset>` 全体）を適用し、成功可否を返す。詳細は [scenecapture-import-guide.md](scenecapture-import-guide.md) |
+
+`ApplySceneCaptureXml` は**単独ではプロバイダとして登録されない**。
+上記の必須メンバ（id / displayName + テキスト対かバイナリ対）が揃っていることが前提で、
+シグネチャが合わないものは契約不備とはせず単に無視される。
 
 **テキスト対**（`CapturePresetXml` / `ApplyPresetXml`）と**バイナリ対**
 （`CapturePresetBinary` / `ApplyPresetBinary`）は、どちらか一方が揃っていればよい。
@@ -203,6 +208,18 @@ ScenePreset/
 
 適用中は `ScenePresetManager.isLoading` が true になる。別のプリセットを
 続けて適用すると保留は破棄され、前のプリセットの externals は適用されない。
+
+#### SceneCapture プリセットの適用
+
+一覧には SceneCapture プラグインのプリセット（`Config\SceneCapture\Presets\*.xml`）も
+読み込み専用の仮想フォルダとして並ぶ。これを読み込んだ場合の経路は上記とは別で、
+
+1. カメラ・背景・ライトは SceneEditor 本体が変換して適用する（メイドには触らない）
+2. `<Models>` / `<Effects>` のどちらかに中身があれば、`ApplySceneCaptureXml` を
+   実装している**全プロバイダ**へ `<Preset>` XML 全体をそのまま渡す
+
+サイドカーも `ApplyPresetXml` も介さず、メイドのロード待ちも挟まない同期実行になる。
+実装者向けの詳細は [scenecapture-import-guide.md](scenecapture-import-guide.md) を参照。
 
 ### 削除
 
