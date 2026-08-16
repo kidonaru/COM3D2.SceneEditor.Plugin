@@ -272,6 +272,10 @@ namespace COM3D2.SceneEditor.Plugin
             WindowConnectManager.instance.RestoreGroups();
             WindowConnectManager.instance.ClampGroups();
 
+            // 外部窓の配置はゲストが持つためレイアウトでは動かない。グループ復元で
+            // 拾えなかったぶんを、同じ位置の窓への自動再ドッキングに任せる
+            DockingHost.OnLayoutApplied();
+
             config.dirty = true;
         }
 

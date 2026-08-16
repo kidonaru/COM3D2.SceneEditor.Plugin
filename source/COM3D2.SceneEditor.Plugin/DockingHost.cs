@@ -290,6 +290,25 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// レイアウト適用の完了時に呼ばれる。内部窓の配置とグループ構成が総入れ替えされるため、
+        /// 未所属で残った外部窓へ自動再ドッキングの機会を与える。
+        /// 無効化時 (OnHostDisabled) と違い元の所属を問わず、ずっと独立で使っている窓も
+        /// 対象にする。レイアウト適用はユーザーの明示操作でタブ構成ごと作り直すものであり、
+        /// 独立状態を保つ意味がないため (代わりに、レイアウト側の配置とヘッダー位置が
+        /// 偶然一致する独立窓は統合されうる)
+        /// </summary>
+        internal static void OnLayoutApplied()
+        {
+            foreach (var adapter in _externals)
+            {
+                if (adapter.group == null)
+                {
+                    adapter.ResetAutoDockRetry();
+                }
+            }
+        }
+
+        /// <summary>
         /// ホスト (SceneEditor) 側のプラグイン無効化時に呼ばれる。
         /// 登録 (_externals) 自体は維持したまま、全外部アダプタをグループから外して
         /// ゲスト側が独立ウィンドウとして描画を再開できるようにする
@@ -345,8 +364,8 @@ namespace COM3D2.SceneEditor.Plugin
         internal Rect lastSyncedRect;
 
         /// <summary>
-        /// 自動再ドッキング判定を行う残りフレーム数。登録直後・非表示中・
-        /// ホスト無効化でグループから外されたときにリセットされ、
+        /// 自動再ドッキング判定を行う残りフレーム数。登録直後と非表示中のほか、
+        /// ホスト無効化・レイアウト適用でも張り直される (条件は各呼び出し元の doc 参照)。
         /// 表示中に未所属の間だけ毎フレーム消費する。
         /// エッジ検出でなくカウンタなのは、ゲスト (MTEUtils DockableWindowBase) が
         /// 表示トグルごとに Unregister/Register でアダプタを作り直し、
