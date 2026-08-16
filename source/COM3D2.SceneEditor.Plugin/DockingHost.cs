@@ -299,9 +299,19 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var adapter in _externals)
             {
+                var wasGrouped = adapter.group != null;
                 TabGroupManager.instance.RemoveFromGroup(adapter, save: false);
                 // タブと同様、終了時の片付けなので config へは書き戻さない
                 WindowConnectManager.instance.OnWindowHidden(adapter, save: false);
+
+                // ここで外したぶんの再ドッキング機会を作り直す。猶予はドッキング成立時に
+                // 0 にされるため、リセットしないと再有効化時に一度も判定が走らない
+                // (無効化中は UpdateExternals が回らないので猶予は消費されない)。
+                // 元から独立していた窓は対象外。手動で剥がした窓まで再マージされてしまう
+                if (wasGrouped)
+                {
+                    adapter.ResetAutoDockRetry();
+                }
             }
         }
     }
@@ -335,7 +345,8 @@ namespace COM3D2.SceneEditor.Plugin
         internal Rect lastSyncedRect;
 
         /// <summary>
-        /// 自動再ドッキング判定を行う残りフレーム数。登録直後と非表示中にリセットされ、
+        /// 自動再ドッキング判定を行う残りフレーム数。登録直後・非表示中・
+        /// ホスト無効化でグループから外されたときにリセットされ、
         /// 表示中に未所属の間だけ毎フレーム消費する。
         /// エッジ検出でなくカウンタなのは、ゲスト (MTEUtils DockableWindowBase) が
         /// 表示トグルごとに Unregister/Register でアダプタを作り直し、
