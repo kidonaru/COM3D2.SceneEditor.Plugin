@@ -157,9 +157,15 @@ FilmicLetterBoxDef, StylisticFogDef
 | セクション | SceneEditor 側の扱い |
 |---|---|
 | `<Camera>` | 注視点 / yaw / pitch / roll / 距離 / FOV としてメインカメラへ適用 |
-| `<Misc>` の `Background` | 背景 id を逆引きして適用。空なら背景を変更しない |
+| `<Misc>` の `Background` | 表示ラベルから背景 id を逆引きして適用。空なら背景を変更しない |
 | `<Lights>` | 先頭 1 灯をゲームのメインライト、以降を追加ライトとして適用 |
 | `<LightShafts>` | シャフト固有の要素を捨て、追加ライトとして適用 |
+
+`Background` は prefab 名ではなく、SceneCapture の背景コンボボックスの**表示ラベル**
+（`"カテゴリ: 名前"`、背景なしなら `"非表示"`、未設定なら空文字）が入っている。
+ゲームのバージョン差でカテゴリ名が変わっている古いプリセット
+（例: `夜伽: サロン:夜` は現行の `夜: サロン` に相当）は逆引きできず、
+SceneEditor は警告を出して背景を変更しない。
 
 追加ライトとして適用されるのは
 `Position` / `EulerAngles` / `Intensity` / `Range` / `SpotAngle` / `Color` / `Type` / `Enabled`
@@ -167,6 +173,9 @@ FilmicLetterBoxDef, StylisticFogDef
 影関連の 4 要素（`shadows` / `shadowStrength` / `shadowBias` / `shadowNormalBias`）は
 `<LightShafts>` でも `<Lights>` の 2 灯目以降でも捨てられる
 （メインライトになる 1 灯目のみ `shadowStrength` が反映される）。
+
+SceneEditor の追加ライトは Point / Spot しか扱えないため、
+`Type` が Directional（1）の 2 灯目以降は Point へ丸められ、警告ログが出る。
 
 ## 適用タイミング
 

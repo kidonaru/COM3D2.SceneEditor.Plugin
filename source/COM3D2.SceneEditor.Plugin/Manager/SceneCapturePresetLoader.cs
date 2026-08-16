@@ -92,29 +92,54 @@ namespace COM3D2.SceneEditor.Plugin
             };
         }
 
+        /// <summary>背景を消していることを表す SceneCapture 側のラベル</summary>
+        private const string BACKGROUND_HIDE_LABEL = "非表示";
+
+        /// <summary>SceneCapture の背景ラベルの区切り（"カテゴリ: 名前"）</summary>
+        private const string BACKGROUND_LABEL_SEPARATOR = ": ";
+
         /// <summary>
-        /// Misc/Background: 背景プレハブ名の文字列だけが入っている。
-        /// 空なら背景は触らない (null)。id を逆引きできなければ prefab 名で復元させる。
+        /// Misc/Background: prefab 名ではなく、SceneCapture の背景コンボボックスの
+        /// 表示ラベル "カテゴリ: 名前"（未設定なら空、背景なしなら "非表示"）が入っている。
+        /// 空なら背景を触らない (null)。
         /// SceneCapture は背景の位置・回転・背景色を持たないため、位置回転は原点、色は触らない
         /// </summary>
         private static ScenePresetBackground ParseBackground(XElement misc)
         {
-            var bgName = misc != null ? Value(misc, "Background") : null;
-            if (string.IsNullOrEmpty(bgName))
+            var label = misc != null ? Value(misc, "Background") : null;
+            if (string.IsNullOrEmpty(label))
             {
                 return null;
             }
 
-            BackgroundUtils.EnsureBgDataLoaded();
-            var bgId = BackgroundUtils.GetBgId(bgName);
-            return new ScenePresetBackground
+            var state = new ScenePresetBackground
             {
-                bgId = bgId,
-                bgPrefabName = bgId == null ? bgName : null,
                 position = Vector3.zero,
                 rotation = Vector3.zero,
                 hasBgColor = false,
             };
+
+            if (label == BACKGROUND_HIDE_LABEL)
+            {
+                state.deleted = true;
+                return state;
+            }
+
+            var separator = label.IndexOf(BACKGROUND_LABEL_SEPARATOR, StringComparison.Ordinal);
+            if (separator > 0)
+            {
+                state.bgId = BackgroundUtils.GetBgIdByCategoryName(
+                    label.Substring(0, separator),
+                    label.Substring(separator + BACKGROUND_LABEL_SEPARATOR.Length));
+            }
+
+            // 未導入 MOD の背景などは引けない。誤った背景に化けさせず、そのまま維持する
+            if (state.bgId == null)
+            {
+                MTEUtils.LogWarning("SceneCapture プリセットの背景が見つかりません: {0}", label);
+                return null;
+            }
+            return state;
         }
 
         /// <summary>
@@ -179,7 +204,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             return new ScenePresetAdditionalLight
             {
-                type = ParseInt(Value(e, "Type"), (int)LightType.Point),
+                type = ParseLightType(Value(e, "Type")),
                 position = ParseVector3(Value(e, "Position")),
                 rotation = ParseVector3(Value(e, "EulerAngles")),
                 color = ParseColor32(Value(e, "Color")),
@@ -190,6 +215,24 @@ namespace COM3D2.SceneEditor.Plugin
                     Value(e, "SpotAngle"), StudioLightManager.DefaultSpotAngle),
                 enabled = ParseBool(Value(e, "Enabled"), true),
             };
+        }
+
+        /// <summary>
+        /// 追加ライトの種別。SceneEditor の追加ライトは Point / Spot しか扱えないため、
+        /// SceneCapture 側に普通に出てくる Directional は Point へ丸めて警告を残す
+        /// </summary>
+        private static int ParseLightType(string s)
+        {
+            var type = ParseInt(s, (int)LightType.Point);
+            if (type == (int)LightType.Point || type == (int)LightType.Spot)
+            {
+                return type;
+            }
+
+            MTEUtils.LogWarning(
+                "SceneCapture の追加ライト種別 {0} は未対応のため Point として追加します",
+                (LightType)type);
+            return (int)LightType.Point;
         }
 
         private static string Value(XElement parent, string name)

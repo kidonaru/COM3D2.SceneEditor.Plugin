@@ -140,6 +140,33 @@ namespace COM3D2.SceneEditor.Plugin
             return null;
         }
 
+        /// <summary>
+        /// カテゴリ名と表示名から PhotoBGData の id を引く。見つからなければ null。
+        /// prefab 名を持たない背景（マイルーム）も引けるため、
+        /// 表示名しか持たない外部データからの復元に使える
+        /// </summary>
+        public static string GetBgIdByCategoryName(string category, string name)
+        {
+            if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(name))
+            {
+                return null;
+            }
+
+            EnsureBgDataLoaded();
+            if (PhotoBGData.data == null)
+            {
+                return null;
+            }
+            foreach (var bgData in PhotoBGData.data)
+            {
+                if (bgData.category == category && bgData.name == name)
+                {
+                    return bgData.id;
+                }
+            }
+            return null;
+        }
+
         /// <summary>bgData が bgName（BgMgr.GetBGName() の値）の指す背景かどうか</summary>
         public static bool IsCurrentBg(PhotoBGData bgData, string bgName)
         {
