@@ -96,6 +96,10 @@
 |---|---|---|
 | `scenePresetSaveCamera` | `true` | 保存ダイアログの「カメラ」の既定状態 |
 | `scenePresetSaveMaids` | `true` | 保存ダイアログの「メイド」の既定状態 |
+| `scenePresetLoadCamera` | `true` | 読込トグル「カメラ」の状態 |
+| `scenePresetLoadMaids` | `true` | 読込トグル「メイド」の状態 |
+| `scenePresetLoadBackground` | `true` | 読込トグル「背景」（背景・ライト・PNG 配置）の状態 |
+| `scenePresetLoadDisabledProviders` | 空 | 読込を無効にした連携プラグイン id のカンマ区切り |
 | `scenePresetAutoLoadKey` | 空 | 事務所シーンで自動ロードするプリセット |
 | `scenePresetAutoLoadOnceOnly` | `false` | 自動ロードをセッション中 1 回のみにする |
 
