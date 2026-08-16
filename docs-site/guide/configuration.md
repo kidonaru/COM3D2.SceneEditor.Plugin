@@ -96,6 +96,7 @@
 |---|---|---|
 | `scenePresetSaveCamera` | `true` | 保存ダイアログの「カメラ」の既定状態 |
 | `scenePresetSaveMaids` | `true` | 保存ダイアログの「メイド」の既定状態 |
+| `scenePresetSaveBackground` | `true` | 保存ダイアログの「背景」（背景・ライト・PNG 配置）の既定状態 |
 | `scenePresetLoadCamera` | `true` | 読込トグル「カメラ」の状態 |
 | `scenePresetLoadMaids` | `true` | 読込トグル「メイド」の状態 |
 | `scenePresetLoadBackground` | `true` | 読込トグル「背景」（背景・ライト・PNG 配置）の状態 |

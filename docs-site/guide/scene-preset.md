@@ -7,8 +7,10 @@
 
 メニューバー `Window` → `プリセット` でプリセットウィンドウを開きます。
 
-- 保存ダイアログでは「カメラ」「メイド」など、保存する要素を選べます
-  （既定状態は設定項目 `scenePresetSaveCamera` / `scenePresetSaveMaids` で変更できます）
+- 保存ダイアログでは「カメラ」「メイド」「背景」（背景・ライト・PNG 配置）と、
+  連携プラグインが登録した項目から保存する要素を選べます
+  （既定状態は設定項目 `scenePresetSaveCamera` / `scenePresetSaveMaids` / `scenePresetSaveBackground` で変更できます）
+- 保存しなかった要素はプリセットに記録されず、適用時にも変更されません
 - プリセットは `Sybaris\UnityInjector\Config\SceneEditor\ScenePreset\` に保存されます
 - ウィンドウ上部の「読込:」トグルで、プリセット適用時に反映する要素を絞れます
   - `カメラ` / `メイド` / `背景`（背景・ライト・PNG 配置）の 3 つに加え、
