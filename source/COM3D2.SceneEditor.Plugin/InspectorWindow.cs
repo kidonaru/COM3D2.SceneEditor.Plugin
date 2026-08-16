@@ -149,10 +149,16 @@ namespace COM3D2.SceneEditor.Plugin
             }
             else
             {
-                // 外部プラグイン管理下のオブジェクトは内容描画を丸ごと委譲する
-                // (スクロールも委譲先が必要に応じて自前で行う)
-                if (InspectorHost.TryDraw(go, _view.viewRect))
+                // 外部プラグイン管理下のオブジェクトは内容描画を委譲する
+                // (スクロールも委譲先が必要に応じて自前で行う)。
+                // ヘッダー行はどの対象でも同じ操作を出したいのでホスト側に残す
+                // GetDrawRect は位置送りしない計算専用なので、ここではまだ描かない
+                var headerRect = _view.GetDrawRect(-1, RowHeight);
+                if (InspectorHost.TryDraw(go, GetDelegatedContentRect(headerRect)))
                 {
+                    // 委譲が成立してから描く。下の既定描画にも DrawHeader があるため、
+                    // 先に無条件で描くと委譲失敗時に二重描画になる
+                    DrawHeader(go);
                     ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
                     return;
                 }
@@ -563,6 +569,17 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _view.EndLayout();
+        }
+
+        /// <summary>
+        /// 委譲先へ渡す内容領域。ヘッダー行のぶんだけ上を削り、
+        /// 左右は従来どおりビュー全幅を渡す (委譲先が自前の余白を持つため)
+        /// </summary>
+        private Rect GetDelegatedContentRect(Rect headerRect)
+        {
+            var viewRect = _view.viewRect;
+            var top = headerRect.yMax + _view.margin;
+            return new Rect(viewRect.x, top, viewRect.width, Mathf.Max(0f, viewRect.yMax - top));
         }
 
         /// <summary>
