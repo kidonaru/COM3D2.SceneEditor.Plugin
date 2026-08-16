@@ -17,6 +17,12 @@ namespace COM3D2.SceneEditor.Plugin
         public string id;
         public string displayName;
 
+        /// <summary>
+        /// トグル行など狭い場所で使う短縮表示名（例: "モデル"）。
+        /// 任意メンバ PresetProviderShortDisplayName 未定義のプロバイダでは displayName と同値になる
+        /// </summary>
+        public string shortDisplayName;
+
         /// <summary>サイドカーの拡張子（先頭ドットなし）。未指定なら "xml"</summary>
         public string extension = ScenePresetProviderRegistry.DEFAULT_EXTENSION;
 
@@ -207,10 +213,29 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            // 表示名が空のプロバイダは id をそのまま出す
+            if (string.IsNullOrEmpty(displayName))
+            {
+                displayName = id;
+            }
+
+            // 短縮表示名は任意メンバ。未定義・空なら通常の表示名を流用する
+            var shortDisplayName = displayName;
+            var shortNameProp = type.GetProperty("PresetProviderShortDisplayName", flags);
+            if (shortNameProp != null)
+            {
+                var value = shortNameProp.GetValue(null, null) as string;
+                if (!string.IsNullOrEmpty(value))
+                {
+                    shortDisplayName = value;
+                }
+            }
+
             var provider = new ScenePresetProvider
             {
                 id = id,
-                displayName = string.IsNullOrEmpty(displayName) ? id : displayName,
+                displayName = displayName,
+                shortDisplayName = shortDisplayName,
                 extension = extension,
             };
 

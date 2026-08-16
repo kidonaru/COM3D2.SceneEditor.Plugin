@@ -47,6 +47,9 @@ public static class ModelPlacementPresetProvider
 
     public static string PresetProviderDisplayName => "モデル配置 (ModItemExplorer)";
 
+    /// <summary>読込トグルなど狭い場所で使う短縮名（任意）</summary>
+    public static string PresetProviderShortDisplayName => "モデル";
+
     /// <summary>現在状態を XML で返す。保存すべき状態が無い・失敗時は null</summary>
     public static string CapturePresetXml()
     {
@@ -72,6 +75,7 @@ public static class ModelPlacementPresetProvider
 |---|---|---|---|
 | `PresetProviderId` | `string`（プロパティ） | 必須 | プロバイダ識別子。プリセット XML とサイドカーのファイル名に使われる |
 | `PresetProviderDisplayName` | `string`（プロパティ） | 必須 | 保存ポップアップのチェックボックス表示名。空なら id が使われる |
+| `PresetProviderShortDisplayName` | `string`（プロパティ） | 任意 | プリセットウィンドウの読込トグルに出す短縮名（例: `"モデル"`）。未定義・空なら `PresetProviderDisplayName` が使われる |
 | `PresetProviderFileExtension` | `string`（プロパティ） | 任意 | サイドカーの拡張子。未定義なら `xml`。`.anm` と `anm` のどちらの書き方でもよい |
 | `CapturePresetXml()` | `string` を返す引数なしメソッド | テキスト対 | 現在状態をテキストで返す |
 | `ApplyPresetXml(string)` | `bool` を返す `string` 1 引数メソッド | テキスト対 | テキストを適用し、成功可否を返す |
