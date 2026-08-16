@@ -123,12 +123,19 @@ if ($changes -match 'TODO') {
 
 $repoUrl = (Invoke-Native 'gh' @('repo', 'view', '--json', 'url', '-q', '.url') 'リポジトリ情報の取得に失敗しました') -join ''
 $downloadUrl = "$repoUrl/releases/download/$tag/$zipName"
+$docsUrl = 'https://kidonaru.github.io/COM3D2.SceneEditor.Plugin/'
+# VitePress の cleanUrls は無効なので .html 付きのパスにする
+$installUrl = "$docsUrl" + 'guide/installation.html'
 
 $notes = @"
 ### ダウンロード
 | 対象 | ファイル名 |
 |---|---|
 | **COM3D2 / COM3D2.5** | [$zipName]($downloadUrl) |
+
+### ドキュメント
+使い方・設定リファレンスは [ドキュメントサイト]($docsUrl) をご覧ください。
+導入手順は [インストール]($installUrl) を参照してください。
 
 ### 変更点
 $changes
