@@ -114,71 +114,55 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>プリセットの適用が完了していない（メイドのロード待ち）か。UI の操作抑止に使う</summary>
         public static bool isLoading => _pendingApplies.Count > 0 || _pendingExternalsData != null;
 
-        // 読込を無効化したプロバイダ id の集合。Config の文字列から作り直したキャッシュで、
-        // 毎フレーム参照される UI からの Split 実行を避けるために持つ
-        private static HashSet<string> _loadDisabledProviders;
-        private static string _loadDisabledProvidersSource;
+        // 読込トグル (ロード時に反映するカテゴリ)。特定の適用に対する一時的な絞り込みであり、
+        // 前回の OFF が残ったまま適用して要素が欠けるのを避けるため Config には永続化せず、
+        // ゲーム起動のたびに全 ON へ戻す。
+        // loadBackground は背景・ライト・PNG 配置をまとめた「背景」カテゴリ
+        public static bool loadCamera { get; set; } = true;
+        public static bool loadMaids { get; set; } = true;
+        public static bool loadBackground { get; set; } = true;
 
-        /// <summary>Config の CSV からキャッシュを作り直す（内容が変わっていなければ何もしない）</summary>
-        private static HashSet<string> GetLoadDisabledProviders()
-        {
-            var source = config.scenePresetLoadDisabledProviders ?? "";
-            if (_loadDisabledProviders == null || _loadDisabledProvidersSource != source)
-            {
-                _loadDisabledProviders = new HashSet<string>(
-                    source.Split(',').Where(id => !string.IsNullOrEmpty(id)));
-                _loadDisabledProvidersSource = source;
-            }
-            return _loadDisabledProviders;
-        }
+        /// <summary>読込を無効化したプロバイダ id。上のトグルと同じくセッション中だけ保持する</summary>
+        private static readonly HashSet<string> _loadDisabledProviders = new HashSet<string>();
 
         /// <summary>プロバイダの状態をロード時に反映するか</summary>
         public static bool IsProviderLoadEnabled(string providerId)
         {
-            return !GetLoadDisabledProviders().Contains(providerId);
+            return !_loadDisabledProviders.Contains(providerId);
         }
 
         /// <summary>プロバイダの読込可否を記録する。UI のトグルから呼ばれる</summary>
         public static void SetProviderLoadEnabled(string providerId, bool enabled)
         {
-            if (enabled == IsProviderLoadEnabled(providerId))
-            {
-                return;
-            }
-
-            var disabled = new HashSet<string>(GetLoadDisabledProviders());
             if (enabled)
             {
-                disabled.Remove(providerId);
+                _loadDisabledProviders.Remove(providerId);
             }
             else
             {
-                disabled.Add(providerId);
+                _loadDisabledProviders.Add(providerId);
             }
-
-            config.scenePresetLoadDisabledProviders = string.Join(",", disabled.ToArray());
-            config.dirty = true;
         }
 
-        // 適用可否は「保存されているか (data.saved*)」と「読み込む設定か (config.scenePresetLoad*)」の AND。
+        // 適用可否は「保存されているか (data.saved*)」と「読み込む設定か (load*)」の AND。
         // v15 以前のプリセットは saved* が既定 true で読まれるため、従来どおり読込トグルだけで決まる
 
         /// <summary>カメラをこのプリセットから適用するか</summary>
         private static bool ShouldApplyCamera(ScenePresetData data)
         {
-            return data.savedCamera && config.scenePresetLoadCamera;
+            return data.savedCamera && loadCamera;
         }
 
         /// <summary>メイド (呼出・解除・ポーズ・視線・フォーカス) を適用するか</summary>
         private static bool ShouldApplyMaids(ScenePresetData data)
         {
-            return data.savedMaids && config.scenePresetLoadMaids;
+            return data.savedMaids && loadMaids;
         }
 
         /// <summary>背景カテゴリ (背景・ライト・PNG 配置) を適用するか</summary>
         private static bool ShouldApplyBackground(ScenePresetData data)
         {
-            return data.savedBackground && config.scenePresetLoadBackground;
+            return data.savedBackground && loadBackground;
         }
 
         private static ScenePresetItem CreateRootItem()
@@ -587,11 +571,11 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.ClearHistory();
             MTEUtils.Log("SceneCapture プリセット適用のため操作履歴をクリアしました");
 
-            if (config.scenePresetLoadCamera)
+            if (loadCamera)
             {
                 CameraSnapshot.ApplyState(converted.camera);
             }
-            if (config.scenePresetLoadBackground)
+            if (loadBackground)
             {
                 BackgroundSnapshot.ApplyState(converted.background);
                 LightSnapshot.ApplyState(converted.light);

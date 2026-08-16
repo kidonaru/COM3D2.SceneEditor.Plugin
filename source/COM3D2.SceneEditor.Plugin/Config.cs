@@ -253,15 +253,8 @@ namespace COM3D2.SceneEditor.Plugin
         // 無効化した外部プロバイダ id のカンマ区切り (未指定は全有効)
         public string scenePresetDisabledProviders = "";
 
-        // シーンプリセット読込対象 (プリセットウィンドウのトグル状態。ロード時に反映する内容を絞る)。
-        // 上の scenePresetSave* / scenePresetDisabledProviders は「保存時に記録する対象」の設定で、
-        // こちらは「適用時に反映する対象」の設定。名前が似ているので取り違えに注意
-        public bool scenePresetLoadCamera = true;
-        public bool scenePresetLoadMaids = true;
-        // 背景・ライト・PNG 配置をまとめた「背景」カテゴリ
-        public bool scenePresetLoadBackground = true;
-        // 読込を無効化した外部プロバイダ id のカンマ区切り (未指定は全有効)
-        public string scenePresetLoadDisabledProviders = "";
+        // 読込対象 (プリセットウィンドウの「読込:」トグル) は一時的な絞り込みなので
+        // ここには持たず、ScenePresetManager がセッション中だけメモリで保持する
 
         // SceneDaily 遷移時に自動ロードするプリセットのキー (相対パス・拡張子なし)。空で無効
         public string scenePresetAutoLoadKey = "";

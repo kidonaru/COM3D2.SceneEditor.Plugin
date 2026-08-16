@@ -208,13 +208,13 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _view.DrawLabel("読込:", LOAD_LABEL_WIDTH, ROW_HEIGHT);
 
-                DrawLoadToggle("カメラ", config.scenePresetLoadCamera,
-                    value => config.scenePresetLoadCamera = value);
-                DrawLoadToggle("メイド", config.scenePresetLoadMaids,
-                    value => config.scenePresetLoadMaids = value);
+                DrawLoadToggle("カメラ", ScenePresetManager.loadCamera,
+                    value => ScenePresetManager.loadCamera = value);
+                DrawLoadToggle("メイド", ScenePresetManager.loadMaids,
+                    value => ScenePresetManager.loadMaids = value);
                 // 背景トグルは背景・ライト・PNG 配置をまとめて制御する
-                DrawLoadToggle("背景", config.scenePresetLoadBackground,
-                    value => config.scenePresetLoadBackground = value);
+                DrawLoadToggle("背景", ScenePresetManager.loadBackground,
+                    value => ScenePresetManager.loadBackground = value);
 
                 foreach (var provider in ScenePresetProviderRegistry.providers)
                 {
