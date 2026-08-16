@@ -114,6 +114,52 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>プリセットの適用が完了していない（メイドのロード待ち）か。UI の操作抑止に使う</summary>
         public static bool isLoading => _pendingApplies.Count > 0 || _pendingExternalsData != null;
 
+        // 読込を無効化したプロバイダ id の集合。Config の文字列から作り直したキャッシュで、
+        // 毎フレーム参照される UI からの Split 実行を避けるために持つ
+        private static HashSet<string> _loadDisabledProviders;
+        private static string _loadDisabledProvidersSource;
+
+        /// <summary>Config の CSV からキャッシュを作り直す（内容が変わっていなければ何もしない）</summary>
+        private static HashSet<string> GetLoadDisabledProviders()
+        {
+            var source = config.scenePresetLoadDisabledProviders ?? "";
+            if (_loadDisabledProviders == null || _loadDisabledProvidersSource != source)
+            {
+                _loadDisabledProviders = new HashSet<string>(
+                    source.Split(',').Where(id => !string.IsNullOrEmpty(id)));
+                _loadDisabledProvidersSource = source;
+            }
+            return _loadDisabledProviders;
+        }
+
+        /// <summary>プロバイダの状態をロード時に反映するか</summary>
+        public static bool IsProviderLoadEnabled(string providerId)
+        {
+            return !GetLoadDisabledProviders().Contains(providerId);
+        }
+
+        /// <summary>プロバイダの読込可否を記録する。UI のトグルから呼ばれる</summary>
+        public static void SetProviderLoadEnabled(string providerId, bool enabled)
+        {
+            if (enabled == IsProviderLoadEnabled(providerId))
+            {
+                return;
+            }
+
+            var disabled = new HashSet<string>(GetLoadDisabledProviders());
+            if (enabled)
+            {
+                disabled.Remove(providerId);
+            }
+            else
+            {
+                disabled.Add(providerId);
+            }
+
+            config.scenePresetLoadDisabledProviders = string.Join(",", disabled.ToArray());
+            config.dirty = true;
+        }
+
         private static ScenePresetItem CreateRootItem()
         {
             return new ScenePresetItem
@@ -138,6 +184,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>一覧を再構築する。GUI から呼ばれるため例外は握って空のまま返す</summary>
         public static void Reload()
         {
+            // 「更新」ボタンで、後からロードされたプラグインのトグルも出せるようにする
+            ScenePresetProviderRegistry.Refresh();
+
             _loaded = true;
 
             // 作り直しで表示中フォルダの実体が入れ替わるため、相対パスで控えて後から再解決する。
