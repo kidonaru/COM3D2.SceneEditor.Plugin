@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ScenePresetData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="14">
+<ScenePresetData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="16" savedCamera="true" savedMaids="true" savedBackground="true">
   <camera>
     <targetPos>
       <x>0</x>
@@ -32,9 +32,9 @@
   </background>
   <light hasMain="true">
     <mainRotation>
-      <x>40.000042</x>
+      <x>40.0000458</x>
       <y>180</y>
-      <z>18.0000038</z>
+      <z>18.0000019</z>
     </mainRotation>
     <mainColor>
       <r>1</r>
@@ -86,11 +86,10 @@
       <footStretchAngle>45</footStretchAngle>
       <footGroundAngle>90</footGroundAngle>
     </ikParams>
-    <look mode="マウス">
+    <look mode="マウス" headToCam="true" eyeToCam="true">
       <lookX>0</lookX>
       <lookY>0</lookY>
     </look>
   </maid>
-  <external id="ModItemExplorer.ModelPlacement" file="サンプル.ModItemExplorer.ModelPlacement.xml" />
   <external id="PostEffects" file="サンプル.PostEffects.xml" />
 </ScenePresetData>
