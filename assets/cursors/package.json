@@ -1,0 +1,12 @@
+{
+  "name": "com3d25-editorwindow-cursors",
+  "version": "1.0.0",
+  "private": true,
+  "description": "リサイズカーソルの PNG と base64 を resize-arrow.svg から生成する",
+  "scripts": {
+    "generate": "node generate.js"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}
