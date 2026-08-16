@@ -1,4 +1,4 @@
-// resize-arrow.svg を 4 方向に回転させて 32x32 の PNG へラスタライズし、
+// resize-arrow.svg を 4 方向に回転させて 64x64 の PNG へラスタライズし、
 // ResizeCursor.cs へ貼り付ける base64 文字列を出力する。
 //
 //   npm install
@@ -15,7 +15,10 @@ const path = require('path');
 const zlib = require('zlib');
 const { Resvg } = require('@resvg/resvg-js');
 
-const SIZE = 32;
+// SVG の座標系 (viewBox) と、実際に書き出す PNG の一辺。
+// 出力サイズだけを上げれば図形はベクタのまま拡大されるので、輪郭は劣化しない
+const VIEW_BOX = 32;
+const SIZE = 64;
 const SOURCE = path.join(__dirname, 'resize-arrow.svg');
 
 // SVG は Y 軸が下向きなので、画面上で右下を向かせる角度がプラスになる
@@ -28,8 +31,8 @@ const VARIANTS = [
 
 function rotatedSvg(source, angle) {
     const inner = source.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>[\s\S]*$/, '');
-    const center = SIZE / 2;
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">`
+    const center = VIEW_BOX / 2;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${VIEW_BOX} ${VIEW_BOX}">`
         + `<g transform="rotate(${angle} ${center} ${center})">${inner}</g></svg>`;
 }
 
