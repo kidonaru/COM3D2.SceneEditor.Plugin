@@ -316,6 +316,33 @@ namespace COM3D2.SceneEditor.Plugin
             windowScreens.Add(entry);
         }
 
+        // ロック中 (移動・リサイズ禁止) のウィンドウ ID。1 要素 = 1 ウィンドウ
+        [XmlElement("lockedWindow")]
+        public List<int> lockedWindows = new List<int>();
+
+        /// <summary>windowId のウィンドウがロック中か</summary>
+        public bool IsWindowLocked(int windowId)
+        {
+            return lockedWindows.Contains(windowId);
+        }
+
+        /// <summary>windowId のロック状態を記録する</summary>
+        public void SetWindowLocked(int windowId, bool locked)
+        {
+            if (locked == lockedWindows.Contains(windowId))
+            {
+                return;
+            }
+            if (locked)
+            {
+                lockedWindows.Add(windowId);
+            }
+            else
+            {
+                lockedWindows.Remove(windowId);
+            }
+        }
+
         // グリッド設定
         // 既定値は設定 UI のリセットボタンからも参照するため定数で持つ
         public const int DefaultGridCountInWorld = 20;
