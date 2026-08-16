@@ -299,6 +299,13 @@ namespace COM3D2.SceneEditor.Plugin
                         isTarget ? EditorSubWindow.ACCENT_COLOR : Color.white))
                     {
                         maidManager.targetMaid = maid;
+
+                        // 選んだメイドへ SceneView も寄せる。
+                        // 非表示（退避中）は実座標が遠方にあり、寄せると何もない場所を映すため除く
+                        if (maidManager.IsVisible(maid))
+                        {
+                            SceneViewWindow.instance.FocusOn(maid.gameObject);
+                        }
                     }
                 }
                 view.EndLayout();
