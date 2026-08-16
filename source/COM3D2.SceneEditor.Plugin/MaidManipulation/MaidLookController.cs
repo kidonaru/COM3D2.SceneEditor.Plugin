@@ -22,6 +22,9 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class MaidLookController
     {
+        /// <summary>注視点の基準にする頭ボーンの名前</summary>
+        private const string HEAD_BONE_NAME = "Bip01 Head";
+
         /// <summary>頭ボーン配下に作る注視点の名前。フォトモードと同名にして使い回す</summary>
         private const string LOOK_POINT_NAME = "face_to_object";
 
@@ -65,6 +68,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             /// <summary>注視点を一度でも置いたか。初回はスムースを掛けずカーソル位置へ直接置く</summary>
             public bool hasMousePointPos;
+
+            /// <summary>解決済みの頭ボーン。詳細は GetHeadBone のコメントを参照</summary>
+            public Transform headBone;
         }
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
@@ -240,7 +246,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (!entry.hasMousePointPos)
             {
                 Vector3 targetPos;
-                if (TryCalcMousePointTarget(maid, out targetPos))
+                if (TryCalcMousePointTarget(maid, entry, out targetPos))
                 {
                     entry.mousePoint.position = targetPos;
                     entry.hasMousePointPos = true;
@@ -256,7 +262,7 @@ namespace COM3D2.SceneEditor.Plugin
             PlaceMousePoint(maid, entry);
 
             Vector3 targetPos;
-            if (!entry.hasMousePointPos || !TryCalcMousePointTarget(maid, out targetPos))
+            if (!entry.hasMousePointPos || !TryCalcMousePointTarget(maid, entry, out targetPos))
             {
                 return entry.mousePoint;
             }
@@ -269,10 +275,36 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 頭ボーンを取り出す。
+        /// TBody.GetBone は呼ぶたびにボーンツリーを名前で再帰探索し、節ごとに
+        /// Transform.name の string を確保する。マウスモードは毎フレームここを通るため、
+        /// 直に呼ぶと数 KB/フレームをゴミにしてしまう。解決結果を持ち回して呼び出しを避ける。
+        ///
+        /// 頭ボーンを持たないボディ (男性の "ManBip Head" 等) では毎フレーム探索が走るが、
+        /// これは修正前と同じコストで、視線を向ける対象でもないため許容する。
+        /// 「見つからなかった」を覚えてしまうと、ボディ読み込み途中で引いたときに
+        /// 以降ずっと諦めたままになる方が困る
+        /// </summary>
+        private static Transform GetHeadBone(Maid maid, Entry entry)
+        {
+            if (maid == null || maid.body0 == null)
+            {
+                return null;
+            }
+
+            // ボディの読み直しで破棄されると null 相当になる。そのときだけ引き直す
+            if (entry.headBone == null)
+            {
+                entry.headBone = maid.body0.GetBone(HEAD_BONE_NAME);
+            }
+            return entry.headBone;
+        }
+
+        /// <summary>
         /// 注視点を置きたいワールド座標。カーソルを通す視線上、頭とカメラの間に取る。
         /// カメラが取れないうちは決められないため false を返す
         /// </summary>
-        private static bool TryCalcMousePointTarget(Maid maid, out Vector3 targetPos)
+        private static bool TryCalcMousePointTarget(Maid maid, Entry entry, out Vector3 targetPos)
         {
             var camera = GameViewManager.mainCamera;
             if (camera == null)
@@ -281,7 +313,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return false;
             }
 
-            var head = maid.body0.GetBone("Bip01 Head");
+            var head = GetHeadBone(maid, entry);
             var headDepth = head != null
                 ? Vector3.Dot(head.position - camera.transform.position, camera.transform.forward)
                 : MOUSE_POINT_DEFAULT_DEPTH;
@@ -330,7 +362,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static Transform UpdateLookPoint(Maid maid, Entry entry)
         {
-            var head = maid.body0.GetBone("Bip01 Head");
+            var head = GetHeadBone(maid, entry);
             if (head == null)
             {
                 return null;
