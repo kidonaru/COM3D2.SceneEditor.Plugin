@@ -10,9 +10,11 @@ namespace COM3D2.SceneEditor.Plugin
     /// シーン上の GameObject ツリーを表示するウィンドウ。
     /// 矢印キーで行を移動でき (← 折りたたみ/親へ、→ 展開/子へ)、選択は SelectionManager 経由で
     /// SceneView / Inspector と同期する。
-    /// ルート一覧の全走査は重いため一定間隔で更新する。
+    /// ルート一覧は一定間隔で取り直す。OnChangedSceneLevel ではシーン切替しか拾えず、
+    /// シーン内で動的に生成・破棄されるルートはポーリングでしか追えないため。
     /// メイドのボーン階層など大量ノードを展開しても重くならないよう、
-    /// DrawContent では表示範囲外の行をスキップする
+    /// DrawContent では表示範囲外の行をスキップし、行の組み立ても変化があったときだけ行う
+    /// (OnGUI は 1 フレームに複数回走るため、毎回組み直すと走査コストが frame 予算を食う)
     /// </summary>
     public class HierarchyWindow : EditorSubWindow
     {
@@ -53,6 +55,13 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<GameObject> _roots = new List<GameObject>();
         private readonly List<Row> _rows = new List<Row>();
         private readonly HashSet<int> _expanded = new HashSet<int>(); // GetInstanceID
+        // _rows の組み直しが必要か。ルート再取得と、展開状態の変化
+        // (検索語による絞り込みや、選択に伴う祖先の自動展開を含む) で立てる
+        private bool _rowsDirty = true;
+        // DontDestroyOnLoad シーンを掴むための番人。SceneManager からは列挙できないため、
+        // DontDestroyOnLoad 済みの空 GameObject を 1 つ置いてその scene を借りる
+        private static GameObject _dontDestroyOnLoadProbe = null;
+        private static Scene _dontDestroyOnLoadScene;
         private float _lastRefreshTime = 0f;
         private string _searchText = "";
         // 選択行を画面内へ送るスクロール量。キー操作の次の描画で反映する
@@ -100,7 +109,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             for (var parent = go.transform.parent; parent != null; parent = parent.parent)
             {
-                _expanded.Add(parent.gameObject.GetInstanceID());
+                if (_expanded.Add(parent.gameObject.GetInstanceID()))
+                {
+                    _rowsDirty = true;
+                }
             }
         }
 
@@ -150,28 +162,65 @@ namespace COM3D2.SceneEditor.Plugin
             _rows.Clear();
             _expanded.Clear();
             _pendingReveal = null;
+            _rowsDirty = true;
         }
 
-        /// <summary>ルート GameObject の一覧を取り直す</summary>
+        /// <summary>
+        /// ルート GameObject の一覧を取り直す。
+        /// 読み込み済みシーンと DontDestroyOnLoad シーンからルートだけを直接取る。
+        /// FindObjectsOfType&lt;Transform&gt;() での全走査より大幅に速いうえ、
+        /// FindObjectsOfType が返さない非アクティブなルートも拾える (実機で確認済み)
+        /// </summary>
         private void RefreshRoots()
         {
             _lastRefreshTime = Time.realtimeSinceStartup;
 
             _roots.Clear();
-            var activeScene = SceneManager.GetActiveScene();
-            foreach (var go in activeScene.GetRootGameObjects())
+            for (var i = 0; i < SceneManager.sceneCount; i++)
             {
-                _roots.Add(go);
+                var scene = SceneManager.GetSceneAt(i);
+                // 読み込み途中のシーンに GetRootGameObjects を呼ぶと例外になる
+                if (scene.IsValid() && scene.isLoaded)
+                {
+                    AddSceneRoots(scene);
+                }
             }
 
-            // DontDestroyOnLoad 由来のルートを拾う。専用シーンに属していて IsValid() は true を
-            // 返すため、アクティブシーンとの比較で判別する (実機で確認済み)
-            foreach (var transform in UnityEngine.Object.FindObjectsOfType<Transform>())
+            // DontDestroyOnLoad シーンは SceneManager 管理外で isLoaded の保証がないため、
+            // 有効性だけを見る (isLoaded で弾くと DDOL 配下が丸ごと無言で消える)
+            var ddolScene = dontDestroyOnLoadScene;
+            if (ddolScene.IsValid())
             {
-                if (transform.parent == null && transform.gameObject.scene != activeScene)
+                AddSceneRoots(ddolScene);
+            }
+
+            _rowsDirty = true;
+        }
+
+        private void AddSceneRoots(Scene scene)
+        {
+            foreach (var go in scene.GetRootGameObjects())
+            {
+                // 番人自身は一覧に出さない (hideFlags を付けても GetRootGameObjects は返す)
+                if (go != _dontDestroyOnLoadProbe)
                 {
-                    _roots.Add(transform.gameObject);
+                    _roots.Add(go);
                 }
+            }
+        }
+
+        private static Scene dontDestroyOnLoadScene
+        {
+            get
+            {
+                if (_dontDestroyOnLoadProbe == null)
+                {
+                    _dontDestroyOnLoadProbe = new GameObject("SceneEditor.HierarchyDdolProbe");
+                    _dontDestroyOnLoadProbe.hideFlags = HideFlags.HideAndDontSave;
+                    UnityEngine.Object.DontDestroyOnLoad(_dontDestroyOnLoadProbe);
+                    _dontDestroyOnLoadScene = _dontDestroyOnLoadProbe.scene;
+                }
+                return _dontDestroyOnLoadScene;
             }
         }
 
@@ -182,7 +231,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         protected override void DrawContent()
         {
-            BuildRows();
+            if (_rowsDirty)
+            {
+                BuildRows();
+            }
             ResolvePendingReveal();
             HandleKeyboard();
 
@@ -192,7 +244,11 @@ namespace COM3D2.SceneEditor.Plugin
             _view.BeginHorizontal();
             {
                 var searchWidth = _view.viewRect.width - SearchButtonWidth - Spacing;
-                _view.DrawTextField(_searchText, searchWidth, RowHeight, value => _searchText = value);
+                _view.DrawTextField(_searchText, searchWidth, RowHeight, value =>
+                {
+                    _searchText = value;
+                    _rowsDirty = true;
+                });
 
                 if (_view.DrawButton("更新", SearchButtonWidth, RowHeight))
                 {
@@ -257,6 +313,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>展開状態と検索条件から、実際に表示する行を組み立てる</summary>
         private void BuildRows()
         {
+            _rowsDirty = false;
             _rows.Clear();
             var searching = !string.IsNullOrEmpty(_searchText);
             foreach (var root in _roots)
@@ -430,16 +487,17 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 行は最大 RefreshInterval の間キャッシュされるため、破棄済みが残りうる
             var go = _rows[index].go;
-            if (go.transform.childCount == 0)
+            if (go == null || go.transform.childCount == 0)
             {
                 return;
             }
 
-            if (!_expanded.Contains(go.GetInstanceID()))
+            if (_expanded.Add(go.GetInstanceID()))
             {
-                _expanded.Add(go.GetInstanceID());
-                BuildRows();
+                // 展開結果は次フレームの BuildRows で反映する (ToggleExpanded と同じ理由)
+                _rowsDirty = true;
                 return;
             }
 
@@ -460,9 +518,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var go = _rows[index].go;
+            if (go == null)
+            {
+                return;
+            }
+
             if (_expanded.Remove(go.GetInstanceID()))
             {
-                BuildRows();
+                _rowsDirty = true;
                 return;
             }
 
@@ -493,6 +556,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _expanded.Add(id);
             }
+            _rowsDirty = true;
         }
 
         private void SelectRow(int index)

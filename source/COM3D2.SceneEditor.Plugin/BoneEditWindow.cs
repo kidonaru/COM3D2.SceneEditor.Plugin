@@ -55,6 +55,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly List<Row> _rows = new List<Row>();
         private readonly HashSet<int> _expanded = new HashSet<int>(); // Transform の GetInstanceID
+        // _rows の組み直しが必要か。行の内容はボーンツリー・展開状態・検索語だけで決まるため、
+        // この 3 つが変わったときにだけ立てればよい (OnGUI は 1 フレームに複数回走る)
+        private bool _rowsDirty = true;
+        // 組み直し済みのボーンツリー。BoneEditManager.GetCurrentBoneTree() はスロット obj が
+        // 変わらない限り同一インスタンスを返すため、参照比較でツリー変化を検出できる
+        private List<SlotBoneNode> _lastTree = null;
         private string _searchText = "";
         // 選択行を画面内へ送るスクロール量。次の描画で反映する
         private int _scrollToRow = -1;
@@ -208,7 +214,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーンツリー。Hierarchy と同じく行を固定高で手動配置し、
-        /// 表示範囲外の行を描画から省く
+        /// 表示範囲外の行を描画から省き、行の組み立ても変化があったときだけ行う。
+        /// 行まわりの作りは HierarchyWindow とほぼ対になっているため、片方を直すときは他方も見ること
         /// </summary>
         private void DrawBoneTree(Maid target)
         {
@@ -219,12 +226,25 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 展開状態を確定させてから行を 1 回だけ構築する (Hierarchy と同じ流れ)
+            if (tree != _lastTree)
+            {
+                _lastTree = tree;
+                _rowsDirty = true;
+            }
+
+            // 展開状態を確定させてから行を構築する (Hierarchy と同じ流れ)
             DetectExternalSelection();
-            BuildRows(tree);
+            if (_rowsDirty)
+            {
+                BuildRows(tree);
+            }
             ResolvePendingReveal();
 
-            view.DrawTextField(_searchText, -1, ROW_HEIGHT, value => _searchText = value);
+            view.DrawTextField(_searchText, -1, ROW_HEIGHT, value =>
+            {
+                _searchText = value;
+                _rowsDirty = true;
+            });
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -286,7 +306,10 @@ namespace COM3D2.SceneEditor.Plugin
             // ツリー外の Transform が混ざっても展開集合に余分な ID が入るだけで害はない
             for (var parent = selected.parent; parent != null; parent = parent.parent)
             {
-                _expanded.Add(parent.GetInstanceID());
+                if (_expanded.Add(parent.GetInstanceID()))
+                {
+                    _rowsDirty = true;
+                }
             }
         }
 
@@ -315,6 +338,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>展開状態と検索条件から、実際に表示する行を組み立てる</summary>
         private void BuildRows(List<SlotBoneNode> tree)
         {
+            _rowsDirty = false;
             _rows.Clear();
             var searching = !string.IsNullOrEmpty(_searchText);
             foreach (var node in tree)
@@ -351,6 +375,14 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawRow(Maid target, BoneEditStore store, Row row, int index, float contentWidth)
         {
             var node = row.node;
+            // 行はツリーが作り直されるまでキャッシュされるため、破棄済みが残りうる。
+            // Hierarchy と違って定期更新が無く放っておくと空白行が残り続けるので、
+            // 見つけた時点で組み直しを予約する (反復中なのでその場では組み直さない)
+            if (node.transform == null)
+            {
+                _rowsDirty = true;
+                return;
+            }
 
             view.currentPos = new Vector2(row.depth * IndentWidth, index * ROW_HEIGHT);
             view.BeginHorizontal();
@@ -396,6 +428,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _expanded.Add(id);
             }
+            _rowsDirty = true;
         }
 
         /// <summary>選択で予約された行がスクロール範囲外なら、見える位置まで送る</summary>
