@@ -131,12 +131,6 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("プリセット", PresetWindow.instance),
                         CreateWindowItem("操作履歴", HistoryWindow.instance),
                         CreateWindowItem("設定", SettingWindow.instance),
-                        new MenuItem
-                        {
-                            label = "Editor終了",
-                            isOn = () => false,
-                            toggle = () => SceneEditorPlugin.instance.isEnable = false,
-                        },
                     },
                 },
                 new MenuDef
@@ -180,6 +174,12 @@ namespace COM3D2.SceneEditor.Plugin
                             label = "レイアウト",
                             isOn = () => false,
                             buildSubItems = BuildLayoutItems,
+                        },
+                        new MenuItem
+                        {
+                            label = "Editor終了",
+                            isOn = () => false,
+                            toggle = () => SceneEditorPlugin.instance.isEnable = false,
                         },
                     },
                 },
