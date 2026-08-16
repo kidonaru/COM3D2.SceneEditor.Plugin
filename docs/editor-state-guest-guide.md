@@ -22,6 +22,7 @@ SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）の有効/無効へ、
 ### A. MTEUtils を使う（推奨）
 
 MTEUtils を submodule 参照しているプラグインは `EditorStateClient` をそのまま呼べる。
+やることは `Subscribe` / `Unsubscribe` の 2 つだけ。
 
 ```csharp
 private void OnEditorEnabledChanged(bool enabled)
@@ -32,18 +33,20 @@ private void OnEditorEnabledChanged(bool enabled)
 
 // 有効化時（Awake / Start 等）
 EditorStateClient.Subscribe(OnEditorEnabledChanged);
-// ロード順は不定なので、接続直後は現状へ自分で合わせる
-if (EditorStateClient.isAvailable && EditorStateClient.isLinkEnabled)
-{
-    isEnable = EditorStateClient.isEditorEnabled;
-}
 
 // 破棄時
 EditorStateClient.Unsubscribe(OnEditorEnabledChanged);
 ```
 
-SceneEditor 不在の環境では `isAvailable` が false になり、`Subscribe` 等はすべて無視される
-（呼び出し側で分岐する必要はない）。
+クライアントが以下を肩代わりするため、ゲスト側の分岐は不要:
+
+- **ロード順**: SceneEditor が自分より後にロードされても、接続できるまで自動で再試行する
+  （最大 30 秒。それまでに見つからなければ SceneEditor 不在とみなして諦める）
+- **初期同期**: 接続できた時点で現在の有効状態を 1 回プッシュする。
+  ただし連動設定が OFF の間はプッシュしない（ゲストは現状維持）
+- **SceneEditor 不在**: `isAvailable` が false になり、`Subscribe` 等はすべて無視される
+
+状態を直接読みたい場合のみ `isAvailable` / `isEditorEnabled` / `isLinkEnabled` を使う。
 
 ### B. 自前実装（リフレクション直叩き）
 
@@ -70,8 +73,9 @@ void Unsubscribe(Action<bool> onChanged);
 - **連動設定が OFF の間は通知が来ない**。購読自体は維持されるので、再登録は不要。
   OFF → ON へ切り替えられた瞬間だけ、その時点の有効状態が 1 回プッシュされる。
   ON → OFF ではプッシュされない（ゲストは現状維持）
-- **`Subscribe` した時点では通知が来ない**。プラグインのロード順は不定なので、
-  接続直後に現状へ合わせたいなら `isEditorEnabled` を自分で読むこと
+- **ホストの `Subscribe` は購読時に通知しない**。A の `EditorStateClient` はこれを補って
+  接続時に現在値を 1 回プッシュするが、B の自前実装では接続直後に `isEditorEnabled` を
+  自分で読むこと
 - **同じデリゲートの二重登録は無視される**（多重発火しない）
 - **不要になったら必ず `Unsubscribe`**。ホストは常駐するため、解除を怠ると
   ハンドラが掴んだ参照ごと残る
