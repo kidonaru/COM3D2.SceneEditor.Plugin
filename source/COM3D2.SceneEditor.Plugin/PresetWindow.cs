@@ -27,6 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIView _view = new GUIView();
 
         private static GUIStyle _gsOverlayLabel = null;
+        private static GUIStyle _gsRowButton = null;
 
         /// <summary>オーバーレイ中央のラベル。GUIStyle は OnGUI 中でないと作れないため遅延生成する</summary>
         private static GUIStyle gsOverlayLabel
@@ -43,6 +44,23 @@ namespace COM3D2.SceneEditor.Plugin
                     _gsOverlayLabel.normal.textColor = Color.white;
                 }
                 return _gsOverlayLabel;
+            }
+        }
+
+        /// <summary>リスト表示 1 行のボタン。名前の頭を揃えたいので左寄せにする</summary>
+        private static GUIStyle gsRowButton
+        {
+            get
+            {
+                if (_gsRowButton == null)
+                {
+                    _gsRowButton = new GUIStyle(GUIView.gsButton)
+                    {
+                        alignment = TextAnchor.MiddleLeft,
+                    };
+                    _gsRowButton.padding.left = 6;
+                }
+                return _gsRowButton;
             }
         }
 
@@ -171,6 +189,13 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // SceneCapture プリセットはサムネを持たず、タイルにすると空枠が並ぶだけになる
+            if (currentDirItem.isSceneCapture)
+            {
+                DrawPresetRows(currentDirItem);
+                return;
+            }
+
             ScenePresetItem selectedItem = null;
             ScenePresetItem mouseOverItem = null;
 
@@ -197,23 +222,59 @@ namespace COM3D2.SceneEditor.Plugin
                     DeletePresetWithConfirm(item as ScenePresetItem);
                 });
 
-            if (selectedItem != null)
-            {
-                if (selectedItem.isDir)
-                {
-                    ScenePresetManager.currentDirItem = selectedItem;
-                }
-                else
-                {
-                    ScenePresetManager.LoadPreset(selectedItem);
-                }
-            }
+            OpenItem(selectedItem);
 
             _view.DrawBox(-1, ROW_HEIGHT);
 
             if (mouseOverItem != null)
             {
                 _view.DrawLabel(mouseOverItem.name, -1, ROW_HEIGHT);
+            }
+        }
+
+        /// <summary>
+        /// リスト一覧。サムネを持たない SceneCapture プリセット用で、
+        /// タイルと同じくフォルダはクリックで移動、プリセットはクリックで適用する
+        /// （読み込み専用のため削除ボタンは出さない）
+        /// </summary>
+        private void DrawPresetRows(ScenePresetItem currentDirItem)
+        {
+            var children = currentDirItem.children;
+
+            // 現在読み込み中の強調 (currentIndex) は使わない。
+            // SceneCapture プリセットは選択状態を持たない (ScenePresetManager.UpdateSelection 参照)
+            var selectedIndex = _view.DrawListView(
+                children,
+                // フォルダとプリセットを見分けられるよう、フォルダ名は括弧で囲む
+                (child, index) => child.isDir ? "[" + child.name + "]" : child.name,
+                null,
+                -1,
+                -1,
+                -1,
+                ROW_HEIGHT,
+                gsRowButton);
+
+            if (selectedIndex >= 0)
+            {
+                OpenItem(children[selectedIndex] as ScenePresetItem);
+            }
+        }
+
+        /// <summary>一覧で選ばれた項目を開く。フォルダなら移動、プリセットなら適用する</summary>
+        private static void OpenItem(ScenePresetItem item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            if (item.isDir)
+            {
+                ScenePresetManager.currentDirItem = item;
+            }
+            else
+            {
+                ScenePresetManager.LoadPreset(item);
             }
         }
 
