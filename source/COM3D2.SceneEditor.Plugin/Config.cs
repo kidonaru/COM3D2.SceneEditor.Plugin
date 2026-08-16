@@ -248,6 +248,8 @@ namespace COM3D2.SceneEditor.Plugin
         // シーンプリセット保存対象 (保存ポップアップのチェック状態を次回デフォルトとして持つ)
         public bool scenePresetSaveCamera = true;
         public bool scenePresetSaveMaids = true;
+        // 背景・ライト・PNG 配置をまとめた「背景」カテゴリ
+        public bool scenePresetSaveBackground = true;
         // 無効化した外部プロバイダ id のカンマ区切り (未指定は全有効)
         public string scenePresetDisabledProviders = "";
 

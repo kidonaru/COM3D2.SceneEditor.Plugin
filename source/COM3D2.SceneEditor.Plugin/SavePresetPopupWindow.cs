@@ -12,6 +12,8 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public bool saveCamera = true;
         public bool saveMaids = true;
+        /// <summary>背景・ライト・PNG 配置をまとめた「背景」カテゴリ</summary>
+        public bool saveBackground = true;
         /// <summary>保存対象の外部プロバイダ id</summary>
         public List<string> enabledProviderIds = new List<string>();
     }
@@ -43,6 +45,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private bool _saveCamera;
         private bool _saveMaids;
+        private bool _saveBackground;
         /// <summary>プロバイダごとのチェック状態 (provider.id → チェック有無)</summary>
         private readonly Dictionary<string, bool> _providerChecks = new Dictionary<string, bool>();
 
@@ -79,6 +82,7 @@ namespace COM3D2.SceneEditor.Plugin
             window._presetName = ScenePresetManager.currentPresetName;
             window._saveCamera = config.scenePresetSaveCamera;
             window._saveMaids = config.scenePresetSaveMaids;
+            window._saveBackground = config.scenePresetSaveBackground;
 
             var disabledIds = new HashSet<string>(
                 (config.scenePresetDisabledProviders ?? "").Split(','));
@@ -100,6 +104,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             config.scenePresetSaveCamera = _saveCamera;
             config.scenePresetSaveMaids = _saveMaids;
+            config.scenePresetSaveBackground = _saveBackground;
             config.scenePresetDisabledProviders = string.Join(",",
                 _providerChecks.Where(pair => !pair.Value).Select(pair => pair.Key).ToArray());
             config.dirty = true;
@@ -108,6 +113,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 saveCamera = _saveCamera,
                 saveMaids = _saveMaids,
+                saveBackground = _saveBackground,
                 enabledProviderIds = _providerChecks
                     .Where(pair => pair.Value).Select(pair => pair.Key).ToList(),
             };
@@ -152,8 +158,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 行数（名前入力 + タイトル + 固定 2 カテゴリ + プロバイダ数 + エラー表示）に合わせて高さを算出する
-            var rowCount = 2 + 2 + _providerChecks.Count + (_errorMessage != null ? 1 : 0);
+            // 行数（名前入力 + タイトル + 固定 3 カテゴリ + プロバイダ数 + エラー表示）に合わせて高さを算出する
+            var rowCount = 2 + 3 + _providerChecks.Count + (_errorMessage != null ? 1 : 0);
             var windowHeight = PADDING
                 + (ROW_HEIGHT + GUIView.defaultMargin) * rowCount
                 + BUTTON_SPACING + GUIView.defaultMargin + BUTTON_HEIGHT + PADDING;
@@ -204,6 +210,8 @@ namespace COM3D2.SceneEditor.Plugin
                 value => _saveCamera = value);
             _view.DrawToggle("メイド (位置・ポーズ・表情)", _saveMaids, contentWidth, ROW_HEIGHT,
                 value => _saveMaids = value);
+            _view.DrawToggle("背景 (背景・ライト・PNG 配置)", _saveBackground, contentWidth, ROW_HEIGHT,
+                value => _saveBackground = value);
 
             foreach (var provider in ScenePresetProviderRegistry.providers)
             {
