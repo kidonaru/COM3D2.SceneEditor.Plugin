@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -15,6 +16,12 @@ namespace COM3D2.SceneEditor.Plugin
         protected override string windowTitle => "シーンプリセット";
 
         private static readonly int ROW_HEIGHT = 20;
+
+        // トグル 1 個分の余白。チェックボックス本体とラベル実寸の差を埋める
+        private static readonly float TOGGLE_EXTRA_WIDTH = 20;
+
+        /// <summary>読込トグル行の先頭ラベル幅</summary>
+        private static readonly float LOAD_LABEL_WIDTH = 40;
 
         // タイルの表示サイズ。サムネの縦横比 + 名前ラベル分の高さ
         private static readonly float TILE_WIDTH = 120;
@@ -119,6 +126,7 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 DrawToolRow(currentDirItem);
+                DrawLoadOptionRow();
 
                 _view.DrawHorizontalLine(Color.gray);
                 _view.AddSpace(5);
@@ -178,6 +186,61 @@ namespace COM3D2.SceneEditor.Plugin
                 _view.DrawLabel(currentDirItem.name, -1, ROW_HEIGHT);
             }
             _view.EndLayout();
+        }
+
+        /// <summary>
+        /// ロード時に反映するカテゴリのトグル行。
+        /// 固定 3 カテゴリ（カメラ・メイド・背景）に続けて、
+        /// 発見済みの外部プロバイダを短縮表示名で並べる
+        /// </summary>
+        private void DrawLoadOptionRow()
+        {
+            _view.BeginHorizontal();
+            {
+                _view.DrawLabel("読込:", LOAD_LABEL_WIDTH, ROW_HEIGHT);
+
+                DrawLoadToggle("カメラ", config.scenePresetLoadCamera,
+                    value => config.scenePresetLoadCamera = value);
+                DrawLoadToggle("メイド", config.scenePresetLoadMaids,
+                    value => config.scenePresetLoadMaids = value);
+                // 背景トグルは背景・ライト・PNG 配置をまとめて制御する
+                DrawLoadToggle("背景", config.scenePresetLoadBackground,
+                    value => config.scenePresetLoadBackground = value);
+
+                foreach (var provider in ScenePresetProviderRegistry.providers)
+                {
+                    // ラムダのキャプチャ対象をループ変数から切り離す
+                    var providerId = provider.id;
+                    DrawLoadToggle(
+                        provider.shortDisplayName,
+                        ScenePresetManager.IsProviderLoadEnabled(providerId),
+                        value => ScenePresetManager.SetProviderLoadEnabled(providerId, value));
+                }
+            }
+            _view.EndLayout();
+        }
+
+        /// <summary>
+        /// 読込トグル 1 個。ラベル実寸に合わせた幅で描き、
+        /// 行に収まらなくなったら次の行へ折り返す
+        /// </summary>
+        private void DrawLoadToggle(string label, bool value, Action<bool> onChanged)
+        {
+            var width = GUIView.CalcWidth(GUIView.gsToggle, label) + TOGGLE_EXTRA_WIDTH;
+
+            // 行頭 (x = 0) での折り返しは無限ループになるため、2 個目以降だけ判定する
+            var rowWidth = _view.viewRect.width - _view.padding.x * 2;
+            if (_view.currentPos.x > 0 && _view.currentPos.x + width > rowWidth)
+            {
+                _view.EndLayout();
+                _view.BeginHorizontal();
+            }
+
+            _view.DrawToggle(label, value, width, ROW_HEIGHT, newValue =>
+            {
+                onChanged(newValue);
+                config.dirty = true;
+            });
         }
 
         /// <summary>タイル一覧。フォルダはクリックで移動、プリセットはクリックで適用、x で削除する</summary>
