@@ -174,8 +174,8 @@ SceneEditor は警告を出して背景を変更しない。
 `<LightShafts>` でも `<Lights>` の 2 灯目以降でも捨てられる
 （メインライトになる 1 灯目のみ `shadowStrength` が反映される）。
 
-SceneEditor の追加ライトは Point / Spot しか扱えないため、
-`Type` が Directional（1）の 2 灯目以降は Point へ丸められ、警告ログが出る。
+SceneEditor の追加ライトが扱えるのは Spot（0）/ Directional（1）/ Point（2）の 3 種。
+それ以外の `Type`（Area 等）は Point へ丸められ、警告ログが出る。
 
 ## 適用タイミング
 

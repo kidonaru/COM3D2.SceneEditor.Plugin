@@ -218,13 +218,13 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 追加ライトの種別。SceneEditor の追加ライトは Point / Spot しか扱えないため、
-        /// SceneCapture 側に普通に出てくる Directional は Point へ丸めて警告を残す
+        /// 追加ライトの種別。SceneEditor の追加ライトが扱えない型 (Area 等) は
+        /// Point へ丸めて警告を残す
         /// </summary>
         private static int ParseLightType(string s)
         {
             var type = ParseInt(s, (int)LightType.Point);
-            if (type == (int)LightType.Point || type == (int)LightType.Spot)
+            if (StudioLightManager.IsSupportedType((LightType)type))
             {
                 return type;
             }

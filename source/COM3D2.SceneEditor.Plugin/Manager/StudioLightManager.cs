@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 追加ライト（ポイント/スポット）の実体を管理するマネージャー。
+    /// 追加ライト（ポイント/スポット/平行）の実体を管理するマネージャー。
     /// フォトモードと違い背景配下には置かず専用ルート配下に生成する
     /// （背景切替でライトが消えるのを避けるため）。
     /// メインライトは実体を持たず GameMain.Instance.MainLight を直接操作する
@@ -94,10 +94,21 @@ namespace COM3D2.SceneEditor.Plugin
             Object.Destroy(light.gameObject);
         }
 
-        /// <summary>ポイント⇔スポットの種別切替。それ以外の型は受け付けない</summary>
+        /// <summary>
+        /// 追加ライトとして扱える種別か。
+        /// Area / Rectangle 等はリアルタイムライトとして機能しないため除外する
+        /// </summary>
+        public static bool IsSupportedType(LightType type)
+        {
+            return type == LightType.Point
+                || type == LightType.Spot
+                || type == LightType.Directional;
+        }
+
+        /// <summary>ポイント/スポット/平行の種別切替。それ以外の型は受け付けない</summary>
         public void SetLightType(Light light, LightType type)
         {
-            if (light == null || (type != LightType.Point && type != LightType.Spot))
+            if (light == null || !IsSupportedType(type))
             {
                 return;
             }

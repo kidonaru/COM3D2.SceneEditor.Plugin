@@ -52,7 +52,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>追加ライト 1 灯分の状態</summary>
     public class ScenePresetAdditionalLight
     {
-        /// <summary>UnityEngine.LightType の数値 (Point=2, Spot=0)</summary>
+        /// <summary>UnityEngine.LightType の数値 (Spot=0, Directional=1, Point=2)</summary>
         [XmlAttribute]
         public int type;
         public Vector3 position;
