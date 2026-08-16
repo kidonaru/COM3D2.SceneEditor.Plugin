@@ -352,8 +352,7 @@ namespace COM3D2.SceneEditor.Plugin
                 toggle = () =>
                 {
                     // モーダルと重ならないようメニューを閉じてから開く
-                    _openMenuIndex = -1;
-                    _openSubItemIndex = -1;
+                    CloseMenu();
                     SaveLayoutPopupWindow.Show();
                 },
             };
@@ -403,14 +402,28 @@ namespace COM3D2.SceneEditor.Plugin
 
             for (var i = 0; i < _menus.Length; i++)
             {
+                // 自動開閉モード (いずれかのメニューが展開中) では、
+                // ホバーしただけで対象メニューへ切り替える。
+                // GetDrawRect は currentPos を進めないので直後のボタンと同じ矩形になる
+                var rect = view.GetDrawRect(MENU_BUTTON_WIDTH, ITEM_HEIGHT);
+                if (_openMenuIndex >= 0 && _openMenuIndex != i &&
+                    rect.Contains(Event.current.mousePosition))
+                {
+                    OpenMenu(i);
+                }
+
                 // 展開中の見出しはアクセント色で示す。再クリックで閉じる
                 var color = _openMenuIndex == i ? GUIView.option.accentColor : (Color?)null;
                 if (view.DrawButton(_menus[i].title + " ▾", MENU_BUTTON_WIDTH, ITEM_HEIGHT, true, color))
                 {
-                    _openMenuIndex = _openMenuIndex == i ? -1 : i;
-                    _openSubItemIndex = -1;
-                    // 前回のスクロール位置が別メニューへ持ち越されないよう先頭へ戻す
-                    _popupView.scrollPosition = Vector2.zero;
+                    if (_openMenuIndex == i)
+                    {
+                        CloseMenu();
+                    }
+                    else
+                    {
+                        OpenMenu(i);
+                    }
                 }
             }
 
@@ -429,6 +442,39 @@ namespace COM3D2.SceneEditor.Plugin
 
             // グリップ部分だけでドラッグ移動する
             GUI.DragWindow(new Rect(0, 0, FRAME + GRIP_WIDTH, BAR_HEIGHT));
+        }
+
+        /// <summary>指定メニューを展開する。展開中は自動開閉モードとして扱う</summary>
+        private void OpenMenu(int menuIndex)
+        {
+            _openMenuIndex = menuIndex;
+            _openSubItemIndex = -1;
+            // 前回のスクロール位置が別メニューへ持ち越されないよう先頭へ戻す
+            _popupView.scrollPosition = Vector2.zero;
+        }
+
+        /// <summary>展開中のメニュー・サブメニューをまとめて閉じる</summary>
+        private void CloseMenu()
+        {
+            _openMenuIndex = -1;
+            _openSubItemIndex = -1;
+        }
+
+        /// <summary>
+        /// サブメニューを展開する。項目は展開のたびに構築する。
+        /// ホバー・クリックのどちらからも毎フレーム呼ばれうるため、
+        /// 既に開いている項目なら何もせず再構築を避ける
+        /// </summary>
+        private void OpenSubMenu(int rowIndex, MenuItem item)
+        {
+            if (_openSubItemIndex == rowIndex)
+            {
+                return;
+            }
+
+            _openSubItemIndex = rowIndex;
+            _subItems = item.buildSubItems();
+            _subPopupView.scrollPosition = Vector2.zero;
         }
 
         private Rect GetPopupRect(int menuIndex)
@@ -462,28 +508,35 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawPopup(int id)
         {
             var items = _menus[_openMenuIndex].items;
-            DrawItemList(_popupView, items, GetPopupRect(_openMenuIndex).height, (index, item) =>
+            DrawItemList(_popupView, items, GetPopupRect(_openMenuIndex).height,
+                (index, item) =>
+                {
+                    UpdateSubMenu(index, item);
+
+                    // サブメニュー付き項目のクリックは開閉専用で toggle を持たない
+                    if (item.buildSubItems == null)
+                    {
+                        item.toggle();
+                    }
+                },
+                UpdateSubMenu);
+        }
+
+        /// <summary>
+        /// 注目中の項目に合わせてサブメニューを開閉する。
+        /// ホバーとクリックで判定を共有し、開く条件が食い違わないようにする
+        /// </summary>
+        private void UpdateSubMenu(int rowIndex, MenuItem item)
+        {
+            if (item.buildSubItems != null)
             {
-                if (item.buildSubItems != null)
-                {
-                    // 再クリックで閉じる。開くときに項目を構築する
-                    if (_openSubItemIndex == index)
-                    {
-                        _openSubItemIndex = -1;
-                    }
-                    else
-                    {
-                        _openSubItemIndex = index;
-                        _subItems = item.buildSubItems();
-                        _subPopupView.scrollPosition = Vector2.zero;
-                    }
-                }
-                else
-                {
-                    _openSubItemIndex = -1;
-                    item.toggle();
-                }
-            });
+                OpenSubMenu(rowIndex, item);
+            }
+            else
+            {
+                // サブメニューを持たない項目へ移ったら閉じる
+                _openSubItemIndex = -1;
+            }
         }
 
         private void DrawSubPopup(int id)
@@ -495,10 +548,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// ポップアップ・サブポップアップ共通の項目リスト描画。
         /// onClick へ渡すのは配列 index ではなく表示行 index。
-        /// 非表示項目を詰めて描くため、サブポップアップの位置合わせには表示行が要る
+        /// 非表示項目を詰めて描くため、サブポップアップの位置合わせには表示行が要る。
+        /// onHover は毎フレーム呼ばれるため、呼ばれる側で状態変化の有無を見て弾くこと
         /// </summary>
         private void DrawItemList(GUIView view, MenuItem[] items, float windowHeight,
-            Action<int, MenuItem> onClick)
+            Action<int, MenuItem> onClick, Action<int, MenuItem> onHover = null)
         {
             view.Init(0, 0, POPUP_WIDTH, windowHeight);
             // 枠の内側からスクロール領域を始める。padding だとスクロール内の
@@ -533,6 +587,11 @@ namespace COM3D2.SceneEditor.Plugin
                         view.BeginColor(ITEM_HOVER_COLOR);
                         GUI.DrawTexture(rect, Texture2D.whiteTexture);
                         view.EndColor();
+
+                        if (onHover != null)
+                        {
+                            onHover(row, item);
+                        }
                     }
 
                     // 連続で切り替えられるよう、クリックしてもメニューは閉じない
@@ -578,8 +637,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (!_windowRect.Contains(pos) && !GetPopupRect(_openMenuIndex).Contains(pos)
                     && (_openSubItemIndex < 0 || !GetSubPopupRect().Contains(pos)))
                 {
-                    _openMenuIndex = -1;
-                    _openSubItemIndex = -1;
+                    CloseMenu();
                 }
             }
 
@@ -610,8 +668,7 @@ namespace COM3D2.SceneEditor.Plugin
         public void Close()
         {
             isShowWnd = false;
-            _openMenuIndex = -1;
-            _openSubItemIndex = -1;
+            CloseMenu();
         }
 
         public void OnLoad()
