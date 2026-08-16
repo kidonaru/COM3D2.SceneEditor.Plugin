@@ -140,7 +140,8 @@ namespace COM3D2.SceneEditor.Plugin
                     ScenePresetManager.currentDirItem = currentDirItem.parent as ScenePresetItem;
                 }
 
-                if (_view.DrawButton("保存", 50, ROW_HEIGHT))
+                // SceneCapture 仮想フォルダは読み込み専用のため保存させない
+                if (_view.DrawButton("保存", 50, ROW_HEIGHT, !currentDirItem.isReadonlyDir))
                 {
                     SavePresetWithConfirm();
                 }

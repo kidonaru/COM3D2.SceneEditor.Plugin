@@ -16,6 +16,12 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public string path;
 
+        /// <summary>SceneCapture プリセット由来の項目か。読み込み専用で、適用経路も専用になる</summary>
+        public bool isSceneCapture;
+
+        /// <summary>保存先にできないフォルダか（SceneCapture 仮想フォルダとその配下）</summary>
+        public bool isReadonlyDir;
+
         // 自動ロード指定 (ホームアイコン)。実体は Config の自動ロードキー 1 件のみで、
         // ON にすると他の指定は外れる
         public override bool isFavorite
@@ -43,6 +49,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         public static string presetFolderPath
             => Path.Combine(PluginUtils.PluginDataPath, "ScenePreset");
+
+        /// <summary>SceneCapture プラグインのプリセットフォルダ。同じ Config 配下に同居している</summary>
+        public static string sceneCapturePresetsPath
+            => Path.Combine(PluginUtils.UserDataPath, Path.Combine("SceneCapture", "Presets"));
 
         private static readonly XmlSerializer _serializer = new XmlSerializer(typeof(ScenePresetData));
 
@@ -83,7 +93,10 @@ namespace COM3D2.SceneEditor.Plugin
                     UpdateSelection(child);
                     continue;
                 }
-                child.isSelected = IsSamePresetKey(GetPresetKey(child.path), currentPresetKey);
+                // SceneCapture はプリセットフォルダ外でキーが空になり、
+                // 未選択状態 (currentPresetKey = "") と一致してしまうため対象外にする
+                child.isSelected = !child.isSceneCapture
+                    && IsSamePresetKey(GetPresetKey(child.path), currentPresetKey);
             }
         }
 
@@ -127,8 +140,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _loaded = true;
 
-            // 作り直しで表示中フォルダの実体が入れ替わるため、相対パスで控えて後から再解決する
-            var currentRelativeDir = GetRelativePath(currentDirPath);
+            // 作り直しで表示中フォルダの実体が入れ替わるため、相対パスで控えて後から再解決する。
+            // SceneCapture 仮想フォルダは presetFolderPath の外にあるため基準を分ける
+            var wasSceneCapture = IsUnderSceneCapture(currentDirPath);
+            var currentRelativeDir = wasSceneCapture
+                ? GetRelativePathFrom(sceneCapturePresetsPath, currentDirPath)
+                : GetRelativePath(currentDirPath);
 
             // 古いサムネテクスチャを解放してから作り直す
             ClearThumbnails(rootItem);
@@ -137,25 +154,106 @@ namespace COM3D2.SceneEditor.Plugin
 
             try
             {
-                if (!Directory.Exists(presetFolderPath))
-                {
-                    return;
-                }
-
                 var visitedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     GetCanonicalPath(presetFolderPath),
                 };
-                SearchItems(rootItem, visitedDirs);
+                // プリセットフォルダ未作成でも SceneCapture の一覧は出せるようにする
+                if (Directory.Exists(presetFolderPath))
+                {
+                    SearchItems(rootItem, visitedDirs);
+                }
+                AddSceneCaptureItems(rootItem, visitedDirs);
                 UpdateSelection(rootItem);
 
                 // 保存・削除・更新の前後で見ているフォルダを維持する（消えていればルートへ戻す）
-                currentDirItem = FindDirItem(rootItem, currentRelativeDir) ?? rootItem;
+                var searchRoot = wasSceneCapture ? FindSceneCaptureRootItem() : rootItem;
+                currentDirItem = (searchRoot != null
+                    ? FindDirItem(searchRoot, currentRelativeDir) : null) ?? rootItem;
             }
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
             }
+        }
+
+        /// <summary>
+        /// SceneCapture のプリセットを読み込み専用の仮想フォルダとしてツリーへ追加する。
+        /// フォルダが無い環境では何も足さない
+        /// </summary>
+        private static void AddSceneCaptureItems(
+            ScenePresetItem rootItem, HashSet<string> visitedDirs)
+        {
+            if (!Directory.Exists(sceneCapturePresetsPath))
+            {
+                return;
+            }
+
+            var dirItem = new ScenePresetItem
+            {
+                name = "SceneCapture",
+                path = sceneCapturePresetsPath,
+                isDir = true,
+                isSceneCapture = true,
+                isReadonlyDir = true,
+                children = new List<ITileViewContent>(16),
+            };
+            rootItem.AddChild(dirItem);
+
+            if (visitedDirs.Add(GetCanonicalPath(sceneCapturePresetsPath)))
+            {
+                SearchItems(dirItem, visitedDirs);
+                MarkSceneCaptureItems(dirItem);
+            }
+        }
+
+        /// <summary>仮想フォルダ配下の全項目へ SceneCapture / Readonly の属性を伝播する</summary>
+        private static void MarkSceneCaptureItems(ScenePresetItem dirItem)
+        {
+            if (dirItem.children == null)
+            {
+                return;
+            }
+            foreach (var child in dirItem.children.OfType<ScenePresetItem>())
+            {
+                child.isSceneCapture = true;
+                if (child.isDir)
+                {
+                    child.isReadonlyDir = true;
+                    MarkSceneCaptureItems(child);
+                }
+                else
+                {
+                    // 読み込み専用: 削除ボタンと自動ロード指定を出さない
+                    child.canDelete = false;
+                    child.canFavorite = false;
+                }
+            }
+        }
+
+        /// <summary>ツリー直下の SceneCapture 仮想フォルダを返す。無ければ null</summary>
+        private static ScenePresetItem FindSceneCaptureRootItem()
+        {
+            return rootItem.children.OfType<ScenePresetItem>()
+                .FirstOrDefault(child => child.isDir && child.isSceneCapture);
+        }
+
+        /// <summary>
+        /// SceneCapture 仮想フォルダ配下のパスか。サイドカー除外と保存抑止の判定に使う。
+        /// 同名接頭辞の別フォルダ（例: Presets と PresetsOld）を誤判定しないよう、
+        /// ルート自身との一致か、区切り文字付きの前方一致で判定する
+        /// </summary>
+        private static bool IsUnderSceneCapture(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
+            var root = GetCanonicalPath(sceneCapturePresetsPath);
+            var target = GetCanonicalPath(path);
+            return target.Equals(root, StringComparison.OrdinalIgnoreCase)
+                || target.StartsWith(root + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -183,8 +281,10 @@ namespace COM3D2.SceneEditor.Plugin
                 .OrderBy(path => path, new NaturalStringComparer());
             foreach (var xmlPath in xmlPaths)
             {
-                // サイドカー (<プリセット名>.<キー>.xml) はプリセット本体ではないため一覧に出さない
-                if (IsSidecarXmlPath(xmlPath))
+                // サイドカー (<プリセット名>.<キー>.xml) はプリセット本体ではないため一覧に出さない。
+                // SceneCapture 側にはサイドカー規約が無く、ドット入りのプリセット名
+                // (例: HRK preset v2.0.xml) が普通にあるため除外しない
+                if (!IsUnderSceneCapture(dirItem.path) && IsSidecarXmlPath(xmlPath))
                 {
                     continue;
                 }
@@ -311,6 +411,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static void SavePreset(string presetName, ScenePresetSaveOptions options)
         {
+            // UI の抑止をすり抜けても SceneCapture 配下には書き込まない
+            if (IsUnderSceneCapture(currentDirPath))
+            {
+                MTEUtils.LogWarning("SceneCapture フォルダは読み込み専用のため保存できません");
+                return;
+            }
+
             try
             {
                 var data = Capture(options);
@@ -1788,7 +1895,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>プリセットフォルダからの相対パスを返す。配下でなければ空文字</summary>
         private static string GetRelativePath(string fullPath)
         {
-            var basePath = presetFolderPath;
+            return GetRelativePathFrom(presetFolderPath, fullPath);
+        }
+
+        /// <summary>基準フォルダからの相対パスを返す。配下でなければ空文字</summary>
+        private static string GetRelativePathFrom(string basePath, string fullPath)
+        {
             if (string.IsNullOrEmpty(fullPath) ||
                 !fullPath.StartsWith(basePath, StringComparison.OrdinalIgnoreCase))
             {
