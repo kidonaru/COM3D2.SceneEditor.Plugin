@@ -119,6 +119,7 @@
     <Compile Include="MTEUtils\GUICache.cs" />
     <Compile Include="MTEUtils\HistoryClient.cs" />
     <Compile Include="MTEUtils\GUIComboBox.cs" />
+    <Compile Include="MTEUtils\GUITreeView.cs" />
     <Compile Include="MTEUtils\GUIView.cs" />
     <Compile Include="MTEUtils\GearMenu.cs" />
     <Compile Include="MTEUtils\GizmoToolRowDrawer.cs" />
