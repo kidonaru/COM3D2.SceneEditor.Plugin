@@ -17,8 +17,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
 
-        // トグル 1 個分の余白。チェックボックス本体とラベル実寸の差を埋める
-        private static readonly float TOGGLE_EXTRA_WIDTH = 20;
+        // トグル 1 個分の余白。CalcWidth はチェックボックス分も含むため、
+        // 端数で末尾が欠けない程度の小さな下駄だけ履かせる
+        private static readonly float TOGGLE_EXTRA_WIDTH = 8;
+
+        /// <summary>読込トグル同士の間隔。既定 (5) より詰めて 1 行に多く並べる</summary>
+        private static readonly float TOGGLE_MARGIN = 2;
 
         /// <summary>読込トグル行の先頭ラベル幅</summary>
         private static readonly float LOAD_LABEL_WIDTH = 40;
@@ -196,6 +200,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawLoadOptionRow()
         {
+            // margin はビュー全体の状態のため、この行を抜けたら必ず戻す
+            var savedMargin = _view.margin;
+            _view.margin = TOGGLE_MARGIN;
+
             _view.BeginHorizontal();
             {
                 _view.DrawLabel("読込:", LOAD_LABEL_WIDTH, ROW_HEIGHT);
@@ -219,6 +227,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _view.EndLayout();
+
+            _view.margin = savedMargin;
         }
 
         /// <summary>
