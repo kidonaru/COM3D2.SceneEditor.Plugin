@@ -415,14 +415,13 @@ namespace COM3D2.SceneEditor.Plugin
         public int version = CurrentVersion;
 
         // 保存時に選んだカテゴリ。「保存していない」と「保存した結果が空」を区別するために持つ。
-        // 旧プリセット (v15 以前) は属性が無く既定の true で読まれ、全カテゴリ保存済みとして扱われる
+        // savedBackground は背景・ライト・PNG 配置をまとめた「背景」カテゴリ
         [XmlAttribute]
         public bool savedCamera = true;
 
         [XmlAttribute]
         public bool savedMaids = true;
 
-        /// <summary>背景・ライト・PNG 配置をまとめた「背景」カテゴリを保存したか</summary>
         [XmlAttribute]
         public bool savedBackground = true;
 
