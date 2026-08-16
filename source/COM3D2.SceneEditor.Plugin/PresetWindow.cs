@@ -23,8 +23,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>読込トグル行の先頭ラベル幅</summary>
         private static readonly float LOAD_LABEL_WIDTH = 40;
 
-        // タイルの表示サイズ。サムネの縦横比 + 名前ラベル分の高さ
-        private static readonly float TILE_WIDTH = 120;
+        // タイルの表示サイズ。サムネの縦横比 + 名前ラベル分の高さ。
+        // 幅は PNG 配置ウィンドウ (PngPlacementWindow.TILE_WIDTH) と揃えている
+        private static readonly float TILE_WIDTH = 96;
         private static readonly float TILE_HEIGHT =
             TILE_WIDTH * ScenePresetManager.THUM_HEIGHT / ScenePresetManager.THUM_WIDTH + 20;
 
