@@ -7,15 +7,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// スロット別ボーンの可視化・編集ウィンドウ。
     /// 表示中だけビュー窓に骨格線が出て、関節クリックでボーンを選べるようになる。
-    /// ボーン一覧は Hierarchy と同じ UI (展開/折りたたみ + 検索 + 行仮想化) で表示する
+    /// ボーン一覧の行まわり (展開/折りたたみ・検索・行仮想化) は GUITreeView に委譲し、
+    /// ここではスロット選択とボーンツリーの提供、リセット操作を担う
     /// </summary>
     public class BoneEditWindow : MaidWindowBase
     {
         public static readonly int WINDOW_ID = 8903371;
-
-        private const float IndentWidth = 14f;
-        private const float ToggleWidth = 20f;
-        private const float ScrollBarWidth = 16f;
 
         private static readonly int ResetButtonWidth = 110;
 
@@ -49,14 +46,11 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUITreeView<SlotBoneNode> _treeView = new GUITreeView<SlotBoneNode>();
         // 外部経路 (ビュー窓のボーンピック等) の選択変更検出用
         private Transform _lastSelectedBone;
-        // ラベル生成デリゲートから参照する、描画中のメイドと編集ストア。
-        // GUITreeView にはゲーム固有の型を渡せないため、描画直前にここへ置いてから使う。
-        //
-        // 【前提】これが有効なのは _treeView.Draw() の実行中だけ。
-        // 現状 onSelected は Draw() の中からしか発火しないため成立している。
-        // このウィンドウに _treeView.HandleKeyboard() を足す場合は、描画外から
-        // onSelected が飛んできて前フレームの値を掴む経路が生まれるため、
-        // ここをフィールド経由ではなく引数渡しに変える必要がある
+        // ラベル生成デリゲートが参照する、描画中のメイドと編集ストア。
+        // GUITreeView へゲーム固有の型を渡せないため、Draw() 直前にここへ置く。
+        // 有効なのは Draw() 実行中だけ (onSelected は現状 Draw() 内でしか発火しないため成立)。
+        // _treeView.HandleKeyboard() を足す場合は前フレームの値を掴む経路が生まれるため、
+        // フィールド経由ではなく引数渡しに変えること
         private Maid _drawingTarget;
         private BoneEditStore _drawingStore;
 
@@ -68,10 +62,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void SetupTreeView()
         {
+            // インデント幅等は GUITreeView の既定値をそのまま使う
             _treeView.rowHeight = ROW_HEIGHT;
-            _treeView.indentWidth = IndentWidth;
-            _treeView.toggleWidth = ToggleWidth;
-            _treeView.scrollBarWidth = ScrollBarWidth;
 
             // ID は Transform のものを使う。ビュー窓のピックで飛んでくるのも Transform のため、
             // Reveal / Expand と突き合わせるにはこれで揃えておく必要がある

@@ -17,46 +17,13 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int WINDOW_ID = 8903351;
         private const float RefreshInterval = 0.5f;
         private const float RowHeight = 20f;
-        private const float IndentWidth = 14f;
-        private const float ToggleWidth = 20f;
         private const float SearchButtonWidth = 44f;
         // 要素どうしの隙間 (縦横共通)
         private const float Spacing = 2f;
-        private const float ScrollBarWidth = 16f;
         // この時間内の同一行への再クリックをダブルクリックとみなす
         private const float DoubleClickTime = 0.3f;
 
         private static SelectionManager selectionManager => SelectionManager.instance;
-
-        /// <summary>
-        /// ツリービューにシーン階層のたどり方と行の見た目を教える。
-        /// GUITreeView はゲーム固有の型を知らないため、ここで橋渡しする
-        /// </summary>
-        private void SetupTreeView()
-        {
-            _treeView.rowHeight = RowHeight;
-            _treeView.indentWidth = IndentWidth;
-            _treeView.toggleWidth = ToggleWidth;
-            _treeView.scrollBarWidth = ScrollBarWidth;
-
-            _treeView.getId = go => go.GetInstanceID();
-            _treeView.getName = go => go.name;
-            _treeView.isAlive = go => go != null;
-            _treeView.getChildCount = go => go.transform.childCount;
-            _treeView.getChild = (go, i) => go.transform.GetChild(i).gameObject;
-
-            _treeView.getLabel = go => go.activeInHierarchy ? go.name : go.name + " (無効)";
-            _treeView.getLabelColor = go =>
-                selectionManager.selectedObject == go ? ACCENT_COLOR : Color.white;
-            _treeView.isSelected = go => selectionManager.selectedObject == go;
-            _treeView.onSelected = go =>
-            {
-                selectionManager.Select(go);
-                OnRowClicked(go);
-            };
-
-            _treeView.SetRoots(_roots);
-        }
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "Hierarchy";
@@ -98,6 +65,34 @@ namespace COM3D2.SceneEditor.Plugin
         private HierarchyWindow()
         {
             SetupTreeView();
+        }
+
+        /// <summary>
+        /// ツリービューにシーン階層のたどり方と行の見た目を教える。
+        /// GUITreeView はゲーム固有の型を知らないため、ここで橋渡しする
+        /// </summary>
+        private void SetupTreeView()
+        {
+            // インデント幅等は GUITreeView の既定値をそのまま使う
+            _treeView.rowHeight = RowHeight;
+
+            _treeView.getId = go => go.GetInstanceID();
+            _treeView.getName = go => go.name;
+            _treeView.isAlive = go => go != null;
+            _treeView.getChildCount = go => go.transform.childCount;
+            _treeView.getChild = (go, i) => go.transform.GetChild(i).gameObject;
+
+            _treeView.getLabel = go => go.activeInHierarchy ? go.name : go.name + " (無効)";
+            _treeView.getLabelColor = go =>
+                selectionManager.selectedObject == go ? ACCENT_COLOR : Color.white;
+            _treeView.isSelected = go => selectionManager.selectedObject == go;
+            _treeView.onSelected = go =>
+            {
+                selectionManager.Select(go);
+                OnRowClicked(go);
+            };
+
+            _treeView.SetRoots(_roots);
         }
 
         public override void Init()
