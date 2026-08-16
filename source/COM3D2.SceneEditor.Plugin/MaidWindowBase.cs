@@ -114,9 +114,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawHorizontalLine(Color.gray);
-            view.AddSpace(5);
-
             var target = maidManager.targetMaid;
             if (target == null)
             {

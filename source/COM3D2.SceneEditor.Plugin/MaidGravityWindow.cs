@@ -81,6 +81,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
 
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
