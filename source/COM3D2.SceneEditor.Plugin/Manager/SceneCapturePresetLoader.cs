@@ -30,6 +30,13 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class SceneCapturePresetLoader
     {
+        // 要素が欠落・不正だったときのフォールバック。
+        // ライト系は SceneEditor 自身の既定値 (StudioLightManager) に揃え、
+        // 以下はゲーム側の初期値に合わせている
+        private const float DEFAULT_SHADOW_STRENGTH = 0.098f;
+        private const float DEFAULT_CAMERA_DISTANCE = 2f;
+        private const float DEFAULT_CAMERA_FOV = 35f;
+
         public static SceneCaptureConvertedPreset Parse(string xmlText)
         {
             var doc = XDocument.Parse(xmlText);
@@ -80,8 +87,8 @@ namespace COM3D2.SceneEditor.Plugin
                 yaw = rotation.y,
                 pitch = rotation.x,
                 roll = rotation.z,
-                distance = ParseFloat(Value(e, "Distance"), 2f),
-                fov = ParseFloat(Value(e, "FieldOfView"), 35f),
+                distance = ParseFloat(Value(e, "Distance"), DEFAULT_CAMERA_DISTANCE),
+                fov = ParseFloat(Value(e, "FieldOfView"), DEFAULT_CAMERA_FOV),
             };
         }
 
@@ -122,28 +129,50 @@ namespace COM3D2.SceneEditor.Plugin
                 ? lights.Elements("Light").ToList() : new List<XElement>();
             if (entries.Count > 0)
             {
-                var main = entries[0];
-                state.hasMain = true;
-                state.mainRotation = ParseVector3(Value(main, "EulerAngles"));
-                state.mainColor = ParseColor32(Value(main, "Color"));
-                state.mainIntensity = ParseFloat(Value(main, "Intensity"), 0.95f);
-                state.mainShadowStrength = ParseFloat(Value(main, "shadowStrength"), 0.098f);
+                // 1 灯目が壊れていても追加ライトは活かしたいので個別に握る
+                try
+                {
+                    var main = entries[0];
+                    state.mainRotation = ParseVector3(Value(main, "EulerAngles"));
+                    state.mainColor = ParseColor32(Value(main, "Color"));
+                    state.mainIntensity = ParseFloat(
+                        Value(main, "Intensity"), StudioLightManager.DefaultIntensity);
+                    state.mainShadowStrength = ParseFloat(
+                        Value(main, "shadowStrength"), DEFAULT_SHADOW_STRENGTH);
+                    state.hasMain = true;
+                }
+                catch (Exception e)
+                {
+                    LogSectionError("Lights/Light[0]", e);
+                }
             }
 
-            foreach (var e in entries.Skip(1))
-            {
-                state.additionalLights.Add(ParseAdditionalLight(e));
-            }
+            AddAdditionalLights(state, entries.Skip(1), "Lights/Light");
             if (lightShafts != null)
             {
-                foreach (var e in lightShafts.Elements("LightShaft"))
-                {
-                    state.additionalLights.Add(ParseAdditionalLight(e));
-                }
+                AddAdditionalLights(
+                    state, lightShafts.Elements("LightShaft"), "LightShafts/LightShaft");
             }
 
             // メインも追加も無いプリセットではライトを触らない
             return state.hasMain || state.additionalLights.Count > 0 ? state : null;
+        }
+
+        /// <summary>1 灯の変換失敗で他の灯を巻き添えにしないよう、要素ごとに握って積む</summary>
+        private static void AddAdditionalLights(
+            ScenePresetLight state, IEnumerable<XElement> entries, string section)
+        {
+            foreach (var entry in entries)
+            {
+                try
+                {
+                    state.additionalLights.Add(ParseAdditionalLight(entry));
+                }
+                catch (Exception e)
+                {
+                    LogSectionError(section, e);
+                }
+            }
         }
 
         private static ScenePresetAdditionalLight ParseAdditionalLight(XElement e)
@@ -154,9 +183,11 @@ namespace COM3D2.SceneEditor.Plugin
                 position = ParseVector3(Value(e, "Position")),
                 rotation = ParseVector3(Value(e, "EulerAngles")),
                 color = ParseColor32(Value(e, "Color")),
-                intensity = ParseFloat(Value(e, "Intensity"), 0.95f),
-                range = ParseFloat(Value(e, "Range"), 10f),
-                spotAngle = ParseFloat(Value(e, "SpotAngle"), 30f),
+                intensity = ParseFloat(
+                    Value(e, "Intensity"), StudioLightManager.DefaultIntensity),
+                range = ParseFloat(Value(e, "Range"), StudioLightManager.DefaultRange),
+                spotAngle = ParseFloat(
+                    Value(e, "SpotAngle"), StudioLightManager.DefaultSpotAngle),
                 enabled = ParseBool(Value(e, "Enabled"), true),
             };
         }
@@ -216,8 +247,17 @@ namespace COM3D2.SceneEditor.Plugin
                 throw new FormatException("Color32 の書式が不正です: " + s);
             }
             return new Color32(
-                (byte)ParseInt(parts[0], 255), (byte)ParseInt(parts[1], 255),
-                (byte)ParseInt(parts[2], 255), (byte)ParseInt(parts[3], 255));
+                ParseColorComponent(parts[0]), ParseColorComponent(parts[1]),
+                ParseColorComponent(parts[2]), ParseColorComponent(parts[3]));
+        }
+
+        /// <summary>
+        /// 色成分 1 つ。外部 XML の値をそのまま byte へ落とすと
+        /// 範囲外の値が下位バイトだけ残って別の色に化けるためクランプする
+        /// </summary>
+        private static byte ParseColorComponent(string s)
+        {
+            return (byte)Mathf.Clamp(ParseInt(s, 255), 0, 255);
         }
     }
 }

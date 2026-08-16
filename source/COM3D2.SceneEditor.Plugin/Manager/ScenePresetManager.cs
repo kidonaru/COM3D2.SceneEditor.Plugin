@@ -182,7 +182,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// フォルダが無い環境では何も足さない
         /// </summary>
         private static void AddSceneCaptureItems(
-            ScenePresetItem rootItem, HashSet<string> visitedDirs)
+            ScenePresetItem targetRootItem, HashSet<string> visitedDirs)
         {
             if (!Directory.Exists(sceneCapturePresetsPath))
             {
@@ -198,7 +198,7 @@ namespace COM3D2.SceneEditor.Plugin
                 isReadonlyDir = true,
                 children = new List<ITileViewContent>(16),
             };
-            rootItem.AddChild(dirItem);
+            targetRootItem.AddChild(dirItem);
 
             if (visitedDirs.Add(GetCanonicalPath(sceneCapturePresetsPath)))
             {
@@ -277,6 +277,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ファイルを先、フォルダを後に並べる（MTE の TimelineLoadManager と同じ構成）</summary>
         private static void SearchItemsCore(ScenePresetItem dirItem, HashSet<string> visitedDirs)
         {
+            var isUnderSceneCapture = IsUnderSceneCapture(dirItem.path);
+
             var xmlPaths = Directory.GetFiles(dirItem.path, "*.xml")
                 .OrderBy(path => path, new NaturalStringComparer());
             foreach (var xmlPath in xmlPaths)
@@ -284,7 +286,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // サイドカー (<プリセット名>.<キー>.xml) はプリセット本体ではないため一覧に出さない。
                 // SceneCapture 側にはサイドカー規約が無く、ドット入りのプリセット名
                 // (例: HRK preset v2.0.xml) が普通にあるため除外しない
-                if (!IsUnderSceneCapture(dirItem.path) && IsSidecarXmlPath(xmlPath))
+                if (!isUnderSceneCapture && IsSidecarXmlPath(xmlPath))
                 {
                     continue;
                 }
@@ -573,6 +575,13 @@ namespace COM3D2.SceneEditor.Plugin
             // フォルダは削除対象にしない（UI の x ボタンはファイルにしか出ないが、念のため）
             if (item == null || item.isDir)
             {
+                return;
+            }
+
+            // UI の抑止をすり抜けても SceneCapture 側のファイルは消さない（SavePreset と対）
+            if (item.isSceneCapture || IsUnderSceneCapture(item.path))
+            {
+                MTEUtils.LogWarning("SceneCapture フォルダは読み込み専用のため削除できません");
                 return;
             }
 
