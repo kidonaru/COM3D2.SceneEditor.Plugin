@@ -74,6 +74,7 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(SavePosePopupWindow.instance);
             AddWindow(SaveFacePresetPopupWindow.instance);
             AddWindow(SaveFingerPresetPopupWindow.instance);
+            AddWindow(AboutPopupWindow.instance);
             AddWindow(DialogPopupWindow.instance);
         }
 

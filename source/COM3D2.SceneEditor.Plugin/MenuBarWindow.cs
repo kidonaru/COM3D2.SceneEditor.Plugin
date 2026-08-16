@@ -177,6 +177,17 @@ namespace COM3D2.SceneEditor.Plugin
                         },
                         new MenuItem
                         {
+                            label = "About",
+                            isOn = () => false,
+                            toggle = () =>
+                            {
+                                // モーダルと重ならないようメニューを閉じてから開く
+                                CloseMenu();
+                                AboutPopupWindow.Show();
+                            },
+                        },
+                        new MenuItem
+                        {
                             label = "Editor終了",
                             isOn = () => false,
                             toggle = () => SceneEditorPlugin.instance.isEnable = false,

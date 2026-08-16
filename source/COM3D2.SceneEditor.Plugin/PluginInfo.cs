@@ -8,6 +8,8 @@ namespace COM3D2.SceneEditor.Plugin
         public const string PluginFullName = "COM3D2." + PluginName + ".Plugin";
         public const string PluginVersion = "0.1.0.0";
         public const string WindowName = PluginName + " " + PluginVersion;
+        /// <summary>ドキュメントサイトの URL。About から開く</summary>
+        public const string DocumentUrl = "https://kidonaru.github.io/COM3D2.SceneEditor.Plugin/";
 
         // ギアメニュー用アイコン。docs-site/public/favicon.svg を 32x32 PNG 化したもので、
         // 差し替えるときは assets/icons/generate.js を実行して出力を貼り替えること

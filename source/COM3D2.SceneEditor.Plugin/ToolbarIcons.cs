@@ -87,21 +87,39 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static Texture2D CreateTexture(string base64)
         {
+            try
+            {
+                return CreateTextureFromPng(Convert.FromBase64String(base64), "ツールバーアイコン");
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogError("ツールバーアイコンの base64 のデコードに失敗しました");
+                MTEUtils.LogException(e);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// PNG バイト列からテクスチャを生成する。読み込めなければ null。
+        /// errorLabel はログに出す対象名 (「〜の画像を〜」の形で埋め込む)
+        /// </summary>
+        public static Texture2D CreateTextureFromPng(byte[] png, string errorLabel)
+        {
             // 幅・高さと形式は LoadImage が PNG に合わせて作り直す
             var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
 
             try
             {
-                if (texture.LoadImage(Convert.FromBase64String(base64)))
+                if (texture.LoadImage(png))
                 {
                     return texture;
                 }
-                MTEUtils.LogError("ツールバーアイコンの画像を読み込めませんでした");
+                MTEUtils.LogError("{0}の画像を読み込めませんでした", errorLabel);
             }
             catch (Exception e)
             {
-                // 読み込めなくても機能自体は動くので、呼び出し側でテキスト表示へフォールバックする
-                MTEUtils.LogError("ツールバーアイコンの画像の展開に失敗しました");
+                // 読み込めなくても機能自体は動くので、呼び出し側でフォールバックする
+                MTEUtils.LogError("{0}の画像の展開に失敗しました", errorLabel);
                 MTEUtils.LogException(e);
             }
 

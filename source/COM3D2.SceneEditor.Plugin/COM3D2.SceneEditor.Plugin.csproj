@@ -250,6 +250,7 @@
     <Compile Include="SettingWindow.cs" />
     <Compile Include="ScenePresetData.cs" />
     <Compile Include="WindowLayoutData.cs" />
+    <Compile Include="AboutPopupWindow.cs" />
     <Compile Include="DialogPopupWindow.cs" />
     <Compile Include="SavePresetPopupWindow.cs" />
     <Compile Include="SaveLayoutPopupWindow.cs" />
