@@ -4,7 +4,8 @@ COM3D2.SceneEditor.Plugin は、3D シーンの描画を移動・リサイズで
 ゲーム標準の UI を隠した「エディタ風モード」を提供する UnityInjector 形式プラグインです。
 メイドのポーズ・表情・衣装、カメラ、ライト、背景、BGM をその場で編集し、撮影まで完結できます。
 
-<!-- スクリーンショット -->
+https://github.com/user-attachments/assets/419cb107-f25d-426e-a117-f8c052b7da17
+
 
 ## ドキュメント
 
