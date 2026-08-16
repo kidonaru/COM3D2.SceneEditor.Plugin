@@ -407,10 +407,24 @@ namespace COM3D2.SceneEditor.Plugin
         //      その時点では PNG 配置機能自体が無く配置は 0 枚なので、適用時は空として全消去する
         // v15: look に headToCam / eyeToCam（顔を向ける・目を向ける）を追加。
         //      旧形式は属性が無く、適用時にこの 2 つのトグルへ触らない
-        public static readonly int CurrentVersion = 15;
+        // v16: savedCamera / savedMaids / savedBackground（保存時に選んだカテゴリ）を追加。
+        //      旧形式は属性が無く既定の true で読めるため、全カテゴリ保存済みとして扱う
+        public static readonly int CurrentVersion = 16;
 
         [XmlAttribute]
         public int version = CurrentVersion;
+
+        // 保存時に選んだカテゴリ。「保存していない」と「保存した結果が空」を区別するために持つ。
+        // 旧プリセット (v15 以前) は属性が無く既定の true で読まれ、全カテゴリ保存済みとして扱われる
+        [XmlAttribute]
+        public bool savedCamera = true;
+
+        [XmlAttribute]
+        public bool savedMaids = true;
+
+        /// <summary>背景・ライト・PNG 配置をまとめた「背景」カテゴリを保存したか</summary>
+        [XmlAttribute]
+        public bool savedBackground = true;
 
         public ScenePresetCamera camera;
 
