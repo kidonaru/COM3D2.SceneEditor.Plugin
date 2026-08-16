@@ -108,6 +108,15 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly List<KeyValuePair<Maid, ScenePresetMaid>> _pendingApplies
             = new List<KeyValuePair<Maid, ScenePresetMaid>>();
 
+        /// <summary>
+        /// AssignMaids が確定させたスロットと実メイドの対応（適用の完了有無は問わない）。
+        /// 視線はロード完了後にまとめて適用するため、そのときに guid で引き直すと
+        /// guid 不一致でフォールバック割当されたメイド（他人のプリセット等）を取りこぼす。
+        /// そのため割当結果を保持しておき、視線の適用時はこの対応で引く
+        /// </summary>
+        private static readonly List<KeyValuePair<Maid, ScenePresetMaid>> _resolvedAssignments
+            = new List<KeyValuePair<Maid, ScenePresetMaid>>();
+
         /// <summary>外部プロバイダへの保留適用。全メイドのロード完了後に ApplyExternals する</summary>
         private static ScenePresetData _pendingExternalsData;
 
@@ -1000,6 +1009,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 古い外部状態の反映が起きるため、新しいロードで打ち切る
             _pendingApplies.Clear();
             _pendingExternalsData = null;
+            _resolvedAssignments.Clear();
 
             if (!skipScenery)
             {
@@ -1017,6 +1027,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (ShouldApplyMaids(data))
             {
                 var assignments = AssignMaids(data.maids);
+                _resolvedAssignments.AddRange(assignments);
 
                 // メイド未保存（カメラ・背景のみ等）のプリセットと「保存時に 0 体」は
                 // XML 上区別できないため、1 体以上保存されている場合だけ解除まで行う
@@ -1150,6 +1161,38 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// プリセット上の guid を持つスロットへ割り当てられた実メイドを返す。
+        /// 保存時の guid と現在のメイドの guid は一致するとは限らないため、
+        /// 実メイドの guid ではなくスロット側の guid で引く
+        /// </summary>
+        private static Maid FindMaidBySlotGuid(string guid)
+        {
+            if (string.IsNullOrEmpty(guid))
+            {
+                return null;
+            }
+
+            foreach (var pair in _resolvedAssignments)
+            {
+                if (pair.Value.guid == guid && IsStillCalled(pair.Key))
+                {
+                    return pair.Key;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 割当時のメイドが今も呼出済みかを確かめる。
+        /// ロード待ちを挟む間にユーザーが解除する余地があり、ストックの Maid は
+        /// 使い回されるため、参照を持っているだけでは解除済みかを判別できない
+        /// </summary>
+        private static bool IsStillCalled(Maid maid)
+        {
+            return maid != null && maidManager.calledMaids.Contains(maid);
         }
 
         /// <summary>guid が一致する未割当メイドを呼出済みの中から探す。新たな呼出はしない</summary>
@@ -1287,45 +1330,36 @@ namespace COM3D2.SceneEditor.Plugin
             var applyMaids = ShouldApplyMaids(data);
             if (applyMaids)
             {
-                ApplyLooks(data);
+                ApplyLooks();
             }
             ApplyExternals(data);
             if (applyMaids)
             {
                 RequestFocusOnAppliedMaid(data);
             }
+            // Maid 参照を適用の間だけ持つ。以降の解除・シーン遷移で寿命が切れるため残さない
+            _resolvedAssignments.Clear();
         }
 
         /// <summary>
-        /// 視線を復元する。旧プリセット (look 無し) のメイドは触らない。
+        /// AssignMaids が確定させた _resolvedAssignments の各メイドへ視線を復元する。
+        /// 旧プリセット (look 無し) のメイドは触らない。
         /// 1 体の失敗で他のメイドが止まらないよう個別に握りつぶす
         /// </summary>
-        private static void ApplyLooks(ScenePresetData data)
+        private static void ApplyLooks()
         {
-            if (data.maids == null)
+            foreach (var pair in _resolvedAssignments)
             {
-                return;
-            }
-
-            var assigned = new HashSet<Maid>();
-            foreach (var state in data.maids)
-            {
-                if (state.look == null)
+                var maid = pair.Key;
+                var look = pair.Value.look;
+                if (look == null || !IsStillCalled(maid))
                 {
                     continue;
                 }
-
-                // 視線の復元でメイドを増やさないよう、呼出済みの中からだけ探す
-                var maid = FindCalledMaidByGuid(state.guid, assigned);
-                if (maid == null)
-                {
-                    continue;
-                }
-                assigned.Add(maid);
 
                 try
                 {
-                    ApplyLook(maid, state.look);
+                    ApplyLook(maid, look);
                 }
                 catch (Exception e)
                 {
@@ -1384,7 +1418,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (!string.IsNullOrEmpty(look.targetMaidGuid))
             {
-                var owner = FindCalledMaidByGuid(look.targetMaidGuid, new HashSet<Maid>());
+                var owner = FindMaidBySlotGuid(look.targetMaidGuid);
                 if (owner == null || owner.body0 == null || owner.body0.m_trBones == null)
                 {
                     return null;
@@ -1410,6 +1444,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _pendingApplies.Clear();
             _pendingExternalsData = null;
+            _resolvedAssignments.Clear();
         }
 
         /// <summary>
