@@ -304,15 +304,57 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 未吸着の軸について、画面枠または他ウィンドウの辺に近ければ吸着座標を確定する。
+        /// 軸ごとのスナップ候補。SNAP_DISTANCE 以内で最も近い辺を採用する。
+        /// 画面枠・接触・同辺揃えを同じ土俵で比べるのが要点で、
+        /// 画面枠を無条件に優先すると、画面端に接地した相手へ寄せたときに
+        /// 高さ (幅) の差ぶんずれた位置で確定してしまい、ドッキングできなくなる
+        /// </summary>
+        private struct SnapCandidate
+        {
+            public bool valid;
+            /// <summary>採用中の候補までの距離。Offer の比較専用 (リサイズ側の ConsiderSnap と同じ役割)</summary>
+            public float bestDistance;
+            public float bestCoord;
+            /// <summary>接触で採用された相手。角合わせの基準に使う（画面枠・同辺揃えは null）</summary>
+            public IConnectableWindow contactTarget;
+
+            public void Offer(float distance, float coord, IConnectableWindow target)
+            {
+                if (distance > SNAP_DISTANCE)
+                {
+                    return;
+                }
+                // 同距離なら先に積んだ方 (画面枠) を残し、枠へ合わせる意図を優先する
+                if (valid && distance >= bestDistance)
+                {
+                    return;
+                }
+                valid = true;
+                bestDistance = distance;
+                bestCoord = coord;
+                contactTarget = target;
+            }
+        }
+
+        /// <summary>
+        /// 未吸着の軸について、画面枠・他ウィンドウの辺のうち最も近いものへ吸着座標を確定する。
         /// 接する軸が吸着した相手にだけ、もう一方の軸の辺位置も近ければ揃える（角合わせ）
         /// </summary>
         private void AcquireSnap(IConnectableWindow dragged, Rect free)
         {
-            AcquireScreenSnap(free);
-            if (_snappedX && _snappedY)
+            var bestX = new SnapCandidate();
+            var bestY = new SnapCandidate();
+
+            // 画面（アプリのウィンドウ枠）の四辺。同距離の候補より優先させるため先に積む
+            if (!_snappedX)
             {
-                return;
+                bestX.Offer(Mathf.Abs(free.xMin), 0f, null);
+                bestX.Offer(Mathf.Abs(free.xMax - Screen.width), Screen.width - free.width, null);
+            }
+            if (!_snappedY)
+            {
+                bestY.Offer(Mathf.Abs(free.yMin), 0f, null);
+                bestY.Offer(Mathf.Abs(free.yMax - Screen.height), Screen.height - free.height, null);
             }
 
             var group = FindGroup(dragged);
@@ -326,79 +368,65 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var t = target.windowRect;
+                var overlapX = free.xMin < t.xMax && t.xMin < free.xMax;
+                var overlapY = free.yMin < t.yMax && t.yMin < free.yMax;
 
-                // 左右方向: 縦の範囲が重なっている相手にだけ吸着する
-                if (!_snappedX && free.yMin < t.yMax && t.yMin < free.yMax)
+                if (!_snappedX)
                 {
-                    if (Mathf.Abs(free.xMax - t.xMin) <= SNAP_DISTANCE)
+                    // 接触 (左右): 縦の範囲が重なっている相手にだけ吸着する
+                    if (overlapY)
                     {
-                        SetSnapX(t.xMin - free.width);
+                        bestX.Offer(Mathf.Abs(free.xMax - t.xMin), t.xMin - free.width, target);
+                        bestX.Offer(Mathf.Abs(free.xMin - t.xMax), t.xMax, target);
                     }
-                    else if (Mathf.Abs(free.xMin - t.xMax) <= SNAP_DISTANCE)
+                    // 同辺揃え (左辺同士): 矩形が重なる相手へ寄せる操作はドッキング狙いとみなす
+                    if (overlapX && overlapY)
                     {
-                        SetSnapX(t.xMax);
-                    }
-                    // 角合わせ (上辺同士)
-                    if (_snappedX && !_snappedY &&
-                        Mathf.Abs(free.yMin - t.yMin) <= SNAP_DISTANCE)
-                    {
-                        SetSnapY(t.yMin);
+                        bestX.Offer(Mathf.Abs(free.xMin - t.xMin), t.xMin, null);
                     }
                 }
 
-                // 上下方向: 横の範囲が重なっている相手にだけ吸着する
-                if (!_snappedY && free.xMin < t.xMax && t.xMin < free.xMax)
+                if (!_snappedY)
                 {
-                    if (Mathf.Abs(free.yMax - t.yMin) <= SNAP_DISTANCE)
+                    // 接触 (上下): 横の範囲が重なっている相手にだけ吸着する
+                    if (overlapX)
                     {
-                        SetSnapY(t.yMin - free.height);
+                        bestY.Offer(Mathf.Abs(free.yMax - t.yMin), t.yMin - free.height, target);
+                        bestY.Offer(Mathf.Abs(free.yMin - t.yMax), t.yMax, target);
                     }
-                    else if (Mathf.Abs(free.yMin - t.yMax) <= SNAP_DISTANCE)
+                    // 同辺揃え (上辺同士)。ヘッダー位置が揃うのでそのままタブ統合できる
+                    if (overlapX && overlapY)
                     {
-                        SetSnapY(t.yMax);
+                        bestY.Offer(Mathf.Abs(free.yMin - t.yMin), t.yMin, null);
                     }
-                    // 角合わせ (左辺同士)
-                    if (_snappedY && !_snappedX &&
-                        Mathf.Abs(free.xMin - t.xMin) <= SNAP_DISTANCE)
-                    {
-                        SetSnapX(t.xMin);
-                    }
-                }
-
-                if (_snappedX && _snappedY)
-                {
-                    return;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 画面（アプリのウィンドウ枠）の四辺へ吸着させる。
-        /// ウィンドウ同士の吸着より先に判定し、枠へ合わせる意図を優先する
-        /// </summary>
-        private void AcquireScreenSnap(Rect free)
-        {
-            if (!_snappedX)
-            {
-                if (Mathf.Abs(free.xMin) <= SNAP_DISTANCE)
-                {
-                    SetSnapX(0f);
-                }
-                else if (Mathf.Abs(free.xMax - Screen.width) <= SNAP_DISTANCE)
-                {
-                    SetSnapX(Screen.width - free.width);
                 }
             }
 
-            if (!_snappedY)
+            if (bestX.valid)
             {
-                if (Mathf.Abs(free.yMin) <= SNAP_DISTANCE)
+                SetSnapX(bestX.bestCoord);
+            }
+            if (bestY.valid)
+            {
+                SetSnapY(bestY.bestCoord);
+            }
+
+            // 角合わせ: 接触で吸着した相手に対してだけ、残った軸の辺位置も揃える。
+            // 並べて置いた窓同士は矩形が重ならず同辺揃えの候補にならないため、ここで拾う
+            if (_snappedX && !_snappedY && bestX.contactTarget != null)
+            {
+                var t = bestX.contactTarget.windowRect;
+                if (Mathf.Abs(free.yMin - t.yMin) <= SNAP_DISTANCE)
                 {
-                    SetSnapY(0f);
+                    SetSnapY(t.yMin);
                 }
-                else if (Mathf.Abs(free.yMax - Screen.height) <= SNAP_DISTANCE)
+            }
+            else if (_snappedY && !_snappedX && bestY.contactTarget != null)
+            {
+                var t = bestY.contactTarget.windowRect;
+                if (Mathf.Abs(free.xMin - t.xMin) <= SNAP_DISTANCE)
                 {
-                    SetSnapY(Screen.height - free.height);
+                    SetSnapX(t.xMin);
                 }
             }
         }
