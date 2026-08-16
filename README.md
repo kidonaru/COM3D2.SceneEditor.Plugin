@@ -17,6 +17,7 @@ COM3D2.SceneEditor.Plugin は、3D シーンの描画を移動・リサイズで
 - [タブドッキング / スナップ連携](docs/docking-guest-guide.md)
 - [操作履歴（undo/redo）連携](docs/history-guest-guide.md)
 - [シーンプリセット連携](docs/scene-preset-provider-guide.md)
+- [有効/無効の連動](docs/editor-state-guest-guide.md)
 
 ## ライセンス
 

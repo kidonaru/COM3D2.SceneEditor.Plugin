@@ -29,6 +29,9 @@ namespace COM3D2.SceneEditor.Plugin
         public float keyRepeatTime = 1f / 30f;
         public bool useHSVColor = false;
 
+        // SceneEditor の有効/無効へ外部プラグインを追従させるか
+        public bool linkExternalPlugin = true;
+
         // GameViewウィンドウ (-1 は未初期化。初回は画面中央に配置)
         public int gameViewPosX = -1;
         public int gameViewPosY = -1;

@@ -74,13 +74,23 @@ namespace COM3D2.SceneEditor.Plugin
                 _isEnable = value;
                 UpdateGearMenu();
 
-                if (value)
+                try
                 {
-                    OnPluginEnable();
+                    if (value)
+                    {
+                        OnPluginEnable();
+                    }
+                    else
+                    {
+                        OnPluginDisable();
+                    }
                 }
-                else
+                finally
                 {
-                    OnPluginDisable();
+                    // 外部プラグインへはホスト側の切り替えが完了してから通知する。
+                    // 切り替え処理が例外で抜けても _isEnable は新しい値のままなので、
+                    // 通知を落とすとゲストだけ旧状態で取り残される
+                    EditorStateHost.NotifyEditorEnabledChanged(value);
                 }
             }
         }

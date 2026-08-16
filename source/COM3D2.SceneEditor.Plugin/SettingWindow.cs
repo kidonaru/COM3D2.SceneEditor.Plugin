@@ -30,6 +30,7 @@ namespace COM3D2.SceneEditor.Plugin
             グリッド,
             履歴,
             プリセット,
+            連携,
         }
 
         private SettingTabType _tabType = SettingTabType.撮影;
@@ -103,6 +104,9 @@ namespace COM3D2.SceneEditor.Plugin
                     break;
                 case SettingTabType.プリセット:
                     DrawPresetSection();
+                    break;
+                case SettingTabType.連携:
+                    DrawLinkSection();
                     break;
             }
 
@@ -301,6 +305,21 @@ namespace COM3D2.SceneEditor.Plugin
                 });
 
             _view.DrawLabel("対象はプリセット一覧の家アイコンで指定", -1, ROW_HEIGHT,
+                textColor: Color.gray);
+        }
+
+        /// <summary>外部プラグイン連携の設定</summary>
+        private void DrawLinkSection()
+        {
+            _view.DrawToggle("外部プラグインを連動させる", config.linkExternalPlugin,
+                -1, ROW_HEIGHT, newValue =>
+                {
+                    config.linkExternalPlugin = newValue;
+                    config.dirty = true;
+                    EditorStateHost.OnLinkEnabledChanged(newValue);
+                });
+
+            _view.DrawLabel("SceneEditor の ON/OFF に対応プラグインを追従させる", -1, ROW_HEIGHT,
                 textColor: Color.gray);
         }
     }

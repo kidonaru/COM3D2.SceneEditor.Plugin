@@ -246,6 +246,7 @@ t.GetMethod("Unregister").Invoke(null, new object[] { handle });
 | ホスト型 | MTEUtils クライアント | 用途 | ガイド |
 |---|---|---|---|
 | `HistoryAPI` | `HistoryClient` | 操作履歴（undo/redo）への参加 | [history-guest-guide.md](history-guest-guide.md) |
+| `EditorStateHost` | `EditorStateClient` | SceneEditor の有効/無効への追従 | [editor-state-guest-guide.md](editor-state-guest-guide.md) |
 | `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の入力・描画へ参加させる | 未整備（ソースの XML コメント参照） |
 | `GizmoRenderer` | `GizmoToolClient` | ギズモツール（移動 / 回転 / 拡縮）の状態共有 | 未整備 |
 | `InspectorHost` | `InspectorHostClient` | Inspector の内容描画の委譲 | 未整備 |

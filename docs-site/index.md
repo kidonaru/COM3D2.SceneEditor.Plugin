@@ -47,3 +47,4 @@
 - [docking-guest-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/docking-guest-guide.md) — タブドッキング / スナップ連携
 - [history-guest-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/history-guest-guide.md) — 操作履歴（undo/redo）連携
 - [scene-preset-provider-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/scene-preset-provider-guide.md) — シーンプリセット連携
+- [editor-state-guest-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/editor-state-guest-guide.md) — 有効/無効の連動
