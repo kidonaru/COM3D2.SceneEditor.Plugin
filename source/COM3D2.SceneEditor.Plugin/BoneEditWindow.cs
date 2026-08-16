@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -35,6 +34,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private BoneEditWindow()
         {
+            SetupTreeView();
         }
 
         protected override int windowId => WINDOW_ID;
@@ -46,30 +46,57 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (slotName, _) => slotName,
         };
 
-        /// <summary>表示中の 1 行。Hierarchy と同じく展開状態から組み立てる</summary>
-        private struct Row
-        {
-            public SlotBoneNode node;
-            public int depth;
-        }
-
-        private readonly List<Row> _rows = new List<Row>();
-        private readonly HashSet<int> _expanded = new HashSet<int>(); // Transform の GetInstanceID
-        // _rows の組み直しが必要か。行の内容はボーンツリー・展開状態・検索語だけで決まるため、
-        // この 3 つが変わったときにだけ立てればよい (OnGUI は 1 フレームに複数回走る)
-        private bool _rowsDirty = true;
-        // 組み直し済みのボーンツリー。BoneEditManager.GetCurrentBoneTree() はスロット obj が
-        // 変わらない限り同一インスタンスを返すため、参照比較でツリー変化を検出できる
-        private List<SlotBoneNode> _lastTree = null;
-        private string _searchText = "";
-        // 選択行を画面内へ送るスクロール量。次の描画で反映する
-        private int _scrollToRow = -1;
+        private readonly GUITreeView<SlotBoneNode> _treeView = new GUITreeView<SlotBoneNode>();
         // 外部経路 (ビュー窓のボーンピック等) の選択変更検出用
         private Transform _lastSelectedBone;
-        // 選択変更で表示したいボーン。行構築後に行位置を求めてスクロールする
-        private Transform _pendingReveal;
+        // ラベル生成デリゲートから参照する、描画中のメイドと編集ストア。
+        // GUITreeView にはゲーム固有の型を渡せないため、描画直前にここへ置いてから使う。
+        //
+        // 【前提】これが有効なのは _treeView.Draw() の実行中だけ。
+        // 現状 onSelected は Draw() の中からしか発火しないため成立している。
+        // このウィンドウに _treeView.HandleKeyboard() を足す場合は、描画外から
+        // onSelected が飛んできて前フレームの値を掴む経路が生まれるため、
+        // ここをフィールド経由ではなく引数渡しに変える必要がある
+        private Maid _drawingTarget;
+        private BoneEditStore _drawingStore;
 
         private static BoneEditManager boneEditManager => BoneEditManager.instance;
+
+        /// <summary>
+        /// ツリービューにボーンツリーのたどり方と行の見た目を教える。
+        /// GUITreeView はゲーム固有の型を知らないため、ここで橋渡しする
+        /// </summary>
+        private void SetupTreeView()
+        {
+            _treeView.rowHeight = ROW_HEIGHT;
+            _treeView.indentWidth = IndentWidth;
+            _treeView.toggleWidth = ToggleWidth;
+            _treeView.scrollBarWidth = ScrollBarWidth;
+
+            // ID は Transform のものを使う。ビュー窓のピックで飛んでくるのも Transform のため、
+            // Reveal / Expand と突き合わせるにはこれで揃えておく必要がある
+            _treeView.getId = node => node.transform.GetInstanceID();
+            _treeView.getName = node => node.name;
+            _treeView.isAlive = node => node.transform != null;
+            _treeView.getChildCount = node => node.children.Count;
+            _treeView.getChild = (node, i) => node.children[i];
+
+            _treeView.getLabel = node =>
+            {
+                var isEdited = _drawingStore != null &&
+                    _drawingStore.GetEntry(boneEditManager.targetSlotName, node.name) != null;
+                return isEdited ? node.name + " *" : node.name;
+            };
+            _treeView.getLabelColor = node =>
+                node.transform == boneEditManager.selectedBone ? Color.cyan : Color.white;
+            _treeView.isSelected = node => node.transform == boneEditManager.selectedBone;
+            _treeView.onSelected = node =>
+            {
+                // 編集 UI は Inspector 側に出すため、選択を Inspector にも反映する
+                boneEditManager.SelectBone(_drawingTarget, node.transform);
+                _lastSelectedBone = node.transform;
+            };
+        }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
@@ -213,9 +240,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ボーンツリー。Hierarchy と同じく行を固定高で手動配置し、
-        /// 表示範囲外の行を描画から省き、行の組み立ても変化があったときだけ行う。
-        /// 行まわりの作りは HierarchyWindow とほぼ対になっているため、片方を直すときは他方も見ること
+        /// ボーンツリー。行まわりは GUITreeView に委譲し、
+        /// ここではスロットのツリーを渡すことと検索欄の配置だけを行う
         /// </summary>
         private void DrawBoneTree(Maid target)
         {
@@ -226,67 +252,29 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (tree != _lastTree)
-            {
-                _lastTree = tree;
-                _rowsDirty = true;
-            }
+            // GetCurrentBoneTree() はスロット obj が変わらない限り同じインスタンスを返すため、
+            // SetRoots の参照比較だけでツリーの作り直しを検出できる
+            _treeView.SetRoots(tree);
 
-            // 展開状態を確定させてから行を構築する (Hierarchy と同じ流れ)
+            // 展開状態を確定させてから描く
             DetectExternalSelection();
-            if (_rowsDirty)
-            {
-                BuildRows(tree);
-            }
-            ResolvePendingReveal();
 
-            view.DrawTextField(_searchText, -1, ROW_HEIGHT, value =>
-            {
-                _searchText = value;
-                _rowsDirty = true;
-            });
+            view.DrawTextField(_treeView.searchText, -1, ROW_HEIGHT,
+                value => _treeView.searchText = value);
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            var listRect = view.GetDrawRect(-1, -1);
-            if (listRect.height <= 0f)
-            {
-                return;
-            }
+            // ラベル生成から参照するため、描画に入る前に置いておく
+            _drawingTarget = target;
+            _drawingStore = boneEditManager.GetStore(target);
 
-            ApplyScrollToRow(listRect.height);
-
-            // 行位置とスクロール量をずらさないよう、Hierarchy と同じく padding なしで描く
-            var savedPadding = view.padding;
-            view.padding = Vector2.zero;
-
-            var store = boneEditManager.GetStore(target);
-            var contentWidth = Mathf.Max(listRect.width - ScrollBarWidth, 0f);
-            var contentHeight = _rows.Count * ROW_HEIGHT;
-            // 内容矩形は毎フレーム行数から与える。EndScrollView の高さ書き戻しは
-            // 次フレームのここで上書きされるためスクロール範囲は保たれる
-            view.BeginScrollView(
-                listRect.width, listRect.height,
-                new Rect(0f, 0f, contentWidth, contentHeight), false, true);
-            {
-                // 表示範囲に入っている行だけ描く
-                var firstRow = Mathf.Max((int)(view.scrollPosition.y / ROW_HEIGHT), 0);
-                var lastRow = Mathf.Min(
-                    (int)((view.scrollPosition.y + listRect.height) / ROW_HEIGHT) + 1, _rows.Count - 1);
-                for (var i = firstRow; i <= lastRow && i < _rows.Count; i++)
-                {
-                    DrawRow(target, store, _rows[i], i, contentWidth);
-                }
-            }
-            view.EndScrollView();
-
-            view.padding = savedPadding;
+            _treeView.Draw(view, view.GetDrawRect(-1, -1));
         }
 
         /// <summary>
         /// ビュー窓のボーンピック等、外部経路の選択変更を検出して祖先を展開する。
-        /// 行位置は BuildRows 後でないと確定しないため、ここでは対象を覚えるだけ
+        /// 行位置は行構築後でないと確定しないため、ここでは表示予約だけしておく
         /// </summary>
         private void DetectExternalSelection()
         {
@@ -296,164 +284,19 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             _lastSelectedBone = selected;
-            _pendingReveal = selected;
 
             if (selected == null)
             {
                 return;
             }
 
+            _treeView.Reveal(selected.GetInstanceID());
+
             // ツリー外の Transform が混ざっても展開集合に余分な ID が入るだけで害はない
             for (var parent = selected.parent; parent != null; parent = parent.parent)
             {
-                if (_expanded.Add(parent.GetInstanceID()))
-                {
-                    _rowsDirty = true;
-                }
+                _treeView.Expand(parent.GetInstanceID());
             }
-        }
-
-        /// <summary>
-        /// 選択変更で覚えた対象の行位置を求めてスクロール予約する。
-        /// 検索フィルタ等で行に出ていない場合は何もしない (予約だけ破棄する)
-        /// </summary>
-        private void ResolvePendingReveal()
-        {
-            if (_pendingReveal == null)
-            {
-                return;
-            }
-
-            for (var i = 0; i < _rows.Count; i++)
-            {
-                if (_rows[i].node.transform == _pendingReveal)
-                {
-                    _scrollToRow = i;
-                    break;
-                }
-            }
-            _pendingReveal = null;
-        }
-
-        /// <summary>展開状態と検索条件から、実際に表示する行を組み立てる</summary>
-        private void BuildRows(List<SlotBoneNode> tree)
-        {
-            _rowsDirty = false;
-            _rows.Clear();
-            var searching = !string.IsNullOrEmpty(_searchText);
-            foreach (var node in tree)
-            {
-                AddRows(node, 0, searching);
-            }
-        }
-
-        private void AddRows(SlotBoneNode node, int depth, bool searching)
-        {
-            if (node.transform == null)
-            {
-                return;
-            }
-
-            // 検索中は一致するものだけフラット表示
-            var matched = !searching ||
-                node.name.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-            if (matched)
-            {
-                _rows.Add(new Row { node = node, depth = searching ? 0 : depth });
-            }
-
-            if (searching || _expanded.Contains(node.transform.GetInstanceID()))
-            {
-                foreach (var child in node.children)
-                {
-                    AddRows(child, depth + 1, searching);
-                }
-            }
-        }
-
-        /// <summary>index 行目を描く。行の位置は行番号から直接決めるため currentPos を毎回置き直す</summary>
-        private void DrawRow(Maid target, BoneEditStore store, Row row, int index, float contentWidth)
-        {
-            var node = row.node;
-            // 行はツリーが作り直されるまでキャッシュされるため、破棄済みが残りうる。
-            // Hierarchy と違って定期更新が無く放っておくと空白行が残り続けるので、
-            // 見つけた時点で組み直しを予約する (反復中なのでその場では組み直さない)
-            if (node.transform == null)
-            {
-                _rowsDirty = true;
-                return;
-            }
-
-            view.currentPos = new Vector2(row.depth * IndentWidth, index * ROW_HEIGHT);
-            view.BeginHorizontal();
-            {
-                if (node.children.Count > 0)
-                {
-                    var isExpanded = _expanded.Contains(node.transform.GetInstanceID());
-                    if (view.DrawButton(isExpanded ? "-" : "+", ToggleWidth, ROW_HEIGHT))
-                    {
-                        ToggleExpanded(node.transform);
-                    }
-                }
-                else
-                {
-                    // 子がなくてもラベルの開始位置は揃える
-                    view.DrawEmpty(ToggleWidth, ROW_HEIGHT);
-                }
-
-                var isEdited = store.GetEntry(boneEditManager.targetSlotName, node.name) != null;
-                var label = isEdited ? node.name + " *" : node.name;
-                var labelWidth = contentWidth - view.currentPos.x;
-                var isSelected = node.transform == boneEditManager.selectedBone;
-                if (view.DrawButton(
-                    label, labelWidth, ROW_HEIGHT, true,
-                    isSelected ? Color.cyan : Color.white, GUIView.gsLabel))
-                {
-                    // 編集 UI は Inspector 側に出すため、選択を Inspector にも反映する
-                    boneEditManager.SelectBone(target, node.transform);
-                    _lastSelectedBone = node.transform;
-                }
-            }
-            view.EndLayout();
-        }
-
-        /// <summary>
-        /// 展開状態を切り替える。行の描画ループから呼ばれるため、ここでは _rows を組み直さない
-        /// (組み直すと反復中のリストが縮んで添字が範囲外になる)。次フレームの BuildRows で反映される
-        /// </summary>
-        private void ToggleExpanded(Transform transform)
-        {
-            var id = transform.GetInstanceID();
-            if (!_expanded.Remove(id))
-            {
-                _expanded.Add(id);
-            }
-            _rowsDirty = true;
-        }
-
-        /// <summary>選択で予約された行がスクロール範囲外なら、見える位置まで送る</summary>
-        private void ApplyScrollToRow(float viewHeight)
-        {
-            if (_scrollToRow < 0)
-            {
-                return;
-            }
-
-            var top = _scrollToRow * ROW_HEIGHT;
-            var bottom = top + ROW_HEIGHT;
-
-            var scrollPosition = view.scrollPosition;
-            if (scrollPosition.y > top)
-            {
-                scrollPosition.y = top;
-            }
-            else if (scrollPosition.y + viewHeight < bottom)
-            {
-                scrollPosition.y = bottom - viewHeight;
-            }
-            view.scrollPosition = scrollPosition;
-
-            _scrollToRow = -1;
         }
     }
 }
