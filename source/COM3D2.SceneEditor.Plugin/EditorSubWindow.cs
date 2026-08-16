@@ -18,7 +18,7 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int CLOSE_BUTTON_WIDTH = 20;
         public static readonly int CLOSE_BUTTON_HEIGHT = 16;
         public static readonly int CLOSE_BUTTON_MARGIN = 2;
-        public static readonly int CONNECT_BUTTON_WIDTH = 20;
+        public static readonly int LOCK_BUTTON_WIDTH = 20;
 
         /// <summary>アクティブ状態・ドロップ先の強調に使う共通のアクセント色</summary>
         public static readonly Color ACCENT_COLOR = Color.cyan;
@@ -65,6 +65,15 @@ namespace COM3D2.SceneEditor.Plugin
         /// 消えているウィンドウの領域でリサイズやカメラ操作が反応してしまう
         /// </summary>
         public bool isWndVisible => isShowWnd && isTabVisible && !windowManager.isWindowsHidden;
+
+        /// <summary>ロック中 (移動・リサイズ禁止) か。誤動作防止用で config に永続化する</summary>
+        public bool isLocked => config.IsWindowLocked(windowId);
+
+        private void ToggleLock()
+        {
+            config.SetWindowLocked(windowId, !isLocked);
+            config.dirty = true;
+        }
 
         private bool _lastTabVisible = true;
 
@@ -244,16 +253,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawWindow(int id)
         {
-            // ボタンの有無でタブ列の使える幅が変わるため、描画前に一度だけ判定する
-            var showConnectButton = WindowConnectManager.instance.IsConnected(this) ||
-                WindowConnectManager.instance.HasAdjacent(this);
-
             DrawContent();
             DrawToolbar();
 
             if (_tabTitles != null)
             {
-                DrawTabBar(showConnectButton);
+                DrawTabBar();
             }
 
             // 閉じるボタン (ヘッダー右端)。ヘッダー高さを変えても縦中央に来るようにする
@@ -262,21 +267,26 @@ namespace COM3D2.SceneEditor.Plugin
                 (HEADER_HEIGHT - CLOSE_BUTTON_HEIGHT) * 0.5f,
                 CLOSE_BUTTON_WIDTH,
                 CLOSE_BUTTON_HEIGHT);
-            if (!DrawHeaderButtons(closeRect, showConnectButton))
+            if (!DrawHeaderButtons(closeRect))
             {
                 // 閉じられたウィンドウには以降の入力判定を走らせない
                 return;
             }
 
             DrawDropHighlight();
-            HandleDragInput(closeRect);
+
+            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)
+            if (!isLocked)
+            {
+                HandleDragInput(closeRect);
+            }
         }
 
         /// <summary>
         /// ヘッダー右のボタン列を描く。閉じるボタンが押されたら false を返す。
         /// 閉じるボタンを先に描くことで、重なるリサイズ角より優先して押せる
         /// </summary>
-        private bool DrawHeaderButtons(Rect closeRect, bool showConnectButton)
+        private bool DrawHeaderButtons(Rect closeRect)
         {
             // グループ時はアクティブタブだけを閉じる
             if (GUI.Button(closeRect, "x"))
@@ -287,24 +297,20 @@ namespace COM3D2.SceneEditor.Plugin
                 return false;
             }
 
-            if (showConnectButton)
+            // ロックボタン (閉じるボタンの左隣)
+            var lockRect = new Rect(
+                closeRect.x - LOCK_BUTTON_WIDTH - CLOSE_BUTTON_MARGIN,
+                closeRect.y,
+                LOCK_BUTTON_WIDTH,
+                CLOSE_BUTTON_HEIGHT);
+            var oldColor = GUI.color;
+            // ロック中はアクセントカラーで塗って状態を示す
+            GUI.color = isLocked ? ACCENT_COLOR : Color.white;
+            if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
             {
-                var connectRect = new Rect(
-                    closeRect.x - CONNECT_BUTTON_WIDTH - CLOSE_BUTTON_MARGIN,
-                    closeRect.y,
-                    CONNECT_BUTTON_WIDTH,
-                    CLOSE_BUTTON_HEIGHT);
-
-                var isConnected = WindowConnectManager.instance.IsConnected(this);
-                var oldColor = GUI.color;
-                // 連結中はアクセントカラーで塗って状態を示す
-                GUI.color = isConnected ? ACCENT_COLOR : Color.white;
-                if (GUI.Button(connectRect, isConnected ? "◆" : "◇"))
-                {
-                    WindowConnectManager.instance.ToggleConnect(this);
-                }
-                GUI.color = oldColor;
+                ToggleLock();
             }
+            GUI.color = oldColor;
 
             return true;
         }
@@ -382,15 +388,12 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>グループ時のタブ列。描画は MTEUtils の TabBarDrawer と共通</summary>
-        private void DrawTabBar(bool showConnectButton)
+        private void DrawTabBar()
         {
-            // タブ列がヘッダー右のボタンへ食い込まないよう、利用可能幅を先に確定する
+            // タブ列がヘッダー右のボタン (閉じる + ロック) へ食い込まないよう、利用可能幅を先に確定する
             var available = _windowRect.width - FRAME * 2
-                - (CLOSE_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN * 2);
-            if (showConnectButton)
-            {
-                available -= CONNECT_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN;
-            }
+                - (CLOSE_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN * 2)
+                - (LOCK_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN);
 
             TabBarDrawer.Draw(
                 _tabTitles, _tabActiveIndex,
@@ -401,7 +404,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>スクリーンGUI座標がリサイズのつかみ範囲上にあるか</summary>
         public bool IsOverResizeHandle(Vector2 guiPos)
         {
-            return _resize.IsOverHandle(_windowRect, guiPos);
+            // ロック中はリサイズ不可なのでつかみ範囲も存在しない扱いにする
+            return !isLocked && _resize.IsOverHandle(_windowRect, guiPos);
         }
 
         /// <summary>スクリーンGUI座標の矩形を GUI.Window 内のローカル座標へ変換する</summary>
@@ -414,7 +418,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         public ResizeCursor.Kind desiredCursorKind =>
             _resize.GetCursorKind(
-                _windowRect, isWndVisible && gameViewManager.isWindowMode, windowId);
+                _windowRect, isWndVisible && gameViewManager.isWindowMode && !isLocked, windowId);
 
         public virtual void Update()
         {
