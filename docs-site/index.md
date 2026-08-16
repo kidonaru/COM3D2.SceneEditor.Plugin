@@ -53,12 +53,3 @@ import VueTweet from 'vue-tweet'
 - [設定リファレンス](/guide/configuration) — 設定ファイルの全項目
 - [既知の制限](/guide/limitations) — 非対応シーンや他プラグインとの干渉
 
-## 外部プラグイン開発者向け
-
-本プラグインのウィンドウ管理・操作履歴・シーンプリセットへ他プラグインから参加するための公開 API があります。
-開発者向けドキュメントは GitHub リポジトリを参照してください。
-
-- [docking-guest-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/docking-guest-guide.md) — タブドッキング / スナップ連携
-- [history-guest-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/history-guest-guide.md) — 操作履歴（undo/redo）連携
-- [scene-preset-provider-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/scene-preset-provider-guide.md) — シーンプリセット連携
-- [editor-state-guest-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/editor-state-guest-guide.md) — 有効/無効の連動
