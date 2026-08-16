@@ -356,10 +356,10 @@ namespace COM3D2.SceneEditor.Plugin
         public const int DefaultGridCountInWorld = 20;
         public const float DefaultGridCellSize = 0.5f;
         public const float DefaultGridAlphaInWorld = 0.3f;
-        public const float DefaultGridLineWidthInWorld = 2f;
-        public const int DefaultGridCountInDisplay = 4;
+        public const float DefaultGridLineWidthInWorld = 3f;
+        public const int DefaultGridCountInDisplay = 3;
         public const float DefaultGridAlphaInDisplay = 0.3f;
-        public const float DefaultGridLineWidthInDisplay = 1f;
+        public const float DefaultGridLineWidthInDisplay = 3f;
 
         /// <summary>グリッド全体の表示スイッチ</summary>
         public bool isGridVisible = true;
@@ -380,7 +380,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool isGridAxisVisible = true;
 
         // 画面分割グリッド (構図合わせ用。GameView にのみ描画する)
-        public bool isGridVisibleInDisplay = false;
+        public bool isGridVisibleInDisplay = true;
         /// <summary>画面の分割数 (3 で三分割法)</summary>
         public int gridCountInDisplay = DefaultGridCountInDisplay;
         public float gridAlphaInDisplay = DefaultGridAlphaInDisplay;
