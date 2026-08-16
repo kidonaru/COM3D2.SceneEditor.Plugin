@@ -160,6 +160,27 @@ namespace COM3D2.SceneEditor.Plugin
             config.dirty = true;
         }
 
+        // 適用可否は「保存されているか (data.saved*)」と「読み込む設定か (config.scenePresetLoad*)」の AND。
+        // v15 以前のプリセットは saved* が既定 true で読まれるため、従来どおり読込トグルだけで決まる
+
+        /// <summary>カメラをこのプリセットから適用するか</summary>
+        private static bool ShouldApplyCamera(ScenePresetData data)
+        {
+            return data.savedCamera && config.scenePresetLoadCamera;
+        }
+
+        /// <summary>メイド (呼出・解除・ポーズ・視線・フォーカス) を適用するか</summary>
+        private static bool ShouldApplyMaids(ScenePresetData data)
+        {
+            return data.savedMaids && config.scenePresetLoadMaids;
+        }
+
+        /// <summary>背景カテゴリ (背景・ライト・PNG 配置) を適用するか</summary>
+        private static bool ShouldApplyBackground(ScenePresetData data)
+        {
+            return data.savedBackground && config.scenePresetLoadBackground;
+        }
+
         private static ScenePresetItem CreateRootItem()
         {
             return new ScenePresetItem
@@ -1000,14 +1021,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ApplyScenery(data);
             }
-            // PNG 配置も背景カテゴリに含める
-            if (config.scenePresetLoadBackground)
+            // PNG 配置も背景カテゴリに含める。
+            // 未保存のプリセットで ApplyState(null) を呼ぶと既存の配置を全消去してしまうため、
+            // ここで確実に弾く
+            if (ShouldApplyBackground(data))
             {
                 PngPlacementSnapshot.ApplyState(data.pngPlacement);
             }
 
-            // メイドの読込が OFF のときは呼出も解除も行わず、現在のメイドをそのまま残す
-            if (config.scenePresetLoadMaids)
+            // メイドを読み込まないときは呼出も解除も行わず、現在のメイドをそのまま残す
+            if (ShouldApplyMaids(data))
             {
                 var assignments = AssignMaids(data.maids);
 
@@ -1047,16 +1070,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// メイドを伴わない情景 (カメラ・背景・ライト) を適用する。
         /// 本適用と先出し適用で順序を揃えるため 1 箇所にまとめている。
-        /// 読込トグルで OFF にされたカテゴリは触らない
+        /// 保存されていない、または読込トグルで OFF にされたカテゴリは触らない
         /// </summary>
         private static void ApplyScenery(ScenePresetData data)
         {
-            if (config.scenePresetLoadCamera)
+            if (ShouldApplyCamera(data))
             {
                 CameraSnapshot.ApplyState(data.camera);
             }
             // ライトは背景カテゴリに含めている (UI のトグルを 1 つにまとめているため)
-            if (config.scenePresetLoadBackground)
+            if (ShouldApplyBackground(data))
             {
                 BackgroundSnapshot.ApplyState(data.background);
                 LightSnapshot.ApplyState(data.light);
@@ -1272,12 +1295,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 全メイドのロード完了後にまとめて行う仕上げ。
         /// 視線は他メイドを参照しうるため、外部プロバイダと同じくここで反映する。
-        /// メイドの読込が OFF のときは AssignMaids ごと飛ばしているため、
+        /// メイドを読み込まないときは AssignMaids ごと飛ばしているため、
         /// 無関係な既存メイドへ視線・フォーカスを当てないよう合わせて飛ばす
         /// </summary>
         private static void FinishApply(ScenePresetData data)
         {
-            var applyMaids = config.scenePresetLoadMaids;
+            var applyMaids = ShouldApplyMaids(data);
             if (applyMaids)
             {
                 ApplyLooks(data);
