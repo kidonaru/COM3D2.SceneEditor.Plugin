@@ -91,7 +91,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void Select(GameObject go)
         {
-            Select(go, true);
+            Select(go, true, false);
         }
 
         /// <summary>
@@ -100,6 +100,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public void Select(GameObject go, bool showGizmo)
         {
+            Select(go, showGizmo, false);
+        }
+
+        /// <summary>
+        /// focus = true なら SceneView のカメラを対象へ寄せる。
+        /// 同じオブジェクトの再選択でも寄せたいので、同値時の早期 return より前に処理する
+        /// </summary>
+        public void Select(GameObject go, bool showGizmo, bool focus)
+        {
+            if (focus)
+            {
+                SceneViewWindow.instance.FocusOn(go);
+            }
+
             // 通常選択はボーン・IK 選択を解除する（白丸クリック以外の経路で上書きされたケース）
             _selectedBoneMaid = null;
             _selectedBoneDef = null;

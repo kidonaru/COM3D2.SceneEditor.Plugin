@@ -249,7 +249,7 @@ t.GetMethod("Unregister").Invoke(null, new object[] { handle });
 | `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の入力・描画へ参加させる | 未整備（ソースの XML コメント参照） |
 | `GizmoRenderer` | `GizmoToolClient` | ギズモツール（移動 / 回転 / 拡縮）の状態共有 | 未整備 |
 | `InspectorHost` | `InspectorHostClient` | Inspector の内容描画の委譲 | 未整備 |
-| `SelectionManager` | `SelectionClient` | 選択オブジェクトの取得・変更通知 | 未整備 |
+| `SelectionManager` | `SelectionClient` | 選択オブジェクトの取得・変更通知・選択時の SceneView フォーカス指定 | 未整備 |
 | `InputRemapper` | `InputRemapperClient` | キー入力の競合回避 | 未整備 |
 
 シーンプリセットへの相乗りだけは属性ベースの自動発見で、リフレクション接続は不要

@@ -17,6 +17,10 @@ namespace COM3D2.SceneEditor.Plugin
         private const float LabelWidth = 40f;
         private const float RowHeight = 20f;
 
+        // ヘッダー行のアクティブトグルとフォーカスボタンの幅 (どちらも正方形)
+        private const float HeaderToggleWidth = 20f;
+        private const float HeaderFocusButtonWidth = 20f;
+
         // 1px ドラッグあたりの増減量
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
@@ -532,16 +536,31 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
+        /// <summary>アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行</summary>
         private void DrawHeader(GameObject go)
         {
+            // 名前ラベルを自動幅にするとフォーカスボタンが右端からはみ出すため、
+            // 残り幅を明示計算して割り当てる (DrawVector3Row と同じ式)。
+            // margin は NextElement が要素ごとに加算するため、要素数ぶん引く
+            var labelWidth = _view.viewRect.width - _view.padding.x * 2
+                - (HeaderToggleWidth + _view.margin)
+                - (HeaderFocusButtonWidth + _view.margin)
+                - _view.margin;
+
             _view.BeginHorizontal();
             {
-                _view.DrawToggle(go.activeSelf, 20, RowHeight, value =>
+                _view.DrawToggle(go.activeSelf, HeaderToggleWidth, RowHeight, value =>
                 {
                     RecordObjectEdit(go);
                     go.SetActive(value);
                 });
-                _view.DrawLabel(go.name, -1, RowHeight);
+                _view.DrawLabel(go.name, labelWidth, RowHeight);
+
+                var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
+                if (_view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
+                {
+                    SceneViewWindow.instance.FocusOn(go);
+                }
             }
             _view.EndLayout();
         }
