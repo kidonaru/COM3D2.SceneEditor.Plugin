@@ -187,7 +187,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool settingVisible = false;
 
         /// <summary>スクリーンショットの解像度倍率 (画面サイズの何倍で撮るか)</summary>
-        public int screenshotScale = 1;
+        public int screenshotScale = 2;
 
         // カメラプリセット。1 要素 = 1 スロット、書式 "slot:tx,ty,tz,dist,yaw,pitch,roll,fov"
         [XmlElement("cameraPreset")]
