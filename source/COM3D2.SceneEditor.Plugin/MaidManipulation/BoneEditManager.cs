@@ -39,6 +39,10 @@ namespace COM3D2.SceneEditor.Plugin
         private List<SlotBoneNode> _boneTree = new List<SlotBoneNode>();
         private GameObject _boneTreeSource;
 
+        /// <summary>揺れ物理探索結果のキャッシュ (ボーン単位)。ドラッグ中の毎フレーム探索を避ける</summary>
+        private Transform _yureCheckedBone;
+        private SlotYureTargets _yureTargets;
+
         public override void Init()
         {
             // ボーン選択中はギズモの操作対象を選択オブジェクトから差し替える。
@@ -168,8 +172,40 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            DisableYure(maid, bone);
+
             var fileName = SlotBoneManager.GetSlotItemFileName(maid, targetSlotName);
             GetStore(maid).RecordEdit(targetSlotName, fileName, bone);
+        }
+
+        /// <summary>
+        /// ボーンを駆動している揺れ物理。関連物理が無ければ null。
+        /// FindTargets は階層探索を伴うため、結果はボーン単位でキャッシュして使い回す。
+        /// 関連物理は装着物が変わらない限り不変で、着替えるとボーンごと作り直されるため、
+        /// Transform の同一性で判定すれば古い参照を掴み続けることはない
+        /// </summary>
+        public SlotYureTargets GetYureTargets(Maid maid, Transform bone)
+        {
+            if (bone != _yureCheckedBone)
+            {
+                _yureCheckedBone = bone;
+                _yureTargets = SlotYureUtil.FindTargets(maid, targetSlotName, bone);
+            }
+            return _yureTargets;
+        }
+
+        /// <summary>
+        /// 編集したボーンの揺れものを止める。揺れが動いていると編集した回転が
+        /// 毎フレーム上書きされて操作にならないため、Inspector/ギズモからの編集で自動的に OFF にする。
+        /// 履歴には残さない (編集モードへの自動遷移と同じく、操作の副作用として扱う)
+        /// </summary>
+        private void DisableYure(Maid maid, Transform bone)
+        {
+            var targets = GetYureTargets(maid, bone);
+            if (targets != null && SlotYureUtil.GetYureState(targets))
+            {
+                SlotYureUtil.SetYureState(targets, false);
+            }
         }
 
         /// <summary>
@@ -307,6 +343,8 @@ namespace COM3D2.SceneEditor.Plugin
             _boneTree.Clear();
             _boneTreeSource = null;
             selectedBone = null;
+            _yureCheckedBone = null;
+            _yureTargets = null;
         }
     }
 }

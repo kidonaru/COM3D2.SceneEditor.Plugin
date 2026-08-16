@@ -437,10 +437,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>揺れ物理探索結果のキャッシュ (ボーン単位)</summary>
-        private Transform _yureCheckedBone;
-        private SlotYureTargets _yureTargets;
-
         /// <summary>「揺れもの」は LabelWidth (40) に収まらないため専用幅</summary>
         private const float YureLabelWidth = 60f;
 
@@ -451,25 +447,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawSlotBoneYureToggle(Maid maid, Transform bone)
         {
-            // 関連物理は装着物が変わらない限り不変なので、ボーン単位で探索結果を使い回す
-            // (着替えでボーンの Transform ごと作り直されるため、古い参照を掴み続けることはない)
-            if (bone != _yureCheckedBone)
-            {
-                _yureCheckedBone = bone;
-                _yureTargets = SlotYureUtil.FindTargets(maid, boneEditManager.targetSlotName, bone);
-            }
-            var hasYure = _yureTargets != null;
+            // 探索結果のキャッシュは BoneEditManager が持つ (編集時の自動 OFF と共用)
+            var targets = boneEditManager.GetYureTargets(maid, bone);
+            var hasYure = targets != null;
 
             _view.BeginHorizontal();
             {
                 _view.DrawLabel("揺れもの", YureLabelWidth, RowHeight);
                 _view.DrawToggle("有効",
-                    hasYure && SlotYureUtil.GetYureState(_yureTargets),
+                    hasYure && SlotYureUtil.GetYureState(targets),
                     100, RowHeight, hasYure,
                     on =>
                     {
                         RecordYureEdit(maid, boneEditManager.targetSlotName, bone.name, on);
-                        SlotYureUtil.SetYureState(_yureTargets, on);
+                        SlotYureUtil.SetYureState(targets, on);
                     });
             }
             _view.EndLayout();
