@@ -229,7 +229,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var width = GUIView.CalcWidth(GUIView.gsToggle, label) + TOGGLE_EXTRA_WIDTH;
 
-            // 行頭 (x = 0) での折り返しは無限ループになるため、2 個目以降だけ判定する
+            // 行頭 (x = 0) では改行しても無意味なので、2 個目以降だけ判定する
             var rowWidth = _view.viewRect.width - _view.padding.x * 2;
             if (_view.currentPos.x > 0 && _view.currentPos.x + width > rowWidth)
             {
