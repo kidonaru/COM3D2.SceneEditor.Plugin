@@ -11,6 +11,11 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static readonly int WINDOW_ID = 8903380;
 
+        private static readonly int TAB_WIDTH = 80;
+
+        /// <summary>選択中のカテゴリ。カテゴリ定義が変わっても壊れないよう id で保持する</summary>
+        private string _selectedCategoryId = null;
+
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "重力";
 
@@ -68,27 +73,57 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            var category = DrawCategoryTabs();
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            foreach (var category in MaidGravityController.categories)
-            {
-                DrawCategory(target, category);
-            }
+            DrawCategory(target, category);
 
             view.EndScrollView();
         }
 
+        /// <summary>
+        /// カテゴリをタブとして描き、選択中のカテゴリを返す。
+        /// カテゴリはデータ定義（enum ではない）なので DrawInnerTabs は使わず自前で並べる。
+        /// カテゴリは少数固定の前提で、DrawTabs のような折り返しは行わない
+        /// </summary>
+        private GravityCategory DrawCategoryTabs()
+        {
+            var categories = MaidGravityController.categories;
+
+            // 初回表示、または定義から消えた id が残っている場合は先頭へ戻す。
+            // 描画より先に確定させないと 1 フレームどのタブも点灯しない
+            var selected = MaidGravityController.FindCategory(_selectedCategoryId);
+            if (selected == null)
+            {
+                selected = categories[0];
+                _selectedCategoryId = selected.id;
+            }
+
+            view.BeginHorizontal();
+            {
+                foreach (var item in categories)
+                {
+                    var color = item == selected ? GUIView.option.accentColor : Color.white;
+                    if (view.DrawButton(item.name, TAB_WIDTH, ROW_HEIGHT, true, color))
+                    {
+                        _selectedCategoryId = item.id;
+                        selected = item;
+                    }
+                }
+            }
+            view.EndLayout();
+
+            return selected;
+        }
+
         private void DrawCategory(Maid target, GravityCategory category)
         {
-            view.DrawLabel(category.name, -1, ROW_HEIGHT);
-
             if (!gravityController.IsValid(target, category))
             {
                 // 着ていない・揺れものを持たない衣装では力の掛け先が無い
                 view.DrawLabel("対象の揺れものがありません", -1, ROW_HEIGHT);
-                view.DrawHorizontalLine(Color.gray);
-                view.AddSpace(5);
                 return;
             }
 
@@ -132,9 +167,6 @@ namespace COM3D2.SceneEditor.Plugin
                     current.z = value;
                     gravityController.SetOffset(target, category, current);
                 });
-
-            view.DrawHorizontalLine(Color.gray);
-            view.AddSpace(5);
         }
 
         /// <summary>共通書式のスライダー 1 行（LightWindow と同形式）</summary>
