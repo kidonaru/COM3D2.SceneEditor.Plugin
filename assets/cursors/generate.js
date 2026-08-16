@@ -1,19 +1,19 @@
 // resize-arrow.svg を 4 方向に回転させて 32x32 の PNG へラスタライズし、
 // ResizeCursor.cs へ貼り付ける base64 文字列を出力する。
 //
-//   npm install sharp
+//   npm install
 //   node generate.js
 //
 // 回転はラスタ画像ではなく SVG の transform で行うため、45 度でも劣化しない。
 //
-// PNG のエンコードは sharp に任せず自前で行う。sharp が吐く PNG は
+// PNG のエンコードはラスタライザ任せにせず自前で行う。ライブラリが吐く PNG は
 // Unity の Texture2D.LoadImage が読めず (8x8 のエラーテクスチャに差し替わる)、
 // 付加チャンクを削っても直らなかったため、Node 標準の zlib で素直に組み立てている。
 
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const sharp = require('sharp');
+const { Resvg } = require('@resvg/resvg-js');
 
 const SIZE = 32;
 const SOURCE = path.join(__dirname, 'resize-arrow.svg');
@@ -86,16 +86,14 @@ function encodePng(rgba, width, height) {
     ]);
 }
 
-(async () => {
-    const source = fs.readFileSync(SOURCE, 'utf8');
+const source = fs.readFileSync(SOURCE, 'utf8');
 
-    for (const variant of VARIANTS) {
-        const svg = rotatedSvg(source, variant.angle);
-        const rgba = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer();
-        const png = encodePng(rgba, SIZE, SIZE);
-        fs.writeFileSync(path.join(__dirname, `resize-${variant.name}.png`), png);
-        console.log(`// ${variant.name} (${variant.angle} deg, ${png.length} bytes)`);
-        console.log(`"${png.toString('base64')}"`);
-        console.log();
-    }
-})();
+for (const variant of VARIANTS) {
+    const svg = rotatedSvg(source, variant.angle);
+    const image = new Resvg(svg).render();
+    const png = encodePng(image.pixels, image.width, image.height);
+    fs.writeFileSync(path.join(__dirname, `resize-${variant.name}.png`), png);
+    console.log(`// ${variant.name} (${variant.angle} deg, ${png.length} bytes)`);
+    console.log(`"${png.toString('base64')}"`);
+    console.log();
+}
