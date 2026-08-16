@@ -22,3 +22,17 @@ COM3D2.SceneEditor.Plugin は、3D シーンの描画を移動・リサイズで
 ## ライセンス
 
 [MIT License](LICENSE)
+
+### MOD規約
+
+※MODはKISSサポート対象外です。
+※MODを利用するに当たり、問題が発生してもKISSは一切の責任を負いかねます。
+※「カスタムメイド3D2」か「カスタムオーダーメイド3D2」か「CR EditSystem」を購入されている方のみが利用できます。
+※「カスタムメイド3D2」か「カスタムオーダーメイド3D2」か「CR EditSystem」上で表示する目的以外の利用は禁止します。
+※これらの事項は http://kisskiss.tv/kiss/diary.php?no=558 を優先します。
+
+## 連絡先
+
+質問、要望などは@kidonaruまで
+
+https://twitter.com/kidonaru
