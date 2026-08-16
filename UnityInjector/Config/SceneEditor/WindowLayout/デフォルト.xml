@@ -6,7 +6,7 @@
     <x>0</x>
     <y>28</y>
     <width>527</width>
-    <height>577</height>
+    <height>578</height>
     <visible>true</visible>
   </window>
   <window windowId="8903351">
@@ -88,9 +88,9 @@
   </window>
   <window windowId="8903366">
     <x>703</x>
-    <y>630</y>
+    <y>635</y>
     <width>425</width>
-    <height>420</height>
+    <height>526</height>
     <visible>true</visible>
   </window>
   <window windowId="8903374">
@@ -102,16 +102,16 @@
   </window>
   <window windowId="8903368">
     <x>703</x>
-    <y>630</y>
+    <y>635</y>
     <width>425</width>
-    <height>420</height>
+    <height>526</height>
     <visible>true</visible>
   </window>
   <window windowId="8903381">
     <x>703</x>
-    <y>630</y>
+    <y>635</y>
     <width>425</width>
-    <height>420</height>
+    <height>526</height>
     <visible>true</visible>
   </window>
   <window windowId="8903362">
