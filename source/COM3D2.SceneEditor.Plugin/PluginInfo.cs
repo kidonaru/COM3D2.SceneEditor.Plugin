@@ -6,7 +6,7 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public const string PluginName = "SceneEditor";
         public const string PluginFullName = "COM3D2." + PluginName + ".Plugin";
-        public const string PluginVersion = "1.0.0.0";
+        public const string PluginVersion = "1.0.1.0";
         public const string WindowName = PluginName + " " + PluginVersion;
         /// <summary>ドキュメントサイトの URL。About から開く</summary>
         public const string DocumentUrl = "https://kidonaru.github.io/COM3D2.SceneEditor.Plugin/";
