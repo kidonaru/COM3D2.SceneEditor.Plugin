@@ -138,6 +138,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // リサイズ確定 (OnResizeEnd) 由来の再構築はボタン離上イベントを伴わないため、
+            // MTE の GetMouseButtonUp ではなく「非ドラッグ中」で判定する
             if (requestUpdateTexture && !Input.GetMouseButton(0))
             {
                 requestUpdateTexture = false;

@@ -92,6 +92,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             public void OnLoad()
             {
+                // MTE 本体の OnLoad と同じガード。タイムライン未生成のままプラグインを
+                // 有効化すると MaidManager.OnLoad が currentLayer (null) を触って NRE する
+                if (studioHack == null || !studioHack.IsValid() ||
+                    timelineManager.timeline == null)
+                {
+                    return;
+                }
+
                 foreach (var manager in _managers)
                 {
                     manager.OnLoad();
@@ -143,12 +151,12 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.Rotation,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRotation>);
 
-            managerRegistry.RegisterManager(new TimelineUpdateManager());
+            var updateManager = new TimelineUpdateManager();
+            managerRegistry.RegisterManager(updateManager);
 
-            // タイムライン読み込み時の OnLoad 再通知対象 (mte.OnLoad 経由)
-            var mte = MTEP.MotionTimelineEditor.instance;
-            mte.RegisterManager(MTEP.MaidManager.instance);
-            mte.RegisterManager(MTEP.TimelineHistoryManager.instance);
+            // タイムライン作成・読み込み時の mte.OnLoad も同じ複合マネージャへ集約し、
+            // OnLoad の二重発火とガード漏れを防ぐ
+            MTEP.MotionTimelineEditor.instance.RegisterManager(updateManager);
         }
     }
 }
