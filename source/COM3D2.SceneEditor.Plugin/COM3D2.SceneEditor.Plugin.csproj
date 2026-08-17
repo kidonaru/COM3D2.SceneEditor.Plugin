@@ -260,6 +260,7 @@
     <Compile Include="SaveFacePresetPopupWindow.cs" />
     <Compile Include="SaveFingerPresetPopupWindow.cs" />
     <Compile Include="SceneViewWindow.cs" />
+    <Compile Include="TimelineWindow.cs" />
     <Compile Include="ToolbarIcons.cs" />
     <Compile Include="TabGroup.cs" />
     <Compile Include="WindowPlacementScaler.cs" />
@@ -296,6 +297,8 @@
     <Compile Include="Timeline\FrameData.cs" />
     <Compile Include="Timeline\FrameXml.cs" />
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
+    <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
+    <Compile Include="Timeline\TimelineIntegration.cs" />
     <Compile Include="Timeline\Hack\StudioHackBase.cs" />
     <Compile Include="Timeline\IKHoldEntity.cs" />
     <Compile Include="Timeline\MaidCache.cs" />

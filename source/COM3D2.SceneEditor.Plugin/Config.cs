@@ -179,6 +179,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>操作履歴の最大保持数。0 以下で履歴を無効化する</summary>
         public int historyLimit = 20;
 
+        // タイムラインウィンドウ
+        public int timelinePosX = -1;
+        public int timelinePosY = -1;
+        public int timelineWidth = 800;
+        public int timelineHeight = 480;
+        public bool timelineVisible = false;
+
         // 設定ウィンドウ
         public int settingPosX = -1;
         public int settingPosY = -1;
