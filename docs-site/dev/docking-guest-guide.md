@@ -1,4 +1,4 @@
-# 外部プラグイン向け タブドッキング／スナップ連携ガイド
+# タブドッキング / スナップ連携
 
 SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）のタブドッキングとスナップ/コネクトへ、
 他プラグインのウィンドウを参加させるための資料。
@@ -245,13 +245,13 @@ t.GetMethod("Unregister").Invoke(null, new object[] { handle });
 
 | ホスト型 | MTEUtils クライアント | 用途 | ガイド |
 |---|---|---|---|
-| `HistoryAPI` | `HistoryClient` | 操作履歴（undo/redo）への参加 | [history-guest-guide.md](history-guest-guide.md) |
-| `EditorStateHost` | `EditorStateClient` | SceneEditor の有効/無効への追従 | [editor-state-guest-guide.md](editor-state-guest-guide.md) |
-| `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の入力・描画へ参加させる | 未整備（ソースの XML コメント参照） |
-| `GizmoRenderer` | `GizmoToolClient` | ギズモツール（移動 / 回転 / 拡縮）の状態共有 | 未整備 |
-| `InspectorHost` | `InspectorHostClient` | Inspector の内容描画の委譲 | 未整備 |
-| `SelectionManager` | `SelectionClient` | 選択オブジェクトの取得・変更通知・選択時の SceneView フォーカス指定 | 未整備 |
-| `InputRemapper` | `InputRemapperClient` | キー入力の競合回避 | 未整備 |
+| `HistoryAPI` | `HistoryClient` | 操作履歴（undo/redo）への参加 | [操作履歴連携](history-guest-guide.md) |
+| `EditorStateHost` | `EditorStateClient` | SceneEditor の有効/無効への追従 | [有効/無効の連動](editor-state-guest-guide.md) |
+| `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の入力・描画へ参加させる | [ギズモ連携](gizmo-guest-guide.md) |
+| `InspectorHost` | `InspectorHostClient` | Inspector の内容描画の委譲 | [Inspector 描画の委譲](inspector-guest-guide.md) |
+| `SelectionManager` | `SelectionClient` | 選択オブジェクトの取得・変更通知・選択時の SceneView フォーカス指定 | [その他の連携](misc-guest-guide.md) |
+| `GizmoRenderer` | `GizmoToolClient` | ギズモツール（移動 / 回転 / 拡縮）の状態共有 | [その他の連携](misc-guest-guide.md) |
+| `InputRemapper` | `InputRemapperClient` | GameView 上のマウス座標取り違え防止 | [その他の連携](misc-guest-guide.md) |
 
 シーンプリセットへの相乗りだけは属性ベースの自動発見で、リフレクション接続は不要
-（[scene-preset-provider-guide.md](scene-preset-provider-guide.md)）。
+（[シーンプリセット連携](scene-preset-provider-guide.md)）。

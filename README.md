@@ -14,11 +14,8 @@ https://github.com/user-attachments/assets/419cb107-f25d-426e-a117-f8c052b7da17
 
 ## 開発者向け
 
-- [ビルド方法](docs/build.md)
-- [タブドッキング / スナップ連携](docs/docking-guest-guide.md)
-- [操作履歴（undo/redo）連携](docs/history-guest-guide.md)
-- [シーンプリセット連携](docs/scene-preset-provider-guide.md)
-- [有効/無効の連動](docs/editor-state-guest-guide.md)
+ビルド方法と外部プラグイン連携ガイドは、
+[開発者向けドキュメント](https://kidonaru.github.io/COM3D2.SceneEditor.Plugin/dev/)をご覧ください。
 
 ## ライセンス
 

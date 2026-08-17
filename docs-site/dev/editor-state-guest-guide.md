@@ -1,4 +1,4 @@
-# 外部プラグイン向け 有効/無効 連動ガイド
+# 有効/無効の連動
 
 SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）の有効/無効へ、
 他プラグインの有効/無効を追従させるための資料。
@@ -94,4 +94,4 @@ void Unsubscribe(Action<bool> onChanged);
 ## 他の連携 API
 
 タブドッキング・履歴・シーンプリセット等は
-[docking-guest-guide.md](docking-guest-guide.md) の「他の連携 API」を参照。
+[タブドッキング / スナップ連携](docking-guest-guide.md) の「他の連携 API」を参照。

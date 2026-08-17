@@ -1,4 +1,4 @@
-# 外部プラグイン向け 操作履歴（undo/redo）連携ガイド
+# 操作履歴（undo/redo）連携
 
 SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）の操作履歴へ、
 他プラグインの操作を積んで undo/redo させるための資料。

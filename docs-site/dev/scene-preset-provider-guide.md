@@ -1,4 +1,4 @@
-# 外部プラグイン向け シーンプリセット連携ガイド
+# シーンプリセット連携
 
 SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）のシーンプリセットへ、
 他プラグインの状態を相乗りさせるための資料。
@@ -81,7 +81,7 @@ public static class ModelPlacementPresetProvider
 | `ApplyPresetXml(string)` | `bool` を返す `string` 1 引数メソッド | テキスト対 | テキストを適用し、成功可否を返す |
 | `CapturePresetBinary()` | `byte[]` を返す引数なしメソッド | バイナリ対 | 現在状態をバイナリで返す |
 | `ApplyPresetBinary(byte[])` | `bool` を返す `byte[]` 1 引数メソッド | バイナリ対 | バイナリを適用し、成功可否を返す |
-| `ApplySceneCaptureXml(string)` | `bool` を返す `string` 1 引数メソッド | 任意 | SceneCapture プリセット XML（`<Preset>` 全体）を適用し、成功可否を返す。詳細は [scenecapture-import-guide.md](scenecapture-import-guide.md) |
+| `ApplySceneCaptureXml(string)` | `bool` を返す `string` 1 引数メソッド | 任意 | SceneCapture プリセット XML（`<Preset>` 全体）を適用し、成功可否を返す。詳細は [SceneCapture プリセット取り込み](scenecapture-import-guide.md) |
 
 `ApplySceneCaptureXml` は**単独ではプロバイダとして登録されない**。
 上記の必須メンバ（id / displayName + テキスト対かバイナリ対）が揃っていることが前提で、
@@ -223,7 +223,7 @@ ScenePreset/
    実装している**全プロバイダ**へ `<Preset>` XML 全体をそのまま渡す
 
 サイドカーも `ApplyPresetXml` も介さず、メイドのロード待ちも挟まない同期実行になる。
-実装者向けの詳細は [scenecapture-import-guide.md](scenecapture-import-guide.md) を参照。
+実装者向けの詳細は [SceneCapture プリセット取り込み](scenecapture-import-guide.md) を参照。
 
 ### 削除
 
@@ -269,5 +269,5 @@ SceneEditor: プリセットプロバイダを発見しました: ModItemExplore
 - 保存 / 適用フロー: `source/COM3D2.SceneEditor.Plugin/Manager/ScenePresetManager.cs`
 - データ構造: `source/COM3D2.SceneEditor.Plugin/ScenePresetData.cs`
 - 保存ポップアップ: `source/COM3D2.SceneEditor.Plugin/SavePresetPopupWindow.cs`
-- 他の連携ガイド: [docking-guest-guide.md](docking-guest-guide.md) /
-  [history-guest-guide.md](history-guest-guide.md)
+- 他の連携ガイド: [タブドッキング / スナップ連携](docking-guest-guide.md) /
+  [操作履歴連携](history-guest-guide.md)

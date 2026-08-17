@@ -1,4 +1,4 @@
-# 外部プラグイン向け SceneCapture プリセット取り込みガイド
+# SceneCapture プリセット取り込み
 
 SceneEditor が読み込んだ **SceneCapture プリセット**の `<Models>` / `<Effects>` を、
 外部プラグイン側で適用するための資料。
@@ -6,7 +6,7 @@ SceneEditor が読み込んだ **SceneCapture プリセット**の `<Models>` / 
 対象読者: ModItemExplorer（モデル配置）/ PostEffects（ポストプロセス）など、
 SceneCapture の担当セクションを再現できるプラグインの実装者。
 
-前提として [scene-preset-provider-guide.md](scene-preset-provider-guide.md) の
+前提として [シーンプリセット連携](scene-preset-provider-guide.md) の
 プロバイダ登録が済んでいること。
 
 ## 概要
@@ -191,4 +191,4 @@ SceneEditor の追加ライトが扱えるのは Spot（0）/ Directional（1）
 - 変換ローダー: `source/COM3D2.SceneEditor.Plugin/Manager/SceneCapturePresetLoader.cs`
 - 適用フロー: `source/COM3D2.SceneEditor.Plugin/Manager/ScenePresetManager.cs`
   （`ApplySceneCapturePreset` / `ApplySceneCaptureExternals`）
-- プロバイダ登録: [scene-preset-provider-guide.md](scene-preset-provider-guide.md)
+- プロバイダ登録: [シーンプリセット連携](scene-preset-provider-guide.md)

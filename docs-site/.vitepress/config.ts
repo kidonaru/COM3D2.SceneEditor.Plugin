@@ -14,26 +14,51 @@ export default defineConfig({
     logo: '/favicon.svg',
     nav: [
       { text: 'ガイド', link: '/' },
+      { text: '開発者向け', link: '/dev/' },
       { text: 'ダウンロード', link: 'https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/releases' },
     ],
-    sidebar: [
-      {
-        text: 'ガイド',
-        items: [
-          { text: 'はじめに', link: '/' },
-          { text: 'インストール', link: '/guide/installation' },
-          { text: '基本操作', link: '/guide/getting-started' },
-          { text: 'ウィンドウ管理', link: '/guide/windows' },
-          { text: 'SceneView / Hierarchy / Inspector', link: '/guide/scene-view' },
-          { text: 'メイド編集', link: '/guide/maid-editing' },
-          { text: '演出と撮影', link: '/guide/staging' },
-          { text: 'シーンプリセット', link: '/guide/scene-preset' },
-          { text: 'ショートカット', link: '/guide/shortcuts' },
-          { text: '設定リファレンス', link: '/guide/configuration' },
-          { text: '既知の制限', link: '/guide/limitations' },
-        ],
-      },
-    ],
+    sidebar: {
+      '/dev/': [
+        {
+          text: '開発者向け',
+          items: [
+            { text: '概要', link: '/dev/' },
+            { text: 'ビルド方法', link: '/dev/build' },
+          ],
+        },
+        {
+          text: '外部プラグイン連携',
+          items: [
+            { text: 'タブドッキング / スナップ', link: '/dev/docking-guest-guide' },
+            { text: '操作履歴（undo/redo）', link: '/dev/history-guest-guide' },
+            { text: 'シーンプリセット', link: '/dev/scene-preset-provider-guide' },
+            { text: 'SceneCapture 取り込み', link: '/dev/scenecapture-import-guide' },
+            { text: 'ギズモ', link: '/dev/gizmo-guest-guide' },
+            { text: 'Inspector 描画の委譲', link: '/dev/inspector-guest-guide' },
+            { text: '有効/無効の連動', link: '/dev/editor-state-guest-guide' },
+            { text: 'その他（選択 / ツール / 入力）', link: '/dev/misc-guest-guide' },
+          ],
+        },
+      ],
+      '/': [
+        {
+          text: 'ガイド',
+          items: [
+            { text: 'はじめに', link: '/' },
+            { text: 'インストール', link: '/guide/installation' },
+            { text: '基本操作', link: '/guide/getting-started' },
+            { text: 'ウィンドウ管理', link: '/guide/windows' },
+            { text: 'SceneView / Hierarchy / Inspector', link: '/guide/scene-view' },
+            { text: 'メイド編集', link: '/guide/maid-editing' },
+            { text: '演出と撮影', link: '/guide/staging' },
+            { text: 'シーンプリセット', link: '/guide/scene-preset' },
+            { text: 'ショートカット', link: '/guide/shortcuts' },
+            { text: '設定リファレンス', link: '/guide/configuration' },
+            { text: '既知の制限', link: '/guide/limitations' },
+          ],
+        },
+      ],
+    },
     search: { provider: 'local' },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/kidonaru/COM3D2.SceneEditor.Plugin' },

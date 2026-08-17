@@ -53,5 +53,5 @@ SceneCapture プラグインのプリセット（`Sybaris\UnityInjector\Config\S
 | [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト設定 | v2.0.0.0 以降 |
 
 開発者向けの詳細は
-[scene-preset-provider-guide.md](https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/blob/main/docs/scene-preset-provider-guide.md)
+[シーンプリセット連携ガイド](/dev/scene-preset-provider-guide)
 を参照してください。
