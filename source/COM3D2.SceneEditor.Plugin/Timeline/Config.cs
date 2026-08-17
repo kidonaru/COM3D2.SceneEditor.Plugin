@@ -261,6 +261,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        // サブウィンドウ (MTE の SubWindowInfo) は未移植のため関連設定を削除している
+
         [XmlIgnore]
         public bool dirty = false;
 

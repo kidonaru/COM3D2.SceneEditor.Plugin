@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -274,15 +274,6 @@
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
     <Compile Include="MTEUtils\MPNUtils.cs" />
     <Compile Include="Timeline\BoneData.cs" />
-    <Compile Include="Timeline\DressUtils.cs" />
-    <Compile Include="Timeline\EasingFunctions.cs" />
-    <Compile Include="Timeline\MaidBlendShape.cs" />
-    <Compile Include="Timeline\MaidPropCache.cs" />
-    <Compile Include="Timeline\MaidSlotStat.cs" />
-    <Compile Include="Timeline\MotionTimelineEditor.cs" />
-    <Compile Include="Timeline\MoveEasingType.cs" />
-    <Compile Include="Timeline\StopwatchDebug.cs" />
-    <Compile Include="Timeline\StudioStats.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuManager.cs" />
     <Compile Include="Timeline\BoneMenu\BoneSetMenuItem.cs" />
@@ -292,17 +283,21 @@
     <Compile Include="Timeline\BoneMenu\MaidBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneXml.cs" />
     <Compile Include="Timeline\Config.cs" />
+    <Compile Include="Timeline\DressUtils.cs" />
+    <Compile Include="Timeline\EasingFunctions.cs" />
     <Compile Include="Timeline\ExtendBoneCache.cs" />
     <Compile Include="Timeline\Extensions.cs" />
     <Compile Include="Timeline\FrameData.cs" />
     <Compile Include="Timeline\FrameXml.cs" />
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
     <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
-    <Compile Include="Timeline\TimelineIntegration.cs" />
     <Compile Include="Timeline\Hack\StudioHackBase.cs" />
     <Compile Include="Timeline\IKHoldEntity.cs" />
+    <Compile Include="Timeline\MaidBlendShape.cs" />
     <Compile Include="Timeline\MaidCache.cs" />
     <Compile Include="Timeline\MaidInfo.cs" />
+    <Compile Include="Timeline\MaidPropCache.cs" />
+    <Compile Include="Timeline\MaidSlotStat.cs" />
     <Compile Include="Timeline\Manager\ConfigManager.cs" />
     <Compile Include="Timeline\Manager\MaidManager.cs" />
     <Compile Include="Timeline\Manager\ManagerBase.cs" />
@@ -311,10 +306,15 @@
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
     <Compile Include="Timeline\MotionPlayData.cs" />
+    <Compile Include="Timeline\MotionTimelineEditor.cs" />
+    <Compile Include="Timeline\MoveEasingType.cs" />
     <Compile Include="Timeline\PluginUtils.cs" />
+    <Compile Include="Timeline\StopwatchDebug.cs" />
+    <Compile Include="Timeline\StudioStats.cs" />
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
     <Compile Include="Timeline\TimelineData.cs" />
+    <Compile Include="Timeline\TimelineIntegration.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
