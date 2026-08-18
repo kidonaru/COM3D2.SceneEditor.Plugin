@@ -120,6 +120,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        // 代入は必ず targetMaid setter か ClearTargetMaidSilently を経由すること。
+        // 直接代入すると外部プラグインへの選択変更通知 (MaidSelectHost) が漏れる
         private Maid _targetMaid = null;
 
         /// <summary>
@@ -146,16 +148,20 @@ namespace COM3D2.SceneEditor.Plugin
                 if (value != null)
                 {
                     selectionManager.Select(value.gameObject);
-                    return;
                 }
-
                 // 解除されたメイドを掴み続けない。ストックの Maid は GameObject ごと
                 // 使い回されるため、放置すると別メイドの Transform を誤って操作してしまう。
                 // 他のオブジェクトを選んでいるなら横取りしない
-                if (previous != null && previous.gameObject != null &&
+                else if (previous != null && previous.gameObject != null &&
                     selectionManager.selectedObject == previous.gameObject)
                 {
                     selectionManager.ClearSelection();
+                }
+
+                // 外部プラグインへはギズモ選択の同期が終わってから通知する
+                if (previous != value)
+                {
+                    MaidSelectHost.NotifyMaidChanged(value);
                 }
             }
         }
@@ -518,7 +524,7 @@ namespace COM3D2.SceneEditor.Plugin
             ClearPendingFocus();
             ScenePresetManager.ClearPendingApplies();
 
-            _targetMaid = null;
+            ClearTargetMaidSilently();
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
@@ -532,7 +538,24 @@ namespace COM3D2.SceneEditor.Plugin
             // 遷移先ではメイドの実体ごと入れ替わるため、戻さず追跡だけ捨てる
             _visibilityController.Discard();
             // 遷移先では実体が入れ替わるので選択も捨てる
+            ClearTargetMaidSilently();
+        }
+
+        /// <summary>
+        /// setter の後片付け (ギズモ選択の同期) を通さずに選択だけ捨てる。
+        /// 無効化・シーン遷移の一括後片付け用。選択解除の契約は守る必要があるため、
+        /// 外部プラグインへの通知だけは行う (setter バイパスで通知が漏れると
+        /// ゲストが破棄済みの Maid を掴み続ける)
+        /// </summary>
+        private void ClearTargetMaidSilently()
+        {
+            var previous = _targetMaid;
             _targetMaid = null;
+
+            if (previous != null)
+            {
+                MaidSelectHost.NotifyMaidChanged(null);
+            }
         }
     }
 }

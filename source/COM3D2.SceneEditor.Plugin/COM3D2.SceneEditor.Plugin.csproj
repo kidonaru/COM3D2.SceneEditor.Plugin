@@ -118,6 +118,7 @@
     <Compile Include="MTEUtils\DockingClient.cs" />
     <Compile Include="MTEUtils\DockableWindowBase.cs" />
     <Compile Include="MTEUtils\EditorStateClient.cs" />
+    <Compile Include="MTEUtils\MaidSelectClient.cs" />
     <Compile Include="MTEUtils\Extensions.cs" />
     <Compile Include="MTEUtils\GUICache.cs" />
     <Compile Include="MTEUtils\HistoryClient.cs" />
@@ -222,6 +223,7 @@
     <Compile Include="Config.cs" />
     <Compile Include="EditorSubWindow.cs" />
     <Compile Include="EditorStateHost.cs" />
+    <Compile Include="MaidSelectHost.cs" />
     <Compile Include="DockingHost.cs" />
     <Compile Include="IDockableWindow.cs" />
     <Compile Include="GameViewWindow.cs" />

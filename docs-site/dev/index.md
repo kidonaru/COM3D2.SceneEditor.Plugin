@@ -20,6 +20,7 @@ SceneEditor が不在・旧バージョンの環境では該当機能だけが�
 | [ギズモ連携](./gizmo-guest-guide) | `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の描画・入力に参加させる |
 | [Inspector 描画の委譲](./inspector-guest-guide) | `InspectorHost` | `InspectorHostClient` | 自分の管理オブジェクト選択時に Inspector の内容描画を受け取る |
 | [有効/無効の連動](./editor-state-guest-guide) | `EditorStateHost` | `EditorStateClient` | SceneEditor の ON/OFF に自プラグインを追従させる |
+| [選択中メイドの共有](./maid-select-guest-guide) | `MaidSelectHost` | `MaidSelectClient` | 選択中メイドの読み取り・変更通知の購読・外部からの選択変更（双方向） |
 | [その他の連携](./misc-guest-guide) | `SelectionManager` ほか | `SelectionClient` ほか | 選択の同期・ギズモツールの状態共有・マウス座標の取り違え防止 |
 
 ## 共通の前提
