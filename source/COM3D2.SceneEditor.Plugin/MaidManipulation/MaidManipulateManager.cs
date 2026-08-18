@@ -121,7 +121,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         // 代入は必ず targetMaid setter か ClearTargetMaidSilently を経由すること。
-        // 直接代入すると外部プラグインへの選択変更通知 (MaidSelectHost) が漏れる
+        // 直接代入すると外部プラグインへの選択変更通知 (MaidSelectHost) が漏れる。
+        // なお UpdateLoadingMaids は代入を伴わない再通知のため NotifyMaidChanged を直接呼ぶ
         private Maid _targetMaid = null;
 
         /// <summary>
@@ -299,6 +300,13 @@ namespace COM3D2.SceneEditor.Plugin
                 if (!IsAlive(maid))
                 {
                     _loadingMaids.RemoveAt(i);
+
+                    // 実体を失ったメイドをゲストへ掴ませ続けないよう解除を通知する。
+                    // targetMaid getter の自動クリアは setter を通らず通知が漏れる
+                    if (maid == _targetMaid)
+                    {
+                        ClearTargetMaidSilently();
+                    }
                     continue;
                 }
 
@@ -327,6 +335,14 @@ namespace COM3D2.SceneEditor.Plugin
                 _visibilityController.SetHidden(maid, false);
 
                 _loadingMaids.RemoveAt(i);
+
+                // 呼出直後の通知はロード中に流れており、ゲスト側のメイド一覧
+                // (GetReadyMaidList) にはまだ載っていないため取りこぼされる。
+                // ロードが片付いた時点で改めて流し直す
+                if (maid == _targetMaid)
+                {
+                    MaidSelectHost.NotifyMaidChanged(maid);
+                }
             }
 
             // 予約したメイド自身のロードが片付いてから寄せる
