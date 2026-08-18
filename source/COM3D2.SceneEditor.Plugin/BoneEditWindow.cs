@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -8,13 +9,24 @@ namespace COM3D2.SceneEditor.Plugin
     /// スロット別ボーンの可視化・編集ウィンドウ。
     /// 表示中だけビュー窓に骨格線が出て、関節クリックでボーンを選べるようになる。
     /// ボーン一覧の行まわり (展開/折りたたみ・検索・行仮想化) は GUITreeView に委譲し、
-    /// ここではスロット選択とボーンツリーの提供、リセット操作を担う
+    /// ここではスロット選択とボーンツリーの提供、リセット操作、
+    /// PartsEdit 互換プリセットの保存/適用を担う
     /// </summary>
     public class BoneEditWindow : MaidWindowBase
     {
         public static readonly int WINDOW_ID = 8903371;
 
         private static readonly int ResetButtonWidth = 110;
+        private static readonly int TAB_WIDTH = 80;
+
+        /// <summary>ウィンドウ内の内部タブ</summary>
+        private enum BoneTabType
+        {
+            編集,
+            プリセット,
+        }
+
+        private BoneTabType _tabType = BoneTabType.編集;
 
         private static BoneEditWindow _instance = null;
         public static BoneEditWindow instance
@@ -42,6 +54,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             getName = (slotName, _) => slotName,
         };
+
+        // PartsEdit 互換プリセット。一覧は表示時とタブ切替・保存/削除後に更新する
+        private List<string> _presetNames = new List<string>();
+        /// <summary>プリセット一覧の絞り込み語</summary>
+        private string _presetSearchText = "";
 
         private readonly GUITreeView<SlotBoneNode> _treeView = new GUITreeView<SlotBoneNode>();
         // 外部経路 (ビュー窓のボーンピック等) の選択変更検出用
@@ -116,6 +133,17 @@ namespace COM3D2.SceneEditor.Plugin
         {
             // 表示中だけ骨格線とボーンピックを有効化する
             boneEditManager.editMode = visible;
+
+            if (visible)
+            {
+                RefreshPresetList();
+            }
+        }
+
+        /// <summary>プリセット一覧を読み直す</summary>
+        private void RefreshPresetList()
+        {
+            _presetNames = PartsEditPresetIO.GetPresetNames();
         }
 
         protected override void DrawMaidContent(Maid target)
@@ -137,19 +165,55 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawBoneVisibleToggle();
+            // スロット選択はプリセットの適用先も兼ねるため、タブの上に共通で置く
+            DrawHeaderRow(target);
             DrawSlotSelector(target);
-            view.DrawHorizontalLine();
-            DrawResetButtons(target);
-            DrawBoneTree(target);
+
+            var prevTab = _tabType;
+            _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
+            if (_tabType != prevTab && _tabType == BoneTabType.プリセット)
+            {
+                // フォルダを直接編集された場合もタブを開き直せば一覧に反映される
+                RefreshPresetList();
+            }
+
+            if (_tabType == BoneTabType.プリセット)
+            {
+                DrawPresetContent(target);
+            }
+            else
+            {
+                DrawResetButtons(target);
+                DrawBoneTree(target);
+            }
         }
 
-        /// <summary>メニューバーと同じボーン表示トグル。編集モードに関わらず切り替えられる</summary>
-        private void DrawBoneVisibleToggle()
+        /// <summary>
+        /// タブの上の共通ヘッダー。
+        /// メニューバーと同じボーン表示トグル (編集モードに関わらず切り替えられる) と、
+        /// どのタブからでも押せるプリセット保存ボタンを並べる
+        /// </summary>
+        private void DrawHeaderRow(Maid target)
         {
             var manager = MaidManipulateManager.instance;
-            view.DrawToggle("ボーン表示", manager.isBoneVisible, 100, ROW_HEIGHT,
-                true, value => manager.isBoneVisible = value);
+            var store = boneEditManager.GetStore(target);
+            var slotName = boneEditManager.targetSlotName;
+            var slotSelected = SlotBoneManager.GetSlotObject(target, slotName) != null;
+
+            view.BeginHorizontal();
+            {
+                view.DrawToggle("ボーン表示", manager.isBoneVisible, 100, ROW_HEIGHT,
+                    true, value => manager.isBoneVisible = value);
+
+                // 保存対象は選択中スロットの編集差分。差分が無いときは押させない
+                if (view.DrawButton("プリセット保存", 110, ROW_HEIGHT,
+                    slotSelected && store.GetEntries(slotName).Count > 0))
+                {
+                    SaveBonePresetPopupWindow.Show(
+                        presetName => SavePreset(target, slotName, presetName));
+                }
+            }
+            view.EndLayout();
         }
 
         /// <summary>アイテムが載っているスロットから編集対象を選ぶ。編集済みスロットには * を付ける</summary>
@@ -182,6 +246,130 @@ namespace COM3D2.SceneEditor.Plugin
                 _slotComboBox.DrawButton(view);
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// プリセットタブ。検索欄と
+        /// PartsEdit 互換プリセット (UnityInjector\Config\PartsEdit\*.xml) の一覧を描画する。
+        /// 保存ボタンはどのタブからも押せるようヘッダー側にある
+        /// </summary>
+        private void DrawPresetContent(Maid target)
+        {
+            var slotName = boneEditManager.targetSlotName;
+            var slotSelected = SlotBoneManager.GetSlotObject(target, slotName) != null;
+
+            view.DrawTextField("検索", LABEL_WIDTH, _presetSearchText, -1, ROW_HEIGHT,
+                value => _presetSearchText = value);
+
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+            DrawPresetList(target, slotName, slotSelected);
+            view.EndScrollView();
+        }
+
+        /// <summary>保存済みプリセットを一覧表示する。名前を押すと選択中スロットへ適用する</summary>
+        private void DrawPresetList(Maid target, string slotName, bool slotSelected)
+        {
+            if (_presetNames.Count == 0)
+            {
+                view.DrawLabel("保存されたプリセットはありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            const int deleteButtonWidth = 50;
+            // スクロールバー分は viewRect が既に差し引かれているため、削除ボタンと間隔だけ引く
+            var nameButtonWidth = view.viewRect.width - view.padding.x * 2
+                - deleteButtonWidth - view.margin;
+
+            var matched = 0;
+            foreach (var presetName in _presetNames)
+            {
+                if (!string.IsNullOrEmpty(_presetSearchText) && presetName
+                    .IndexOf(_presetSearchText, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+                matched++;
+
+                view.BeginHorizontal();
+                {
+                    // 適用先はスロット。未選択では適用できないため押させない
+                    if (view.DrawButton(presetName, nameButtonWidth, ROW_HEIGHT, slotSelected))
+                    {
+                        LoadPreset(target, slotName, presetName);
+                    }
+
+                    if (view.DrawButton("削除", deleteButtonWidth, ROW_HEIGHT))
+                    {
+                        DialogPopupWindow.ShowConfirmDialog(
+                            "プリセット「" + presetName + "」を削除しますか？",
+                            () =>
+                            {
+                                PartsEditPresetIO.Delete(presetName);
+                                RefreshPresetList();
+                            });
+                    }
+                }
+                view.EndLayout();
+            }
+
+            if (matched == 0)
+            {
+                view.DrawLabel("一致するプリセットはありません", -1, ROW_HEIGHT);
+            }
+        }
+
+        /// <summary>選択中プリセットのボーン TRS を選択中スロットへ適用する</summary>
+        private void LoadPreset(Maid target, string slotName, string presetName)
+        {
+            var data = PartsEditPresetIO.Load(presetName);
+            if (data == null)
+            {
+                ToastManager.Show("プリセットの読み込みに失敗しました", ToastType.Error);
+                return;
+            }
+
+            var slotObj = SlotBoneManager.GetSlotObject(target, slotName);
+            HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose,
+                "プリセットをロード: " + presetName,
+                PartsEditPresetIO.ResolveBones(slotObj, data));
+            var applied = PartsEditPresetIO.Apply(
+                target, slotName, data, boneEditManager.GetStore(target));
+            ToastManager.Show(string.Format("プリセットを適用しました ({0} ボーン)", applied),
+                ToastType.Success);
+        }
+
+        /// <summary>
+        /// ポップアップで確定した名前で、選択中スロットの編集差分を保存する。
+        /// 名前検証と上書き確認はポップアップ側で済んでいる
+        /// </summary>
+        private void SavePreset(Maid target, string slotName, string presetName)
+        {
+            // ポップアップ表示中に操作対象が変わっていたら、別メイドの状態を保存しないよう中止する
+            if (maidManager.targetMaid != target)
+            {
+                DialogPopupWindow.ShowDialog("操作対象が変わったため保存を中止しました");
+                return;
+            }
+
+            // 着替えを挟むと該当スロットの編集差分は破棄される。
+            // ポップアップ表示中に起きると空のプリセットを書いてしまうため中止する
+            var store = boneEditManager.GetStore(target);
+            if (store.GetEntries(slotName).Count == 0)
+            {
+                DialogPopupWindow.ShowDialog("編集内容が失われたため保存を中止しました");
+                return;
+            }
+
+            if (!PartsEditPresetIO.Save(target, slotName, presetName, store))
+            {
+                ToastManager.Show("プリセットの保存に失敗しました", ToastType.Error);
+                return;
+            }
+            RefreshPresetList();
+            ToastManager.Show("プリセットを保存しました: " + presetName, ToastType.Success);
         }
 
         private void DrawResetButtons(Maid target)
