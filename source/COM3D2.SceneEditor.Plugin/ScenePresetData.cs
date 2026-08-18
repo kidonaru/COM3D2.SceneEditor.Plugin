@@ -226,6 +226,84 @@ namespace COM3D2.SceneEditor.Plugin
             && scl != null && scl.Length >= 3;
     }
 
+    /// <summary>
+    /// v17: スロット 1 つ分の揺れ物理の状態。
+    /// SlotYureUtil.SlotYureSnapshot の XML 表現で、-1 は「対象の物理なし」を表す
+    /// </summary>
+    public class ScenePresetSlotYure
+    {
+        [XmlAttribute]
+        public string slot;
+        /// <summary>記録時のモデルファイル名。適用時に別アイテムを装着していたら飛ばす</summary>
+        [XmlAttribute]
+        public string item;
+        [XmlAttribute]
+        public int boneHair = SlotYureUtil.SlotYureSnapshot.None;
+        [XmlAttribute]
+        public int skirt = SlotYureUtil.SlotYureSnapshot.None;
+        [XmlElement("dynamicBone")]
+        public List<ScenePresetDynamicBoneYure> dynamicBones =
+            new List<ScenePresetDynamicBoneYure>();
+
+        /// <summary>XML は外部入力なので、スロット名が無いものは適用しない</summary>
+        public bool isValid => !string.IsNullOrEmpty(slot);
+
+        public static ScenePresetSlotYure FromSnapshot(
+            string slotName, string itemFileName, SlotYureUtil.SlotYureSnapshot snapshot)
+        {
+            var result = new ScenePresetSlotYure
+            {
+                slot = slotName,
+                item = itemFileName,
+                boneHair = snapshot.boneHair,
+                skirt = snapshot.skirt,
+            };
+            foreach (var entry in snapshot.dynamicBones)
+            {
+                result.dynamicBones.Add(new ScenePresetDynamicBoneYure
+                {
+                    root = entry.rootBoneName,
+                    enabled = entry.enabled,
+                });
+            }
+            return result;
+        }
+
+        public SlotYureUtil.SlotYureSnapshot ToSnapshot()
+        {
+            var snapshot = new SlotYureUtil.SlotYureSnapshot
+            {
+                boneHair = boneHair,
+                skirt = skirt,
+            };
+            if (dynamicBones != null)
+            {
+                foreach (var entry in dynamicBones)
+                {
+                    if (entry == null || string.IsNullOrEmpty(entry.root))
+                    {
+                        continue;
+                    }
+                    snapshot.dynamicBones.Add(new SlotYureUtil.SlotYureSnapshot.DynamicBoneEntry
+                    {
+                        rootBoneName = entry.root,
+                        enabled = entry.enabled,
+                    });
+                }
+            }
+            return snapshot;
+        }
+    }
+
+    public class ScenePresetDynamicBoneYure
+    {
+        /// <summary>DynamicBone.m_Root のボーン名。適用時の同定に使う</summary>
+        [XmlAttribute]
+        public string root;
+        [XmlAttribute]
+        public bool enabled;
+    }
+
     public class ScenePresetMorph
     {
         [XmlAttribute]
@@ -350,6 +428,10 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlElement("boneEdit")]
         public List<ScenePresetBoneEdit> boneEdits;
 
+        /// <summary>揺れ物理の状態 (v17)。旧プリセットは null になり、適用時に揺れへ触らない</summary>
+        [XmlElement("slotYure")]
+        public List<ScenePresetSlotYure> slotYures;
+
         /// <summary>
         /// 視線。旧プリセット (v10 以前) は null になり、適用時に視線へ触らない
         /// </summary>
@@ -409,7 +491,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は属性が無く、適用時にこの 2 つのトグルへ触らない
         // v16: savedCamera / savedMaids / savedBackground（保存時に選んだカテゴリ）を追加。
         //      旧形式は属性が無く既定の true で読めるため、全カテゴリ保存済みとして扱う
-        public static readonly int CurrentVersion = 16;
+        // v17: maid に slotYures（揺れ物理の状態）を追加。
+        //      旧形式は null で読め、適用時に揺れへ触らない
+        public static readonly int CurrentVersion = 17;
 
         [XmlAttribute]
         public int version = CurrentVersion;

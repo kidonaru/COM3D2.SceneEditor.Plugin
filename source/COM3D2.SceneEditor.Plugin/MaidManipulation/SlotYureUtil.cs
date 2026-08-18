@@ -131,6 +131,180 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// スロット全体の揺れ状態。いずれかの物理が動いていれば true。
+        /// PartsEditWithStudio の bYure (YureUtil.GetYureState) と同じ判定に合わせてあり、
+        /// プリセットの相互運用に使う
+        /// </summary>
+        public static bool GetSlotYureState(Maid maid, string slotName)
+        {
+            var slot = GetSlot(maid, slotName);
+            if (slot == null || slot.obj == null)
+            {
+                return false;
+            }
+
+            // m_bEnable はチェーンが 1 本も無くても Init() で true になるため、
+            // チェーンの有無を先に確認する (CaptureSnapshot と同じ判定基準)
+            if (HasBoneHairChains(slot) && HairEnableField != null
+                && (bool)HairEnableField.GetValue(slot.bonehair))
+            {
+                return true;
+            }
+
+            // PartsEdit に合わせてスロット直下のコンポーネントだけを見る (子孫は対象外)
+            var dynamicBone = slot.obj.GetComponent<DynamicBone>();
+            if (dynamicBone != null && dynamicBone.enabled)
+            {
+                return true;
+            }
+
+            return slot.bonehair3 != null && SkirtBoneField != null
+                && SkirtBoneField.GetValue(slot.bonehair3) != null;
+        }
+
+        /// <summary>
+        /// スロット 1 つ分の揺れ物理の状態スナップショット。シーンプリセットの保存・復元に使う。
+        /// 物理の単位はゲーム実装に合わせる: TBoneHair_ はスロットで 1 bit、
+        /// DynamicBone はコンポーネント毎 (ルートボーン名で同定)、DynamicSkirtBone はスロットで 1 bit
+        /// </summary>
+        public class SlotYureSnapshot
+        {
+            /// <summary>対象の物理が無いことを表す</summary>
+            public const int None = -1;
+
+            public int boneHair = None;
+            public int skirt = None;
+            public List<DynamicBoneEntry> dynamicBones = new List<DynamicBoneEntry>();
+
+            public class DynamicBoneEntry
+            {
+                public string rootBoneName;
+                public bool enabled;
+            }
+
+            public bool isEmpty =>
+                boneHair == None && skirt == None && dynamicBones.Count == 0;
+        }
+
+        /// <summary>スロットの揺れ物理の状態を控える。対象の物理が無ければ null</summary>
+        public static SlotYureSnapshot CaptureSnapshot(Maid maid, string slotName)
+        {
+            var slot = GetSlot(maid, slotName);
+            if (slot == null || slot.obj == null)
+            {
+                return null;
+            }
+
+            var snapshot = new SlotYureSnapshot();
+
+            if (HasBoneHairChains(slot) && HairEnableField != null)
+            {
+                snapshot.boneHair = (bool)HairEnableField.GetValue(slot.bonehair) ? 1 : 0;
+            }
+
+            foreach (var dynamicBone in slot.obj.GetComponentsInChildren<DynamicBone>())
+            {
+                if (dynamicBone.m_Root == null)
+                {
+                    continue;
+                }
+                snapshot.dynamicBones.Add(new SlotYureSnapshot.DynamicBoneEntry
+                {
+                    rootBoneName = dynamicBone.m_Root.name,
+                    enabled = dynamicBone.enabled,
+                });
+            }
+
+            // スカート物理の有効判定は GetYureState と同じく BoneHair3 側の参照で行う。
+            // 複数コンポーネント構成でも取り逃さないよう、参照先が列挙の中にあるかで見る
+            var skirtBones = slot.obj.GetComponentsInChildren<DynamicSkirtBone>();
+            if (skirtBones.Length > 0 && slot.bonehair3 != null && SkirtBoneField != null)
+            {
+                snapshot.skirt =
+                    FindReferencedSkirtBone(slot, skirtBones) != null ? 1 : 0;
+            }
+
+            return snapshot.isEmpty ? null : snapshot;
+        }
+
+        /// <summary>
+        /// 控えた揺れ物理の状態を書き戻す。構成が変わっていて見つからない物理は飛ばす
+        /// </summary>
+        public static void ApplySnapshot(Maid maid, string slotName, SlotYureSnapshot snapshot)
+        {
+            var slot = GetSlot(maid, slotName);
+            if (slot == null || slot.obj == null || snapshot == null)
+            {
+                return;
+            }
+
+            if (snapshot.boneHair != SlotYureSnapshot.None
+                && slot.bonehair != null && HairEnableField != null)
+            {
+                HairEnableField.SetValue(slot.bonehair, snapshot.boneHair != 0);
+            }
+
+            if (snapshot.dynamicBones.Count > 0)
+            {
+                var dynamicBones = slot.obj.GetComponentsInChildren<DynamicBone>();
+                foreach (var entry in snapshot.dynamicBones)
+                {
+                    foreach (var dynamicBone in dynamicBones)
+                    {
+                        if (dynamicBone.m_Root != null
+                            && dynamicBone.m_Root.name == entry.rootBoneName)
+                        {
+                            SetDynamicBoneEnabled(dynamicBone, entry.enabled);
+                        }
+                    }
+                }
+            }
+
+            if (snapshot.skirt != SlotYureSnapshot.None)
+            {
+                var skirtBones = slot.obj.GetComponentsInChildren<DynamicSkirtBone>();
+                if (skirtBones.Length > 0 && slot.bonehair3 != null && SkirtBoneField != null)
+                {
+                    // 参照中のコンポーネントを優先し、参照が外れていれば先頭を使う
+                    // (BoneHair3 が持てる参照は 1 つの単一参照モデル)
+                    var target = FindReferencedSkirtBone(slot, skirtBones) ?? skirtBones[0];
+                    var enabled = snapshot.skirt != 0;
+                    target.enabled = enabled;
+                    SkirtBoneField.SetValue(slot.bonehair3, enabled ? target : null);
+                }
+            }
+        }
+
+        /// <summary>BoneHair3 が現在参照しているスカート物理。参照が無い/外れていれば null</summary>
+        private static DynamicSkirtBone FindReferencedSkirtBone(
+            TBodySkin slot, DynamicSkirtBone[] skirtBones)
+        {
+            var current = SkirtBoneField != null && slot.bonehair3 != null
+                ? SkirtBoneField.GetValue(slot.bonehair3) : null;
+            foreach (var skirtBone in skirtBones)
+            {
+                if (ReferenceEquals(current, skirtBone))
+                {
+                    return skirtBone;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>TBoneHair_ が駆動対象のチェーンを持つか (無いスロットでは m_bEnable に意味が無い)</summary>
+        private static bool HasBoneHairChains(TBodySkin slot)
+        {
+            var bonehair = slot.bonehair;
+            if (bonehair == null)
+            {
+                return false;
+            }
+            var hairList = HairListField != null
+                ? HairListField.GetValue(bonehair) as List<THair1> : null;
+            return (hairList != null && hairList.Count > 0) || bonehair.boSkirt;
+        }
+
         /// <summary>旧来の TBoneHair_ (髪・旧スカート) がこのボーンを駆動しているか</summary>
         private static bool IsBoneHairRelated(TBodySkin slot, Transform bone)
         {

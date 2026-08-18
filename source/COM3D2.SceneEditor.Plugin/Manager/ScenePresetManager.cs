@@ -849,6 +849,22 @@ namespace COM3D2.SceneEditor.Plugin
                     .Select(ScenePresetBoneEdit.FromEntry).ToList();
             }
 
+            // 揺れ物理の状態 (v17)。対象の物理が無いスロットは記録しない
+            foreach (var slotName in SlotBoneManager.GetLoadedSlotNames(maid))
+            {
+                var snapshot = SlotYureUtil.CaptureSnapshot(maid, slotName);
+                if (snapshot == null)
+                {
+                    continue;
+                }
+                if (state.slotYures == null)
+                {
+                    state.slotYures = new List<ScenePresetSlotYure>();
+                }
+                state.slotYures.Add(ScenePresetSlotYure.FromSnapshot(
+                    slotName, SlotBoneManager.GetSlotItemFileName(maid, slotName), snapshot));
+            }
+
             return state;
         }
 
@@ -1624,6 +1640,39 @@ namespace COM3D2.SceneEditor.Plugin
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
+            }
+            try
+            {
+                ApplySlotYures(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+        }
+
+        /// <summary>
+        /// 揺れ物理の状態を復元する。旧プリセット (slotYures 無し) では変更しない。
+        /// ボーン編集と同様、保存時と違うアイテムのスロットは物理の構成が別物なので飛ばす
+        /// </summary>
+        private static void ApplySlotYures(Maid maid, ScenePresetMaid state)
+        {
+            if (state.slotYures == null)
+            {
+                return;
+            }
+
+            foreach (var yure in state.slotYures)
+            {
+                if (yure == null || !yure.isValid)
+                {
+                    continue;
+                }
+                if (SlotBoneManager.GetSlotItemFileName(maid, yure.slot) != yure.item)
+                {
+                    continue;
+                }
+                SlotYureUtil.ApplySnapshot(maid, yure.slot, yure.ToSnapshot());
             }
         }
 
