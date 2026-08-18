@@ -234,7 +234,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// プリセットを選択中スロットへ適用する。ファイル内の slotName は無視する。
-        /// rootData と bYure は扱わない (ボーン TRS のみ)。
+        /// rootData は扱わない (ボーン TRS と bYure のみ)。
         /// 見つからないボーンはスキップし、現在値と同値のボーンは編集扱いにしない
         /// </summary>
         public static int Apply(Maid maid, string slotName, PartsEditPresetData data, BoneEditStore store)
@@ -246,7 +246,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var itemFileName = SlotBoneManager.GetSlotItemFileName(maid, slotName);
-            var appliedBones = new List<Transform>();
             var applied = 0;
             foreach (var trsData in data.transformDataList)
             {
@@ -277,20 +276,12 @@ namespace COM3D2.SceneEditor.Plugin
                 bone.localScale = scale;
 
                 store.RecordEdit(slotName, itemFileName, bone);
-                appliedBones.Add(bone);
                 applied++;
             }
 
-            // 揺れ駆動中のボーンは物理に毎フレーム上書きされて適用が見えないため、
-            // Inspector/ギズモ編集時の自動 OFF (BoneEditManager.DisableYure) と同じ扱いで止める
-            foreach (var bone in appliedBones)
-            {
-                var targets = SlotYureUtil.FindTargets(maid, slotName, bone);
-                if (targets != null && SlotYureUtil.GetYureState(targets))
-                {
-                    SlotYureUtil.SetYureState(targets, false);
-                }
-            }
+            // 保存時のスロット揺れ状態を復元する (bYure)。OFF のプリセットでは
+            // ボーン編集値が物理に毎フレーム上書きされるのを防ぐ役目も兼ねる
+            SlotYureUtil.SetSlotYureState(maid, slotName, data.bYure);
 
             return applied;
         }

@@ -164,6 +164,33 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// スロット全体の揺れ物理をまとめて切り替える。GetSlotYureState の対になる操作で、
+        /// PartsEdit プリセットの bYure 復元に使う
+        /// </summary>
+        public static void SetSlotYureState(Maid maid, string slotName, bool state)
+        {
+            var slot = GetSlot(maid, slotName);
+            if (slot == null || slot.obj == null)
+            {
+                return;
+            }
+
+            if (HasBoneHairChains(slot) && HairEnableField != null)
+            {
+                HairEnableField.SetValue(slot.bonehair, state);
+            }
+
+            // 判定側は PartsEdit に合わせてスロット直下だけを見るが、切り替えは
+            // 取り残しが出ないよう子孫の DynamicBone まで対象にする
+            foreach (var dynamicBone in slot.obj.GetComponentsInChildren<DynamicBone>())
+            {
+                SetDynamicBoneEnabled(dynamicBone, state);
+            }
+
+            SetSkirtYureState(slot, state);
+        }
+
+        /// <summary>
         /// スロット 1 つ分の揺れ物理の状態スナップショット。シーンプリセットの保存・復元に使う。
         /// 物理の単位はゲーム実装に合わせる: TBoneHair_ はスロットで 1 bit、
         /// DynamicBone はコンポーネント毎 (ルートボーン名で同定)、DynamicSkirtBone はスロットで 1 bit
@@ -263,17 +290,25 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (snapshot.skirt != SlotYureSnapshot.None)
             {
-                var skirtBones = slot.obj.GetComponentsInChildren<DynamicSkirtBone>();
-                if (skirtBones.Length > 0 && slot.bonehair3 != null && SkirtBoneField != null)
-                {
-                    // 参照中のコンポーネントを優先し、参照が外れていれば先頭を使う
-                    // (BoneHair3 が持てる参照は 1 つの単一参照モデル)
-                    var target = FindReferencedSkirtBone(slot, skirtBones) ?? skirtBones[0];
-                    var enabled = snapshot.skirt != 0;
-                    target.enabled = enabled;
-                    SkirtBoneField.SetValue(slot.bonehair3, enabled ? target : null);
-                }
+                SetSkirtYureState(slot, snapshot.skirt != 0);
             }
+        }
+
+        /// <summary>
+        /// スロットのスカート物理を切り替える。参照中のコンポーネントを優先し、
+        /// 参照が外れていれば先頭を使う (BoneHair3 が持てる参照は 1 つの単一参照モデル)
+        /// </summary>
+        private static void SetSkirtYureState(TBodySkin slot, bool state)
+        {
+            var skirtBones = slot.obj.GetComponentsInChildren<DynamicSkirtBone>();
+            if (skirtBones.Length == 0 || slot.bonehair3 == null || SkirtBoneField == null)
+            {
+                return;
+            }
+
+            var target = FindReferencedSkirtBone(slot, skirtBones) ?? skirtBones[0];
+            target.enabled = state;
+            SkirtBoneField.SetValue(slot.bonehair3, state ? target : null);
         }
 
         /// <summary>BoneHair3 が現在参照しているスカート物理。参照が無い/外れていれば null</summary>
