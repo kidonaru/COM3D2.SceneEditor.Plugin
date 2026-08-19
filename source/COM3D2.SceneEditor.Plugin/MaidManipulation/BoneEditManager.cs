@@ -176,6 +176,35 @@ namespace COM3D2.SceneEditor.Plugin
             return selectedBone != null && (isModelMode ? targetModel != null : maid != null);
         }
 
+        /// <summary>
+        /// ボーン編集の変更前状態を履歴へ控える。対象種別で記録スコープが変わる
+        /// (モデルは特定メイドに紐付かないため maid 不要の Object スコープを使う)
+        /// </summary>
+        public void BeginEditHistory(Maid maid, string description, IEnumerable<Transform> bones)
+        {
+            if (isModelMode)
+            {
+                HistoryManager.instance.BeforeEdit(null, HistoryScope.Object, description, bones);
+            }
+            else
+            {
+                HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose, description, bones);
+            }
+        }
+
+        /// <summary>対象種別に応じた差分ストアへ編集を記録する</summary>
+        private void NotifyEdited(Maid maid, Transform bone)
+        {
+            if (isModelMode)
+            {
+                NotifyModelBoneEdited(bone);
+            }
+            else
+            {
+                NotifyBoneEdited(maid, bone);
+            }
+        }
+
         /// <summary>選択中ボーンの基準回転からのオフセット角（±180 正規化済み）</summary>
         public Vector3 GetSelectedBoneOffset(Maid maid)
         {
@@ -204,15 +233,7 @@ namespace COM3D2.SceneEditor.Plugin
             var baseRot = GetSelectedBoneBaseRotation(maid);
             offset[axisIndex] = value;
             selectedBone.localRotation = baseRot * Quaternion.Euler(offset);
-
-            if (isModelMode)
-            {
-                NotifyModelBoneEdited(selectedBone);
-            }
-            else
-            {
-                NotifyBoneEdited(maid, selectedBone);
-            }
+            NotifyEdited(maid, selectedBone);
         }
 
         /// <summary>角度を -180〜180 に正規化する</summary>
@@ -409,31 +430,17 @@ namespace COM3D2.SceneEditor.Plugin
                 // ドラッグ開始エッジで変更前状態を控える (初回フレームの微小移動分の誤差は許容)
                 if (!_wasGizmoDragging)
                 {
-                    if (isModelMode)
-                    {
-                        HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                            "ボーン編集: " + selectedBone.name, new[] { selectedBone });
-                    }
-                    else
-                    {
-                        HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                            "ボーン編集: " + selectedBone.name, new[] { selectedBone });
+                    BeginEditHistory(maid, "ボーン編集: " + selectedBone.name, new[] { selectedBone });
 
+                    if (!isModelMode)
+                    {
                         // ボーンを動かし始めたらメニューバーの編集モード (isEditMode) へ自動遷移する。
                         // 本クラスの editMode (ウィンドウ表示状態) とは別物。
                         // ドラッグ点・ボーンギズモ経由の遷移は MaidManipulateManager.Update が担う
                         MaidManipulateManager.instance.isEditMode = true;
                     }
                 }
-
-                if (isModelMode)
-                {
-                    NotifyModelBoneEdited(selectedBone);
-                }
-                else
-                {
-                    NotifyBoneEdited(maid, selectedBone);
-                }
+                NotifyEdited(maid, selectedBone);
             }
             _wasGizmoDragging = isDragging;
         }

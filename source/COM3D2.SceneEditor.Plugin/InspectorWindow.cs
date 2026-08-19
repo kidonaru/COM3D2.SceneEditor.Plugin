@@ -434,16 +434,8 @@ namespace COM3D2.SceneEditor.Plugin
                     value = offset[axisIndex],
                     onChanged = value =>
                     {
-                        if (isModel)
-                        {
-                            HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                                "ボーン編集: " + bone.name, new[] { bone });
-                        }
-                        else
-                        {
-                            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                                "ボーン編集: " + bone.name, new[] { bone });
-                        }
+                        boneEditManager.BeginEditHistory(maid, "ボーン編集: " + bone.name,
+                            new[] { bone });
                         boneEditManager.SetSelectedBoneOffsetAxis(maid, axisIndex, value);
                     },
                 });

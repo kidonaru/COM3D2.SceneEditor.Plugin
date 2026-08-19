@@ -77,8 +77,11 @@ namespace COM3D2.SceneEditor.Plugin
             return Path.Combine(directoryPath, presetName + ".xml");
         }
 
-        /// <summary>プリセット名 (拡張子なし) の一覧。毎回ディレクトリを見に行く</summary>
-        public static List<string> GetPresetNames()
+        /// <summary>
+        /// プリセット名 (拡張子なし) の一覧。毎回ディレクトリを見に行く。
+        /// メイド用とモデル用が混在するため、外へは種別で絞った GetPresetNames(bool) だけを出す
+        /// </summary>
+        private static List<string> GetAllPresetNames()
         {
             if (!Directory.Exists(directoryPath))
             {
@@ -88,6 +91,26 @@ namespace COM3D2.SceneEditor.Plugin
                 .Select(Path.GetFileNameWithoutExtension)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+        }
+
+        /// <summary>
+        /// メイド装着物用 / モデル用のどちらかに絞ったプリセット名の一覧。
+        /// 保存先は PartsEdit 本体と共用の 1 フォルダで両者が混在するため、
+        /// 別種のプリセットを適用して無関係な同名ボーンが動くのを防ぐ目的で分ける。
+        /// 読めないファイルは一覧から落とす (適用しても失敗するため)
+        /// </summary>
+        public static List<string> GetPresetNames(bool bMaidParts)
+        {
+            var result = new List<string>();
+            foreach (var presetName in GetAllPresetNames())
+            {
+                var data = Load(presetName);
+                if (data != null && data.bMaidParts == bMaidParts)
+                {
+                    result.Add(presetName);
+                }
+            }
+            return result;
         }
 
         public static bool Exists(string presetName)

@@ -102,6 +102,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// ボーンをたどる起点。メイドは選択スロットの obj、モデルはモデルルート。
+        /// null なら操作対象が未選択 (プリセット適用・リセットの可否判定に使う)
+        /// </summary>
+        private GameObject GetActiveRootObject(Maid target)
+        {
+            return boneEditManager.isModelMode
+                ? boneEditManager.targetModel
+                : SlotBoneManager.GetSlotObject(target, boneEditManager.targetSlotName);
+        }
+
+        /// <summary>
         /// ツリービューにボーンツリーのたどり方と行の見た目を教える。
         /// GUITreeView はゲーム固有の型を知らないため、ここで橋渡しする
         /// </summary>
@@ -175,10 +186,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>プリセット一覧を読み直す</summary>
+        /// <summary>
+        /// プリセット一覧を読み直す。
+        /// 保存先は PartsEdit 本体と共用でメイド用とモデル用が混在するため、対象種別で絞る
+        /// </summary>
         private void RefreshPresetList()
         {
-            _presetNames = PartsEditPresetIO.GetPresetNames();
+            _presetNames = PartsEditPresetIO.GetPresetNames(!boneEditManager.isModelMode);
         }
 
         protected override void DrawMaidContent(Maid target)
@@ -195,6 +209,10 @@ namespace COM3D2.SceneEditor.Plugin
                 // 選択ボーンだけ落とす。targetModel / targetSlotName はタブを往復しても
                 // 復帰できるよう意図的に保持する
                 boneEditManager.ClearBoneSelection();
+
+                // プリセット一覧は対象種別で中身が変わる。絞り込み語も持ち越さない
+                _presetSearchText = "";
+                RefreshPresetList();
             }
 
             if (boneEditManager.isModelMode)
@@ -226,6 +244,15 @@ namespace COM3D2.SceneEditor.Plugin
             DrawHeaderRow(target);
             DrawSlotSelector(target);
 
+            DrawContentTabs(target);
+        }
+
+        /// <summary>
+        /// 編集 / プリセットタブとその中身。対象種別で描き分ける箇所は
+        /// 各メソッドが activeSlotKey / GetActiveStore / GetActiveRootObject で吸収する
+        /// </summary>
+        private void DrawContentTabs(Maid target)
+        {
             var prevTab = _tabType;
             _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
             if (_tabType != prevTab && _tabType == BoneTabType.プリセット)
@@ -288,192 +315,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawModelHeaderRow();
-
-            var prevTab = _tabType;
-            _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
-            if (_tabType != prevTab && _tabType == BoneTabType.プリセット)
-            {
-                // フォルダを直接編集された場合もタブを開き直せば一覧に反映される
-                RefreshPresetList();
-            }
-
-            if (_tabType == BoneTabType.プリセット)
-            {
-                DrawModelPresetContent();
-            }
-            else
-            {
-                DrawModelResetButtons();
-                DrawBoneTree(null);
-            }
-        }
-
-        /// <summary>モデルモードのヘッダー。ボーン表示トグルとプリセット保存 (DrawHeaderRow と同構成)</summary>
-        private void DrawModelHeaderRow()
-        {
-            var manager = MaidManipulateManager.instance;
-            var store = boneEditManager.GetModelStore(boneEditManager.targetModel);
-
-            view.BeginHorizontal();
-            {
-                view.DrawToggle("ボーン表示", manager.isBoneVisible, 100, ROW_HEIGHT,
-                    true, value => manager.isBoneVisible = value);
-
-                // 保存対象は編集差分。差分が無いときは押させない
-                if (view.DrawButton("プリセット保存", 110, ROW_HEIGHT,
-                    store.GetEntries(BoneEditManager.ModelSlotKey).Count > 0))
-                {
-                    SaveBonePresetPopupWindow.Show(presetName => SaveModelPreset(presetName));
-                }
-            }
-            view.EndLayout();
-        }
-
-        /// <summary>モデルモードのプリセットタブ。一覧描画は DrawPresetContent と同構成</summary>
-        private void DrawModelPresetContent()
-        {
-            view.DrawTextField("検索", LABEL_WIDTH, _presetSearchText, -1, ROW_HEIGHT,
-                value => _presetSearchText = value);
-
-            view.DrawHorizontalLine(Color.gray);
-            view.AddSpace(5);
-
-            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
-            DrawModelPresetList();
-            view.EndScrollView();
-        }
-
-        /// <summary>モデルモードのプリセット一覧。名前を押すと対象モデルへ適用する</summary>
-        private void DrawModelPresetList()
-        {
-            if (_presetNames.Count == 0)
-            {
-                view.DrawLabel("保存されたプリセットはありません", -1, ROW_HEIGHT);
-                return;
-            }
-
-            const int deleteButtonWidth = 50;
-            var nameButtonWidth = view.viewRect.width - view.padding.x * 2
-                - deleteButtonWidth - view.margin;
-
-            var matched = 0;
-            foreach (var presetName in _presetNames)
-            {
-                if (!string.IsNullOrEmpty(_presetSearchText) && presetName
-                    .IndexOf(_presetSearchText, StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    continue;
-                }
-                matched++;
-
-                view.BeginHorizontal();
-                {
-                    if (view.DrawButton(presetName, nameButtonWidth, ROW_HEIGHT))
-                    {
-                        LoadModelPreset(presetName);
-                    }
-
-                    if (view.DrawButton("削除", deleteButtonWidth, ROW_HEIGHT))
-                    {
-                        DialogPopupWindow.ShowConfirmDialog(
-                            "プリセット「" + presetName + "」を削除しますか？",
-                            () =>
-                            {
-                                PartsEditPresetIO.Delete(presetName);
-                                RefreshPresetList();
-                            });
-                    }
-                }
-                view.EndLayout();
-            }
-
-            if (matched == 0)
-            {
-                view.DrawLabel("一致するプリセットはありません", -1, ROW_HEIGHT);
-            }
-        }
-
-        /// <summary>プリセットのボーン TRS を対象モデルへ適用する</summary>
-        private void LoadModelPreset(string presetName)
-        {
-            var data = PartsEditPresetIO.Load(presetName);
-            if (data == null)
-            {
-                ToastManager.Show("プリセットの読み込みに失敗しました", ToastType.Error);
-                return;
-            }
-
-            var modelObj = boneEditManager.targetModel;
-            HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                "プリセットをロード: " + presetName,
-                PartsEditPresetIO.ResolveBones(modelObj, data));
-            var applied = PartsEditPresetIO.ApplyModel(
-                modelObj, data, boneEditManager.GetModelStore(modelObj));
-            ToastManager.Show(string.Format("プリセットを適用しました ({0} ボーン)", applied),
-                ToastType.Success);
-        }
-
-        /// <summary>ポップアップで確定した名前で、対象モデルの編集差分を保存する</summary>
-        private void SaveModelPreset(string presetName)
-        {
-            var modelObj = boneEditManager.targetModel;
-
-            // ポップアップ表示中に対象が変わる・消えるケースは中止する (SavePreset と同じ趣旨)
-            if (modelObj == null)
-            {
-                DialogPopupWindow.ShowDialog("対象のモデルが失われたため保存を中止しました");
-                return;
-            }
-
-            var store = boneEditManager.GetModelStore(modelObj);
-            if (store.GetEntries(BoneEditManager.ModelSlotKey).Count == 0)
-            {
-                DialogPopupWindow.ShowDialog("編集内容が失われたため保存を中止しました");
-                return;
-            }
-
-            if (!PartsEditPresetIO.SaveModel(modelObj, presetName, store))
-            {
-                ToastManager.Show("プリセットの保存に失敗しました", ToastType.Error);
-                return;
-            }
-            RefreshPresetList();
-            ToastManager.Show("プリセットを保存しました: " + presetName, ToastType.Success);
-        }
-
-        /// <summary>モデルモードのリセット行 (DrawResetButtons のモデル版)</summary>
-        private void DrawModelResetButtons()
-        {
-            var modelObj = boneEditManager.targetModel;
-            var store = boneEditManager.GetModelStore(modelObj);
-            var bone = boneEditManager.selectedBone;
-            var hasBoneEdit = bone != null
-                && store.GetEntry(BoneEditManager.ModelSlotKey, bone.name) != null;
-
-            var buttonWidth = Mathf.Min(
-                ResetButtonWidth,
-                (view.viewRect.width - view.padding.x * 2 - view.margin) * 0.5f);
-
-            view.BeginHorizontal();
-            {
-                if (view.DrawButton("ボーンをリセット", buttonWidth, ROW_HEIGHT, hasBoneEdit))
-                {
-                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                        "ボーンをリセット: " + bone.name, new[] { bone });
-                    store.ResetBone(BoneEditManager.ModelSlotKey, bone);
-                }
-
-                if (view.DrawButton("モデルをリセット", buttonWidth, ROW_HEIGHT,
-                    store.GetEntries(BoneEditManager.ModelSlotKey).Count > 0))
-                {
-                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                        "モデルをリセット: " + modelObj.name,
-                        GetSlotEditedBones(store, BoneEditManager.ModelSlotKey, modelObj));
-                    store.ResetSlot(BoneEditManager.ModelSlotKey, modelObj);
-                }
-            }
-            view.EndLayout();
+            // メイドモードと同じくヘッダーはタブの上。対象は targetModel から引かれる
+            DrawHeaderRow(null);
+            DrawContentTabs(null);
         }
 
         /// <summary>
@@ -484,21 +328,22 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawHeaderRow(Maid target)
         {
             var manager = MaidManipulateManager.instance;
-            var store = boneEditManager.GetStore(target);
-            var slotName = boneEditManager.targetSlotName;
-            var slotSelected = SlotBoneManager.GetSlotObject(target, slotName) != null;
+            var store = GetActiveStore(target);
+            var rootObj = GetActiveRootObject(target);
+            var slotKey = activeSlotKey;
 
             view.BeginHorizontal();
             {
                 view.DrawToggle("ボーン表示", manager.isBoneVisible, 100, ROW_HEIGHT,
                     true, value => manager.isBoneVisible = value);
 
-                // 保存対象は選択中スロットの編集差分。差分が無いときは押させない
+                // 保存対象は選択中の対象の編集差分。差分が無いときは押させない
                 if (view.DrawButton("プリセット保存", 110, ROW_HEIGHT,
-                    slotSelected && store.GetEntries(slotName).Count > 0))
+                    rootObj != null && store.GetEntries(slotKey).Count > 0))
                 {
+                    // ポップアップ表示中の対象変更を検出できるよう、押した時点の対象を控える
                     SaveBonePresetPopupWindow.Show(
-                        presetName => SavePreset(target, slotName, presetName));
+                        presetName => SavePreset(target, rootObj, slotKey, presetName));
                 }
             }
             view.EndLayout();
@@ -543,9 +388,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawPresetContent(Maid target)
         {
-            var slotName = boneEditManager.targetSlotName;
-            var slotSelected = SlotBoneManager.GetSlotObject(target, slotName) != null;
-
             view.DrawTextField("検索", LABEL_WIDTH, _presetSearchText, -1, ROW_HEIGHT,
                 value => _presetSearchText = value);
 
@@ -553,12 +395,12 @@ namespace COM3D2.SceneEditor.Plugin
             view.AddSpace(5);
 
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
-            DrawPresetList(target, slotName, slotSelected);
+            DrawPresetList(target);
             view.EndScrollView();
         }
 
-        /// <summary>保存済みプリセットを一覧表示する。名前を押すと選択中スロットへ適用する</summary>
-        private void DrawPresetList(Maid target, string slotName, bool slotSelected)
+        /// <summary>保存済みプリセットを一覧表示する。名前を押すと選択中の対象へ適用する</summary>
+        private void DrawPresetList(Maid target)
         {
             if (_presetNames.Count == 0)
             {
@@ -571,6 +413,7 @@ namespace COM3D2.SceneEditor.Plugin
             var nameButtonWidth = view.viewRect.width - view.padding.x * 2
                 - deleteButtonWidth - view.margin;
 
+            var canApply = GetActiveRootObject(target) != null;
             var matched = 0;
             foreach (var presetName in _presetNames)
             {
@@ -583,10 +426,10 @@ namespace COM3D2.SceneEditor.Plugin
 
                 view.BeginHorizontal();
                 {
-                    // 適用先はスロット。未選択では適用できないため押させない
-                    if (view.DrawButton(presetName, nameButtonWidth, ROW_HEIGHT, slotSelected))
+                    // 適用先はスロット / モデル。未選択では適用できないため押させない
+                    if (view.DrawButton(presetName, nameButtonWidth, ROW_HEIGHT, canApply))
                     {
-                        LoadPreset(target, slotName, presetName);
+                        LoadPreset(target, presetName);
                     }
 
                     if (view.DrawButton("削除", deleteButtonWidth, ROW_HEIGHT))
@@ -609,8 +452,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>選択中プリセットのボーン TRS を選択中スロットへ適用する</summary>
-        private void LoadPreset(Maid target, string slotName, string presetName)
+        /// <summary>選択中プリセットのボーン TRS を選択中の対象へ適用する</summary>
+        private void LoadPreset(Maid target, string presetName)
         {
             var data = PartsEditPresetIO.Load(presetName);
             if (data == null)
@@ -619,39 +462,49 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var slotObj = SlotBoneManager.GetSlotObject(target, slotName);
-            HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose,
-                "プリセットをロード: " + presetName,
-                PartsEditPresetIO.ResolveBones(slotObj, data));
-            var applied = PartsEditPresetIO.Apply(
-                target, slotName, data, boneEditManager.GetStore(target));
+            var rootObj = GetActiveRootObject(target);
+            var store = GetActiveStore(target);
+            boneEditManager.BeginEditHistory(target, "プリセットをロード: " + presetName,
+                PartsEditPresetIO.ResolveBones(rootObj, data));
+
+            var applied = boneEditManager.isModelMode
+                ? PartsEditPresetIO.ApplyModel(rootObj, data, store)
+                : PartsEditPresetIO.Apply(target, boneEditManager.targetSlotName, data, store);
             ToastManager.Show(string.Format("プリセットを適用しました ({0} ボーン)", applied),
                 ToastType.Success);
         }
 
         /// <summary>
-        /// ポップアップで確定した名前で、選択中スロットの編集差分を保存する。
-        /// 名前検証と上書き確認はポップアップ側で済んでいる
+        /// ポップアップで確定した名前で、選択中の対象の編集差分を保存する。
+        /// 名前検証と上書き確認はポップアップ側で済んでいる。
+        /// rootObj / slotKey はポップアップを開いた時点の対象 (表示中に変わり得るため)
         /// </summary>
-        private void SavePreset(Maid target, string slotName, string presetName)
+        private void SavePreset(Maid target, GameObject rootObj, string slotKey, string presetName)
         {
-            // ポップアップ表示中に操作対象が変わっていたら、別メイドの状態を保存しないよう中止する
-            if (maidManager.targetMaid != target)
+            var isModel = boneEditManager.isModelMode;
+
+            // ポップアップ表示中に操作対象が変わっていたら、別の対象の状態を保存しないよう中止する
+            if (isModel ? rootObj == null : maidManager.targetMaid != target)
             {
-                DialogPopupWindow.ShowDialog("操作対象が変わったため保存を中止しました");
+                DialogPopupWindow.ShowDialog(isModel
+                    ? "対象のモデルが失われたため保存を中止しました"
+                    : "操作対象が変わったため保存を中止しました");
                 return;
             }
 
             // 着替えを挟むと該当スロットの編集差分は破棄される。
             // ポップアップ表示中に起きると空のプリセットを書いてしまうため中止する
-            var store = boneEditManager.GetStore(target);
-            if (store.GetEntries(slotName).Count == 0)
+            var store = GetActiveStore(target);
+            if (store.GetEntries(slotKey).Count == 0)
             {
                 DialogPopupWindow.ShowDialog("編集内容が失われたため保存を中止しました");
                 return;
             }
 
-            if (!PartsEditPresetIO.Save(target, slotName, presetName, store))
+            var saved = isModel
+                ? PartsEditPresetIO.SaveModel(rootObj, presetName, store)
+                : PartsEditPresetIO.Save(target, slotKey, presetName, store);
+            if (!saved)
             {
                 ToastManager.Show("プリセットの保存に失敗しました", ToastType.Error);
                 return;
@@ -662,10 +515,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawResetButtons(Maid target)
         {
-            var store = boneEditManager.GetStore(target);
-            var slotName = boneEditManager.targetSlotName;
+            var store = GetActiveStore(target);
+            var slotKey = activeSlotKey;
             var bone = boneEditManager.selectedBone;
-            var hasBoneEdit = bone != null && store.GetEntry(slotName, bone.name) != null;
+            var hasBoneEdit = bone != null && store.GetEntry(slotKey, bone.name) != null;
 
             // 2 ボタンが並ぶ行。最小幅まで縮めても押せるよう、残り幅の半分を上限にする
             var buttonWidth = Mathf.Min(
@@ -676,18 +529,22 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (view.DrawButton("ボーンをリセット", buttonWidth, ROW_HEIGHT, hasBoneEdit))
                 {
-                    HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose,
+                    boneEditManager.BeginEditHistory(target,
                         "ボーンをリセット: " + bone.name, new[] { bone });
-                    store.ResetBone(slotName, bone);
+                    store.ResetBone(slotKey, bone);
                 }
 
-                if (view.DrawButton("スロットをリセット", buttonWidth, ROW_HEIGHT,
-                    store.GetEntries(slotName).Count > 0))
+                // 一括リセットの単位はメイドなら選択スロット、モデルならモデル全体
+                var isModel = boneEditManager.isModelMode;
+                var resetAllLabel = isModel ? "モデルをリセット" : "スロットをリセット";
+                if (view.DrawButton(resetAllLabel, buttonWidth, ROW_HEIGHT,
+                    store.GetEntries(slotKey).Count > 0))
                 {
-                    var slotObj = SlotBoneManager.GetSlotObject(target, slotName);
-                    HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose,
-                        "スロットをリセット: " + slotName, GetSlotEditedBones(store, slotName, slotObj));
-                    store.ResetSlot(slotName, slotObj);
+                    var rootObj = GetActiveRootObject(target);
+                    boneEditManager.BeginEditHistory(target,
+                        resetAllLabel + ": " + (isModel ? rootObj.name : slotKey),
+                        GetSlotEditedBones(store, slotKey, rootObj));
+                    store.ResetSlot(slotKey, rootObj);
                 }
             }
             view.EndLayout();
