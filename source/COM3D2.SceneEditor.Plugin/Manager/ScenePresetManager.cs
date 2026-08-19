@@ -725,6 +725,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             CaptureExternals(data, options.enabledProviderIds);
+            CaptureModelBoneEdits(data);
 
             return data;
         }
@@ -774,6 +775,52 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     MTEUtils.LogError("外部プラグインの状態取得に失敗しました: " + provider.id);
                     MTEUtils.LogException(e);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 外部プラグイン配置モデルのボーン編集差分を収集する (v18)。
+        /// モデルは GameObject 参照でしか識別できないため、ModelProviderHost の
+        /// 現在の一覧と突き合わせて GameObject 名 + 提供プラグイン名へ変換して保存する。
+        /// 提供元が見つからないモデル (破棄済み・提供解除済み) は保存しない。
+        /// モデル自体は外部プロバイダが復元するため、外部プロバイダを 1 つも保存して
+        /// いないプリセットにボーン差分だけ残しても復元先が無い。孤立データを避けるため
+        /// external が空のときは保存しない
+        /// (プロバイダ id と ModelProviderHost の pluginName は別体系のため個別対応は取らない)
+        /// </summary>
+        private static void CaptureModelBoneEdits(ScenePresetData data)
+        {
+            if (data.externals.Count == 0)
+            {
+                return;
+            }
+
+            var storeEntries = BoneEditManager.instance.GetModelStoreEntries();
+            if (storeEntries.Count == 0)
+            {
+                return;
+            }
+
+            var models = ModelProviderHost.GetModels();
+            foreach (var pair in storeEntries)
+            {
+                var entry = models.Find(m => m.obj == pair.Key);
+                if (entry == null)
+                {
+                    MTEUtils.LogWarning(
+                        "提供元が見つからないモデルのボーン編集は保存しません: {0}", pair.Key.name);
+                    continue;
+                }
+
+                foreach (var edit in pair.Value.GetAllEntries())
+                {
+                    if (data.modelBoneEdits == null)
+                    {
+                        data.modelBoneEdits = new List<ScenePresetModelBoneEdit>();
+                    }
+                    data.modelBoneEdits.Add(ScenePresetModelBoneEdit.FromEntry(
+                        pair.Key.name, entry.pluginName, edit));
                 }
             }
         }
@@ -1349,6 +1396,8 @@ namespace COM3D2.SceneEditor.Plugin
                 ApplyLooks();
             }
             ApplyExternals(data);
+            // 外部プロバイダのモデル復元 (同期) の後でないと GameObject が存在しない
+            ApplyModelBoneEdits(data);
             if (applyMaids)
             {
                 RequestFocusOnAppliedMaid(data);
@@ -1738,6 +1787,66 @@ namespace COM3D2.SceneEditor.Plugin
                 bone.localScale = new Vector3(edit.scl[0], edit.scl[1], edit.scl[2]);
 
                 store.RecordEdit(edit.slot, edit.item, bone);
+            }
+        }
+
+        /// <summary>
+        /// モデルのボーン編集差分を復元する (v18)。旧プリセット (modelBoneEdits 無し) では変更しない。
+        /// GameObject 名 + 提供プラグイン名で現在のモデルへ照合する (同名複数は先勝ち)。
+        /// メイドの ApplyBoneEdits と同じく RecordEdit を書き込みの前後で 2 回呼び、
+        /// 「元値 = 適用前」「編集値 = 適用後」にする (リセットで戻せる)
+        /// </summary>
+        private static void ApplyModelBoneEdits(ScenePresetData data)
+        {
+            if (data.modelBoneEdits == null || data.modelBoneEdits.Count == 0)
+            {
+                return;
+            }
+
+            var models = ModelProviderHost.GetModels();
+
+            // 差分を当てるモデルは既存の編集をリセットしてプリセットの状態で置き換える。
+            // プロバイダの読込を OFF にした場合など、モデルが作り直されず残るケースへの対処
+            var targets = new Dictionary<GameObject, bool>();
+            foreach (var edit in data.modelBoneEdits)
+            {
+                if (edit == null || !edit.isValid)
+                {
+                    continue;
+                }
+
+                var entry = models.Find(m =>
+                    m.obj.name == edit.modelName && m.pluginName == edit.pluginName);
+                if (entry == null)
+                {
+                    MTEUtils.LogWarning(
+                        "ボーン編集の対象モデルが見つかりません: {0}", edit.modelName);
+                    continue;
+                }
+
+                var store = BoneEditManager.instance.GetModelStore(entry.obj);
+                if (!targets.ContainsKey(entry.obj))
+                {
+                    store.ResetSlot(BoneEditManager.ModelSlotKey, entry.obj);
+                    targets[entry.obj] = true;
+                }
+
+                var bone = SlotBoneManager.FindBone(entry.obj, edit.bone);
+                if (bone == null)
+                {
+                    MTEUtils.LogWarning(
+                        "ボーン編集の対象ボーンが見つかりません: {0}/{1}", edit.modelName, edit.bone);
+                    continue;
+                }
+
+                // 先に呼んで適用前の値を元値として控える
+                store.RecordEdit(BoneEditManager.ModelSlotKey, null, bone);
+
+                bone.localPosition = new Vector3(edit.pos[0], edit.pos[1], edit.pos[2]);
+                bone.localRotation = new Quaternion(edit.rot[0], edit.rot[1], edit.rot[2], edit.rot[3]);
+                bone.localScale = new Vector3(edit.scl[0], edit.scl[1], edit.scl[2]);
+
+                store.RecordEdit(BoneEditManager.ModelSlotKey, null, bone);
             }
         }
 
