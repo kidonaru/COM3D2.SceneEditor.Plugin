@@ -477,33 +477,47 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// ポップアップで確定した名前で、選択中の対象の編集差分を保存する。
         /// 名前検証と上書き確認はポップアップ側で済んでいる。
-        /// rootObj / slotKey はポップアップを開いた時点の対象 (表示中に変わり得るため)
+        /// captured 系の引数はポップアップを開いた時点の対象 (表示中に変わり得るため)
         /// </summary>
-        private void SavePreset(Maid target, GameObject rootObj, string slotKey, string presetName)
+        private void SavePreset(Maid target, GameObject capturedRootObj, string capturedSlotKey,
+            string presetName)
         {
             var isModel = boneEditManager.isModelMode;
 
-            // ポップアップ表示中に操作対象が変わっていたら、別の対象の状態を保存しないよう中止する
-            if (isModel ? rootObj == null : maidManager.targetMaid != target)
+            // ポップアップ表示中に操作対象が変わっていたら、別の対象の状態を保存しないよう中止する。
+            // 差分ストアも押した時点の対象から引き、現在の選択とのズレを持ち込まない
+            BoneEditStore store;
+            if (isModel)
             {
-                DialogPopupWindow.ShowDialog(isModel
-                    ? "対象のモデルが失われたため保存を中止しました"
-                    : "操作対象が変わったため保存を中止しました");
-                return;
+                // 破棄済みどうしの比較は等しくなるため、消失と切替を別々に見る
+                if (capturedRootObj == null || boneEditManager.targetModel != capturedRootObj)
+                {
+                    DialogPopupWindow.ShowDialog("対象のモデルが変わったため保存を中止しました");
+                    return;
+                }
+                store = boneEditManager.GetModelStore(capturedRootObj);
+            }
+            else
+            {
+                if (maidManager.targetMaid != target)
+                {
+                    DialogPopupWindow.ShowDialog("操作対象が変わったため保存を中止しました");
+                    return;
+                }
+                store = boneEditManager.GetStore(target);
             }
 
             // 着替えを挟むと該当スロットの編集差分は破棄される。
             // ポップアップ表示中に起きると空のプリセットを書いてしまうため中止する
-            var store = GetActiveStore(target);
-            if (store.GetEntries(slotKey).Count == 0)
+            if (store.GetEntries(capturedSlotKey).Count == 0)
             {
                 DialogPopupWindow.ShowDialog("編集内容が失われたため保存を中止しました");
                 return;
             }
 
             var saved = isModel
-                ? PartsEditPresetIO.SaveModel(rootObj, presetName, store)
-                : PartsEditPresetIO.Save(target, slotKey, presetName, store);
+                ? PartsEditPresetIO.SaveModel(capturedRootObj, presetName, store)
+                : PartsEditPresetIO.Save(target, capturedSlotKey, presetName, store);
             if (!saved)
             {
                 ToastManager.Show("プリセットの保存に失敗しました", ToastType.Error);
@@ -541,8 +555,9 @@ namespace COM3D2.SceneEditor.Plugin
                     store.GetEntries(slotKey).Count > 0))
                 {
                     var rootObj = GetActiveRootObject(target);
+                    var historyTarget = isModel ? rootObj.name : slotKey;
                     boneEditManager.BeginEditHistory(target,
-                        resetAllLabel + ": " + (isModel ? rootObj.name : slotKey),
+                        resetAllLabel + ": " + historyTarget,
                         GetSlotEditedBones(store, slotKey, rootObj));
                     store.ResetSlot(slotKey, rootObj);
                 }

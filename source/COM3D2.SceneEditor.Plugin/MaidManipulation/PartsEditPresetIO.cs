@@ -104,13 +104,61 @@ namespace COM3D2.SceneEditor.Plugin
             var result = new List<string>();
             foreach (var presetName in GetAllPresetNames())
             {
-                var data = Load(presetName);
-                if (data != null && data.bMaidParts == bMaidParts)
+                if (IsMaidPartsPreset(presetName) == bMaidParts)
                 {
                     result.Add(presetName);
                 }
             }
             return result;
+        }
+
+        /// <summary>種別判定のキャッシュ 1 件分。更新日時が変わったら読み直す</summary>
+        private class PresetKindCache
+        {
+            public DateTime lastWriteTime;
+            public bool bMaidParts;
+        }
+
+        private static readonly Dictionary<string, PresetKindCache> _kindCache
+            = new Dictionary<string, PresetKindCache>();
+
+        /// <summary>
+        /// メイド装着物用のプリセットか。読めないファイルはどちらの一覧にも出さないため false を返す
+        /// (モデル用の一覧に出るのは bMaidParts=false のときだけなので、これで両方から外れる)。
+        ///
+        /// 種別判定だけのために全ファイルを毎回デシリアライズすると、PartsEdit 本体と共用の
+        /// フォルダにプリセットが溜まった環境でタブ切替のたびに重くなる。
+        /// ファイルの更新日時が変わらない限り前回の判定を使い回す
+        /// </summary>
+        private static bool IsMaidPartsPreset(string presetName)
+        {
+            var path = GetPresetFilePath(presetName);
+
+            DateTime lastWriteTime;
+            try
+            {
+                lastWriteTime = File.GetLastWriteTimeUtc(path);
+            }
+            catch (Exception)
+            {
+                // 判定できない (消えた・アクセス不可) ものは一覧から落とす
+                return false;
+            }
+
+            PresetKindCache cache;
+            if (_kindCache.TryGetValue(path, out cache) && cache.lastWriteTime == lastWriteTime)
+            {
+                return cache.bMaidParts;
+            }
+
+            var data = Load(presetName);
+            var bMaidParts = data != null && data.bMaidParts;
+            _kindCache[path] = new PresetKindCache
+            {
+                lastWriteTime = lastWriteTime,
+                bMaidParts = bMaidParts,
+            };
+            return bMaidParts;
         }
 
         public static bool Exists(string presetName)
