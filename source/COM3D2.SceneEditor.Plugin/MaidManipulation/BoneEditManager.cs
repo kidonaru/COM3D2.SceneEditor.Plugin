@@ -4,6 +4,13 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.SceneEditor.Plugin
 {
+    /// <summary>ボーン編集の対象種別</summary>
+    public enum BoneEditTargetType
+    {
+        Maid,
+        Model,
+    }
+
     /// <summary>
     /// ボーン編集の状態管理。メイドごとの差分ストアを持ち、
     /// 着替えを検出して差分を破棄し、ロード完了後に残った差分を再適用する
@@ -23,7 +30,23 @@ namespace COM3D2.SceneEditor.Plugin
         public string targetSlotName = "";
         public Transform selectedBone;
 
+        /// <summary>編集対象の種別。Model のときは targetModel 配下のボーンを編集する</summary>
+        public BoneEditTargetType targetType = BoneEditTargetType.Maid;
+
+        /// <summary>モデルモードの編集対象 (外部プラグインが配置したモデルのルート)</summary>
+        public GameObject targetModel;
+
+        /// <summary>モデルの差分ストアで slotName の代わりに使う固定キー (モデルにスロット概念は無い)</summary>
+        public const string ModelSlotKey = "model";
+
+        public bool isModelMode => targetType == BoneEditTargetType.Model;
+
         private readonly Dictionary<Maid, BoneEditStore> _stores = new Dictionary<Maid, BoneEditStore>();
+
+        private readonly Dictionary<GameObject, BoneEditStore> _modelStores
+            = new Dictionary<GameObject, BoneEditStore>();
+
+        private readonly List<GameObject> _deadModels = new List<GameObject>();
 
         /// <summary>ロード完了エッジ検出用。前フレームのロード中フラグ</summary>
         private readonly Dictionary<Maid, bool> _wasLoading = new Dictionary<Maid, bool>();
@@ -80,6 +103,35 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// モデルのボーンを選択する。Inspector にはモデルルートを選択として反映するが、
+        /// モデルルートのギズモは外部プラグイン側が持つため showGizmo は出さない
+        /// (ボーン自体のギズモは externalTargetProvider 経由でこちらが出す)
+        /// </summary>
+        public void SelectModelBone(Transform bone)
+        {
+            selectedBone = bone;
+            if (targetModel == null || bone == null)
+            {
+                return;
+            }
+
+            selectionManager.Select(targetModel, false);
+
+            // 選択オブジェクトの変更エッジで自分の選択を解除しないよう前フレーム値を揃える
+            _lastSelectedObject = selectionManager.selectedObject;
+        }
+
+        /// <summary>選択中モデルのボーンが編集されたことを記録する (モデルに揺れもの・着替えは無い)</summary>
+        public void NotifyModelBoneEdited(Transform bone)
+        {
+            if (targetModel == null || bone == null)
+            {
+                return;
+            }
+            GetModelStore(targetModel).RecordEdit(ModelSlotKey, null, bone);
+        }
+
+        /// <summary>
         /// スロット切替等でボーン選択を解除する。Inspector 側のポーズ定義選択が
         /// 残ると古いボーンのスライダーが表示され続けるため、そちらも揃えて落とす
         /// </summary>
@@ -94,20 +146,40 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 選択中ボーンの差分エントリ。対象種別に応じたストアから引く (未編集なら null)
+        /// </summary>
+        private BoneEditEntry GetSelectedBoneEntry(Maid maid)
+        {
+            if (isModelMode)
+            {
+                var store = FindModelStore(targetModel);
+                return store != null ? store.GetEntry(ModelSlotKey, selectedBone.name) : null;
+            }
+
+            var maidStore = FindStore(maid);
+            return maidStore != null ? maidStore.GetEntry(targetSlotName, selectedBone.name) : null;
+        }
+
+        /// <summary>
         /// 選択中ボーンの基準回転。編集済みなら記録時の元値、未編集なら現在値
         /// (未編集 = オフセット 0 として扱う)
         /// </summary>
         private Quaternion GetSelectedBoneBaseRotation(Maid maid)
         {
-            var store = FindStore(maid);
-            var entry = store != null ? store.GetEntry(targetSlotName, selectedBone.name) : null;
+            var entry = GetSelectedBoneEntry(maid);
             return entry != null ? entry.origRotation : selectedBone.localRotation;
+        }
+
+        /// <summary>対象種別に応じた編集対象が揃っているか (モデルモードでは maid は使わない)</summary>
+        private bool HasEditTarget(Maid maid)
+        {
+            return selectedBone != null && (isModelMode ? targetModel != null : maid != null);
         }
 
         /// <summary>選択中ボーンの基準回転からのオフセット角（±180 正規化済み）</summary>
         public Vector3 GetSelectedBoneOffset(Maid maid)
         {
-            if (maid == null || selectedBone == null)
+            if (!HasEditTarget(maid))
             {
                 return Vector3.zero;
             }
@@ -123,7 +195,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>選択中ボーンの指定軸オフセット角を書き込み、差分ストアへ記録する</summary>
         public void SetSelectedBoneOffsetAxis(Maid maid, int axisIndex, float value)
         {
-            if (maid == null || selectedBone == null)
+            if (!HasEditTarget(maid))
             {
                 return;
             }
@@ -132,7 +204,15 @@ namespace COM3D2.SceneEditor.Plugin
             var baseRot = GetSelectedBoneBaseRotation(maid);
             offset[axisIndex] = value;
             selectedBone.localRotation = baseRot * Quaternion.Euler(offset);
-            NotifyBoneEdited(maid, selectedBone);
+
+            if (isModelMode)
+            {
+                NotifyModelBoneEdited(selectedBone);
+            }
+            else
+            {
+                NotifyBoneEdited(maid, selectedBone);
+            }
         }
 
         /// <summary>角度を -180〜180 に正規化する</summary>
@@ -162,6 +242,25 @@ namespace COM3D2.SceneEditor.Plugin
         {
             BoneEditStore store;
             return _stores.TryGetValue(maid, out store) ? store : null;
+        }
+
+        /// <summary>モデルの差分ストア。無ければ作る</summary>
+        public BoneEditStore GetModelStore(GameObject model)
+        {
+            BoneEditStore store;
+            if (!_modelStores.TryGetValue(model, out store))
+            {
+                store = new BoneEditStore();
+                _modelStores[model] = store;
+            }
+            return store;
+        }
+
+        /// <summary>既存のモデル差分ストアを引くだけで新規生成はしない (FindStore と同じ趣旨)</summary>
+        public BoneEditStore FindModelStore(GameObject model)
+        {
+            BoneEditStore store;
+            return model != null && _modelStores.TryGetValue(model, out store) ? store : null;
         }
 
         /// <summary>選択中スロットのボーンが編集されたことを記録する</summary>
@@ -215,8 +314,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public List<SlotBoneNode> GetCurrentBoneTree()
         {
-            var maid = MaidManipulateManager.instance.targetMaid;
-            var obj = SlotBoneManager.GetSlotObject(maid, targetSlotName);
+            GameObject obj;
+            if (isModelMode)
+            {
+                obj = targetModel;
+            }
+            else
+            {
+                var maid = MaidManipulateManager.instance.targetMaid;
+                obj = SlotBoneManager.GetSlotObject(maid, targetSlotName);
+            }
 
             // 破棄済み参照どうしの比較は等しくなるため、空でない状態で obj が消えた場合も作り直す
             if (obj != _boneTreeSource || (obj == null && _boneTree.Count > 0))
@@ -233,6 +340,37 @@ namespace COM3D2.SceneEditor.Plugin
             ReleaseBoneOnObjectSelected();
             RecordGizmoDrag();
             UpdateStores();
+            CleanupModelStores();
+        }
+
+        /// <summary>
+        /// 削除されたモデルのストアと対象参照を捨てる。
+        /// モデルはメイドと違い着替え (再ロード) が無いため、破棄検出だけでよい
+        /// </summary>
+        private void CleanupModelStores()
+        {
+            _deadModels.Clear();
+            foreach (var pair in _modelStores)
+            {
+                if (pair.Key == null)
+                {
+                    _deadModels.Add(pair.Key);
+                }
+            }
+            foreach (var model in _deadModels)
+            {
+                _modelStores.Remove(model);
+            }
+
+            // 対象モデルが削除されたら参照を実 null に落とし、選択も外す
+            if (targetModel == null && !ReferenceEquals(targetModel, null))
+            {
+                targetModel = null;
+                if (isModelMode)
+                {
+                    selectedBone = null;
+                }
+            }
         }
 
         /// <summary>
@@ -257,7 +395,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void RecordGizmoDrag()
         {
             var maid = MaidManipulateManager.instance.targetMaid;
-            if (!editMode || selectedBone == null || maid == null)
+            if (!editMode || !HasEditTarget(maid))
             {
                 _wasGizmoDragging = false;
                 return;
@@ -271,15 +409,31 @@ namespace COM3D2.SceneEditor.Plugin
                 // ドラッグ開始エッジで変更前状態を控える (初回フレームの微小移動分の誤差は許容)
                 if (!_wasGizmoDragging)
                 {
-                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                        "ボーン編集: " + selectedBone.name, new[] { selectedBone });
+                    if (isModelMode)
+                    {
+                        HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
+                            "ボーン編集: " + selectedBone.name, new[] { selectedBone });
+                    }
+                    else
+                    {
+                        HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                            "ボーン編集: " + selectedBone.name, new[] { selectedBone });
 
-                    // ボーンを動かし始めたらメニューバーの編集モード (isEditMode) へ自動遷移する。
-                    // 本クラスの editMode (ウィンドウ表示状態) とは別物。
-                    // ドラッグ点・ボーンギズモ経由の遷移は MaidManipulateManager.Update が担う
-                    MaidManipulateManager.instance.isEditMode = true;
+                        // ボーンを動かし始めたらメニューバーの編集モード (isEditMode) へ自動遷移する。
+                        // 本クラスの editMode (ウィンドウ表示状態) とは別物。
+                        // ドラッグ点・ボーンギズモ経由の遷移は MaidManipulateManager.Update が担う
+                        MaidManipulateManager.instance.isEditMode = true;
+                    }
                 }
-                NotifyBoneEdited(maid, selectedBone);
+
+                if (isModelMode)
+                {
+                    NotifyModelBoneEdited(selectedBone);
+                }
+                else
+                {
+                    NotifyBoneEdited(maid, selectedBone);
+                }
             }
             _wasGizmoDragging = isDragging;
         }
@@ -340,6 +494,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _stores.Clear();
             _wasLoading.Clear();
+            _modelStores.Clear();
+            targetModel = null;
             _boneTree.Clear();
             _boneTreeSource = null;
             selectedBone = null;
