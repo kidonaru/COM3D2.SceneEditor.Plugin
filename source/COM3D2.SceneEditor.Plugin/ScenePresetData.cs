@@ -227,6 +227,54 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
+    /// v18: 外部プラグイン配置モデルのボーン 1 本分の編集差分。
+    /// モデルは GameObject 参照でしか識別できないため、
+    /// ラッパー GameObject 名 + 提供プラグイン名を照合キーとして保存する
+    /// </summary>
+    public class ScenePresetModelBoneEdit
+    {
+        /// <summary>モデルのルート GameObject 名 (照合キー)</summary>
+        [XmlAttribute]
+        public string modelName;
+        /// <summary>ModelProviderHost に登録された提供プラグイン名 (同名衝突の回避用)</summary>
+        [XmlAttribute]
+        public string pluginName;
+        [XmlAttribute]
+        public string bone;
+
+        /// <summary>localPosition xyz</summary>
+        public float[] pos;
+        /// <summary>localRotation xyzw</summary>
+        public float[] rot;
+        /// <summary>localScale xyz</summary>
+        public float[] scl;
+
+        public static ScenePresetModelBoneEdit FromEntry(
+            string modelName, string pluginName, BoneEditEntry entry)
+        {
+            return new ScenePresetModelBoneEdit
+            {
+                modelName = modelName,
+                pluginName = pluginName,
+                bone = entry.boneName,
+                pos = new[] { entry.position.x, entry.position.y, entry.position.z },
+                rot = new[]
+                {
+                    entry.rotation.x, entry.rotation.y, entry.rotation.z, entry.rotation.w,
+                },
+                scl = new[] { entry.scale.x, entry.scale.y, entry.scale.z },
+            };
+        }
+
+        /// <summary>XML は外部入力なので、要素数が足りないものは適用しない</summary>
+        public bool isValid =>
+            !string.IsNullOrEmpty(modelName) && !string.IsNullOrEmpty(bone)
+            && pos != null && pos.Length >= 3
+            && rot != null && rot.Length >= 4
+            && scl != null && scl.Length >= 3;
+    }
+
+    /// <summary>
     /// v17: スロット 1 つ分の揺れ物理の状態。
     /// SlotYureUtil.SlotYureSnapshot の XML 表現で、-1 は「対象の物理なし」を表す
     /// </summary>
@@ -493,7 +541,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は属性が無く既定の true で読めるため、全カテゴリ保存済みとして扱う
         // v17: maid に slotYures（揺れ物理の状態）を追加。
         //      旧形式は null で読め、適用時に揺れへ触らない
-        public static readonly int CurrentVersion = 17;
+        // v18: modelBoneEdits（外部プラグイン配置モデルのボーン編集差分）を追加。
+        //      旧形式は null で読め、適用時にモデルのボーンへ触らない
+        public static readonly int CurrentVersion = 18;
 
         [XmlAttribute]
         public int version = CurrentVersion;
@@ -525,5 +575,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         [XmlElement("external")]
         public List<ScenePresetExternal> externals = new List<ScenePresetExternal>();
+
+        /// <summary>
+        /// 外部プラグイン配置モデルのボーン編集差分 (v18)。
+        /// 旧プリセット（要素なし）は null になり、適用時にモデルのボーンへ触らない
+        /// </summary>
+        [XmlElement("modelBoneEdit")]
+        public List<ScenePresetModelBoneEdit> modelBoneEdits;
     }
 }
