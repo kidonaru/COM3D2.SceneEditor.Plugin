@@ -243,6 +243,7 @@
     <Compile Include="MaidUndressWindow.cs" />
     <Compile Include="MaidGravityWindow.cs" />
     <Compile Include="BoneEditWindow.cs" />
+    <Compile Include="ModelProviderHost.cs" />
     <Compile Include="MenuBarWindow.cs" />
     <Compile Include="BackgroundUtils.cs" />
     <Compile Include="BackgroundWindow.cs" />
