@@ -260,7 +260,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return false;
             }
 
-            boneEditManager.SelectBone(MaidManipulateManager.instance.targetMaid, best);
+            if (boneEditManager.isModelMode)
+            {
+                boneEditManager.SelectModelBone(best);
+            }
+            else
+            {
+                boneEditManager.SelectBone(MaidManipulateManager.instance.targetMaid, best);
+            }
             return true;
         }
 

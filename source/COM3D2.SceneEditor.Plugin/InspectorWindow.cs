@@ -390,16 +390,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ボーン編集ウィンドウで選択したスロットボーン（ポーズ定義なし）の専用表示。
+        /// ボーン編集ウィンドウで選択したスロット/モデルボーン（ポーズ定義なし）の専用表示。
         /// 差分ストアの元値を基準にしたオフセット回転スライダーで編集し、編集はストアへ記録する
         /// </summary>
         private void DrawSlotBoneContent()
         {
-            var maid = maidManager.targetMaid;
+            var isModel = boneEditManager.isModelMode;
+            var maid = isModel ? null : maidManager.targetMaid;
             var bone = boneEditManager.selectedBone;
 
             // 退避中は表示に戻す際に上書きされるため操作させない (DrawBoneContent と同じ理由)
-            if (!maidManager.IsVisible(maid))
+            if (!isModel && !maidManager.IsVisible(maid))
             {
                 _view.DrawLabel("非表示中はボーンを操作できません", -1, RowHeight,
                     textColor: Color.yellow);
@@ -409,7 +410,11 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawLabel(bone.name, -1, RowHeight);
 
             DrawGizmoToolRow();
-            DrawSlotBoneYureToggle(maid, bone);
+            if (!isModel)
+            {
+                // 揺れものはメイドの装着物専用
+                DrawSlotBoneYureToggle(maid, bone);
+            }
 
             var offset = boneEditManager.GetSelectedBoneOffset(maid);
 
@@ -429,8 +434,16 @@ namespace COM3D2.SceneEditor.Plugin
                     value = offset[axisIndex],
                     onChanged = value =>
                     {
-                        HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                            "ボーン編集: " + bone.name, new[] { bone });
+                        if (isModel)
+                        {
+                            HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
+                                "ボーン編集: " + bone.name, new[] { bone });
+                        }
+                        else
+                        {
+                            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                                "ボーン編集: " + bone.name, new[] { bone });
+                        }
                         boneEditManager.SetSelectedBoneOffsetAxis(maid, axisIndex, value);
                     },
                 });
