@@ -284,6 +284,23 @@ namespace COM3D2.SceneEditor.Plugin
             return model != null && _modelStores.TryGetValue(model, out store) ? store : null;
         }
 
+        /// <summary>
+        /// モデル差分ストアの一覧 (プリセット保存用)。
+        /// 破棄済みモデルは Update の掃除を待たずここで除外する
+        /// </summary>
+        public List<KeyValuePair<GameObject, BoneEditStore>> GetModelStoreEntries()
+        {
+            var result = new List<KeyValuePair<GameObject, BoneEditStore>>();
+            foreach (var pair in _modelStores)
+            {
+                if (pair.Key != null && !pair.Value.isEmpty)
+                {
+                    result.Add(pair);
+                }
+            }
+            return result;
+        }
+
         /// <summary>選択中スロットのボーンが編集されたことを記録する</summary>
         public void NotifyBoneEdited(Maid maid, Transform bone)
         {
