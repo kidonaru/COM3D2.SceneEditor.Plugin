@@ -725,6 +725,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             CaptureExternals(data, options.enabledProviderIds);
+            // data.externals を保存対象の有無判定に使うため CaptureExternals の後に呼ぶ
             CaptureModelBoneEdits(data);
 
             return data;
@@ -782,12 +783,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 外部プラグイン配置モデルのボーン編集差分を収集する (v18)。
         /// モデルは GameObject 参照でしか識別できないため、ModelProviderHost の
-        /// 現在の一覧と突き合わせて GameObject 名 + 提供プラグイン名へ変換して保存する。
-        /// 提供元が見つからないモデル (破棄済み・提供解除済み) は保存しない。
-        /// モデル自体は外部プロバイダが復元するため、外部プロバイダを 1 つも保存して
-        /// いないプリセットにボーン差分だけ残しても復元先が無い。孤立データを避けるため
+        /// 現在の一覧と突き合わせて GameObject 名 + 提供プラグイン名へ変換して保存する
+        /// (提供元が見つからないモデルは保存しない)。
+        /// モデル自体は外部プロバイダが復元するため、external が空のプリセットに
+        /// ボーン差分だけ残しても復元先が無い。孤立データを避けるため
         /// external が空のときは保存しない
-        /// (プロバイダ id と ModelProviderHost の pluginName は別体系のため個別対応は取らない)
         /// </summary>
         private static void CaptureModelBoneEdits(ScenePresetData data)
         {
@@ -1794,7 +1794,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// モデルのボーン編集差分を復元する (v18)。旧プリセット (modelBoneEdits 無し) では変更しない。
         /// GameObject 名 + 提供プラグイン名で現在のモデルへ照合する (同名複数は先勝ち)。
         /// メイドの ApplyBoneEdits と同じく RecordEdit を書き込みの前後で 2 回呼び、
-        /// 「元値 = 適用前」「編集値 = 適用後」にする (リセットで戻せる)
+        /// 「元値 = 適用前」「編集値 = 適用後」にする (リセットで戻せる)。
+        /// プロバイダ id と ModelProviderHost の pluginName は別体系で対応が取れないため、
+        /// ApplyExternals のような読込トグル (IsProviderLoadEnabled) による除外は行わない。
+        /// 読込 OFF ならモデル自体が復元されず対象が見つからないので、通常は警告のみで終わる
         /// </summary>
         private static void ApplyModelBoneEdits(ScenePresetData data)
         {
@@ -1807,7 +1810,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 差分を当てるモデルは既存の編集をリセットしてプリセットの状態で置き換える。
             // プロバイダの読込を OFF にした場合など、モデルが作り直されず残るケースへの対処
-            var targets = new Dictionary<GameObject, bool>();
+            var resetModels = new HashSet<GameObject>();
             foreach (var edit in data.modelBoneEdits)
             {
                 if (edit == null || !edit.isValid)
@@ -1825,10 +1828,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var store = BoneEditManager.instance.GetModelStore(entry.obj);
-                if (!targets.ContainsKey(entry.obj))
+                if (resetModels.Add(entry.obj))
                 {
                     store.ResetSlot(BoneEditManager.ModelSlotKey, entry.obj);
-                    targets[entry.obj] = true;
                 }
 
                 var bone = SlotBoneManager.FindBone(entry.obj, edit.bone);
