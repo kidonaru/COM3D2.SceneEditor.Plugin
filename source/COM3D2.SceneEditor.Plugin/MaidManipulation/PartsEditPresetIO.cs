@@ -196,11 +196,57 @@ namespace COM3D2.SceneEditor.Plugin
                 });
             }
 
+            return WriteFile(presetName, data);
+        }
+
+        /// <summary>
+        /// モデルの編集済みボーンをプリセットとして保存する。
+        /// PartsEdit のモデル用プリセット (bMaidParts=false, slotName 空, bYure=false) と互換
+        /// </summary>
+        public static bool SaveModel(GameObject modelObj, string presetName, BoneEditStore store)
+        {
+            if (modelObj == null)
+            {
+                return false;
+            }
+
+            var data = new PartsEditPresetData
+            {
+                slotName = "",
+                bMaidParts = false,
+                bYure = false,
+                // 先方の GetFileList(category, name) が rootData.name を参照するため null にしない。
+                // 値は保存時点のスナップショット (こちらではルートを編集しない)
+                rootData = new PartsEditPresetData.TransformData
+                {
+                    name = modelObj.name,
+                    position = PartsEditPresetData.Vec3.From(modelObj.transform.localPosition),
+                    rotation = PartsEditPresetData.Quat.From(modelObj.transform.localRotation),
+                    scale = PartsEditPresetData.Vec3.From(modelObj.transform.localScale),
+                },
+            };
+
+            foreach (var entry in store.GetEntries(BoneEditManager.ModelSlotKey))
+            {
+                data.transformDataList.Add(new PartsEditPresetData.TransformData
+                {
+                    name = entry.boneName,
+                    position = PartsEditPresetData.Vec3.From(entry.position),
+                    rotation = PartsEditPresetData.Quat.From(entry.rotation),
+                    scale = PartsEditPresetData.Vec3.From(entry.scale),
+                });
+            }
+
+            return WriteFile(presetName, data);
+        }
+
+        /// <summary>DTO を XML ファイルへ書く (BOM 無し UTF-8、PartsEdit 本体と同じ)</summary>
+        private static bool WriteFile(string presetName, PartsEditPresetData data)
+        {
             var path = GetPresetFilePath(presetName);
             try
             {
                 Directory.CreateDirectory(directoryPath);
-                // BOM 無し UTF-8 (PartsEdit 本体と同じ)
                 using (var writer = new StreamWriter(path, false, new UTF8Encoding(false)))
                 {
                     _serializer.Serialize(writer, data);
@@ -246,10 +292,40 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var itemFileName = SlotBoneManager.GetSlotItemFileName(maid, slotName);
+            var applied = ApplyTransformList(slotObj, slotName, itemFileName, data, store);
+
+            // 保存時のスロット揺れ状態を復元する (bYure)。OFF のプリセットでは
+            // ボーン編集値が物理に毎フレーム上書きされるのを防ぐ役目も兼ねる
+            SlotYureUtil.SetSlotYureState(maid, slotName, data.bYure);
+
+            return applied;
+        }
+
+        /// <summary>
+        /// プリセットをモデルへ適用する。ボーン TRS のみ扱い、
+        /// rootData は適用しない (モデルルートの配置は外部プラグイン管理のため)。
+        /// PartsEdit 本体はモデルにも rootData.scale を適用するが、ここでは触らない
+        /// </summary>
+        public static int ApplyModel(GameObject modelObj, PartsEditPresetData data, BoneEditStore store)
+        {
+            if (modelObj == null)
+            {
+                return 0;
+            }
+            return ApplyTransformList(modelObj, BoneEditManager.ModelSlotKey, null, data, store);
+        }
+
+        /// <summary>
+        /// プリセット内のボーン TRS を rootObj 配下へ適用し、適用数を返す。
+        /// 見つからないボーンはスキップし、現在値と同値のボーンは編集扱いにしない
+        /// </summary>
+        private static int ApplyTransformList(GameObject rootObj, string slotKey,
+            string itemFileName, PartsEditPresetData data, BoneEditStore store)
+        {
             var applied = 0;
             foreach (var trsData in data.transformDataList)
             {
-                var bone = SlotBoneManager.FindBone(slotObj, trsData.name);
+                var bone = SlotBoneManager.FindBone(rootObj, trsData.name);
                 if (bone == null)
                 {
                     continue;
@@ -269,20 +345,15 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 先に呼んで適用前の値を元値として控える (ScenePresetManager.ApplyBoneEdits と同じ)
-                store.RecordEdit(slotName, itemFileName, bone);
+                store.RecordEdit(slotKey, itemFileName, bone);
 
                 bone.localPosition = position;
                 bone.localRotation = rotation;
                 bone.localScale = scale;
 
-                store.RecordEdit(slotName, itemFileName, bone);
+                store.RecordEdit(slotKey, itemFileName, bone);
                 applied++;
             }
-
-            // 保存時のスロット揺れ状態を復元する (bYure)。OFF のプリセットでは
-            // ボーン編集値が物理に毎フレーム上書きされるのを防ぐ役目も兼ねる
-            SlotYureUtil.SetSlotYureState(maid, slotName, data.bYure);
-
             return applied;
         }
     }
