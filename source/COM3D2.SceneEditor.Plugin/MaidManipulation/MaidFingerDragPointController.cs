@@ -37,7 +37,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         // 指は関節間が数 cm しかないため、体のドラッグ点（0.04）より小さくして
         // 隣の関節と当たり判定が重ならないようにする
-        private const float FingerDragPointScale = 0.015f;
+        private const float FingerDragPointScale = 0.008f;
 
         private readonly List<GameObject> _dragPoints = new List<GameObject>();
 
