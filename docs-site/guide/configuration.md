@@ -13,6 +13,7 @@
 | ウィンドウレイアウト | `Sybaris\UnityInjector\Config\SceneEditor\WindowLayout\` |
 | 表情プリセット | `Sybaris\UnityInjector\Config\SceneEditor\FacePreset\` |
 | 指プリセット | `Sybaris\UnityInjector\Config\SceneEditor\FingerPreset\` |
+| ボーンプリセット | `Sybaris\UnityInjector\Config\PartsEdit\`（PartsEditWithStudio と共用） |
 | PNG 配置の画像 | `Sybaris\UnityInjector\Config\PngPlacement\`、`PhotoModeData\Texture\` |
 | ポーズ | `PhotoModeData\MyPose\`（ゲーム標準のマイポーズと共通） |
 | スクリーンショット | ゲームフォルダの `ScreenShot\` |
