@@ -18,6 +18,12 @@ namespace COM3D2.SceneEditor.Plugin
         public RenderTexture renderTexture { get; private set; }
         public bool isActive { get; private set; }
 
+        /// <summary>
+        /// SceneView カメラの近クリップ面。既定 (0.3) だと指や顔へ寄ったときに
+        /// 手前が切れてしまうため、注視点の最小距離 (0.1) より十分小さくする
+        /// </summary>
+        private const float NearClipPlane = 0.01f;
+
         private GameObject _cameraGo = null;
 
         private static SceneViewManager _instance = null;
@@ -133,6 +139,7 @@ namespace COM3D2.SceneEditor.Plugin
             sceneCamera.clearFlags = CameraClearFlags.SolidColor;
             sceneCamera.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
             sceneCamera.depth = -100; // ゲーム側の描画順に影響させない
+            sceneCamera.nearClipPlane = NearClipPlane;
             sceneCamera.enabled = false;
 
             // 開いた瞬間にゲームと同じ絵が見えるようメインカメラの視点をコピーする
