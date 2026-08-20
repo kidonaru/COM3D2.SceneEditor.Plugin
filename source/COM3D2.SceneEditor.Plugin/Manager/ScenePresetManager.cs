@@ -864,6 +864,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             state.mabataki = MaidFaceMorphController.GetMabataki(maid);
+            state.faceName = MaidFaceMorphController.GetFaceName(maid);
 
             foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
             {
@@ -1925,6 +1926,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static void ApplyFace(Maid maid, ScenePresetMaid state)
         {
+            // 表情タグはモーフ値より先に戻す。まばたき有効時はこのタグから
+            // 毎フレームブレンドが作り直されるうえ、新規呼出したメイドは
+            // ロード完了時の FaceAnime("通常", 1f) が進行中で、
+            // 畳まずにモーフを書くと以降 1 秒かけて表情が消えていく
+            MaidFaceMorphController.ApplyFaceName(maid, state.faceName);
+
             var savedValues = new Dictionary<string, float>(state.morphs.Count);
             foreach (var morph in state.morphs)
             {

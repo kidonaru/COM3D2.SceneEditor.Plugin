@@ -45,10 +45,12 @@ namespace COM3D2.SceneEditor.Plugin
                     new FaceMorphDef("eyeclose", "目閉じ"),
                     new FaceMorphDef("eyeclose2", "笑顔"),
                     new FaceMorphDef("eyeclose3", "ジト目"),
-                    new FaceMorphDef("eyeclose5", "ウィンク右"),
-                    new FaceMorphDef("eyeclose6", "ウィンク左"),
-                    new FaceMorphDef("eyeclose7", "半目"),
-                    new FaceMorphDef("eyeclose8", "細目"),
+                    // eyeclose5/6 は左目、eyeclose7/8 は右目（メイドから見た左右）を閉じる。
+                    // 6/8 は 2/笑顔 の片目版で、旧ボディの顔には 7/8 が無い
+                    new FaceMorphDef("eyeclose5", "ウィンク左"),
+                    new FaceMorphDef("eyeclose7", "ウィンク右"),
+                    new FaceMorphDef("eyeclose6", "ウィンク左（笑顔）"),
+                    new FaceMorphDef("eyeclose8", "ウィンク右（笑顔）"),
                     new FaceMorphDef("eyebig", "見開き"),
                     new FaceMorphDef("hitomih", "瞳大"),
                     new FaceMorphDef("hitomis", "瞳小"),
@@ -119,7 +121,10 @@ namespace COM3D2.SceneEditor.Plugin
             var faceType = morph.GetFaceTypeGP01FB();
             if (faceType != TMorph.GP01FB_FACE_TYPE.MAX)
             {
-                index = morph.hash[name + TMorph.crcFaceTypesStr[(int)faceType]];
+                // CRC 顔では素の eyeclose に相当するモーフが eyeclose1 になる
+                // （ゲーム側 WindowPartsFaceMorph.GetBlendIdx と同じ補正）
+                var baseName = name == "eyeclose" ? "eyeclose1" : name;
+                index = morph.hash[baseName + TMorph.crcFaceTypesStr[(int)faceType]];
                 if (index != null)
                 {
                     return (int)index;
@@ -236,6 +241,57 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             maid.boMabataki = enabled;
+        }
+
+        /// <summary>現在の表情ブレンドセット名 (Maid.FaceAnime のタグ)。未設定なら空文字</summary>
+        public static string GetFaceName(Maid maid)
+        {
+            return maid != null ? maid.ActiveFace : "";
+        }
+
+        /// <summary>
+        /// 表情ブレンドセットを復元する。まばたき有効中は Maid.Update が毎フレーム
+        /// ClearBlendValues してこのタグからブレンドを作り直すため、
+        /// 個別のモーフ値より先に保存時のタグへ戻しておく必要がある。
+        ///
+        /// フェード時間 0 を渡すのは、進行中のフェードをここで畳むため。
+        /// 新規呼出直後のメイドは FaceAnime("通常", 1f) のフェード中で、
+        /// 畳まないとまばたきを止めていてもモーフ値が 1 秒かけて消えていく。
+        /// t=0 の FaceAnime はブレンドを塗り直さないので、直後に書き込む値は残る
+        /// </summary>
+        public static void ApplyFaceName(Maid maid, string faceName)
+        {
+            var morph = GetFaceMorph(maid);
+            if (morph == null)
+            {
+                return;
+            }
+
+            var tag = faceName;
+            if (!string.IsNullOrEmpty(tag) && !HasBlendSet(morph, tag))
+            {
+                MTEUtils.LogWarning("表情ブレンドセットが見つかりません: {0}", tag);
+                tag = null;
+            }
+            if (string.IsNullOrEmpty(tag))
+            {
+                // 旧プリセットや解決できないタグでは表情を変えず、フェードを畳むだけに留める。
+                // ActiveFace が空なら FaceAnime 自体が未実行でフェードもないため何もしない
+                tag = maid.ActiveFace;
+                if (string.IsNullOrEmpty(tag))
+                {
+                    return;
+                }
+            }
+
+            maid.FaceAnime(tag, 0f, 0);
+        }
+
+        /// <summary>新ボディ顔の別名 (〓通常) も含めてブレンドセットの有無を見る</summary>
+        private static bool HasBlendSet(TMorph morph, string blendSetName)
+        {
+            return morph.dicBlendSet.ContainsKey(blendSetName)
+                || morph.dicBlendSet.ContainsKey(blendSetName + "〓通常");
         }
 
         public static bool GetMabataki(Maid maid)

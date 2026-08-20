@@ -432,6 +432,14 @@ namespace COM3D2.SceneEditor.Plugin
         public Vector3 rotation;
         public bool visible = true;
         public bool mabataki = true;
+
+        /// <summary>
+        /// 表情ブレンドセット名 (Maid.ActiveFace)。まばたき有効時は毎フレーム
+        /// これを元にブレンドが作り直されるため、モーフ値と併せて記録する。
+        /// 旧プリセット (v18 以前) は null になり、適用時は表情タグを変更しない
+        /// </summary>
+        [XmlAttribute]
+        public string faceName;
         /// <summary>
         /// ポーズ anm サイドカーのファイル名。ボディ未ロード等でポーズを取得できなかったときは null
         /// </summary>
@@ -543,7 +551,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は null で読め、適用時に揺れへ触らない
         // v18: modelBoneEdits（外部プラグイン配置モデルのボーン編集差分）を追加。
         //      旧形式は null で読め、適用時にモデルのボーンへ触らない
-        public static readonly int CurrentVersion = 18;
+        // v19: maid に faceName（表情ブレンドセット名）を追加。
+        //      旧形式は null で読め、適用時に表情タグを変更しない
+        public static readonly int CurrentVersion = 19;
 
         [XmlAttribute]
         public int version = CurrentVersion;
