@@ -282,11 +282,48 @@ namespace COM3D2.SceneEditor.Plugin
             // 消滅したメイドを追跡リストから外す（シーン遷移や外部プラグインでの解除に追従）
             calledMaids.RemoveAll(m => !IsAlive(m));
 
+            AdoptActiveMaids();
+
             UpdateLoadingMaids();
 
             // デフォルト配置 (UpdateLoadingMaids) の後に呼び、プリセットの
             // 位置・ポーズを最終値にする
             ScenePresetManager.UpdatePendingApplies();
+        }
+
+        /// <summary>
+        /// ゲーム側が既に出しているメイドを追跡へ取り込む。
+        /// フォトモードが最初から出しているメイドや、呼出ウィンドウで
+        /// 「既にアクティブなので呼び直さない」と判定されたメイドは呼出経路を
+        /// 通らないため、ここで拾わないとシーンプリセットの保存対象
+        /// （calledMaids）から丸ごと漏れてポーズも表情も記録されない。
+        /// 解除したメイドは CharacterMgr.Deactivate がその場でスロットを空けるので、
+        /// 次のフレームで拾い直してしまうことはない。
+        /// シーン種別では絞らない。フォトモード以外でもプラグインを有効にすれば
+        /// その場のメイドを編集・保存できる方を優先しており、代わりに
+        /// プリセット適用時の解除・編集モードの停止・配置プリセットの対象にもなる
+        /// </summary>
+        private void AdoptActiveMaids()
+        {
+            for (var i = 0; i < characterMgr.GetMaidCount(); i++)
+            {
+                var maid = characterMgr.GetMaid(i);
+                if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+                {
+                    continue;
+                }
+
+                TrackCalledMaid(maid);
+            }
+        }
+
+        /// <summary>追跡リストへの登録窓口。二重登録を防ぐためここを通す</summary>
+        private void TrackCalledMaid(Maid maid)
+        {
+            if (maid != null && !calledMaids.Contains(maid))
+            {
+                calledMaids.Add(maid);
+            }
         }
 
         public override void LateUpdate()
@@ -400,6 +437,8 @@ namespace COM3D2.SceneEditor.Plugin
                 if (_loadingMaids.Contains(stockMaid) ||
                     (stockMaid.body0 != null && stockMaid.body0.isLoadedBody))
                 {
+                    // Update を待たずに追跡へ載せ、呼出直後の保存でも取りこぼさない
+                    TrackCalledMaid(stockMaid);
                     targetMaid = stockMaid;
                     MaidCallWindow.instance.OnMaidCalled(stockMaid);
                     return stockMaid;
@@ -431,10 +470,7 @@ namespace COM3D2.SceneEditor.Plugin
                     _loadingMaids.Add(maid);
                 }
 
-                if (!calledMaids.Contains(maid))
-                {
-                    calledMaids.Add(maid);
-                }
+                TrackCalledMaid(maid);
 
                 // ロード中の見た目（裸・原点湧き）を出さないため、遠方へ退避してロードし
                 // 完了後に Update() 側で配置してから表示する
