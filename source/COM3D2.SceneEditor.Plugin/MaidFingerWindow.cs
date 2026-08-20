@@ -245,19 +245,21 @@ namespace COM3D2.SceneEditor.Plugin
                     ApplyFingerBlend(unit);
                 }
 
-                // SceneView のカメラをこの部位の指へ寄せる。
-                // アイコンは Inspector のフォーカスボタンと共通
-                var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
-                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f))
-                {
-                    FocusOnFinger(unit);
-                }
-
                 if (view.DrawButton(otherName + "にコピー", 100, ROW_HEIGHT))
                 {
                     RecordFingerEdit(maid, otherUnit, "指コピー: " + name + "→" + otherName);
                     otherUnit.CopyFrom(unit);
                     ApplyFingerBlend(otherUnit);
+                }
+
+                // SceneView のカメラをこの部位の指へ寄せる。ヘッダーのリセットと同じ右端揃え。
+                // アイコンは Inspector のフォーカスボタンと共通
+                view.currentPos.x = view.viewRect.width - view.padding.x * 2 - FocusButtonWidth;
+
+                var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
+                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f))
+                {
+                    FocusOnFinger(unit);
                 }
             }
             view.EndLayout();
