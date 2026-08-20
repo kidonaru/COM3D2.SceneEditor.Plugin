@@ -205,6 +205,20 @@ namespace COM3D2.SceneEditor.Plugin
             _cameraController.Focus(PluginUtils.CalcObjectBounds(go));
         }
 
+        /// <summary>
+        /// 指定したワールド範囲へ必ず寄せる。Renderer を持たないボーン群のように
+        /// GameObject の境界から範囲を求められない対象を明示的にフォーカスする経路用。
+        /// SceneView 非表示・カメラ未生成時は何もしない
+        /// </summary>
+        public void FocusOnBounds(Bounds bounds)
+        {
+            if (_cameraController == null || !sceneViewManager.isActive)
+            {
+                return;
+            }
+            _cameraController.Focus(bounds);
+        }
+
         /// <summary>GUI座標が SceneView の 3D シーン領域上か (ツールバー・リサイズつかみ・他窓は除外)</summary>
         public bool IsSceneViewActiveAt(Vector2 guiPos)
         {

@@ -13,6 +13,9 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static readonly int WINDOW_ID = 8903356;
 
+        /// <summary>フォーカスボタンの幅。Inspector のヘッダーと同じ正方形アイコン相当</summary>
+        private const int FocusButtonWidth = 20;
+
         private static readonly string[] ArmDigitNames = { "親", "人", "中", "薬", "小" };
         private static readonly string[] LegDigitNames = { "親", "人", "中" };
 
@@ -240,6 +243,14 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     RecordFingerEdit(maid, unit, "指ブレンド更新: " + name);
                     ApplyFingerBlend(unit);
+                }
+
+                // SceneView のカメラをこの部位の指へ寄せる。
+                // アイコンは Inspector のフォーカスボタンと共通
+                var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
+                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f))
+                {
+                    FocusOnFinger(unit);
                 }
 
                 if (view.DrawButton(otherName + "にコピー", 100, ROW_HEIGHT))
@@ -483,6 +494,39 @@ namespace COM3D2.SceneEditor.Plugin
             MaidMotionState.StopMotion(maid);
             // undo で戻るのはボーンと開き/握り/ロックの表示値まで
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose, description, unit.bones);
+        }
+
+        /// <summary>
+        /// 指のボーン全体が収まる範囲へ SceneView のカメラを寄せる。
+        /// ボーンは Renderer を持たないため、位置から範囲を組み立てて渡す
+        /// </summary>
+        private static void FocusOnFinger(FingerBlendUnit unit)
+        {
+            var hasBone = false;
+            var bounds = new Bounds();
+
+            foreach (var bone in unit.bones)
+            {
+                if (bone == null)
+                {
+                    continue;
+                }
+
+                if (!hasBone)
+                {
+                    hasBone = true;
+                    bounds = new Bounds(bone.position, Vector3.zero);
+                    continue;
+                }
+                bounds.Encapsulate(bone.position);
+            }
+
+            if (!hasBone)
+            {
+                return;
+            }
+
+            SceneViewWindow.instance.FocusOnBounds(bounds);
         }
 
         /// <summary>ユニットの現在値をボーンへ反映する</summary>
