@@ -4,6 +4,15 @@
 
 - COM3D2.5 または COM3D2 (2.0)
 - Sybaris（UnityInjector）導入済みの環境
+- **BepInEx が導入済みであること**
+
+BepInEx が無い環境では、起動時のログに次のようなエラーが出てプラグインが読み込まれません。
+
+```
+System.Reflection.ReflectionTypeLoadException: The classes in the module cannot be loaded.
+  at System.Reflection.Assembly.GetTypes ()
+  at UnityInjector.PluginManager.LoadPlugins_DLL (System.String dll, System.String exe)
+```
 
 ## 手順
 
