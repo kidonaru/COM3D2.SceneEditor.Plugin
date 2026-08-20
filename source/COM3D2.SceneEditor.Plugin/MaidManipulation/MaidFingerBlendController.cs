@@ -14,6 +14,39 @@ namespace COM3D2.SceneEditor.Plugin
         LeftLeg,
     }
 
+    /// <summary>
+    /// 指 1 関節ぶんの回転。個別編集で作った形はスライダー値では再現できないため、
+    /// テンプレート補間の結果とは別にボーンの回転そのものを控える。
+    /// ボーンの同定は関節の並び順ではなく BoneType で行う
+    /// </summary>
+    public class FingerBoneState
+    {
+        [XmlAttribute]
+        public IKManager.BoneType boneType;
+        [XmlAttribute]
+        public float x;
+        [XmlAttribute]
+        public float y;
+        [XmlAttribute]
+        public float z;
+        [XmlAttribute]
+        public float w;
+
+        /// <summary>xyzw をまとめて読み書きするための窓口。XML には出さない</summary>
+        [XmlIgnore]
+        public Quaternion rotation
+        {
+            get { return new Quaternion(x, y, z, w); }
+            set
+            {
+                x = value.x;
+                y = value.y;
+                z = value.z;
+                w = value.w;
+            }
+        }
+    }
+
     /// <summary>指 1 本ぶんのロック状態。ロック中の固定値まで含めて見た目を再現する</summary>
     public class FingerDigitState
     {
@@ -23,6 +56,10 @@ namespace COM3D2.SceneEditor.Plugin
         public float lockOpen;
         [XmlAttribute]
         public float lockFist;
+
+        /// <summary>各関節の回転。旧形式のプリセットでは空になる</summary>
+        [XmlElement("bone")]
+        public List<FingerBoneState> bones = new List<FingerBoneState>();
     }
 
     /// <summary>1 部位ぶんの指ブレンド状態。プリセットの保存/復元に使う</summary>
@@ -301,12 +338,30 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var digit in _digits)
             {
-                state.digits.Add(new FingerDigitState
+                var digitState = new FingerDigitState
                 {
                     isLock = digit.isLock,
                     lockOpen = digit.lockOpen,
                     lockFist = digit.lockFist,
-                });
+                };
+
+                // 個別編集ぶんまで再現できるよう、実際のボーン回転も控える
+                for (var j = 0; j < digit.bones.Length; j++)
+                {
+                    var bone = digit.bones[j];
+                    if (bone == null)
+                    {
+                        continue;
+                    }
+
+                    digitState.bones.Add(new FingerBoneState
+                    {
+                        boneType = digit.boneTypes[j],
+                        rotation = bone.localRotation,
+                    });
+                }
+
+                state.digits.Add(digitState);
             }
 
             return state;
@@ -327,6 +382,40 @@ namespace COM3D2.SceneEditor.Plugin
                 _digits[i].isLock = state.digits[i].isLock;
                 _digits[i].lockOpen = state.digits[i].lockOpen;
                 _digits[i].lockFist = state.digits[i].lockFist;
+            }
+        }
+
+        /// <summary>
+        /// 保存されたボーン回転を書き戻す。個別編集で作った形はスライダー値からは
+        /// 再現できないため、テンプレート補間（Apply）の後に上書きする。
+        /// 回転を持たない旧形式のプリセットでは何もしない
+        /// </summary>
+        public void RestoreBoneRotations(FingerUnitState state)
+        {
+            var count = Mathf.Min(_digits.Length, state.digits.Count);
+            for (var i = 0; i < count; i++)
+            {
+                var boneStates = state.digits[i].bones;
+                if (boneStates == null)
+                {
+                    continue;
+                }
+
+                var digit = _digits[i];
+                foreach (var boneState in boneStates)
+                {
+                    // 指の本数・関節数が違うボディでも取り違えないよう BoneType で突き合わせる
+                    for (var j = 0; j < digit.boneTypes.Length; j++)
+                    {
+                        if (digit.boneTypes[j] != boneState.boneType || digit.bones[j] == null)
+                        {
+                            continue;
+                        }
+
+                        digit.bones[j].localRotation = boneState.rotation;
+                        break;
+                    }
+                }
             }
         }
 

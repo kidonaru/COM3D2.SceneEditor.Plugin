@@ -161,6 +161,8 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     unit.RestoreState(state);
                     unit.Apply();
+                    // スライダーで再現できない個別編集ぶんは、補間結果へ上書きして戻す
+                    unit.RestoreBoneRotations(state);
                 }
             }
             catch (Exception e)
