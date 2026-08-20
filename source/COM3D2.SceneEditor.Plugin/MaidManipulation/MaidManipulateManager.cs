@@ -176,6 +176,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>指ブレンド。ウィンドウの手指/足指タブから操作する</summary>
         public MaidFingerBlendController fingerBlendController = new MaidFingerBlendController();
 
+        /// <summary>指関節の個別ドラッグ点。指ウィンドウの「個別編集」トグルが ON の間だけ出す</summary>
+        public MaidFingerDragPointController fingerDragPointController = new MaidFingerDragPointController();
+
+        /// <summary>指の個別編集。指ウィンドウのトグルと連動する</summary>
+        public bool isFingerEditMode { get; set; }
+
         /// <summary>IK 固定。IK ウィンドウから操作する</summary>
         public MaidIKHoldController ikHoldController = new MaidIKHoldController();
 
@@ -253,6 +259,9 @@ namespace COM3D2.SceneEditor.Plugin
             boneGizmoController.Update(isBoneEditing);
 
             dragPointController.SetTarget(isBoneEditing ? movableMaid : null);
+
+            fingerDragPointController.SetTarget(
+                isBoneEditing && isFingerEditMode ? movableMaid : null);
 
             fingerBlendController.SetTarget(activeMaid);
 
@@ -521,6 +530,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             boneGizmoController.Destroy();
             dragPointController.Destroy();
+            fingerDragPointController.Destroy();
             fingerBlendController.Destroy();
             ikHoldController.Destroy();
             muneYureController.Destroy();

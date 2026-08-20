@@ -159,7 +159,23 @@ namespace COM3D2.SceneEditor.Plugin
             new[] { IKManager.BoneType.Toe2_Root_L, IKManager.BoneType.Toe2_0_L },
         };
 
-        private static IKManager.BoneType[][] GetBoneTypeTable(FingerBlendType type)
+        /// <summary>
+        /// テンプレートの回転を返す。指ドラッグ点の可動域算出用
+        /// （open↔fist が曲げ、close↔open が開きの自然な範囲を表す）
+        /// </summary>
+        public static bool TryGetTemplateRotations(IKManager.BoneType boneType,
+            out Quaternion open, out Quaternion close, out Quaternion fist)
+        {
+            LoadTemplates();
+
+            open = close = fist = Quaternion.identity;
+            return _openDic != null && _closeDic != null && _fistDic != null
+                && _openDic.TryGetValue(boneType, out open)
+                && _closeDic.TryGetValue(boneType, out close)
+                && _fistDic.TryGetValue(boneType, out fist);
+        }
+
+        public static IKManager.BoneType[][] GetBoneTypeTable(FingerBlendType type)
         {
             switch (type)
             {

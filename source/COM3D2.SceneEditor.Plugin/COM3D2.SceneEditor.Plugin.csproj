@@ -157,6 +157,8 @@
     <Compile Include="MaidManipulation\MaidFaceMorphController.cs" />
     <Compile Include="MaidManipulation\MaidFacePresetManager.cs" />
     <Compile Include="MaidManipulation\MaidFingerBlendController.cs" />
+    <Compile Include="MaidManipulation\MaidFingerDragPoint.cs" />
+    <Compile Include="MaidManipulation\MaidFingerDragPointController.cs" />
     <Compile Include="MaidManipulation\MaidFingerPresetManager.cs" />
     <Compile Include="MaidManipulation\MaidIKChain.cs" />
     <Compile Include="MaidManipulation\MaidIKDragPoint.cs" />

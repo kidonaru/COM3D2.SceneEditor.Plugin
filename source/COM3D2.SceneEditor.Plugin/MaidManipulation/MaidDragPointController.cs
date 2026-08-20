@@ -62,7 +62,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// cullingMask &amp; eventMask でレイキャストするため、8 だとどのカメラからも当たらない。
         /// Default(0) は CameraMain の両マスクに入っており、Renderer は切ってあるので描画もされない
         /// </summary>
-        private const int DragPointLayer = 0;
+        public const int DragPointLayer = 0;
 
         // 円が大きいと体を覆って邪魔になるため、MM の当たり判定サイズ（0.12〜0.2）ではなく
         // 上体の点（0.04）を基準に揃える
