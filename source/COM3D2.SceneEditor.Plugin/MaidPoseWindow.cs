@@ -300,13 +300,19 @@ namespace COM3D2.SceneEditor.Plugin
                 // Mod の id はファイル内容の CRC で更新されると変わるため、
                 // PhotoMotionUtils.Find と同じく direct_file でもフォールバックする。
                 // 記録が無い場合は従来のクリップ名突き合わせに任せる
-                var isCurrent = appliedMotion != null
-                    ? appliedMotion.myPosePath == null
-                        && (appliedMotion.motionId == data.id
-                            || (!string.IsNullOrEmpty(appliedMotion.motionFile)
-                                && string.Equals(appliedMotion.motionFile, data.direct_file,
-                                    System.StringComparison.OrdinalIgnoreCase)))
-                    : PhotoMotionUtils.IsCurrentMotion(data, currentClipName);
+                bool isCurrent;
+                if (appliedMotion != null)
+                {
+                    var matchesId = appliedMotion.motionId == data.id;
+                    var matchesFile = !string.IsNullOrEmpty(appliedMotion.motionFile)
+                        && string.Equals(appliedMotion.motionFile, data.direct_file,
+                            System.StringComparison.OrdinalIgnoreCase);
+                    isCurrent = appliedMotion.myPosePath == null && (matchesId || matchesFile);
+                }
+                else
+                {
+                    isCurrent = PhotoMotionUtils.IsCurrentMotion(data, currentClipName);
+                }
                 if (view.DrawButton(data.name, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {

@@ -219,6 +219,11 @@ namespace COM3D2.SceneEditor.Plugin
                 // 破棄しかねないため、衝突しない固定の内部タグで登録する
                 anim.AddClip(nativeClip, POSE_APPLY_TAG);
                 addedClip = anim.GetClip(POSE_APPLY_TAG);
+                if (addedClip == null)
+                {
+                    // NRE で原因が分かりにくくなる前に明示的に失敗させる (呼び出し元でダイアログ表示)
+                    throw new InvalidOperationException("ポーズクリップの登録に失敗しました");
+                }
 
                 var state = anim[POSE_APPLY_TAG];
                 state.enabled = true;
@@ -233,6 +238,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (addedClip != null)
                 {
                     anim.RemoveClip(addedClip);
+                    // 万一複製されず同一インスタンスが登録された場合の二重 Destroy 防止
                     if (addedClip != nativeClip)
                     {
                         UnityEngine.Object.Destroy(addedClip);

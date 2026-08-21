@@ -937,6 +937,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 適用記録があればそれを使う。スクリプト経由エントリ (エディットカテゴリ等) は
             // クリップ名から引き当てられないため、記録が無いと保存できない
+            // motionId=0 はシーンプリセット復元などの「表示名だけの記録」なので対象外
+            // (一覧のモーションの id は CSV 定義 / ファイル CRC でいずれも非 0)
             var applied = MaidMotionState.GetAppliedMotion(maid);
             if (applied != null && applied.myPosePath == null && applied.motionId != 0)
             {

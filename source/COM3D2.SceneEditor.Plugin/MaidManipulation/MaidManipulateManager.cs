@@ -538,8 +538,8 @@ namespace COM3D2.SceneEditor.Plugin
             fingerBlendController.Release(maid);
 
             // ストックの Maid は解除後も同一インスタンスが使い回されるため、
-            // 停止クリップ名を残すと再呼出時に古いモーションへ戻してしまう
-            MaidMotionState.Discard(maid);
+            // 停止クリップ名や適用記録を残すと再呼出時に古いモーションへ戻してしまう
+            MaidMotionState.Release(maid);
 
             try
             {

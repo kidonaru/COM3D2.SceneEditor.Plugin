@@ -419,6 +419,19 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// メイド解除時の全記録の破棄。ストックの Maid は使い回されるため、
+        /// 適用記録を残すと次のキャラへ表示名・ハイライトが持ち越されてしまう
+        /// </summary>
+        public static void Release(Maid maid)
+        {
+            Discard(maid);
+            if (maid != null)
+            {
+                _appliedMotions.Remove(maid);
+            }
+        }
+
         /// <summary>停止状態を破棄する。ポーズは戻さず、リセット対象から外すだけ</summary>
         public static void Discard(Maid maid)
         {
