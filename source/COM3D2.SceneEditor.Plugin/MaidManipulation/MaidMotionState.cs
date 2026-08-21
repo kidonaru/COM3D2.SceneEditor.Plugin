@@ -150,11 +150,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (!_resetClipNames.ContainsKey(maid))
                 {
                     _resetClipNames[maid] = playingClipName;
-                    // リセットで戻したときにハイライト・表示名も一緒に戻せるよう、記録を対で控える。
-                    // スクリプト経由エントリはクリップ名から再解決できないため、ここで保存するしかない
-                    AppliedMotionInfo applied;
-                    _appliedMotions.TryGetValue(maid, out applied);
-                    _resetAppliedMotions[maid] = applied;
+                    CaptureResetApplied(maid);
                 }
             }
             anim.Stop();
@@ -370,6 +366,35 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _resumeClipNames[maid] = clipName;
             }
+        }
+
+        /// <summary>
+        /// リセットの復帰先を、クリップ名と適用記録の対で今適用したクリップ自身に差し替える。
+        /// 停止状態で読み込んだポーズ/アニメ用。StopMotion が控えた「読込前のモーション」は
+        /// 常駐枠の中身が差し替わると名前だけ残って別のアニメを指すため、ここで上書きする。
+        /// 適用記録 (SetAppliedMotion / RecordAppliedMotion / RecordAppliedMyPose) を
+        /// 書いた後に呼ぶこと
+        /// </summary>
+        public static void SetResetTarget(Maid maid, string clipName)
+        {
+            if (maid == null || string.IsNullOrEmpty(clipName))
+            {
+                return;
+            }
+
+            _resetClipNames[maid] = clipName;
+            CaptureResetApplied(maid);
+        }
+
+        /// <summary>
+        /// リセットで戻したときにハイライト・表示名も一緒に戻せるよう、今の適用記録を対で控える。
+        /// スクリプト経由エントリはクリップ名から再解決できないため、ここで保存するしかない
+        /// </summary>
+        private static void CaptureResetApplied(Maid maid)
+        {
+            AppliedMotionInfo applied;
+            _appliedMotions.TryGetValue(maid, out applied);
+            _resetAppliedMotions[maid] = applied;
         }
 
         /// <summary>編集したポーズを破棄し、停止前のモーションを再生し直す</summary>

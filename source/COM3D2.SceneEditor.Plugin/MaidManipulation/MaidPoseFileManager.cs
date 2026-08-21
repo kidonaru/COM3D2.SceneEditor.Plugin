@@ -207,6 +207,16 @@ namespace COM3D2.SceneEditor.Plugin
             return state;
         }
 
+        /// <summary>
+        /// 直前に適用した常駐ポーズをリセットの復帰先にする。
+        /// 停止状態で読み込んだ場合に「リセット = 読み込んだポーズに戻る」と揃えるため。
+        /// 適用記録も対で控えるので、呼び出し元が記録 (SetAppliedMotion 等) を書いた後に呼ぶ
+        /// </summary>
+        public static void MarkPoseAsResetTarget(Maid maid)
+        {
+            MaidMotionState.SetResetTarget(maid, POSE_CLIP_TAG);
+        }
+
         /// <summary>常駐クリップを破棄する</summary>
         public static void ReleaseClip(Maid maid)
         {

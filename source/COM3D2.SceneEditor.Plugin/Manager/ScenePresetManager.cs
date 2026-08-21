@@ -1677,6 +1677,10 @@ namespace COM3D2.SceneEditor.Plugin
                         {
                             displayName = "シーンプリセット",
                         });
+                        // リセットは復元したポーズ自身に戻す (マイポーズと同じ扱い)。
+                        // 復元前のモーションへ戻すと、常駐枠の中身が差し替わっている分
+                        // 無関係なアニメが流れてしまう
+                        MaidPoseFileManager.MarkPoseAsResetTarget(maid);
                     }
                 }
             }
