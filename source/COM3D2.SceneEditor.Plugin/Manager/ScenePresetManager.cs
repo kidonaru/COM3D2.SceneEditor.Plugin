@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -897,6 +897,14 @@ namespace COM3D2.SceneEditor.Plugin
                     .Select(ScenePresetBoneEdit.FromEntry).ToList();
             }
 
+            // 指ブレンド (v20)。指のボーン回転はポーズ側で復元されるため値だけ記録する。
+            // 全部位が未編集なら null のままにして旧バージョン互換の形に保つ
+            var fingerStates = maidManager.fingerBlendController.CaptureStates(maid);
+            if (fingerStates != null && fingerStates.Any(s => !s.isDefault))
+            {
+                state.fingerBlends = fingerStates;
+            }
+
             // 揺れ物理の状態 (v17)。対象の物理が無いスロットは記録しない
             foreach (var slotName in SlotBoneManager.GetLoadedSlotNames(maid))
             {
@@ -1699,6 +1707,28 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogException(e);
             }
+            try
+            {
+                ApplyFingerBlends(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+        }
+
+        /// <summary>
+        /// 指の開き/握り/ロックを復元する。旧プリセット (fingerBlends 無し) では変更しない。
+        /// 指のボーン回転はポーズの復元で入るため、ここでは値を戻すだけで再適用はしない
+        /// </summary>
+        private static void ApplyFingerBlends(Maid maid, ScenePresetMaid state)
+        {
+            if (state.fingerBlends == null)
+            {
+                return;
+            }
+
+            maidManager.fingerBlendController.RestoreStates(maid, state.fingerBlends);
         }
 
         /// <summary>

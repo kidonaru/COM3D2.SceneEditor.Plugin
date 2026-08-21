@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -534,6 +534,8 @@ namespace COM3D2.SceneEditor.Plugin
             lookController.Release(maid);
             // 重力も持ち越さない（ストックの Maid は使い回される）
             gravityController.Release(maid);
+            // 指の開き/握り/ロックも持ち越さない（ストックの Maid は使い回される）
+            fingerBlendController.Release(maid);
 
             // ストックの Maid は解除後も同一インスタンスが使い回されるため、
             // 停止クリップ名を残すと再呼出時に古いモーションへ戻してしまう

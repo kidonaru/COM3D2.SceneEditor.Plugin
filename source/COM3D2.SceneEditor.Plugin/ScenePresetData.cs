@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
 
@@ -492,6 +492,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// 視線。旧プリセット (v10 以前) は null になり、適用時に視線へ触らない
         /// </summary>
         public ScenePresetLook look;
+
+        /// <summary>
+        /// 指ブレンドの開き/握り/ロック (v20)。指のボーン回転はポーズ側で復元されるため
+        /// 値だけを持つ。指を一度も編集していないメイドや旧プリセット (v19 以前) では
+        /// null になり、適用時に指の状態へ触らない
+        /// </summary>
+        [XmlElement("fingerBlend")]
+        public List<FingerUnitState> fingerBlends;
     }
 
     /// <summary>
@@ -553,7 +561,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は null で読め、適用時にモデルのボーンへ触らない
         // v19: maid に faceName（表情ブレンドセット名）を追加。
         //      旧形式は null で読め、適用時に表情タグを変更しない
-        public static readonly int CurrentVersion = 19;
+        // v20: maid に fingerBlends（指の開き/握り/ロック）を追加。
+        //      旧形式は null で読め、適用時に指の状態へ触らない
+        public static readonly int CurrentVersion = 20;
 
         [XmlAttribute]
         public int version = CurrentVersion;

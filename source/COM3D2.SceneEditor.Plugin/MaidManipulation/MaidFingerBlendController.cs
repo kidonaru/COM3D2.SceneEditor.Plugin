@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -72,6 +72,27 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public float valueFist;
         public List<FingerDigitState> digits = new List<FingerDigitState>();
+
+        /// <summary>開き/握りが 0 でロックも無い、未編集の状態か。保存の要否判定に使う</summary>
+        [XmlIgnore]
+        public bool isDefault
+        {
+            get
+            {
+                if (valueOpen != 0f || valueFist != 0f)
+                {
+                    return false;
+                }
+                foreach (var digit in digits)
+                {
+                    if (digit.isLock)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
     }
 
     /// <summary>
@@ -326,8 +347,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>現在の状態をプリセット保存用に書き出す</summary>
-        public FingerUnitState CaptureState()
+        /// <summary>
+        /// ボーン回転を除いた表示値（開き/握り）とロックだけを書き出す。
+        /// ボーンの姿勢がポーズ側で復元される用途（メイドごとの退避・シーンプリセット）で使う
+        /// </summary>
+        public FingerUnitState CaptureValues()
         {
             var state = new FingerUnitState
             {
@@ -338,12 +362,26 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var digit in _digits)
             {
-                var digitState = new FingerDigitState
+                state.digits.Add(new FingerDigitState
                 {
                     isLock = digit.isLock,
                     lockOpen = digit.lockOpen,
                     lockFist = digit.lockFist,
-                };
+                });
+            }
+
+            return state;
+        }
+
+        /// <summary>現在の状態をプリセット保存用に書き出す</summary>
+        public FingerUnitState CaptureState()
+        {
+            var state = CaptureValues();
+
+            for (var i = 0; i < _digits.Length; i++)
+            {
+                var digit = _digits[i];
+                var digitState = state.digits[i];
 
                 // 個別編集ぶんまで再現できるよう、実際のボーン回転も控える
                 for (var j = 0; j < digit.bones.Length; j++)
@@ -360,8 +398,6 @@ namespace COM3D2.SceneEditor.Plugin
                         rotation = bone.localRotation,
                     });
                 }
-
-                state.digits.Add(digitState);
             }
 
             return state;
@@ -453,12 +489,19 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// 対象メイドの指ブレンド 4 部位を束ねる。メイドが変わると値ごと作り直す
+    /// 対象メイドの指ブレンド 4 部位を束ねる。ユニットはボーンの Transform を握るため
+    /// メイドが変わると作り直すが、表示値とロックはメイドごとに退避して戻す
     /// </summary>
     public class MaidFingerBlendController
     {
         private Maid _maid = null;
         private FingerBlendUnit[] _units = null;
+
+        /// <summary>メイドごとの表示値・ロック。対象外のメイドぶんもここに残る</summary>
+        private readonly Dictionary<Maid, List<FingerUnitState>> _states
+            = new Dictionary<Maid, List<FingerUnitState>>();
+
+        private readonly List<Maid> _deadMaids = new List<Maid>();
 
         public Maid maid => _maid;
 
@@ -469,7 +512,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            Destroy();
+            // ユニットを捨てる前に、今の対象ぶんを退避しておく
+            StashState();
+            PruneDeadMaids();
+
+            _maid = null;
+            _units = null;
 
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody
                 || maid.body0.m_Bones == null)
@@ -483,6 +531,8 @@ namespace COM3D2.SceneEditor.Plugin
             _units[(int)FingerBlendType.LeftArm] = new FingerBlendUnit(maid, FingerBlendType.LeftArm);
             _units[(int)FingerBlendType.RightLeg] = new FingerBlendUnit(maid, FingerBlendType.RightLeg);
             _units[(int)FingerBlendType.LeftLeg] = new FingerBlendUnit(maid, FingerBlendType.LeftLeg);
+
+            SyncUnitsFromState();
         }
 
         public FingerBlendUnit GetUnit(FingerBlendType type)
@@ -490,10 +540,137 @@ namespace COM3D2.SceneEditor.Plugin
             return _units != null ? _units[(int)type] : null;
         }
 
+        /// <summary>
+        /// メイドの表示値・ロックを取り出す。対象メイドはユニットから、
+        /// それ以外は退避ぶんから返す。一度も編集していないメイドでは null になる
+        /// </summary>
+        public List<FingerUnitState> CaptureStates(Maid maid)
+        {
+            if (maid == null)
+            {
+                return null;
+            }
+
+            if (maid == _maid && _units != null)
+            {
+                return CaptureUnitStates();
+            }
+
+            // 退避ぶんは内部で持ち回るため、呼び出し元が抱え込んでも影響しないよう複製して返す
+            List<FingerUnitState> states;
+            return _states.TryGetValue(maid, out states)
+                ? new List<FingerUnitState>(states) : null;
+        }
+
+        /// <summary>
+        /// メイドの表示値・ロックを書き戻す。ボーンの回転はポーズ側で復元される前提のため
+        /// Apply は呼ばない（呼ぶとブレンド値から再計算されてポーズとずれる）
+        /// </summary>
+        public void RestoreStates(Maid maid, List<FingerUnitState> states)
+        {
+            if (maid == null || states == null)
+            {
+                return;
+            }
+
+            _states[maid] = states;
+
+            if (maid == _maid)
+            {
+                SyncUnitsFromState();
+            }
+        }
+
+        /// <summary>
+        /// メイド 1 人分の記録を捨てる。ストックの Maid は解除後も同一インスタンスが
+        /// 使い回されるため、指の状態を再呼出後のキャラへ持ち越さない
+        /// </summary>
+        public void Release(Maid maid)
+        {
+            if (maid == null)
+            {
+                return;
+            }
+
+            _states.Remove(maid);
+
+            if (_maid == maid)
+            {
+                _maid = null;
+                _units = null;
+            }
+        }
+
         public void Destroy()
         {
             _maid = null;
             _units = null;
+            _states.Clear();
+        }
+
+        private List<FingerUnitState> CaptureUnitStates()
+        {
+            var states = new List<FingerUnitState>();
+            foreach (var unit in _units)
+            {
+                if (unit != null)
+                {
+                    states.Add(unit.CaptureValues());
+                }
+            }
+            return states;
+        }
+
+        /// <summary>現在の対象ぶんの表示値・ロックを退避する</summary>
+        private void StashState()
+        {
+            if (_maid == null || _units == null)
+            {
+                return;
+            }
+            _states[_maid] = CaptureUnitStates();
+        }
+
+        /// <summary>
+        /// 対象メイドの記録をユニットへ反映する。記録が無ければ初期値のままにする。
+        /// 退避ぶんの復帰とプリセットの適用で共用する
+        /// </summary>
+        private void SyncUnitsFromState()
+        {
+            List<FingerUnitState> states;
+            if (_units == null || !_states.TryGetValue(_maid, out states))
+            {
+                return;
+            }
+
+            foreach (var state in states)
+            {
+                var unit = GetUnit(state.type);
+                if (unit != null)
+                {
+                    unit.RestoreState(state);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 破棄されたメイドの退避ぶんを捨てる。
+        /// Dictionary のキーは実体が消えても残るため、対象切り替えのたびに掃除する
+        /// </summary>
+        private void PruneDeadMaids()
+        {
+            _deadMaids.Clear();
+            foreach (var pair in _states)
+            {
+                if (pair.Key == null)
+                {
+                    _deadMaids.Add(pair.Key);
+                }
+            }
+            foreach (var deadMaid in _deadMaids)
+            {
+                _states.Remove(deadMaid);
+            }
         }
     }
 }
