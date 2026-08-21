@@ -139,7 +139,6 @@
   <tabGroup>8903359:8903359,8903372,8903373</tabGroup>
   <tabGroup>8903353:8903353,8903374,8903380</tabGroup>
   <tabGroup>8903366:8903366,8903368,8903381,815377</tabGroup>
-  <connectGroup>8903350,8903359</connectGroup>
   <gameViewMaximized>false</gameViewMaximized>
   <gameView windowId="8903349">
     <x>964</x>

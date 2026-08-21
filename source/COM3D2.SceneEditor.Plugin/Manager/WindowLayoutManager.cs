@@ -135,6 +135,12 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
+                // コネクト機能は無効化済み。同梱テンプレート等に残っている定義は読み捨てる
+                if (data.connectGroups != null)
+                {
+                    data.connectGroups.Clear();
+                }
+
                 Apply(data);
                 MTEUtils.Log("レイアウトを適用しました: {0}", layoutName);
             }
