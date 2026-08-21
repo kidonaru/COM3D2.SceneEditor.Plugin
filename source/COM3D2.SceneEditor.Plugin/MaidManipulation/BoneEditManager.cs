@@ -72,9 +72,12 @@ namespace COM3D2.SceneEditor.Plugin
         public override void Init()
         {
             // ボーン選択中はギズモの操作対象を選択オブジェクトから差し替える。
-            // SelectionManager は「ボーンヒットはメイドルートへ丸める」規約なので経由しない
+            // SelectionManager は「ボーンヒットはメイドルートへ丸める」規約なので経由しない。
+            // ただしポーズ定義を持つボーン (Bip01 系) は Inspector がひねり/曲げ表示に切り替わり、
+            // 編集経路もモーション停止を伴うスライダー側になるためギズモは出さない
             GizmoRenderer.externalTargetProvider = () =>
-                editMode && selectedBone != null ? selectedBone.gameObject : null;
+                editMode && selectedBone != null && !selectionManager.hasBoneSelection
+                    ? selectedBone.gameObject : null;
         }
 
         /// <summary>
@@ -173,6 +176,23 @@ namespace COM3D2.SceneEditor.Plugin
             return entry != null ? entry.origRotation : selectedBone.localRotation;
         }
 
+        /// <summary>
+        /// 選択中ボーンの基準位置 (ローカル)。編集済みなら記録時の元値、未編集なら現在値。
+        /// ボーンのローカル位置は 0 ではないためリセットはこの値へ戻す
+        /// </summary>
+        private Vector3 GetSelectedBoneBasePosition(Maid maid)
+        {
+            var entry = GetSelectedBoneEntry(maid);
+            return entry != null ? entry.origPosition : selectedBone.localPosition;
+        }
+
+        /// <summary>選択中ボーンの基準スケール (ローカル)。GetSelectedBoneBasePosition と同じ趣旨</summary>
+        private Vector3 GetSelectedBoneBaseScale(Maid maid)
+        {
+            var entry = GetSelectedBoneEntry(maid);
+            return entry != null ? entry.origScale : selectedBone.localScale;
+        }
+
         /// <summary>対象種別に応じた編集対象が揃っているか (モデルモードでは maid は使わない)</summary>
         private bool HasEditTarget(Maid maid)
         {
@@ -223,16 +243,108 @@ namespace COM3D2.SceneEditor.Plugin
             return _offsetCache.GetOffsetFromLocalBase(selectedBone, baseRot, useLocal);
         }
 
-        /// <summary>選択中ボーンの指定軸オフセット角を書き込み、差分ストアへ記録する</summary>
-        public void SetSelectedBoneOffsetAxis(Maid maid, int axisIndex, float value, bool useLocal = true)
+        /// <summary>選択中ボーンのオフセット角を書き込み、差分ストアへ記録する</summary>
+        public void SetSelectedBoneOffset(Maid maid, Vector3 offset, bool useLocal = true)
         {
             if (!HasEditTarget(maid))
             {
                 return;
             }
 
+            EnsureOrigRecorded(maid);
+
             var baseRot = GetSelectedBoneBaseRotation(maid);
-            _offsetCache.SetOffsetAxisFromLocalBase(selectedBone, baseRot, axisIndex, value, useLocal);
+            _offsetCache.SetOffsetFromLocalBase(selectedBone, baseRot, offset, useLocal);
+            NotifyEdited(maid, selectedBone);
+        }
+
+        /// <summary>
+        /// 書き込み前の Transform を差分ストアの元値として先に確保する。
+        /// RecordEdit は初回記録時の現在値を元値として控えるため、書き込み後にだけ呼ぶと
+        /// 「編集後の値」が元値になってしまい、リセットが効かなくなる
+        /// </summary>
+        private void EnsureOrigRecorded(Maid maid)
+        {
+            if (GetSelectedBoneEntry(maid) == null)
+            {
+                NotifyEdited(maid, selectedBone);
+            }
+        }
+
+        /// <summary>
+        /// 選択中ボーンの位置。useLocal=false はギズモの Global に合わせてワールド位置を返す
+        /// </summary>
+        public Vector3 GetSelectedBonePosition(Maid maid, bool useLocal = true)
+        {
+            if (!HasEditTarget(maid))
+            {
+                return Vector3.zero;
+            }
+            return useLocal ? selectedBone.localPosition : selectedBone.position;
+        }
+
+        /// <summary>選択中ボーンの位置を書き込み、差分ストアへ記録する</summary>
+        public void SetSelectedBonePosition(Maid maid, Vector3 value, bool useLocal = true)
+        {
+            if (!HasEditTarget(maid))
+            {
+                return;
+            }
+
+            EnsureOrigRecorded(maid);
+
+            if (useLocal)
+            {
+                selectedBone.localPosition = value;
+            }
+            else
+            {
+                selectedBone.position = value;
+            }
+            NotifyEdited(maid, selectedBone);
+        }
+
+        /// <summary>選択中ボーンの位置を基準値へ戻す</summary>
+        public void ResetSelectedBonePosition(Maid maid)
+        {
+            if (!HasEditTarget(maid))
+            {
+                return;
+            }
+
+            selectedBone.localPosition = GetSelectedBoneBasePosition(maid);
+            NotifyEdited(maid, selectedBone);
+        }
+
+        /// <summary>選択中ボーンのスケール (ワールドスケールは書き戻せないため常にローカル)</summary>
+        public Vector3 GetSelectedBoneScale(Maid maid)
+        {
+            return HasEditTarget(maid) ? selectedBone.localScale : Vector3.one;
+        }
+
+        /// <summary>選択中ボーンのスケールを書き込み、差分ストアへ記録する</summary>
+        public void SetSelectedBoneScale(Maid maid, Vector3 value)
+        {
+            if (!HasEditTarget(maid))
+            {
+                return;
+            }
+
+            EnsureOrigRecorded(maid);
+
+            selectedBone.localScale = value;
+            NotifyEdited(maid, selectedBone);
+        }
+
+        /// <summary>選択中ボーンのスケールを基準値へ戻す</summary>
+        public void ResetSelectedBoneScale(Maid maid)
+        {
+            if (!HasEditTarget(maid))
+            {
+                return;
+            }
+
+            selectedBone.localScale = GetSelectedBoneBaseScale(maid);
             NotifyEdited(maid, selectedBone);
         }
 

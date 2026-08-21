@@ -198,9 +198,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 基準回転からのオフセット角（±180 正規化済み）を返す。
-        /// useLocal=false はギズモの Global に合わせてワールド軸で分解する
+        /// ひねり/曲げはボーン固有のローカル軸で定義されるため、分解は常にローカル
         /// </summary>
-        public static Vector3 GetOffset(Maid maid, BoneSliderDef def, bool useLocal = true)
+        public static Vector3 GetOffset(Maid maid, BoneSliderDef def)
         {
             var bone = GetBone(maid, def.boneName);
             if (bone == null)
@@ -209,12 +209,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var baseRot = GetBaseRotation(maid, def, bone);
-            return _offsetCache.GetOffsetFromLocalBase(bone, baseRot, useLocal);
+            return _offsetCache.GetOffsetFromLocalBase(bone, baseRot, true);
         }
 
         /// <summary>指定軸のオフセット角を書き込む。他軸は現在値を維持する</summary>
-        public static void SetOffsetAxis(
-            Maid maid, BoneSliderDef def, int axisIndex, float value, bool useLocal = true)
+        public static void SetOffsetAxis(Maid maid, BoneSliderDef def, int axisIndex, float value)
         {
             var bone = GetBone(maid, def.boneName);
             if (bone == null)
@@ -223,7 +222,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var baseRot = GetBaseRotation(maid, def, bone);
-            _offsetCache.SetOffsetAxisFromLocalBase(bone, baseRot, axisIndex, value, useLocal);
+            _offsetCache.SetOffsetAxisFromLocalBase(bone, baseRot, axisIndex, value, true);
         }
     }
 }

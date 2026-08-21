@@ -119,7 +119,15 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var offset = GetOffsetFromLocalBase(target, baseLocalRot, useLocal);
             offset[axisIndex] = value;
+            SetOffsetFromLocalBase(target, baseLocalRot, offset, useLocal);
+        }
 
+        /// <summary>
+        /// オフセット角を 3 軸まとめて書き込み、書き込んだ表現をキャッシュへ記録する
+        /// </summary>
+        public void SetOffsetFromLocalBase(
+            Transform target, Quaternion baseLocalRot, Vector3 offset, bool useLocal)
+        {
             if (useLocal)
             {
                 target.localRotation = baseLocalRot * Quaternion.Euler(offset);

@@ -5,7 +5,8 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// 選択対象を表示・編集するウィンドウ。選択種別で内容を出し分け、
-    /// ボーン選択中は回転オフセットのスライダー、メイド選択中は切替とカメラ追従の行を出す。
+    /// ポーズボーン選択中は回転オフセットのスライダー、ボーン編集中は位置/回転/拡縮の行、
+    /// メイド選択中は切替とカメラ追従の行を出す。
     /// 通常オブジェクトは Transform を表示・編集する。
     /// X/Y/Z ラベルの左右ドラッグで値を増減でき (Shift で 0.1 倍)、数値入力も併用できる。
     /// ギズモ操作による変化は毎フレーム反映される
@@ -29,12 +30,12 @@ namespace COM3D2.SceneEditor.Plugin
         // 拡縮連動で比率の分母に使えない「実質 0」とみなす閾値 (丸め誤差の許容)
         private const float ScaleZeroEpsilon = 1e-6f;
 
+        // ボーンのフォーカス範囲の一辺 (Renderer を持たないため PluginUtils の既定と同じ大きさにする)
+        private const float BoneFocusBoundsSize = 0.5f;
+
         private static SelectionManager selectionManager => SelectionManager.instance;
         private static MaidManipulateManager maidManager => MaidManipulateManager.instance;
         private static BoneEditManager boneEditManager => BoneEditManager.instance;
-
-        /// <summary>スロットボーンの汎用回転スライダー軸ラベル (ローカル X/Y/Z)</summary>
-        private static readonly string[] SlotBoneAxisLabels = { "X回転", "Y回転", "Z回転" };
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "Inspector";
@@ -202,7 +203,7 @@ namespace COM3D2.SceneEditor.Plugin
                     });
 
                 // ワールドスケールは Transform に書き戻せないため拡縮は常にローカル
-                DrawScaleRow(go, t);
+                DrawObjectScaleRow(go, t);
 
                 // PNG 配置は Transform に続けて固有パラメータも編集させる
                 PngPlacementInspector.Draw(_view, go);
@@ -309,7 +310,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーン選択時の専用表示。ボーンドロップダウン + 軸オフセットスライダー。
-        /// Transform 行は出さない（ボーン操作は停止ポーズ基準のオフセット角で行う）
+        /// Transform 行は出さない（ボーン操作は停止ポーズ基準のオフセット角で行う）。
+        /// ギズモ行も出さない（ポーズボーンは Transform ギズモの対象外で、
+        /// 分解軸もボーン固有の軸に固定されるため Local/Global の切替が効かない）
         /// </summary>
         private void DrawBoneContent()
         {
@@ -333,6 +336,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var selectedDef = selectionManager.selectedBoneDef;
+            var selectedBone = MaidBoneSliderController.GetBone(maid, selectedDef.boneName);
 
             _view.BeginHorizontal();
             {
@@ -342,26 +346,28 @@ namespace COM3D2.SceneEditor.Plugin
                 _boneComboBox.currentIndex = MaidBoneSliderController.allDefs.IndexOf(selectedDef);
                 _boneComboBox.onSelected = (def, _) => selectionManager.SelectBone(maid, def);
                 _boneComboBox.DrawButton(_view);
+
+                if (selectedBone != null)
+                {
+                    // フォーカスボタンは右端そろえ (MaidFingerWindow と同じ流儀)
+                    _view.currentPos.x = _view.viewRect.width - _view.padding.x * 2
+                        - HeaderFocusButtonWidth;
+                    DrawBoneFocusButton(selectedBone);
+                }
             }
             _view.EndLayout();
 
-            DrawGizmoToolRow();
-
-            if (MaidBoneSliderController.GetBone(maid, selectedDef.boneName) == null)
+            if (selectedBone == null)
             {
                 // ボディ構成差異でボーンが無い場合は操作させない
                 _view.DrawLabel("このボーンは存在しません", -1, RowHeight, textColor: Color.yellow);
                 return;
             }
 
-            // ギズモの Local/Global に合わせて分解軸を切り替える。
-            // Global はボーン固有の軸ラベル・可動範囲が意味を持たないため汎用表記にする
-            var useLocal = GizmoRenderer.useLocalSpace;
-
             // 再生中は基準ポーズが定まらないため値を読まず、操作された瞬間に停止して書き込む
             var offset = MaidMotionState.IsPlaying(maid)
                 ? Vector3.zero
-                : MaidBoneSliderController.GetOffset(maid, selectedDef, useLocal);
+                : MaidBoneSliderController.GetOffset(maid, selectedDef);
 
             for (var i = 0; i < selectedDef.axes.Length; i++)
             {
@@ -370,11 +376,11 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _view.DrawSliderValue(new GUIView.SliderOption
                 {
-                    label = useLocal ? axis.label : SlotBoneAxisLabels[i],
+                    label = axis.label,
                     labelWidth = LabelWidth,
                     width = -1,
-                    min = useLocal ? axis.min : -180f,
-                    max = useLocal ? axis.max : 180f,
+                    min = axis.min,
+                    max = axis.max,
                     step = 0.1f,
                     defaultValue = 0f,
                     value = offset[axisIndex],
@@ -385,7 +391,7 @@ namespace COM3D2.SceneEditor.Plugin
                             "ボーン回転: " + selectedDef.displayName,
                             new[] { MaidBoneSliderController.GetBone(maid, selectedDef.boneName) });
                         MaidBoneSliderController.SetOffsetAxis(
-                            maid, selectedDef, axisIndex, value, useLocal);
+                            maid, selectedDef, axisIndex, value);
                     },
                 });
             }
@@ -409,7 +415,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _view.DrawLabel(bone.name, -1, RowHeight);
+            DrawSlotBoneHeader(bone);
 
             DrawGizmoToolRow();
             if (!isModel)
@@ -418,32 +424,90 @@ namespace COM3D2.SceneEditor.Plugin
                 DrawSlotBoneYureToggle(maid, bone);
             }
 
-            // ギズモの Local/Global に合わせて分解軸を切り替える (ラベルは両モード共通)
+            // ギズモの Local/Global に合わせて表示・編集する座標系を切り替える
             var useLocal = GizmoRenderer.useLocalSpace;
-            var offset = boneEditManager.GetSelectedBoneOffset(maid, useLocal);
 
-            for (var i = 0; i < SlotBoneAxisLabels.Length; i++)
-            {
-                var axisIndex = i;
-
-                _view.DrawSliderValue(new GUIView.SliderOption
+            // 位置は 0 が原点ではないため、リセットは編集前の値へ戻す (拡縮も同様)
+            DrawVector3Row("位置", PositionSensitivity,
+                boneEditManager.GetSelectedBonePosition(maid, useLocal),
+                value =>
                 {
-                    label = SlotBoneAxisLabels[i],
-                    labelWidth = LabelWidth,
-                    width = -1,
-                    min = -180f,
-                    max = 180f,
-                    step = 0.1f,
-                    defaultValue = 0f,
-                    value = offset[axisIndex],
-                    onChanged = value =>
-                    {
-                        boneEditManager.BeginEditHistory(maid, "ボーン編集: " + bone.name,
-                            new[] { bone });
-                        boneEditManager.SetSelectedBoneOffsetAxis(maid, axisIndex, value, useLocal);
-                    },
+                    BeginSlotBoneEdit(maid, bone);
+                    boneEditManager.SetSelectedBonePosition(maid, value, useLocal);
+                },
+                () =>
+                {
+                    BeginSlotBoneEdit(maid, bone);
+                    boneEditManager.ResetSelectedBonePosition(maid);
                 });
+
+            // 回転は元の姿勢を 0 とするオフセット角なので、リセットは 0 で正しい
+            DrawVector3Row("回転", RotationSensitivity,
+                boneEditManager.GetSelectedBoneOffset(maid, useLocal),
+                value =>
+                {
+                    BeginSlotBoneEdit(maid, bone);
+                    boneEditManager.SetSelectedBoneOffset(maid, value, useLocal);
+                },
+                () =>
+                {
+                    BeginSlotBoneEdit(maid, bone);
+                    boneEditManager.SetSelectedBoneOffset(maid, Vector3.zero, useLocal);
+                });
+
+            DrawSlotBoneScaleRow(maid, bone);
+        }
+
+        /// <summary>ボーン名 + 右端のフォーカスボタンの 1 行 (DrawHeader のボーン版)</summary>
+        private void DrawSlotBoneHeader(Transform bone)
+        {
+            var labelWidth = _view.viewRect.width - _view.padding.x * 2
+                - (HeaderFocusButtonWidth + _view.margin)
+                - _view.margin;
+
+            _view.BeginHorizontal();
+            {
+                _view.DrawLabel(bone.name, labelWidth, RowHeight);
+                DrawBoneFocusButton(bone);
             }
+            _view.EndLayout();
+        }
+
+        /// <summary>
+        /// 選択ボーンへ SceneView のカメラを寄せるボタン。
+        /// ボーンは Renderer を持たないため、位置を中心にした固定サイズの範囲を渡す
+        /// </summary>
+        private void DrawBoneFocusButton(Transform bone)
+        {
+            var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
+            if (_view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
+            {
+                SceneViewWindow.instance.FocusOnBounds(
+                    new Bounds(bone.position, Vector3.one * BoneFocusBoundsSize));
+            }
+        }
+
+        /// <summary>ボーン編集の変更前状態を履歴へ控える (説明文を回転・位置・拡縮で揃える)</summary>
+        private static void BeginSlotBoneEdit(Maid maid, Transform bone)
+        {
+            boneEditManager.BeginEditHistory(maid, "ボーン編集: " + bone.name, new[] { bone });
+        }
+
+        /// <summary>ボーンの拡縮行。リセットは編集前の元値へ戻す</summary>
+        private void DrawSlotBoneScaleRow(Maid maid, Transform bone)
+        {
+            DrawScaleRow(boneEditManager.GetSelectedBoneScale(maid),
+                (value, index) =>
+                {
+                    BeginSlotBoneEdit(maid, bone);
+                    boneEditManager.SetSelectedBoneScale(maid,
+                        LinkScale(boneEditManager.GetSelectedBoneScale(maid), value, index));
+                },
+                () =>
+                {
+                    BeginSlotBoneEdit(maid, bone);
+                    boneEditManager.ResetSelectedBoneScale(maid);
+                });
         }
 
         /// <summary>「揺れもの」は LabelWidth (40) に収まらないため専用幅</summary>
@@ -616,11 +680,30 @@ namespace COM3D2.SceneEditor.Plugin
             _eulerCache.Store(t, Quaternion.identity, eulerAngles, useLocal);
         }
 
+        /// <summary>Object の拡縮行。リセットは等倍へ戻す</summary>
+        private void DrawObjectScaleRow(GameObject go, Transform t)
+        {
+            DrawScaleRow(t.localScale,
+                (value, index) =>
+                {
+                    RecordObjectEdit(go);
+                    t.localScale = LinkScale(t.localScale, value, index);
+                },
+                () =>
+                {
+                    RecordObjectEdit(go);
+                    t.localScale = Vector3.one;
+                });
+        }
+
         /// <summary>
-        /// 拡縮行。連動トグル ON のときは編集した軸の変化比率を他軸へも掛けて
-        /// XYZ を同時に拡縮する (編集前の値が 0 の軸は比率が定まらないため全軸を同値にする)
+        /// 拡縮行の共通描画。連動トグルの状態は Object・ボーンで共有する
+        /// (連動の計算自体は LinkScale が担う)
         /// </summary>
-        private void DrawScaleRow(GameObject go, Transform t)
+        private void DrawScaleRow(
+            Vector3 value,
+            System.Action<Vector3, int> onChangedAxis,
+            System.Action onReset)
         {
             _view.DrawVector3Row(new GUIView.Vector3RowOption
             {
@@ -628,46 +711,50 @@ namespace COM3D2.SceneEditor.Plugin
                 labelWidth = LabelWidth,
                 height = RowHeight,
                 dragSensitivity = ScaleSensitivity,
-                value = t.localScale,
-                onChangedAxis = (value, index) =>
-                {
-                    RecordObjectEdit(go);
-                    if (config.inspectorScaleLinked)
-                    {
-                        var oldValue = t.localScale[index];
-                        var newValue = value[index];
-                        if (Mathf.Abs(oldValue) > ScaleZeroEpsilon)
-                        {
-                            var linked = t.localScale * (newValue / oldValue);
-                            linked[index] = newValue;
-                            // 極小値からの編集で比率が発散した場合は連動を諦めて単軸だけ反映する
-                            if (!float.IsInfinity(linked.x) && !float.IsNaN(linked.x) &&
-                                !float.IsInfinity(linked.y) && !float.IsNaN(linked.y) &&
-                                !float.IsInfinity(linked.z) && !float.IsNaN(linked.z))
-                            {
-                                value = linked;
-                            }
-                        }
-                        else
-                        {
-                            value = Vector3.one * newValue;
-                        }
-                    }
-                    t.localScale = value;
-                },
-                onReset = () =>
-                {
-                    RecordObjectEdit(go);
-                    t.localScale = Vector3.one;
-                },
+                value = value,
+                onChangedAxis = onChangedAxis,
+                onReset = onReset,
                 linkIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Link),
                 linked = config.inspectorScaleLinked,
-                onLinkChanged = on =>
-                {
-                    config.inspectorScaleLinked = on;
-                    config.dirty = true;
-                },
+                onLinkChanged = OnScaleLinkChanged,
             });
+        }
+
+        /// <summary>
+        /// 拡縮の連動計算。連動 OFF ならそのまま返す。
+        /// ON のときは編集した軸の変化比率を他軸へも掛けて XYZ を同時に拡縮する
+        /// (編集前の値が 0 の軸は比率が定まらないため全軸を同値にする)
+        /// </summary>
+        private static Vector3 LinkScale(Vector3 current, Vector3 value, int index)
+        {
+            if (!config.inspectorScaleLinked)
+            {
+                return value;
+            }
+
+            var oldValue = current[index];
+            var newValue = value[index];
+            if (Mathf.Abs(oldValue) <= ScaleZeroEpsilon)
+            {
+                return Vector3.one * newValue;
+            }
+
+            var linked = current * (newValue / oldValue);
+            linked[index] = newValue;
+            // 極小値からの編集で比率が発散した場合は連動を諦めて単軸だけ反映する
+            if (float.IsInfinity(linked.x) || float.IsNaN(linked.x) ||
+                float.IsInfinity(linked.y) || float.IsNaN(linked.y) ||
+                float.IsInfinity(linked.z) || float.IsNaN(linked.z))
+            {
+                return value;
+            }
+            return linked;
+        }
+
+        private static void OnScaleLinkChanged(bool on)
+        {
+            config.inspectorScaleLinked = on;
+            config.dirty = true;
         }
 
         /// <summary>ラベル + XYZ (ドラッグラベル + 数値入力) + リセットボタンの 1 行</summary>
