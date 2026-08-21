@@ -935,6 +935,19 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
 
+            // 適用記録があればそれを使う。スクリプト経由エントリ (エディットカテゴリ等) は
+            // クリップ名から引き当てられないため、記録が無いと保存できない
+            var applied = MaidMotionState.GetAppliedMotion(maid);
+            if (applied != null && applied.myPosePath == null && applied.motionId != 0)
+            {
+                return new ScenePresetMotion
+                {
+                    id = applied.motionId,
+                    file = applied.motionFile,
+                    name = applied.displayName,
+                };
+            }
+
             var data = PhotoMotionUtils.FindByClipName(MaidMotionState.GetCurrentClipName(maid));
             if (data == null)
             {
