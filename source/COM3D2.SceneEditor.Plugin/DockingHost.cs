@@ -144,6 +144,27 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// ゲストからのタブアクティブ化要求。押下由来ではないため、
+        /// NotifyTabMouseDown と違いつまみドラッグ候補は記録しない
+        /// (記録すると次フレームの UpdateTabDrag がタブを分離してしまう)
+        /// </summary>
+        public static void ActivateTab(object handle)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            if (adapter == null)
+            {
+                return;
+            }
+
+            var group = adapter.group;
+            if (group == null)
+            {
+                return;
+            }
+            group.SetActive(adapter);
+        }
+
+        /// <summary>
         /// ヘッダー/空き領域の左押下通知。ドラッグスナップ追跡の起点になる。
         /// これを呼ぶゲストだけがドラッグスナップ対象になる契約
         /// (呼ばない旧ゲストは GUI.DragWindow を抑止できず吸着位置と喧嘩するため巻き込まない)

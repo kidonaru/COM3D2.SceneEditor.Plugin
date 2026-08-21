@@ -111,6 +111,9 @@ void EnableTabBar(object handle, Action<string[], int> onTabBarChanged);
 void NotifyTabMouseDown(object handle, int tabIndex, float x, float y);
                                           // ゲストが描いたタブの押下通知
                                           // (x/y はウィンドウローカルの押下位置)
+void ActivateTab(object handle);          // 自窓のタブをアクティブへ切り替える
+                                          // (押下由来でないためドラッグ候補は記録しない。
+                                          //  グループ非加入なら何もしない)
 
 // --- リサイズ吸着（後発。旧ホストには存在しない） ---
 Rect SnapResize(object handle, Rect rect, int edges);
@@ -148,6 +151,10 @@ Rect SnapResize(object handle, Rect rect, int edges);
    （消費しないとウィンドウ全体のドラッグが始まる）。アクティブ切替・つまみドラッグ分離は
    ホスト側で処理される
 4. 見た目を内部窓と揃えたい場合は MTEUtils の `TabBarDrawer.Draw(...)` をそのまま使える
+5. プログラムからタブを前面へ出したい場合は `ActivateTab(handle)` を使う。
+   `NotifyTabMouseDown` はつまみドラッグ候補の記録を伴うため、実クリック以外から
+   呼んではいけない（次フレームでタブが分離してカーソルへ吸い付く）。
+   `ActivateTab` も後発 API なので、単独で存在検出して欠けるホストでは無効化すること
 
 ### スナップ/コネクトの実装義務
 
