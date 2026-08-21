@@ -147,6 +147,7 @@
     <Compile Include="MTEUtils\TransformGizmo.cs" />
     <Compile Include="MTEUtils\WindowManagerBase.cs" />
     <Compile Include="MTEUtils\WindowResizeController.cs" />
+    <Compile Include="MaidManipulation\EulerOffsetCache.cs" />
     <Compile Include="MaidManipulation\GizmoRenderHack.cs" />
     <Compile Include="MaidManipulation\IMaidDragPoint.cs" />
     <Compile Include="MaidManipulation\MaidBoneGizmoController.cs" />

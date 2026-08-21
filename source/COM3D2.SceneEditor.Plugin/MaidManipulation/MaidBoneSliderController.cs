@@ -37,6 +37,9 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Dictionary<Maid, Dictionary<string, Transform>> _boneCache
             = new Dictionary<Maid, Dictionary<string, Transform>>();
 
+        // 自分で書き込んだオイラー表現のキャッシュ (X±90° 超での再分解暴れ対策)
+        private static readonly EulerOffsetCache _offsetCache = new EulerOffsetCache();
+
         private static BoneSliderAxisDef Axis(string label, float min, float max)
         {
             return new BoneSliderAxisDef { label = label, min = min, max = max };
@@ -169,6 +172,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _basePoses.Clear();
             _boneCache.Clear();
+            _offsetCache.Clear();
         }
 
         private static Quaternion GetBaseRotation(Maid maid, BoneSliderDef def, Transform bone)
@@ -192,15 +196,11 @@ namespace COM3D2.SceneEditor.Plugin
             return baseRot;
         }
 
-        /// <summary>角度を -180〜180 に正規化する</summary>
-        private static float NormalizeAngle(float angle)
-        {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
-        }
-
-        /// <summary>基準回転からのオフセット角（±180 正規化済み）を返す</summary>
-        public static Vector3 GetOffset(Maid maid, BoneSliderDef def)
+        /// <summary>
+        /// 基準回転からのオフセット角（±180 正規化済み）を返す。
+        /// useLocal=false はギズモの Global に合わせてワールド軸で分解する
+        /// </summary>
+        public static Vector3 GetOffset(Maid maid, BoneSliderDef def, bool useLocal = true)
         {
             var bone = GetBone(maid, def.boneName);
             if (bone == null)
@@ -209,15 +209,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var baseRot = GetBaseRotation(maid, def, bone);
-            var euler = (Quaternion.Inverse(baseRot) * bone.localRotation).eulerAngles;
-            return new Vector3(
-                NormalizeAngle(euler.x),
-                NormalizeAngle(euler.y),
-                NormalizeAngle(euler.z));
+            return _offsetCache.GetOffsetFromLocalBase(bone, baseRot, useLocal);
         }
 
         /// <summary>指定軸のオフセット角を書き込む。他軸は現在値を維持する</summary>
-        public static void SetOffsetAxis(Maid maid, BoneSliderDef def, int axisIndex, float value)
+        public static void SetOffsetAxis(
+            Maid maid, BoneSliderDef def, int axisIndex, float value, bool useLocal = true)
         {
             var bone = GetBone(maid, def.boneName);
             if (bone == null)
@@ -225,11 +222,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var offset = GetOffset(maid, def);
-            offset[axisIndex] = value;
-
             var baseRot = GetBaseRotation(maid, def, bone);
-            bone.localRotation = baseRot * Quaternion.Euler(offset);
+            _offsetCache.SetOffsetAxisFromLocalBase(bone, baseRot, axisIndex, value, useLocal);
         }
     }
 }

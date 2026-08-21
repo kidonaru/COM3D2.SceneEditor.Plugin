@@ -60,10 +60,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         // 回転はオイラー角をキャッシュして編集する。Transform から毎フレーム読み直すと
         // quaternion との変換で 180 度付近の表現が入れ替わり、ドラッグ中に値が飛ぶため
-        private Vector3 _eulerAngles = Vector3.zero;
-        private Quaternion _cachedRotation = Quaternion.identity;
-        private GameObject _cachedTarget = null;
-        private bool _cachedUseLocal = true;
+        private readonly EulerOffsetCache _eulerCache = new EulerOffsetCache();
 
         private static InspectorWindow _instance = null;
         public static InspectorWindow instance
@@ -177,7 +174,6 @@ namespace COM3D2.SceneEditor.Plugin
                 var t = go.transform;
                 // ギズモの Local/Global 切替に合わせて表示・編集する座標系も切り替える
                 var useLocal = GizmoRenderer.useLocalSpace;
-                SyncEulerCache(go, useLocal);
 
                 DrawVector3Row("位置", PositionSensitivity,
                     useLocal ? t.localPosition : t.position,
@@ -192,7 +188,8 @@ namespace COM3D2.SceneEditor.Plugin
                         SetPosition(t, Vector3.zero, useLocal);
                     });
 
-                DrawVector3Row("回転", RotationSensitivity, _eulerAngles,
+                DrawVector3Row("回転", RotationSensitivity,
+                    _eulerCache.GetOffset(t, Quaternion.identity, useLocal),
                     value =>
                     {
                         RecordObjectEdit(go);
@@ -357,10 +354,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // ギズモの Local/Global に合わせて分解軸を切り替える。
+            // Global はボーン固有の軸ラベル・可動範囲が意味を持たないため汎用表記にする
+            var useLocal = GizmoRenderer.useLocalSpace;
+
             // 再生中は基準ポーズが定まらないため値を読まず、操作された瞬間に停止して書き込む
             var offset = MaidMotionState.IsPlaying(maid)
                 ? Vector3.zero
-                : MaidBoneSliderController.GetOffset(maid, selectedDef);
+                : MaidBoneSliderController.GetOffset(maid, selectedDef, useLocal);
 
             for (var i = 0; i < selectedDef.axes.Length; i++)
             {
@@ -369,11 +370,11 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _view.DrawSliderValue(new GUIView.SliderOption
                 {
-                    label = axis.label,
+                    label = useLocal ? axis.label : SlotBoneAxisLabels[i],
                     labelWidth = LabelWidth,
                     width = -1,
-                    min = axis.min,
-                    max = axis.max,
+                    min = useLocal ? axis.min : -180f,
+                    max = useLocal ? axis.max : 180f,
                     step = 0.1f,
                     defaultValue = 0f,
                     value = offset[axisIndex],
@@ -383,7 +384,8 @@ namespace COM3D2.SceneEditor.Plugin
                         HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                             "ボーン回転: " + selectedDef.displayName,
                             new[] { MaidBoneSliderController.GetBone(maid, selectedDef.boneName) });
-                        MaidBoneSliderController.SetOffsetAxis(maid, selectedDef, axisIndex, value);
+                        MaidBoneSliderController.SetOffsetAxis(
+                            maid, selectedDef, axisIndex, value, useLocal);
                     },
                 });
             }
@@ -416,7 +418,9 @@ namespace COM3D2.SceneEditor.Plugin
                 DrawSlotBoneYureToggle(maid, bone);
             }
 
-            var offset = boneEditManager.GetSelectedBoneOffset(maid);
+            // ギズモの Local/Global に合わせて分解軸を切り替える (ラベルは両モード共通)
+            var useLocal = GizmoRenderer.useLocalSpace;
+            var offset = boneEditManager.GetSelectedBoneOffset(maid, useLocal);
 
             for (var i = 0; i < SlotBoneAxisLabels.Length; i++)
             {
@@ -436,7 +440,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         boneEditManager.BeginEditHistory(maid, "ボーン編集: " + bone.name,
                             new[] { bone });
-                        boneEditManager.SetSelectedBoneOffsetAxis(maid, axisIndex, value);
+                        boneEditManager.SetSelectedBoneOffsetAxis(maid, axisIndex, value, useLocal);
                     },
                 });
             }
@@ -579,24 +583,6 @@ namespace COM3D2.SceneEditor.Plugin
             return new Rect(viewRect.x, top, viewRect.width, Mathf.Max(0f, viewRect.yMax - top));
         }
 
-        /// <summary>
-        /// ギズモ操作・選択変更・座標系の切替で Transform 側が変わったらキャッシュを取り直す。
-        /// 自分で書き込んだ回転は _cachedRotation と一致するのでリセットされない
-        /// </summary>
-        private void SyncEulerCache(GameObject go, bool useLocal)
-        {
-            var rotation = useLocal ? go.transform.localRotation : go.transform.rotation;
-            if (_cachedTarget != go || _cachedUseLocal != useLocal || rotation != _cachedRotation)
-            {
-                _cachedTarget = go;
-                _cachedUseLocal = useLocal;
-                _cachedRotation = rotation;
-                _eulerAngles = useLocal
-                    ? go.transform.localEulerAngles
-                    : go.transform.eulerAngles;
-            }
-        }
-
         /// <summary>Object 行の編集を操作履歴へ記録する (ドラッグ中の連続変更は 1 件に集約される)</summary>
         private static void RecordObjectEdit(GameObject go)
         {
@@ -619,17 +605,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void ApplyEulerAngles(Transform t, Vector3 eulerAngles, bool useLocal)
         {
-            _eulerAngles = eulerAngles;
             if (useLocal)
             {
                 t.localEulerAngles = eulerAngles;
-                _cachedRotation = t.localRotation;
             }
             else
             {
                 t.eulerAngles = eulerAngles;
-                _cachedRotation = t.rotation;
             }
+            _eulerCache.Store(t, Quaternion.identity, eulerAngles, useLocal);
         }
 
         /// <summary>

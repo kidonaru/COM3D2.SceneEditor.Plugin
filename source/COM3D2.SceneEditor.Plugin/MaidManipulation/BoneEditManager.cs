@@ -62,6 +62,9 @@ namespace COM3D2.SceneEditor.Plugin
         private List<SlotBoneNode> _boneTree = new List<SlotBoneNode>();
         private GameObject _boneTreeSource;
 
+        // 自分で書き込んだオイラー表現のキャッシュ (X±90° 超での再分解暴れ対策)
+        private readonly EulerOffsetCache _offsetCache = new EulerOffsetCache();
+
         /// <summary>揺れ物理探索結果のキャッシュ (ボーン単位)。ドラッグ中の毎フレーム探索を避ける</summary>
         private Transform _yureCheckedBone;
         private SlotYureTargets _yureTargets;
@@ -205,8 +208,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>選択中ボーンの基準回転からのオフセット角（±180 正規化済み）</summary>
-        public Vector3 GetSelectedBoneOffset(Maid maid)
+        /// <summary>
+        /// 選択中ボーンの基準回転からのオフセット角（±180 正規化済み）。
+        /// useLocal=false はギズモの Global に合わせてワールド軸で分解する
+        /// </summary>
+        public Vector3 GetSelectedBoneOffset(Maid maid, bool useLocal = true)
         {
             if (!HasEditTarget(maid))
             {
@@ -214,33 +220,20 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var baseRot = GetSelectedBoneBaseRotation(maid);
-            var euler = (Quaternion.Inverse(baseRot) * selectedBone.localRotation).eulerAngles;
-            return new Vector3(
-                NormalizeAngle(euler.x),
-                NormalizeAngle(euler.y),
-                NormalizeAngle(euler.z));
+            return _offsetCache.GetOffsetFromLocalBase(selectedBone, baseRot, useLocal);
         }
 
         /// <summary>選択中ボーンの指定軸オフセット角を書き込み、差分ストアへ記録する</summary>
-        public void SetSelectedBoneOffsetAxis(Maid maid, int axisIndex, float value)
+        public void SetSelectedBoneOffsetAxis(Maid maid, int axisIndex, float value, bool useLocal = true)
         {
             if (!HasEditTarget(maid))
             {
                 return;
             }
 
-            var offset = GetSelectedBoneOffset(maid);
             var baseRot = GetSelectedBoneBaseRotation(maid);
-            offset[axisIndex] = value;
-            selectedBone.localRotation = baseRot * Quaternion.Euler(offset);
+            _offsetCache.SetOffsetAxisFromLocalBase(selectedBone, baseRot, axisIndex, value, useLocal);
             NotifyEdited(maid, selectedBone);
-        }
-
-        /// <summary>角度を -180〜180 に正規化する</summary>
-        private static float NormalizeAngle(float angle)
-        {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
         }
 
         /// <summary>メイドの差分ストア。無ければ作る</summary>
