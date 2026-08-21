@@ -210,7 +210,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 AddRightAlignSpace(view, 60);
 
-                // 崩したポーズを停止前モーションで元に戻すリセット
+                // 崩したポーズを復帰先 (停止前のモーション / 読み込んだポーズ) で元に戻すリセット
                 if (view.DrawButton("リセット", 60, ROW_HEIGHT,
                     enabled: MaidMotionState.IsMotionStopped(maid)))
                 {

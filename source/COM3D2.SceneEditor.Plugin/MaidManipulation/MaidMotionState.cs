@@ -119,7 +119,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 再生中のモーションを停止し、リセット用・再開用のクリップ名を控える。
+        /// 再生中のモーションを現在フレームで停止し、リセット用・再開用のクリップ名を控える。
         /// ボーンドラッグ開始、ポーズ読込、停止ボタンなど複数箇所から呼ばれる
         /// </summary>
         public static void StopMotion(Maid maid)
@@ -131,11 +131,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             string playingClipName = null;
+            AnimationState playingState = null;
             foreach (AnimationState state in anim)
             {
                 if (anim.IsPlaying(state.name))
                 {
                     playingClipName = state.name;
+                    playingState = state;
                     break;
                 }
             }
@@ -153,10 +155,34 @@ namespace COM3D2.SceneEditor.Plugin
                     CaptureResetApplied(maid);
                 }
             }
+            // 止めた瞬間のポーズを保つ。anim.Stop() は再生位置を 0 へ巻き戻すため、
+            // 止める直前の位置を控えて反映し直す
+            var stoppedTime = playingState != null ? GetWrappedTime(playingState) : 0f;
             anim.Stop();
+            SampleWhileStopped(anim, playingState, stoppedTime);
 
             // 停止直後のポーズをボーンスライダーの基準として記録する
             MaidBoneSliderController.CaptureBasePose(maid);
+        }
+
+        /// <summary>
+        /// 停止したままクリップの指定フレームをポーズへ反映する。
+        /// Sample には有効化が要るため、一時的に有効化して戻す
+        /// (スタジオモードの MotionWindow と同じ流儀)。
+        /// 呼び出し元が停止済みであることを保証すること
+        /// </summary>
+        private static void SampleWhileStopped(Animation anim, AnimationState state, float time)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            state.enabled = true;
+            state.weight = 1f;
+            state.time = time;
+            anim.Sample();
+            state.enabled = false;
         }
 
         public static bool IsMotionStopped(Maid maid)
@@ -397,7 +423,13 @@ namespace COM3D2.SceneEditor.Plugin
             _resetAppliedMotions[maid] = applied;
         }
 
-        /// <summary>編集したポーズを破棄し、停止前のモーションを再生し直す</summary>
+        /// <summary>
+        /// 編集したポーズを破棄して復帰先へ戻す。
+        /// 停止中は停止したまま復帰先の現在フレームを反映し、
+        /// 再生中は復帰先のクリップを再生し直す。
+        /// 復帰先のクリップが失われている場合、停止中はポーズを変えず、
+        /// 再生中は現在のモーションを流し直す (復帰先が不定なので適用記録も破棄する)
+        /// </summary>
         public static void ResetPose(Maid maid)
         {
             var anim = GetAnimation(maid);
@@ -409,8 +441,25 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 string clipName;
-                if (_resetClipNames.TryGetValue(maid, out clipName)
-                    && anim.GetClip(clipName) != null)
+                var hasResetTarget = _resetClipNames.TryGetValue(maid, out clipName)
+                    && anim.GetClip(clipName) != null;
+
+                if (!anim.isPlaying)
+                {
+                    if (!hasResetTarget)
+                    {
+                        // 復帰先のクリップが失われている。停止中に勝手な再生へ
+                        // 切り替えないよう何もしない。記録を消すと IsMotionStopped が
+                        // false になり、実際は停止中なのに IK 固定まで効かなくなるため残す
+                        // (リセットボタンは有効なままだが、押しても何も起きないだけ)
+                        return;
+                    }
+
+                    ResetPoseWhileStopped(maid, anim, clipName);
+                    return;
+                }
+
+                if (hasResetTarget)
                 {
                     anim.Play(clipName);
                     _resetClipNames.Remove(maid);
@@ -428,7 +477,7 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                // クリップ名が取れていない場合は現在のモーションを流し直す。
+                // 再生中で復帰先のクリップ名が取れていない場合は現在のモーションを流し直す。
                 // 復帰先が不定なので適用記録も破棄する
                 anim.Rewind();
                 anim.Play();
@@ -442,6 +491,35 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogException(e);
             }
+        }
+
+        /// <summary>
+        /// 停止したまま復帰先クリップの現在フレームを反映する。
+        /// 再生に切り替えるとボーンスライダーの基準が定まらず、そのまま編集を続けられないため。
+        /// 停止状態は維持するので、崩すたびに何度でも押して戻せる
+        /// </summary>
+        private static void ResetPoseWhileStopped(Maid maid, Animation anim, string clipName)
+        {
+            var state = anim[clipName];
+            if (state == null)
+            {
+                return;
+            }
+
+            // 再生位置は動かさず、今のフレームのポーズへ戻す
+            SampleWhileStopped(anim, state, state.time);
+
+            // 戻した先が「今当たっているアニメ」になるので再開先も揃える
+            _resumeClipNames[maid] = clipName;
+
+            // 復帰先の記録は消さない (停止中の判定と、繰り返しリセットに使う)。
+            // 表示名・ハイライトだけ復帰先のものへ戻す
+            AppliedMotionInfo resetApplied;
+            _resetAppliedMotions.TryGetValue(maid, out resetApplied);
+            SetAppliedMotion(maid, resetApplied);
+
+            // 戻した後のポーズをボーンスライダーの基準に取り直す
+            MaidBoneSliderController.CaptureBasePose(maid);
         }
 
         /// <summary>
