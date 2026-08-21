@@ -45,6 +45,24 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>選択中カテゴリのモーション一覧。OnGUI は毎フレーム複数回走るため列挙し直さない</summary>
         private List<PhotoMotionData> _motions = null;
 
+        // 前後送り (< >) の送り先。再生中エントリが属する一覧を表示中カテゴリとは独立に解決して控える
+
+        /// <summary>送り先がモーションの場合の一覧 (マイポーズの場合は null)</summary>
+        private List<PhotoMotionData> _navMotions = null;
+
+        /// <summary>送り先がマイポーズの場合の一覧 (モーションの場合は null)</summary>
+        private List<string> _navPoseNames = null;
+
+        /// <summary>_navPoseNames と対で入る保存フォルダ (モーションの場合は null)</summary>
+        private string _navPoseDir = null;
+
+        /// <summary>送り先一覧における再生中エントリの位置。解決できていなければ -1</summary>
+        private int _navIndex = -1;
+
+        /// <summary>送り先を解決したときの再生中エントリと対象メイド。変わったら解決し直す</summary>
+        private string _navKey = null;
+        private Maid _navMaid = null;
+
         private static MaidPoseWindow _instance = null;
         public static MaidPoseWindow instance
         {
@@ -94,6 +112,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _poseFileNames = null;
                 _poseDirNames = null;
+                InvalidateNavEntries();
             }
         }
 
@@ -147,7 +166,24 @@ namespace COM3D2.SceneEditor.Plugin
                     : (currentClipName != null
                         ? Path.GetFileNameWithoutExtension(currentClipName)
                         : null);
+                // 一覧を開かずに前後のエントリへ送れるようにする。送り先は再生中エントリが
+                // 属する一覧で、カテゴリ選択とは独立に解決する。どの一覧にも無いもの
+                // (シーンプリセットのポーズ等) は現在位置が定まらないため無効
+                EnsureNavEntries(maid, appliedMotion, currentClipName);
+                // 1 件しかない一覧では送り先が自分自身になるだけなので無効にする
+                var canNavigate = _navIndex >= 0 && GetNavCount() > 1;
+
+                if (view.DrawButton("<", 25, ROW_HEIGHT, enabled: canNavigate))
+                {
+                    ApplyNavEntry(maid, -1);
+                }
+
                 view.DrawLabel(displayName ?? "なし", 150, ROW_HEIGHT);
+
+                if (view.DrawButton(">", 25, ROW_HEIGHT, enabled: canNavigate))
+                {
+                    ApplyNavEntry(maid, 1);
+                }
 
                 AddRightAlignSpace(view, 30);
 
@@ -238,6 +274,138 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 前後送りの対象一覧を用意する。再生中エントリが属する一覧を、表示中カテゴリとは
+        /// 独立に解決する (別カテゴリのモーションや別フォルダのマイポーズでも送れるように)。
+        /// 全カテゴリ走査になるため、再生中エントリが変わったときだけ解決し直す
+        /// (見つからなかった結果も控えて毎フレームの再走査を避ける)
+        /// </summary>
+        private void EnsureNavEntries(Maid maid, MaidMotionState.AppliedMotionInfo appliedMotion,
+            string currentClipName)
+        {
+            var navKey = GetNavKey(appliedMotion, currentClipName);
+            if (_navMaid == maid && _navKey == navKey)
+            {
+                return;
+            }
+
+            _navMaid = maid;
+            _navKey = navKey;
+            _navMotions = null;
+            _navPoseNames = null;
+            _navPoseDir = null;
+            _navIndex = -1;
+            if (navKey == null)
+            {
+                return;
+            }
+
+            if (appliedMotion != null && appliedMotion.myPosePath != null)
+            {
+                ResolveNavPose(appliedMotion);
+                return;
+            }
+            ResolveNavMotion(maid, appliedMotion, currentClipName);
+        }
+
+        /// <summary>
+        /// 再生中エントリの識別子。これが変わったときだけ送り先一覧を解決し直す。
+        /// 記録が無いエントリはクリップ名で代用する
+        /// </summary>
+        private static string GetNavKey(MaidMotionState.AppliedMotionInfo appliedMotion,
+            string currentClipName)
+        {
+            if (appliedMotion != null)
+            {
+                if (appliedMotion.myPosePath != null)
+                {
+                    return "pose:" + appliedMotion.myPosePath;
+                }
+                return "motion:" + appliedMotion.motionId + ":" + appliedMotion.motionFile;
+            }
+            return currentClipName != null ? "clip:" + currentClipName : null;
+        }
+
+        /// <summary>再生中マイポーズが属するフォルダを送り先一覧にする</summary>
+        private void ResolveNavPose(MaidMotionState.AppliedMotionInfo appliedMotion)
+        {
+            var poseDir = Path.GetDirectoryName(appliedMotion.myPosePath) ?? "";
+            var poseNames = MaidPoseFileManager.GetPoseFileNames(poseDir);
+            for (var i = 0; i < poseNames.Count; i++)
+            {
+                // 一覧のハイライトと同じ判定で位置を決める (フォルダは送り先に含めない)
+                if (IsCurrentPoseEntry(appliedMotion, null, poseDir, poseNames[i]))
+                {
+                    _navPoseNames = poseNames;
+                    _navPoseDir = poseDir;
+                    _navIndex = i;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>再生中モーションが属するカテゴリを全カテゴリから探して送り先一覧にする</summary>
+        private void ResolveNavMotion(Maid maid, MaidMotionState.AppliedMotionInfo appliedMotion,
+            string currentClipName)
+        {
+            if (!PhotoMotionUtils.EnsureMotionDataLoaded())
+            {
+                return;
+            }
+
+            foreach (var category in PhotoMotionUtils.GetCategories(maid.boMAN))
+            {
+                // 該当カテゴリだけリスト化する (全カテゴリぶんの確保を避ける)
+                var index = 0;
+                foreach (var data in PhotoMotionUtils.GetMotions(category, maid.boMAN))
+                {
+                    if (IsCurrentMotionEntry(appliedMotion, currentClipName, data))
+                    {
+                        _navMotions = new List<PhotoMotionData>(
+                            PhotoMotionUtils.GetMotions(category, maid.boMAN));
+                        _navIndex = index;
+                        return;
+                    }
+                    index++;
+                }
+            }
+        }
+
+        /// <summary>送り先がマイポーズ側の一覧か。モーション側との分岐はここに集約する</summary>
+        private bool isPoseNav => _navPoseNames != null;
+
+        /// <summary>送り先一覧の件数。解決できていなければ 0</summary>
+        private int GetNavCount()
+        {
+            if (isPoseNav)
+            {
+                return _navPoseNames.Count;
+            }
+            return _navMotions != null ? _navMotions.Count : 0;
+        }
+
+        /// <summary>
+        /// 送り先一覧の delta 個先を適用する。一覧の端は反対側へ折り返す。
+        /// 適用で再生中エントリが変わるため、位置は次フレームの解決で取り直される
+        /// </summary>
+        private void ApplyNavEntry(Maid maid, int delta)
+        {
+            var count = GetNavCount();
+            if (count <= 0 || _navIndex < 0)
+            {
+                return;
+            }
+
+            // 負の剰余があるため 2 段階で正の範囲へ寄せる
+            var index = ((_navIndex + delta) % count + count) % count;
+            if (isPoseNav)
+            {
+                LoadMyPoseEntry(maid, _navPoseDir, _navPoseNames[index]);
+                return;
+            }
+            ApplyMotionEntry(maid, _navMotions[index]);
+        }
+
         /// <summary>カテゴリ選択行。マイポーズ + スタジオモードのカテゴリ一覧</summary>
         private void DrawCategoryRow(GUIView view, Maid maid)
         {
@@ -296,32 +464,46 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var data in _motions)
             {
-                // 記録があれば id で判定する (スクリプト経由エントリはクリップ名から特定できない)。
-                // Mod の id はファイル内容の CRC で更新されると変わるため、
-                // PhotoMotionUtils.Find と同じく direct_file でもフォールバックする。
-                // 記録が無い場合は従来のクリップ名突き合わせに任せる
-                bool isCurrent;
-                if (appliedMotion != null)
-                {
-                    var matchesId = appliedMotion.motionId == data.id;
-                    var matchesFile = !string.IsNullOrEmpty(appliedMotion.motionFile)
-                        && string.Equals(appliedMotion.motionFile, data.direct_file,
-                            System.StringComparison.OrdinalIgnoreCase);
-                    isCurrent = appliedMotion.myPosePath == null && (matchesId || matchesFile);
-                }
-                else
-                {
-                    isCurrent = PhotoMotionUtils.IsCurrentMotion(data, currentClipName);
-                }
+                var isCurrent = IsCurrentMotionEntry(appliedMotion, currentClipName, data);
                 if (view.DrawButton(data.name, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
-                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                        "モーション: " + data.name, PoseSnapshot.GetAllBodyBones(maid));
-                    PhotoMotionUtils.Apply(maid, data);
+                    ApplyMotionEntry(maid, data);
                 }
             }
 
+        }
+
+        /// <summary>
+        /// 一覧のモーションが今当たっているものか。
+        /// 記録があれば id で判定する (スクリプト経由エントリはクリップ名から特定できない)。
+        /// Mod の id はファイル内容の CRC で更新されると変わるため、
+        /// PhotoMotionUtils.Find と同じく direct_file でもフォールバックする。
+        /// 記録が無い場合は従来のクリップ名突き合わせに任せる
+        /// </summary>
+        private static bool IsCurrentMotionEntry(MaidMotionState.AppliedMotionInfo appliedMotion,
+            string currentClipName, PhotoMotionData data)
+        {
+            if (appliedMotion == null)
+            {
+                return PhotoMotionUtils.IsCurrentMotion(data, currentClipName);
+            }
+
+            // id 0 はシーンプリセット復元など「一覧のどのエントリでもない」記録の既定値。
+            // 一致扱いにすると前後送りが無関係なモーションを掴みうるため除外する
+            var matchesId = appliedMotion.motionId != 0 && appliedMotion.motionId == data.id;
+            var matchesFile = !string.IsNullOrEmpty(appliedMotion.motionFile)
+                && string.Equals(appliedMotion.motionFile, data.direct_file,
+                    System.StringComparison.OrdinalIgnoreCase);
+            return appliedMotion.myPosePath == null && (matchesId || matchesFile);
+        }
+
+        /// <summary>履歴を残してモーションを適用する</summary>
+        private static void ApplyMotionEntry(Maid maid, PhotoMotionData data)
+        {
+            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                "モーション: " + data.name, PoseSnapshot.GetAllBodyBones(maid));
+            PhotoMotionUtils.Apply(maid, data);
         }
 
         /// <summary>
@@ -374,21 +556,38 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var poseName in poseFileNames)
             {
-                // 記録があれば相対パスで判定する (別フォルダの同名ポーズを誤ってハイライトしない)。
-                // 記録が無い場合は従来どおりクリップ名 (ファイル名のみ) と突き合わせる
-                var isCurrent = appliedMotion != null
-                    ? string.Equals(appliedMotion.myPosePath, Path.Combine(myPoseDir, poseName),
-                        System.StringComparison.OrdinalIgnoreCase)
-                    : string.Equals(poseName, currentPoseName,
-                        System.StringComparison.OrdinalIgnoreCase);
+                var isCurrent = IsCurrentPoseEntry(appliedMotion, currentPoseName, myPoseDir, poseName);
                 if (view.DrawButton(poseName, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
-                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                        "ポーズ読込: " + poseName, PoseSnapshot.GetAllBodyBones(maid));
-                    MaidPoseFileManager.LoadPose(maid, Path.Combine(myPoseDir, poseName));
+                    LoadMyPoseEntry(maid, myPoseDir, poseName);
                 }
             }
+        }
+
+        /// <summary>
+        /// 一覧のマイポーズが今当たっているものか。
+        /// 記録があれば相対パスで判定する (別フォルダの同名ポーズを誤ってハイライトしない)。
+        /// 記録が無い場合は従来どおりクリップ名 (ファイル名のみ) と突き合わせる
+        /// </summary>
+        private static bool IsCurrentPoseEntry(MaidMotionState.AppliedMotionInfo appliedMotion,
+            string currentPoseName, string myPoseDir, string poseName)
+        {
+            if (appliedMotion != null)
+            {
+                return string.Equals(appliedMotion.myPosePath, Path.Combine(myPoseDir, poseName),
+                    System.StringComparison.OrdinalIgnoreCase);
+            }
+            return string.Equals(poseName, currentPoseName,
+                System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>履歴を残してマイポーズを読み込む。フォルダは呼び出し元が控えたものを渡す</summary>
+        private static void LoadMyPoseEntry(Maid maid, string myPoseDir, string poseName)
+        {
+            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                "ポーズ読込: " + poseName, PoseSnapshot.GetAllBodyBones(maid));
+            MaidPoseFileManager.LoadPose(maid, Path.Combine(myPoseDir, poseName));
         }
 
         /// <summary>マイポーズの表示ディレクトリを移動し、一覧を取り直させる</summary>
@@ -415,6 +614,17 @@ namespace COM3D2.SceneEditor.Plugin
             MaidPoseFileManager.SavePose(maid, Path.Combine(subDir, poseName));
             _poseFileNames = null;
             _poseDirNames = null;
+            InvalidateNavEntries();
+        }
+
+        /// <summary>
+        /// 送り先一覧を解決し直させる。ファイルの増減 (保存・ウィンドウの開き直し) は
+        /// 再生中エントリが変わらないため、識別子だけでは検知できない
+        /// </summary>
+        private void InvalidateNavEntries()
+        {
+            _navMaid = null;
+            _navKey = null;
         }
     }
 }
