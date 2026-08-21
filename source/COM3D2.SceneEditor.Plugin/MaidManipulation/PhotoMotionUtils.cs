@@ -15,25 +15,40 @@ namespace COM3D2.SceneEditor.Plugin
         private static List<string> _categories = null;
         private static List<string> _categoriesForMan = null;
 
+        /// <summary>構築に失敗したときの再試行間隔 (秒)。毎フレームの再試行と例外ログの連発を避ける</summary>
+        private const float LoadRetryIntervalSeconds = 5f;
+
+        /// <summary>最後に構築を試みた時刻。失敗が続くときの再試行間隔に使う</summary>
+        private static float _lastLoadAttemptTime = float.MinValue;
+
         /// <summary>
         /// モーション一覧を用意する。スタジオモード未経由だと未構築のため初回にここで構築する。
         /// 使える一覧が得られたかを返す
         /// </summary>
         public static bool EnsureMotionDataLoaded()
         {
-            try
+            // data の有無では判定できない。PhotoMotionData.Create は motion_data_ を埋めてから
+            // category_list_ を作るため、途中で例外が出ると「data はあるがカテゴリが無い」
+            // 中途半端な状態で残る。カテゴリが無ければ未構築とみなして作り直す
+            if (PhotoMotionData.category_list == null)
             {
-                if (PhotoMotionData.data == null)
+                var now = UnityEngine.Time.realtimeSinceStartup;
+                if (now - _lastLoadAttemptTime >= LoadRetryIntervalSeconds)
                 {
-                    PhotoMotionData.Create();
+                    _lastLoadAttemptTime = now;
+                    try
+                    {
+                        PhotoMotionData.Create();
+                    }
+                    catch (Exception e)
+                    {
+                        // ファイルシステム未初期化などで失敗しても描画は続行する。
+                        // 初期化が進めば次の再試行で構築できる
+                        MTEUtils.LogException(e);
+                    }
                 }
             }
-            catch (Exception e)
-            {
-                // ファイルシステム未初期化などで失敗しても描画は続行する
-                MTEUtils.LogException(e);
-            }
-            return PhotoMotionData.data != null && PhotoMotionData.data.Count > 0;
+            return PhotoMotionData.category_list != null && PhotoMotionData.category_list.Count > 0;
         }
 
         /// <summary>

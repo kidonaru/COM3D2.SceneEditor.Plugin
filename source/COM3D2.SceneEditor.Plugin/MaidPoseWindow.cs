@@ -32,6 +32,12 @@ namespace COM3D2.SceneEditor.Plugin
         private List<string> _categories = null;
         /// <summary>カテゴリ一覧を構築したときの対象が男か。対象が変わったら作り直す</summary>
         private bool _categoriesForMan;
+        /// <summary>
+        /// モーション一覧からカテゴリを取得できたか。
+        /// ゲーム側の初期化が済む前は取得できず「マイポーズ」だけになるため、
+        /// 取得できるまではキャッシュを確定させずに作り直す
+        /// </summary>
+        private bool _categoriesLoaded;
 
         /// <summary>マイポーズ一覧。描画のたびに再列挙はせず、表示時と保存時に更新する</summary>
         private List<string> _poseFileNames = null;
@@ -406,6 +412,40 @@ namespace COM3D2.SceneEditor.Plugin
             ApplyMotionEntry(maid, _navMotions[index]);
         }
 
+        /// <summary>
+        /// カテゴリ一覧のキャッシュを更新する。
+        /// モーション一覧を取得できなかったフレームは「取得済み」にせず、
+        /// 次の描画で作り直す (確定させると「マイポーズ」だけの一覧が以後ずっと残る)
+        /// </summary>
+        private void UpdateCategories(Maid maid)
+        {
+            if (_categoriesLoaded && _categoriesForMan == maid.boMAN)
+            {
+                return;
+            }
+
+            _categoriesLoaded = PhotoMotionUtils.EnsureMotionDataLoaded();
+            if (!_categoriesLoaded && _categories != null && _categoriesForMan == maid.boMAN)
+            {
+                // 取得できないままなので前回と同じ一覧になる。描画のたびに作り直さない
+                return;
+            }
+
+            _categories = new List<string> { MaidPoseFileManager.MY_POSE_CATEGORY };
+            if (_categoriesLoaded)
+            {
+                _categories.AddRange(PhotoMotionUtils.GetCategories(maid.boMAN));
+            }
+            _categoriesForMan = maid.boMAN;
+
+            // 対象が変わって消えたカテゴリを選択したままだと一覧が空になる
+            if (!_categories.Contains(_category))
+            {
+                _category = MaidPoseFileManager.MY_POSE_CATEGORY;
+            }
+            _motions = null;
+        }
+
         /// <summary>カテゴリ選択行。マイポーズ + スタジオモードのカテゴリ一覧</summary>
         private void DrawCategoryRow(GUIView view, Maid maid)
         {
@@ -413,21 +453,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("カテゴリ", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
 
-                if (_categories == null || _categoriesForMan != maid.boMAN)
-                {
-                    _categories = new List<string> { MaidPoseFileManager.MY_POSE_CATEGORY };
-                    if (PhotoMotionUtils.EnsureMotionDataLoaded())
-                    {
-                        _categories.AddRange(PhotoMotionUtils.GetCategories(maid.boMAN));
-                    }
-                    _categoriesForMan = maid.boMAN;
-                    // 対象が変わって消えたカテゴリを選択したままだと一覧が空になる
-                    if (!_categories.Contains(_category))
-                    {
-                        _category = MaidPoseFileManager.MY_POSE_CATEGORY;
-                    }
-                    _motions = null;
-                }
+                UpdateCategories(maid);
 
                 _categoryComboBox.items = _categories;
                 _categoryComboBox.currentIndex = Mathf.Max(0, _categories.IndexOf(_category));
