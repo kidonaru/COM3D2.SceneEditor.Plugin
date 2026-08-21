@@ -24,6 +24,91 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Dictionary<Maid, string> _resumeClipNames
             = new Dictionary<Maid, string>();
 
+        /// <summary>
+        /// このプラグインから適用したモーション / マイポーズの記録。
+        /// クリップ名からの逆引きでは表示名やスクリプト経由エントリを特定できないため、
+        /// 適用時に何を当てたかをメイドごとに控える。
+        /// プラグイン外でモーションが差し替わった場合は古い記録が残るが、
+        /// resume / reset と同じく「モーションはこのプラグインが変える」前提に揃える
+        /// </summary>
+        public sealed class AppliedMotionInfo
+        {
+            /// <summary>適用した PhotoMotionData.id。マイポーズ適用時は 0</summary>
+            public long motionId;
+            /// <summary>PhotoMotionData.direct_file。Mod の id 変化時の引き当てに使う</summary>
+            public string motionFile;
+            /// <summary>「再生中」ラベルに出す表示名</summary>
+            public string displayName;
+            /// <summary>マイポーズの保存フォルダからの相対パス。モーション適用時は null</summary>
+            public string myPosePath;
+        }
+
+        /// <summary>メイドごとの適用中モーションの記録</summary>
+        private static readonly Dictionary<Maid, AppliedMotionInfo> _appliedMotions
+            = new Dictionary<Maid, AppliedMotionInfo>();
+
+        /// <summary>リセットで戻したときに復元する記録。_resetClipNames と対で更新する</summary>
+        private static readonly Dictionary<Maid, AppliedMotionInfo> _resetAppliedMotions
+            = new Dictionary<Maid, AppliedMotionInfo>();
+
+        /// <summary>適用中モーションの記録。無ければ null</summary>
+        public static AppliedMotionInfo GetAppliedMotion(Maid maid)
+        {
+            if (maid == null)
+            {
+                return null;
+            }
+            AppliedMotionInfo info;
+            _appliedMotions.TryGetValue(maid, out info);
+            return info;
+        }
+
+        /// <summary>モーション適用の記録。PhotoMotionUtils.Apply から呼ぶ</summary>
+        public static void RecordAppliedMotion(Maid maid, PhotoMotionData data)
+        {
+            if (maid == null || data == null)
+            {
+                return;
+            }
+            _appliedMotions[maid] = new AppliedMotionInfo
+            {
+                motionId = data.id,
+                motionFile = data.direct_file,
+                displayName = data.name,
+            };
+        }
+
+        /// <summary>マイポーズ適用の記録。relativePath は保存フォルダからの相対パス</summary>
+        public static void RecordAppliedMyPose(Maid maid, string relativePath)
+        {
+            if (maid == null || string.IsNullOrEmpty(relativePath))
+            {
+                return;
+            }
+            _appliedMotions[maid] = new AppliedMotionInfo
+            {
+                displayName = System.IO.Path.GetFileName(relativePath),
+                myPosePath = relativePath,
+            };
+        }
+
+        /// <summary>記録を差し替える (履歴の復元用)。null で消去</summary>
+        public static void SetAppliedMotion(Maid maid, AppliedMotionInfo info)
+        {
+            if (maid == null)
+            {
+                return;
+            }
+            if (info == null)
+            {
+                _appliedMotions.Remove(maid);
+            }
+            else
+            {
+                _appliedMotions[maid] = info;
+            }
+        }
+
         private static Animation GetAnimation(Maid maid)
         {
             if (maid == null || maid.body0 == null || maid.body0.m_Bones == null)
@@ -65,6 +150,11 @@ namespace COM3D2.SceneEditor.Plugin
                 if (!_resetClipNames.ContainsKey(maid))
                 {
                     _resetClipNames[maid] = playingClipName;
+                    // リセットで戻したときにハイライト・表示名も一緒に戻せるよう、記録を対で控える。
+                    // スクリプト経由エントリはクリップ名から再解決できないため、ここで保存するしかない
+                    AppliedMotionInfo applied;
+                    _appliedMotions.TryGetValue(maid, out applied);
+                    _resetAppliedMotions[maid] = applied;
                 }
             }
             anim.Stop();
@@ -299,6 +389,12 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     anim.Play(clipName);
                     _resetClipNames.Remove(maid);
+                    // 戻したモーションの適用記録も対で戻す (スクリプト経由エントリの
+                    // ハイライトはクリップ名から再現できないため)
+                    AppliedMotionInfo resetApplied;
+                    _resetAppliedMotions.TryGetValue(maid, out resetApplied);
+                    SetAppliedMotion(maid, resetApplied);
+                    _resetAppliedMotions.Remove(maid);
                     // 戻した先が「今当たっているアニメ」になるので再開先も揃える。
                     // 放置すると、戻したモーションが自然停止した後の再生で
                     // 破棄したはずのポーズが流れてしまう
@@ -307,11 +403,14 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                // クリップ名が取れていない場合は現在のモーションを流し直す
+                // クリップ名が取れていない場合は現在のモーションを流し直す。
+                // 復帰先が不定なので適用記録も破棄する
                 anim.Rewind();
                 anim.Play();
                 _resetClipNames.Remove(maid);
                 _resumeClipNames.Remove(maid);
+                _appliedMotions.Remove(maid);
+                _resetAppliedMotions.Remove(maid);
                 MaidBoneSliderController.ClearBasePose(maid);
             }
             catch (Exception e)
@@ -327,6 +426,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _resetClipNames.Remove(maid);
                 _resumeClipNames.Remove(maid);
+                // 当たっているアニメ自体は変わらないため _appliedMotions は保持する
+                _resetAppliedMotions.Remove(maid);
                 MaidBoneSliderController.ClearBasePose(maid);
             }
         }
@@ -335,6 +436,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _resetClipNames.Clear();
             _resumeClipNames.Clear();
+            _appliedMotions.Clear();
+            _resetAppliedMotions.Clear();
             MaidBoneSliderController.Clear();
         }
     }
