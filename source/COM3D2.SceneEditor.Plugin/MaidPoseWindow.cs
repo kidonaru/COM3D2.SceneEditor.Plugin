@@ -138,8 +138,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("再生中", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
 
+                // 記録があれば表示名、無ければクリップ名から拡張子を除いて出す。
+                // クリップ名は長いと 150px で右端が切れるため、短い表示名を優先する
+                var appliedMotion = MaidMotionState.GetAppliedMotion(maid);
                 var currentClipName = MaidMotionState.GetCurrentClipName(maid);
-                view.DrawLabel(currentClipName ?? "なし", 150, ROW_HEIGHT);
+                var displayName = appliedMotion != null
+                    ? appliedMotion.displayName
+                    : (currentClipName != null
+                        ? Path.GetFileNameWithoutExtension(currentClipName)
+                        : null);
+                view.DrawLabel(displayName ?? "なし", 150, ROW_HEIGHT);
 
                 AddRightAlignSpace(view, 30);
 
@@ -283,11 +291,22 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            var appliedMotion = MaidMotionState.GetAppliedMotion(maid);
             var currentClipName = MaidMotionState.GetCurrentClipName(maid);
 
             foreach (var data in _motions)
             {
-                var isCurrent = PhotoMotionUtils.IsCurrentMotion(data, currentClipName);
+                // 記録があれば id で判定する (スクリプト経由エントリはクリップ名から特定できない)。
+                // Mod の id はファイル内容の CRC で更新されると変わるため、
+                // PhotoMotionUtils.Find と同じく direct_file でもフォールバックする。
+                // 記録が無い場合は従来のクリップ名突き合わせに任せる
+                var isCurrent = appliedMotion != null
+                    ? appliedMotion.myPosePath == null
+                        && (appliedMotion.motionId == data.id
+                            || (!string.IsNullOrEmpty(appliedMotion.motionFile)
+                                && string.Equals(appliedMotion.motionFile, data.direct_file,
+                                    System.StringComparison.OrdinalIgnoreCase)))
+                    : PhotoMotionUtils.IsCurrentMotion(data, currentClipName);
                 if (view.DrawButton(data.name, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
@@ -340,7 +359,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // クリップ名は "ポーズ名.anm" 形式なので拡張子を除いて突き合わせる
+            // クリップ名は "ポーズ名.anm" 形式なので拡張子を除いて突き合わせる (フォールバック用)
+            var appliedMotion = MaidMotionState.GetAppliedMotion(maid);
             var currentClipName = MaidMotionState.GetCurrentClipName(maid);
             var currentPoseName = currentClipName != null
                 ? Path.GetFileNameWithoutExtension(currentClipName)
@@ -348,8 +368,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var poseName in poseFileNames)
             {
-                var isCurrent = string.Equals(poseName, currentPoseName,
-                    System.StringComparison.OrdinalIgnoreCase);
+                // 記録があれば相対パスで判定する (別フォルダの同名ポーズを誤ってハイライトしない)。
+                // 記録が無い場合は従来どおりクリップ名 (ファイル名のみ) と突き合わせる
+                var isCurrent = appliedMotion != null
+                    ? string.Equals(appliedMotion.myPosePath, Path.Combine(myPoseDir, poseName),
+                        System.StringComparison.OrdinalIgnoreCase)
+                    : string.Equals(poseName, currentPoseName,
+                        System.StringComparison.OrdinalIgnoreCase);
                 if (view.DrawButton(poseName, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
