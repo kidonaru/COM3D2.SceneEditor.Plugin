@@ -27,7 +27,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ボーン編集ウィンドウの表示中だけ true。骨格線描画とボーンピックの有効化条件</summary>
         public bool editMode;
 
-        public string targetSlotName = "";
+        /// <summary>スロット未選択を表す targetSlotName の値 (SlotBoneManager が未装着と同じ扱いにする)</summary>
+        public const string NoSlotName = "";
+
+        public string targetSlotName = NoSlotName;
         public Transform selectedBone;
 
         /// <summary>編集対象の種別。Model のときは targetModel 配下のボーンを編集する</summary>
@@ -481,6 +484,9 @@ namespace COM3D2.SceneEditor.Plugin
         public override void Update()
         {
             ReleaseBoneOnObjectSelected();
+            // ポーズボーン選択はメイドルートの選択も伴うため、直前の解除で落ちた選択を
+            // 同フレームで張り直す。この順序が前提
+            SyncSelectedBoneFromBoneDef();
             RecordGizmoDrag();
             UpdateStores();
             CleanupModelStores();
@@ -514,6 +520,39 @@ namespace COM3D2.SceneEditor.Plugin
                     selectedBone = null;
                 }
             }
+        }
+
+        /// <summary>
+        /// Inspector のポーズボーン選択 (メイドボーン専用表示のドロップダウン、
+        /// ギズモ・ドラッグ点による自動追従) を骨格線のハイライトへ反映する。
+        /// 引くのは表示中のツリーからなので、装着物スロットに複製されたボーンでも
+        /// 画面に出ている骨がそのまま光る。ツリーに無いボーンへ切り替えたときは
+        /// 古い骨が光り続けないよう選択を落とす
+        /// </summary>
+        private void SyncSelectedBoneFromBoneDef()
+        {
+            if (!editMode || isModelMode || !selectionManager.hasBoneSelection)
+            {
+                return;
+            }
+
+            // 骨格線は操作対象メイドのスロットしか描かないため、別メイドの選択は無視する
+            if (selectionManager.selectedBoneMaid != MaidManipulateManager.instance.targetMaid)
+            {
+                return;
+            }
+
+            // スロット切替を取りこぼさないよう、名前一致の判定より先にツリーを引く
+            // (GetCurrentBoneTree は対象が変わっていれば作り直して選択も落とす)
+            var tree = GetCurrentBoneTree();
+
+            var boneName = selectionManager.selectedBoneDef.boneName;
+            if (selectedBone != null && selectedBone.name == boneName)
+            {
+                return;
+            }
+
+            selectedBone = SlotBoneManager.FindBoneInTree(tree, boneName);
         }
 
         /// <summary>

@@ -62,6 +62,9 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (slotName, _) => slotName,
         };
 
+        /// <summary>スロットコンボの項目 (「なし」+ 装着中スロット)</summary>
+        private readonly List<string> _slotItems = new List<string>();
+
         private readonly GUIComboBox<ExternalModelEntry> _modelComboBox = new GUIComboBox<ExternalModelEntry>
         {
             getName = (entry, _) => entry.displayName,
@@ -352,8 +355,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>アイテムが載っているスロットから編集対象を選ぶ。編集済みスロットには * を付ける</summary>
         private void DrawSlotSelector(Maid target)
         {
-            var slotNames = SlotBoneManager.GetLoadedSlotNames(target);
             var store = boneEditManager.GetStore(target);
+
+            // 骨格線を消せるよう、先頭に「なし」(スロット未選択) を足す
+            _slotItems.Clear();
+            _slotItems.Add(BoneEditManager.NoSlotName);
+            _slotItems.AddRange(SlotBoneManager.GetLoadedSlotNames(target));
 
             view.BeginHorizontal();
             {
@@ -363,14 +370,21 @@ namespace COM3D2.SceneEditor.Plugin
                 _slotComboBox.buttonSize = new Vector2(comboWidth, ROW_HEIGHT);
                 _slotComboBox.contentSize = new Vector2(comboWidth, 300f);
 
-                _slotComboBox.items = slotNames;
+                _slotComboBox.items = _slotItems;
                 _slotComboBox.getName = (slotName, _) =>
-                    store.GetEntries(slotName).Count > 0 ? slotName + " *" : slotName;
-                _slotComboBox.currentIndex = slotNames.IndexOf(boneEditManager.targetSlotName);
-                // defaultName は非 null だと選択項目より優先されるため、未選択時だけ設定する
+                {
+                    if (string.IsNullOrEmpty(slotName))
+                    {
+                        return "なし";
+                    }
+                    return store.GetEntries(slotName).Count > 0 ? slotName + " *" : slotName;
+                };
+                _slotComboBox.currentIndex = _slotItems.IndexOf(boneEditManager.targetSlotName);
+                // 「なし」は常に一覧にあるため、ここに来るのは選択中スロットの
+                // アイテムが外れて一覧から消えたときだけ
                 _slotComboBox.defaultName = _slotComboBox.currentIndex >= 0
                     ? null
-                    : slotNames.Count == 0 ? "スロットがありません" : "選択してください";
+                    : "スロットが見つかりません";
                 _slotComboBox.onSelected = (slotName, _) =>
                 {
                     boneEditManager.targetSlotName = slotName;

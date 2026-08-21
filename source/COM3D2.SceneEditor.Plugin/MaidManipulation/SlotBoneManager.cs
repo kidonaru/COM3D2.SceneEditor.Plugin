@@ -144,6 +144,29 @@ namespace COM3D2.SceneEditor.Plugin
             return CollectBones(slotObj).FirstOrDefault(b => b.name == boneName);
         }
 
+        /// <summary>
+        /// 構築済みのボーンツリーから名前でボーンを引く。見つからなければ null。
+        /// 同名がある場合は親から子への深さ優先で最初に見つかったもの
+        /// (重複自体は BuildBoneTree 側で警告済み)
+        /// </summary>
+        public static Transform FindBoneInTree(List<SlotBoneNode> nodes, string boneName)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.transform != null && node.name == boneName)
+                {
+                    return node.transform;
+                }
+
+                var found = FindBoneInTree(node.children, boneName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+            return null;
+        }
+
         private static TBody GetLoadedBody(Maid maid)
         {
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
