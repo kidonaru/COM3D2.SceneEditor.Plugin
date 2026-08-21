@@ -115,6 +115,7 @@
     <Compile Include="MTEUtils\ComboBoxPopupWindow.cs" />
     <Compile Include="MTEUtils\CurveData.cs" />
     <Compile Include="MTEUtils\CurveEditorWindow.cs" />
+    <Compile Include="MTEUtils\DialogPopupWindow.cs" />
     <Compile Include="MTEUtils\DockingClient.cs" />
     <Compile Include="MTEUtils\DockableWindowBase.cs" />
     <Compile Include="MTEUtils\EditorStateClient.cs" />
@@ -259,7 +260,6 @@
     <Compile Include="ScenePresetData.cs" />
     <Compile Include="WindowLayoutData.cs" />
     <Compile Include="AboutPopupWindow.cs" />
-    <Compile Include="DialogPopupWindow.cs" />
     <Compile Include="SavePresetPopupWindow.cs" />
     <Compile Include="SaveLayoutPopupWindow.cs" />
     <Compile Include="SavePosePopupWindow.cs" />
