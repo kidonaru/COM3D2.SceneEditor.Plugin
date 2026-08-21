@@ -833,9 +833,20 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>config のグループ構成を復元する。不明な ID や非表示ウィンドウは無視する</summary>
+        /// <summary>
+        /// config のグループ構成を復元する。不明な ID や非表示ウィンドウは無視する。
+        /// ただしコネクト機能は無効化済みのため、現状は定義を読み捨てるだけで何も復元しない
+        /// </summary>
         public void RestoreGroups()
         {
+            // 既に保存済みの config に定義が残っていても復元しない。ここでクリアすることで
+            // 以降の復元ループは実行されず、保存時に config からも消える
+            if (config.connectGroups.Count > 0)
+            {
+                config.connectGroups.Clear();
+                config.dirty = true;
+            }
+
             foreach (var entry in config.connectGroups)
             {
                 var members = new List<IConnectableWindow>();
