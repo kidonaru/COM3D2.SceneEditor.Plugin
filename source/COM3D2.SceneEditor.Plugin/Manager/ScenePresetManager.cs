@@ -1654,8 +1654,13 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     else if (state.poseAnmBinary != null)
                     {
-                        MaidPoseFileManager.ApplyPoseBinary(
-                            maid, state.poseAnmBinary, "scene_preset.anm");
+                        MaidPoseFileManager.ApplyPoseBinary(maid, state.poseAnmBinary);
+                        // プリセットのポーズは一覧のどのエントリでもないため、表示名だけの記録にする
+                        // (motionId=0 / myPosePath=null なのでどのボタンもハイライトされない)
+                        MaidMotionState.SetAppliedMotion(maid, new MaidMotionState.AppliedMotionInfo
+                        {
+                            displayName = "シーンプリセット",
+                        });
                     }
                 }
             }

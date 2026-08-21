@@ -142,8 +142,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var binary = File.ReadAllBytes(filePath);
-                // サブディレクトリ内でもクリップ名はファイル名だけにし、再生中表示の突き合わせを揃える
-                ApplyPoseBinary(maid, binary, Path.GetFileName(poseName) + ".anm");
+                ApplyPoseBinary(maid, binary);
                 MaidMotionState.RecordAppliedMyPose(maid, poseName);
             }
             catch (Exception e)
@@ -171,18 +170,39 @@ namespace COM3D2.SceneEditor.Plugin
             return (binary == null || binary.Length == 0) ? null : binary;
         }
 
+        /// <summary>ポーズ反映用の一時クリップの内部タグ。ゲーム側のクリップ名と衝突させない</summary>
+        private const string POSE_APPLY_TAG = "_scene_editor_pose_apply";
+
         /// <summary>
         /// anm バイナリを適用し、ボーン編集を続けられるよう停止状態にする。
         /// シーンプリセットのポーズ復元にも使う
         /// </summary>
-        public static void ApplyPoseBinary(Maid maid, byte[] binary, string clipName)
+        public static void ApplyPoseBinary(Maid maid, byte[] binary)
         {
-            // 物理が動いたまま CrossFade すると手付けの胸が即座に上書きされるため、
+            // TBody.CrossFade(byte[]) は呼ぶたびにクリップを 2 個 (native ロード分 + AddClip の複製)
+            // 孤児にするため使わない。ポーズは 1 フレーム Sample すれば足りるので、
+            // 自前でロードして反映した直後に両方とも解放する。
+            // メイドの状態 (停止・IK 解除) を変える前にロードを済ませ、失敗時は何も変えない
+            var anim = maid.GetAnimation();
+            if (anim == null)
+            {
+                DialogPopupWindow.ShowDialog("ポーズの適用に失敗しました");
+                return;
+            }
+            var nativeClip = ImportCM.LoadAniClipNative(binary,
+                load_l_mune_anime: true, load_r_mune_anime: true);
+            if (nativeClip == null)
+            {
+                DialogPopupWindow.ShowDialog("ポーズの読み込みに失敗しました");
+                return;
+            }
+
+            // 物理が動いたまま反映すると手付けの胸が即座に上書きされるため、
             // ゲーム側 PhotoMotionData.Apply と同じく先にフラグを反映する
             ApplyBustKeyFlags(maid, binary);
 
-            // CrossFade の前に停止して元モーション名を控える。
-            // 読み込んだ後に控えると、リセットの復帰先が読み込んだポーズ自身になってしまう
+            // 反映の前に停止して元モーション名 (と適用記録) を控える。
+            // 反映後に控えると、リセットの復帰先が読み込んだポーズ自身になってしまう
             MaidMotionState.StopMotion(maid);
 
             // 適用するバイナリがどのエントリ由来かはここでは分からないため一旦消す。
@@ -191,19 +211,42 @@ namespace COM3D2.SceneEditor.Plugin
 
             DetachAllIK(maid);
 
-            // スタジオモードのマイポーズ再生と同経路（PhotoMotionData 参照）
-            maid.body0.CrossFade(clipName, binary,
-                additive: false, loop: true, boAddQue: false, fade: 0f);
-
-            // 即座にポーズを反映してから停止し、ボーン編集を継続できる状態にする。
-            // CrossFade で再生が再開されるため、読み込んだポーズを基準として停止し直す
-            // （復帰先のクリップ名は上で控えた分が保持される）
-            var anim = maid.GetAnimation();
-            if (anim != null)
+            AnimationClip addedClip = null;
+            try
             {
+                // ユーザー由来のポーズ名をタグにすると、ゲーム側がキャッシュしている
+                // 同名クリップ (ファイル版 LoadAnime の常駐分) と衝突して巻き添えで
+                // 破棄しかねないため、衝突しない固定の内部タグで登録する
+                anim.AddClip(nativeClip, POSE_APPLY_TAG);
+                addedClip = anim.GetClip(POSE_APPLY_TAG);
+
+                var state = anim[POSE_APPLY_TAG];
+                state.enabled = true;
+                state.weight = 1f;
+                state.time = 0f;
                 anim.Sample();
+                state.enabled = false;
             }
-            MaidMotionState.StopMotion(maid);
+            finally
+            {
+                // AddClip はクリップを複製して登録するため、登録分と native ロード分の両方を破棄する
+                if (addedClip != null)
+                {
+                    anim.RemoveClip(addedClip);
+                    if (addedClip != nativeClip)
+                    {
+                        UnityEngine.Object.Destroy(addedClip);
+                    }
+                }
+                UnityEngine.Object.Destroy(nativeClip);
+            }
+
+            // 反映後のポーズをボーンスライダーの基準にする (従来は 2 回目の StopMotion が担っていた)
+            MaidBoneSliderController.CaptureBasePose(maid);
+
+            // ポーズは静止で再生対象にしない。再開先を消して ▶ を確実に無効化する
+            // (表示名は適用記録が担うため、クリップ名を残す必要はない)
+            MaidMotionState.SetResumeClip(maid, null);
         }
 
         /// <summary>anm の先頭マジックと、バストキーが載り始めたバージョン</summary>
