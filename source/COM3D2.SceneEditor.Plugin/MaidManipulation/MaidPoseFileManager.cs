@@ -8,7 +8,7 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ポーズの anm ファイル保存/読み込み。
+    /// ポーズ/アニメの anm ファイル保存/読み込み。
     /// スタジオモードのマイポーズと同じ形式・同じ保存先（PhotoModeData\MyPose）を使う
     /// </summary>
     public static class MaidPoseFileManager
@@ -128,7 +128,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// anm を読み込んで適用し、そのままボーン編集を続けられるよう停止状態にする
+        /// anm を読み込んでアニメとして再生する。静止ポーズなら見た目は静止したまま。
+        /// ボーン編集に入るには停止 (■ またはボーンドラッグで自動停止) する
         /// </summary>
         public static void LoadPose(Maid maid, string poseName)
         {
@@ -142,7 +143,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var binary = File.ReadAllBytes(filePath);
-                ApplyPoseBinary(maid, binary);
+                ApplyPoseBinary(maid, binary, startPlaying: true);
                 MaidMotionState.RecordAppliedMyPose(maid, poseName);
             }
             catch (Exception e)
@@ -170,18 +171,114 @@ namespace COM3D2.SceneEditor.Plugin
             return (binary == null || binary.Length == 0) ? null : binary;
         }
 
-        /// <summary>ポーズ反映用の一時クリップの内部タグ。ゲーム側のクリップ名と衝突させない</summary>
-        private const string POSE_APPLY_TAG = "_scene_editor_pose_apply";
+        /// <summary>ポーズ/アニメ用の常駐クリップの内部タグ。ゲーム側のクリップ名と衝突させない</summary>
+        private const string POSE_CLIP_TAG = "_scene_editor_pose";
 
         /// <summary>
-        /// anm バイナリを適用し、ボーン編集を続けられるよう停止状態にする。
-        /// シーンプリセットのポーズ復元にも使う
+        /// メイドごとの常駐クリップの native ロード分。AddClip は複製を登録するため、
+        /// 破棄時に Animation から辿れない元クリップをここで追跡する
         /// </summary>
-        public static void ApplyPoseBinary(Maid maid, byte[] binary)
+        private static readonly Dictionary<Maid, AnimationClip> _residentNativeClips
+            = new Dictionary<Maid, AnimationClip>();
+
+        /// <summary>
+        /// native ロード済みクリップを常駐枠へ登録して AnimationState を返す。失敗時は null
+        /// (その場合 nativeClip は破棄済み)。
+        /// 常駐は 1 メイド 1 クリップで、旧クリップ (登録分 + native 分) は差し替え時に破棄する。
+        /// クリップを常駐させることで ▶ 再開・再生位置スライダー・リセットが機能する
+        /// </summary>
+        private static AnimationState RegisterResidentClip(Maid maid, Animation anim, AnimationClip nativeClip)
         {
-            // TBody.CrossFade(byte[]) は呼ぶたびにクリップを 2 個 (native ロード分 + AddClip の複製)
-            // 孤児にするため使わない。ポーズは 1 フレーム Sample すれば足りるので、
-            // 自前でロードして反映した直後に両方とも解放する。
+            // 旧常駐クリップを破棄してから差し替える (リーク防止)
+            ReleaseClip(maid, anim);
+
+            anim.AddClip(nativeClip, POSE_CLIP_TAG);
+            var addedClip = anim.GetClip(POSE_CLIP_TAG);
+            if (addedClip == null)
+            {
+                UnityEngine.Object.Destroy(nativeClip);
+                return null;
+            }
+            _residentNativeClips[maid] = nativeClip;
+
+            var state = anim[POSE_CLIP_TAG];
+            state.blendMode = AnimationBlendMode.Blend;
+            state.wrapMode = WrapMode.Loop;
+            return state;
+        }
+
+        /// <summary>常駐クリップを破棄する</summary>
+        public static void ReleaseClip(Maid maid)
+        {
+            if (maid == null)
+            {
+                return;
+            }
+            ReleaseClip(maid, maid.GetAnimation());
+        }
+
+        private static void ReleaseClip(Maid maid, Animation anim)
+        {
+            if (anim != null)
+            {
+                var oldClip = anim.GetClip(POSE_CLIP_TAG);
+                if (oldClip != null)
+                {
+                    // 再生中のクリップを除去すると挙動が保証されないため、先にこの状態だけ止める
+                    anim.Stop(POSE_CLIP_TAG);
+                    anim.RemoveClip(oldClip);
+                    UnityEngine.Object.Destroy(oldClip);
+                }
+            }
+
+            AnimationClip oldNative;
+            if (_residentNativeClips.TryGetValue(maid, out oldNative))
+            {
+                if (oldNative != null)
+                {
+                    UnityEngine.Object.Destroy(oldNative);
+                }
+                _residentNativeClips.Remove(maid);
+            }
+        }
+
+        /// <summary>
+        /// 全メイドの常駐クリップを破棄する (プラグイン無効化時・シーン遷移時)。
+        /// 生存中のメイドは Animation 側の登録分も回収し、破棄済みメイドは native 分だけ破棄する
+        /// </summary>
+        public static void ClearClips()
+        {
+            // ReleaseClip が辞書を変更するため、キーを控えてから解放する
+            var maids = new List<Maid>(_residentNativeClips.Keys);
+            foreach (var maid in maids)
+            {
+                if (maid != null)
+                {
+                    ReleaseClip(maid);
+                }
+                else
+                {
+                    // Maid は MonoBehaviour なので、ネイティブ側が破棄されるとキーの参照は
+                    // 残ったまま == null が true になる。この場合 Animation 側も消えているため
+                    // 追跡分だけ破棄する
+                    AnimationClip nativeClip;
+                    if (_residentNativeClips.TryGetValue(maid, out nativeClip) && nativeClip != null)
+                    {
+                        UnityEngine.Object.Destroy(nativeClip);
+                    }
+                }
+            }
+            _residentNativeClips.Clear();
+        }
+
+        /// <summary>
+        /// anm バイナリを常駐クリップとして適用する。ポーズ/アニメの判定はせず、
+        /// 静止ポーズも「同値カーブのアニメ」として同一経路で扱う。
+        /// startPlaying=true はマイポーズ選択 (即再生)、false はシーンプリセット復元
+        /// (先頭フレームで停止し、▶ で再生できる状態にする)
+        /// </summary>
+        public static void ApplyPoseBinary(Maid maid, byte[] binary, bool startPlaying)
+        {
             // メイドの状態 (停止・IK 解除) を変える前にロードを済ませ、失敗時は何も変えない
             var anim = maid.GetAnimation();
             if (anim == null)
@@ -201,58 +298,51 @@ namespace COM3D2.SceneEditor.Plugin
             // ゲーム側 PhotoMotionData.Apply と同じく先にフラグを反映する
             ApplyBustKeyFlags(maid, binary);
 
-            // 反映の前に停止して元モーション名 (と適用記録) を控える。
-            // 反映後に控えると、リセットの復帰先が読み込んだポーズ自身になってしまう
-            MaidMotionState.StopMotion(maid);
-
+            // 停止・記録の整理はクリップ差し替え (旧常駐クリップの破棄) より前に行う。
+            // 特に停止読込では、元モーションが再生中のうちに StopMotion で復帰先を控える必要がある
+            if (startPlaying)
+            {
+                // モーション一覧と同じ扱い: 編集中の停止状態は破棄して再生を始める
+                MaidMotionState.Discard(maid);
+            }
+            else
+            {
+                // 停止読込: 反映の前に停止して元モーション名 (と適用記録) を控える
+                MaidMotionState.StopMotion(maid);
+            }
             // 適用するバイナリがどのエントリ由来かはここでは分からないため一旦消す。
-            // 呼び出し元 (マイポーズ読込 / シーンプリセット復元) が適用後に改めて記録する
+            // 呼び出し元が適用後に改めて記録する (消去は StopMotion の後。
+            // 先に消すとリセット用の退避が null になる)
             MaidMotionState.SetAppliedMotion(maid, null);
 
             DetachAllIK(maid);
 
-            AnimationClip addedClip = null;
-            try
+            var state = RegisterResidentClip(maid, anim, nativeClip);
+            if (state == null)
             {
-                // ユーザー由来のポーズ名をタグにすると、ゲーム側がキャッシュしている
-                // 同名クリップ (ファイル版 LoadAnime の常駐分) と衝突して巻き添えで
-                // 破棄しかねないため、衝突しない固定の内部タグで登録する
-                anim.AddClip(nativeClip, POSE_APPLY_TAG);
-                addedClip = anim.GetClip(POSE_APPLY_TAG);
-                if (addedClip == null)
-                {
-                    // NRE で原因が分かりにくくなる前に明示的に失敗させる (呼び出し元でダイアログ表示)
-                    throw new InvalidOperationException("ポーズクリップの登録に失敗しました");
-                }
-
-                var state = anim[POSE_APPLY_TAG];
-                state.enabled = true;
-                state.weight = 1f;
-                state.time = 0f;
-                anim.Sample();
-                state.enabled = false;
-            }
-            finally
-            {
-                // AddClip はクリップを複製して登録するため、登録分と native ロード分の両方を破棄する
-                if (addedClip != null)
-                {
-                    anim.RemoveClip(addedClip);
-                    // 万一複製されず同一インスタンスが登録された場合の二重 Destroy 防止
-                    if (addedClip != nativeClip)
-                    {
-                        UnityEngine.Object.Destroy(addedClip);
-                    }
-                }
-                UnityEngine.Object.Destroy(nativeClip);
+                DialogPopupWindow.ShowDialog("ポーズの適用に失敗しました");
+                return;
             }
 
-            // 反映後のポーズをボーンスライダーの基準にする (従来は 2 回目の StopMotion が担っていた)
+            if (startPlaying)
+            {
+                anim.Play(POSE_CLIP_TAG);
+                // ■ で止める前でも再開先が定まっているよう明示的に揃える
+                MaidMotionState.SetResumeClip(maid, POSE_CLIP_TAG);
+                return;
+            }
+
+            state.enabled = true;
+            state.weight = 1f;
+            state.time = 0f;
+            anim.Sample();
+            state.enabled = false;
+
+            // 反映後のポーズをボーンスライダーの基準にする
             MaidBoneSliderController.CaptureBasePose(maid);
 
-            // ポーズは静止で再生対象にしない。再開先を消して ▶ を確実に無効化する
-            // (表示名は適用記録が担うため、クリップ名を残す必要はない)
-            MaidMotionState.SetResumeClip(maid, null);
+            // クリップは常駐しているため、▶ で先頭から再生できるよう再開先に設定する
+            MaidMotionState.SetResumeClip(maid, POSE_CLIP_TAG);
         }
 
         /// <summary>anm の先頭マジックと、バストキーが載り始めたバージョン</summary>

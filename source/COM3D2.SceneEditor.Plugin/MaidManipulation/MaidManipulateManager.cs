@@ -540,6 +540,8 @@ namespace COM3D2.SceneEditor.Plugin
             // ストックの Maid は解除後も同一インスタンスが使い回されるため、
             // 停止クリップ名や適用記録を残すと再呼出時に古いモーションへ戻してしまう
             MaidMotionState.Release(maid);
+            // 常駐ポーズクリップも破棄する (ストックの Maid の Animation に残り続けるため)
+            MaidPoseFileManager.ReleaseClip(maid);
 
             try
             {
@@ -575,6 +577,7 @@ namespace COM3D2.SceneEditor.Plugin
             lookController.Destroy();
             gravityController.Destroy();
             MaidMotionState.Clear();
+            MaidPoseFileManager.ClearClips();
         }
 
         public override void OnPluginDisable()
