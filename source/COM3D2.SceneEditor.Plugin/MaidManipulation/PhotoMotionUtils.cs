@@ -112,6 +112,8 @@ namespace COM3D2.SceneEditor.Plugin
                 // 適用前のモーションを指したままになるため先に破棄する
                 MaidMotionState.Discard(maid);
                 data.Apply(maid);
+                // スクリプト経由エントリはクリップ名から特定できないため、何を当てたかを記録する
+                MaidMotionState.RecordAppliedMotion(maid, data);
             }
             catch (Exception e)
             {

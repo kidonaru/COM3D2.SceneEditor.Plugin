@@ -33,6 +33,9 @@ namespace COM3D2.SceneEditor.Plugin
         private bool _isPlaying;
         private float _playbackTime;
 
+        /// <summary>記録時の適用中モーションの記録。undo/redo で表示とハイライトを揃える</summary>
+        private MaidMotionState.AppliedMotionInfo _appliedMotion;
+
         /// <summary>記録時の指ブレンド状態。コントローラの対象が一致するときだけ復元する</summary>
         private List<FingerUnitState> _fingerStates;
 
@@ -64,6 +67,7 @@ namespace COM3D2.SceneEditor.Plugin
             var animState = MaidMotionState.GetCurrentAnimationState(maid);
             snapshot._playbackTime = animState != null
                 ? MaidMotionState.GetWrappedTime(animState) : 0f;
+            snapshot._appliedMotion = MaidMotionState.GetAppliedMotion(maid);
 
             var muneYureController = MaidManipulateManager.instance.muneYureController;
             snapshot._muneYureL = muneYureController.GetYure(maid, true);
@@ -134,6 +138,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void RestoreMotion(Maid maid)
         {
+            MaidMotionState.SetAppliedMotion(maid, _appliedMotion);
             if (_isPlaying)
             {
                 MaidMotionState.PlayClip(maid, _clipName, _playbackTime);

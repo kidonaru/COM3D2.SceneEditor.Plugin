@@ -144,6 +144,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var binary = File.ReadAllBytes(filePath);
                 // サブディレクトリ内でもクリップ名はファイル名だけにし、再生中表示の突き合わせを揃える
                 ApplyPoseBinary(maid, binary, Path.GetFileName(poseName) + ".anm");
+                MaidMotionState.RecordAppliedMyPose(maid, poseName);
             }
             catch (Exception e)
             {
@@ -183,6 +184,10 @@ namespace COM3D2.SceneEditor.Plugin
             // CrossFade の前に停止して元モーション名を控える。
             // 読み込んだ後に控えると、リセットの復帰先が読み込んだポーズ自身になってしまう
             MaidMotionState.StopMotion(maid);
+
+            // 適用するバイナリがどのエントリ由来かはここでは分からないため一旦消す。
+            // 呼び出し元 (マイポーズ読込 / シーンプリセット復元) が適用後に改めて記録する
+            MaidMotionState.SetAppliedMotion(maid, null);
 
             DetachAllIK(maid);
 
