@@ -86,7 +86,7 @@ UI とゲーム API に依存しない純粋データ層を先に持ち込む。
 依存の浅いレイヤーから順に動かす。
 
 1. **カメラレイヤー**: ボディ非依存で最も安全。SceneEditor の CameraWindow / GameViewManager と接続 — **移植完了（2026-08-23）**。DCM 出力・対象モデル UI は未移植方針に合わせ削除。レイヤー UI（DrawWindow）の呼び出し経路接続は今後の課題
-2. **ライトレイヤー**: SceneEditor の StudioLightManager に接続
+2. **ライトレイヤー**: SceneEditor の StudioLightManager に接続 — **移植完了（2026-08-23）**。MTE の写真モード Hack 経路は使わず、SE ネイティブ StudioLightManager 接続のアダプタ版を実装。DCM 出力・互換モード実体は未移植方針に合わせ削除
 3. **モーションレイヤー**: Phase 0 の検証結果に基づき CRC ボディ対応版 MaidCache 相当を実装。.anm 生成 + ExtendBone / IKHold / FingerBlend / Grounding の毎フレーム適用
 4. **表情・指レイヤー**: MaidFaceMorphController / MaidFingerBlendController に接続
 - `TimelineManager` 相当（Update/LateUpdate ループ、Play/Stop/Pause/Seek、レイヤーレジストリ）を SceneEditor の ManagerRegistry 規約（IManager）で実装
