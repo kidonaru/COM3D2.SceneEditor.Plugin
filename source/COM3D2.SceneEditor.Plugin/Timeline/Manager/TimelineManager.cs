@@ -86,9 +86,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => timeline.defaultLayer;
         }
 
-        // カメラ・ポストエフェクトレイヤーは未移植のため常に false
-        public bool hasCameraLayer => false;
+        public bool hasCameraLayer
+        {
+            get => FindLayers(typeof(CameraTimelineLayer)).Count > 0;
+        }
 
+        // ポストエフェクトレイヤーは未移植のため常に false
         public bool hasPostEffectLayer => false;
 
         private bool _isMotionEditing = false;
