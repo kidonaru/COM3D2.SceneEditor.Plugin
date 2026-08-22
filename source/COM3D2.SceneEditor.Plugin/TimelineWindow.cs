@@ -102,6 +102,63 @@ namespace COM3D2.SceneEditor.Plugin
         private TimelineWindow()
         {
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
+            SelectionManager.instance.onSelectionChanged += OnSelectionChanged;
+        }
+
+        private bool _syncingSelection = false;
+
+        // Hierarchy 等での選択をタイムラインのアクティブメイド/レイヤーへ同期する
+        private void OnSelectionChanged(GameObject go)
+        {
+            if (_syncingSelection || go == null)
+            {
+                return;
+            }
+
+            var timelineManager = MTEP.TimelineManager.instance;
+            var currentLayer = timelineManager.currentLayer;
+            if (timelineManager.timeline == null || currentLayer == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _syncingSelection = true;
+
+                // メイド（配下ボーン含む）なら該当スロットのレイヤーへ切替
+                var maid = go.GetComponentInParent<Maid>();
+                if (maid != null)
+                {
+                    var maidCaches = MTEP.MaidManager.instance.maidCaches;
+                    for (var i = 0; i < maidCaches.Count; i++)
+                    {
+                        if (maidCaches[i].maid == maid)
+                        {
+                            if (currentLayer.hasSlotNo && currentLayer.slotNo != i)
+                            {
+                                timelineManager.ChangeActiveLayer(currentLayer.layerType, i);
+                            }
+                            return;
+                        }
+                    }
+                    return;
+                }
+
+                // 追加ライトならライトレイヤーへ切替 (LightTimelineLayer は slotNo を持たない単一レイヤー)
+                var light = go.GetComponentInChildren<Light>();
+                if (light != null && StudioLightManager.instance.lights.Contains(light))
+                {
+                    if (currentLayer.layerType != typeof(MTEP.LightTimelineLayer))
+                    {
+                        timelineManager.ChangeActiveLayer(typeof(MTEP.LightTimelineLayer), 0);
+                    }
+                }
+            }
+            finally
+            {
+                _syncingSelection = false;
+            }
         }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
