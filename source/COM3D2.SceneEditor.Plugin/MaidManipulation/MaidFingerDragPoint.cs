@@ -250,7 +250,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             CancelDrag();
-            MaidDragBoneTracker.NotifyDragEnd();
+            MaidDragBoneTracker.NotifyDragCompleted(maid);
         }
 
         public void CancelDrag()

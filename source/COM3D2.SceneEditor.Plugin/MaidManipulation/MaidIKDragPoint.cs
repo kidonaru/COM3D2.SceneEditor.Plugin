@@ -161,7 +161,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             var downPos = _mouseDownPos;
             CancelDrag();
-            MaidDragBoneTracker.NotifyDragEnd();
+            MaidDragBoneTracker.NotifyDragCompleted(maid);
 
             // 選択自体は BeginDrag 済み。クリック（微小移動）なら Inspector も開く
             if ((pointerPos - downPos).magnitude <= ClickThresholdPixels)

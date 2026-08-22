@@ -103,11 +103,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
             SelectionManager.instance.onSelectionChanged += OnSelectionChanged;
-            MaidDragBoneTracker.onDragEnd += OnDragEnd;
+            MaidDragBoneTracker.onDragCompleted += OnDragCompleted;
         }
 
         // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能、既定 OFF)
-        private void OnDragEnd()
+        private void OnDragCompleted(Maid maid)
         {
             if (!MTEP.ConfigManager.instance.config.isAutoKeyFrame)
             {
@@ -116,7 +116,16 @@ namespace COM3D2.SceneEditor.Plugin
 
             var timelineManager = MTEP.TimelineManager.instance;
             var currentLayer = timelineManager.currentLayer;
+            // 編集モード外 (initialEditFrame 未設定) のドラッグはキーフレーム登録の対象外
             if (currentLayer == null || timelineManager.initialEditFrame == null)
+            {
+                return;
+            }
+
+            // 指ドラッグ等は選択同期を経ずレイヤーが別メイドを指したままになり得るため、
+            // アクティブレイヤーの対象メイドと一致する場合のみ登録する
+            var maidCache = currentLayer.maidCache;
+            if (!currentLayer.hasSlotNo || maidCache == null || maidCache.maid != maid)
             {
                 return;
             }

@@ -57,15 +57,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ドラッグ編集の完了通知。タイムラインの自動キーフレーム登録などが購読する。
+        /// ドラッグ編集の完了通知（引数は編集対象のメイド）。
+        /// タイムラインの自動キーフレーム登録などが購読する。
         /// 各ドラッグ点の正常終了 (EndDrag) からのみ発火し、
-        /// キャンセルやコンポーネント破棄による終了では発火しない
+        /// キャンセルやコンポーネント破棄による終了では発火しない。
+        /// EndDrag() は掴み状態のクリアで、この完了通知とは別物
         /// </summary>
-        public static event Action onDragEnd;
+        public static event Action<Maid> onDragCompleted;
 
-        public static void NotifyDragEnd()
+        public static void NotifyDragCompleted(Maid maid)
         {
-            onDragEnd?.Invoke();
+            onDragCompleted?.Invoke(maid);
         }
     }
 }

@@ -114,7 +114,7 @@ namespace COM3D2.SceneEditor.Plugin
             var downPos = _mouseDownPos;
             var wasEyeMode = _isEyeMode;
             CancelDrag();
-            MaidDragBoneTracker.NotifyDragEnd();
+            MaidDragBoneTracker.NotifyDragCompleted(maid);
 
             // クリック（微小移動）なら首を Inspector の選択対象にする。
             // 目線操作は首を回していないので選択を変えない
