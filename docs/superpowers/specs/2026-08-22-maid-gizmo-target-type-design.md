@@ -131,18 +131,19 @@ private readonly List<GameObject> _maidGizmoTargets = new List<GameObject>();
 
 1. `gizmoTargetType == Selected` なら 0 件（＝現状の挙動）
 2. `externalTargetProvider` が非 null（ボーン編集ウィンドウがギズモを乗っ取っている）なら 0 件
-3. `selectionManager.gizmoSuppressed`（ポーズボーン選択 / IK 選択中）なら 0 件
+3. `selectionManager.gizmoSuppressed`（外部プラグイン起点の抑止 / ポーズボーン選択中）なら 0 件
 4. それ以外は `MaidManipulateManager.instance.calledMaids` のうち
    - `IsVisible(maid)` が true（退避中のメイドは画面外なので除外）
-   - `maid.body0?.m_Bones` の親（メイドルート GameObject）が取得できる
+   - メイドルートは `maid.gameObject`（`SelectionManager.ResolveMaidRoot` が丸める先と同じ）
    - そのルートが `gizmoTarget`（選択中オブジェクト）と同一ではない
      — 選択中メイドは既存の `_gizmo` が担当するため二重描画しない
 
 2 と 3 は「ボーン編集中はボーン用ギズモだけを見せる」ための抑止。根本のギズモが重なると
 掴み間違いが起きるため、メイドルートのギズモは一切出さない。
 
-> メイドルート GameObject の取り方は `SelectionManager` の既存規約（ボーンヒットを
-> メイドルートへ丸める処理）と揃える。実装時に該当処理を参照して同じ経路を使うこと。
+IK ドラッグ点の選択中（`hasIKSelection`）は抑止しない。`SelectionManager.SelectIK` は
+`_gizmoSuppressed = false` を明示しており、選択中メイドのルートギズモは今も出たままになる。
+非選択メイドだけ消すと選択中との扱いが食い違うため、既存の `gizmoSuppressed` の意味に揃える。
 
 **描画**
 
@@ -176,6 +177,10 @@ selectionManager.Select(maidRoot, showGizmo: true, focus: false);
 > プールの再構成でインスタンスが別の対象へ使い回されると破綻する。
 > **ドラッグ中は `_maidGizmos` の再構成を行わない**（`_activeDragGizmo != null` の間は
 > 前フレームの構成を維持する）ことで回避する。
+>
+> 併せて、非選択メイドのギズモを掴んでいる間は `_gizmo` の対象同期をスキップする。
+> 選択が掴んだメイドへ移るため、そのままだと `_gizmo` と掴んでいるインスタンスが
+> 同じ Transform を指して二重に描かれる（掴んだ軸のハイライトは掴んだ側にしか出ない）。
 
 **GameView との関係**
 
@@ -187,25 +192,40 @@ selectionManager.Select(maidRoot, showGizmo: true, focus: false);
 
 **SceneEditor**
 
-`GizmoTargetRowDrawer`（新規）を `source/COM3D2.SceneEditor.Plugin/` 直下
-（`InspectorWindow.cs` と同階層）へ追加する。`MTEUtils/` は両リポジトリで複製している
-共有ソース置き場だが、この行は SceneEditor 固有の `GizmoRenderer.gizmoTargetType` を直接
-参照するため共有できない。呼び出しは `InspectorWindow.DrawGizmoToolRow()` の直下に置く。
-`DrawGizmoToolRow` は
-2 箇所（オブジェクト用・メイド用の Inspector）から呼ばれているため、
-表示対象行も `DrawGizmoToolRow` の中に含めて 1 箇所の変更で両方へ出す。
+MIE の `ModelPlacement/GizmoTargetRowDrawer` は `SelfModelPlacer` を直接参照しているため
+そのままでは共有できない。隣にある `MTEUtils/GizmoToolRowDrawer`（状態を持たず取得・変更を
+デリゲートで注入する形）と同じ作りへ直し、`MTEUtils/GizmoTargetRowDrawer.cs` として
+両リポジトリの共有ソースへ移す。
 
-見た目・文言は MIE の `GizmoTargetRowDrawer` に合わせる（「表示対象」/「すべて表示」/「選択中」、
+```csharp
+public struct GizmoTargetRowOption
+{
+    public float labelWidth;
+    /// <summary>行の高さ。0 なら 20</summary>
+    public float height;
+    /// <summary>ラベルのスタイル。null なら既定</summary>
+    public GUIStyle labelStyle;
+    public Func<GizmoTargetType> getTargetType;
+    public Action<GizmoTargetType> setTargetType;
+}
+```
+
+見た目・文言は MIE の既存実装をそのまま引き継ぐ（「表示対象」/「すべて表示」/「選択中」、
 ボタン幅 80f、選択中を再度押しても解除しない）。
+
+呼び出しは `InspectorWindow.DrawGizmoToolRow()` の中、既存のギズモ操作行の直後に置く。
+`DrawGizmoToolRow` は 2 箇所（オブジェクト用・メイド用の Inspector）から呼ばれているため、
+中に含めることで 1 箇所の変更で両方へ出せる。
 
 **ModItemExplorer**
 
-`ModelInspectorDrawer` は SceneEditor の Inspector へ委譲描画されるものなので、
-そこから `GizmoTargetRowDrawer.Draw` の呼び出しを削除する。削除しないと SceneEditor 側の
-行と並んで同じ設定の行が 2 つ出る。
-
-MIE のモデル操作ウィンドウ（`ModelOperationWindow`）の行はそのまま残す
-（MIE 単体起動時の唯一の切替手段になるため）。
+- `ModelPlacement/GizmoTargetRowDrawer.cs` を削除する。MIE のファイル群は
+  `using COM3D2.MotionTimelineEditor;` を持つため、共有版と同名クラスが両方あると曖昧参照になる
+- `ModelOperationWindow.DrawGizmoTargetRow` は共有版の呼び出しへ差し替える
+  （MIE 単体起動時の唯一の切替手段になるため行自体は残す）
+- `ModelInspectorDrawer` は SceneEditor の Inspector へ委譲描画されるものなので、
+  そこからは表示対象行の呼び出しを削除する。削除しないと SceneEditor 側の行と並んで
+  同じ設定の行が 2 つ出る
 
 ## 影響ファイル
 
@@ -216,10 +236,13 @@ MIE のモデル操作ウィンドウ（`ModelOperationWindow`）の行はその
 | SceneEditor | `Manager/GizmoRenderer.cs` | static 設定、メイドギズモのプール・描画・ヒット判定・ドラッグ委譲 |
 | SceneEditor | `Config.cs` | `gizmoTargetType` / `gizmoUseLocalSpace` の永続化 |
 | SceneEditor | `InspectorWindow.cs` | `DrawGizmoToolRow` に表示対象行を追加 |
-| SceneEditor | `GizmoTargetRowDrawer.cs`（新規） | 表示対象の切替行 |
+| SceneEditor | `MTEUtils/GizmoTargetRowDrawer.cs`（新規） | 表示対象の切替行（デリゲート注入の共有ドローワ） |
 | ModItemExplorer | `MTEUtils/TransformGizmo.cs` | 同一ソースの複製更新 |
 | ModItemExplorer | `MTEUtils/GizmoToolClient.cs` | 同一ソースの複製更新 |
 | ModItemExplorer | `ModelPlacement/SelfModelPlacer.cs` | `UpdateGizmoToolSync` に同期を 1 組追加 |
+| ModItemExplorer | `MTEUtils/GizmoTargetRowDrawer.cs`（新規） | 同一ソースの複製 |
+| ModItemExplorer | `ModelPlacement/GizmoTargetRowDrawer.cs` | 削除（共有版へ統合） |
+| ModItemExplorer | `ModelOperationWindow.cs` | 共有版の呼び出しへ差し替え |
 | ModItemExplorer | `ModelPlacement/ModelInspectorDrawer.cs` | 重複する表示対象行の削除 |
 
 ## エラー処理・後方互換
