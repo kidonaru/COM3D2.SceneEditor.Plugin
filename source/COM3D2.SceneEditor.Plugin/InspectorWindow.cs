@@ -126,24 +126,32 @@ namespace COM3D2.SceneEditor.Plugin
             if (selectionManager.hasIKSelection)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+                // ギズモ行は選択状態に依らず同じ位置に出したいので、
+                // どの内容でも内容本体の前に描く
+                DrawGizmoHeader();
                 DrawIKContent();
                 _view.EndScrollView();
             }
             else if (selectionManager.hasBoneSelection)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+                DrawGizmoHeader();
                 DrawBoneContent();
                 _view.EndScrollView();
             }
             else if (boneEditManager.editMode && boneEditManager.selectedBone != null)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+                DrawGizmoHeader();
                 DrawSlotBoneContent();
                 _view.EndScrollView();
             }
             else if (go == null)
             {
+                _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+                DrawGizmoHeader();
                 _view.DrawLabel("オブジェクトが選択されていません", -1, RowHeight);
+                _view.EndScrollView();
             }
             else
             {
@@ -152,16 +160,22 @@ namespace COM3D2.SceneEditor.Plugin
                 // ヘッダー行はどの対象でも同じ操作を出したいのでホスト側に残す
                 // GetDrawRect は位置送りしない計算専用なので、ここではまだ描かない
                 var headerRect = _view.GetDrawRect(-1, RowHeight);
+                // ヘッダー行の上にギズモ行を描くぶん下げる
+                headerRect.y += GizmoHeaderHeight;
                 if (InspectorHost.TryDraw(go, GetDelegatedContentRect(headerRect)))
                 {
                     // 委譲が成立してから描く。下の既定描画にも DrawHeader があるため、
                     // 先に無条件で描くと委譲失敗時に二重描画になる
+                    DrawGizmoHeader();
                     DrawHeader(go);
+
                     ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
                     return;
                 }
 
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+                DrawGizmoHeader();
 
                 var maid = go.GetComponent<Maid>();
                 if (maid != null)
@@ -170,7 +184,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 DrawHeader(go);
-                DrawGizmoToolRow();
 
                 var t = go.transform;
                 // ギズモの Local/Global 切替に合わせて表示・編集する座標系も切り替える
@@ -310,9 +323,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーン選択時の専用表示。ボーンドロップダウン + 軸オフセットスライダー。
-        /// Transform 行は出さない（ボーン操作は停止ポーズ基準のオフセット角で行う）。
-        /// ギズモ行も出さない（ポーズボーンは Transform ギズモの対象外で、
-        /// 分解軸もボーン固有の軸に固定されるため Local/Global の切替が効かない）
+        /// Transform 行は出さない（ボーン操作は停止ポーズ基準のオフセット角で行う）
         /// </summary>
         private void DrawBoneContent()
         {
@@ -417,7 +428,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawSlotBoneHeader(bone);
 
-            DrawGizmoToolRow();
             if (!isModel)
             {
                 // 揺れものはメイドの装着物専用
@@ -564,7 +574,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// メイド選択時の専用行。メイド切替のみ。
-        /// この下に共通の Transform 行・ギズモ行が続く
+        /// この下に共通の Transform 行が続く
         /// </summary>
         private void DrawMaidContent(Maid maid)
         {
@@ -590,10 +600,18 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ギズモの操作種別・軸空間・表示対象の切り替え。
-        /// SceneView / GameView 双方のギズモがこの設定を共有する
+        /// DrawGizmoHeader が消費する高さ。要素は 2 行 + 区切り線の 3 個で、
+        /// 1f は DrawHorizontalLine が描く線の太さ、margin は要素ごとに 1 個ぶん付く。
+        /// DrawGizmoHeader の行数を変えたらこの式も合わせること
         /// </summary>
-        private void DrawGizmoToolRow()
+        private float GizmoHeaderHeight => RowHeight * 2 + 1f + _view.margin * 3;
+
+        /// <summary>
+        /// 内容の先頭に置くギズモの操作種別・軸空間・表示対象の切り替え行。
+        /// SceneView / GameView 双方のギズモがこの設定を共有するため、
+        /// 選択状態に依らず同じ位置で操作できるようどの内容の前にも共通で描く
+        /// </summary>
+        private void DrawGizmoHeader()
         {
             GizmoToolRowDrawer.Draw(_view, new GizmoToolRowOption
             {
@@ -612,6 +630,8 @@ namespace COM3D2.SceneEditor.Plugin
                 getTargetType = () => GizmoRenderer.gizmoTargetType,
                 setTargetType = value => GizmoRenderer.gizmoTargetType = value,
             });
+
+            _view.DrawHorizontalLine();
         }
 
         /// <summary>アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行</summary>
@@ -645,7 +665,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 委譲先へ渡す内容領域。ヘッダー行のぶんだけ上を削り、
+        /// 委譲先へ渡す内容領域。ホストが描くヘッダー行 (とその上のギズモ行) の下から始まり、
         /// 左右は従来どおりビュー全幅を渡す (委譲先が自前の余白を持つため)
         /// </summary>
         private Rect GetDelegatedContentRect(Rect headerRect)
