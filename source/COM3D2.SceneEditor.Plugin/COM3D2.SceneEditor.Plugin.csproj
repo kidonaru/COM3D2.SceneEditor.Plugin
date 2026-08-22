@@ -333,6 +333,7 @@
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
     <Compile Include="Timeline\TimelineLayerXml.cs" />
