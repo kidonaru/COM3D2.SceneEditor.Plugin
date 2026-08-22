@@ -4,9 +4,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     using AttachPoint = PhotoTransTargetObject.AttachPoint;
 
-    // MTE の StudioModelStat.cs / StudioLightStat.cs の最小移植。
-    // モデル・ライト管理 (StudioModelManager 等) は未移植のため、
-    // タイムラインデータの XML 互換とレイヤー interface の維持に必要なメンバーだけを残している
+    // MTE の StudioModelStat.cs の最小移植。
+    // モデル管理 (StudioModelManager 等) は未移植のため、
+    // タイムラインデータの XML 互換とレイヤー interface の維持に必要なメンバーだけを残している。
+    // ライトは完全版 StudioLightStat.cs へ移行済み
 
     public enum StudioModelType
     {
@@ -28,9 +29,4 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Transform transform { get; set; }
     }
 
-    public class StudioLightStat
-    {
-        public string name { get; set; }
-        public LightType type { get; set; } = LightType.Directional;
-    }
 }

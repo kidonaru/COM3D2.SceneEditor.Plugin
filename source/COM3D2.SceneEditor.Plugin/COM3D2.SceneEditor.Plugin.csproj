@@ -321,6 +321,7 @@
     <Compile Include="Timeline\MoveEasingType.cs" />
     <Compile Include="Timeline\PluginUtils.cs" />
     <Compile Include="Timeline\StopwatchDebug.cs" />
+    <Compile Include="Timeline\StudioLightStat.cs" />
     <Compile Include="Timeline\StudioStats.cs" />
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
