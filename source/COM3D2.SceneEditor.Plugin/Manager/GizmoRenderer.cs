@@ -14,11 +14,45 @@ namespace COM3D2.SceneEditor.Plugin
     public class GizmoRenderer : MonoBehaviour
     {
         /// <summary>
-        /// 操作種別と軸空間。SceneView と GameView のギズモで共有するため static で持つ。
-        /// 切り替え UI は Inspector にある
+        /// 操作種別・軸空間・表示対象。SceneView と GameView のギズモで共有するため static で持つ。
+        /// 切り替え UI は Inspector にある。
+        /// 軸空間と表示対象は一度決めたら変えない設定なので Config へ永続化する
+        /// (バッキングを Config のフィールドにして、GizmoRenderer の生成順に依存させない)。
+        /// 操作種別はホットキーで頻繁に切り替える一時的なモードなので永続化しない
         /// </summary>
         public static GizmoTool currentTool { get; set; } = GizmoTool.Move;
-        public static bool useLocalSpace { get; set; } = true;
+
+        public static bool useLocalSpace
+        {
+            get => config.gizmoUseLocalSpace;
+            set
+            {
+                if (config.gizmoUseLocalSpace == value)
+                {
+                    return;
+                }
+                config.gizmoUseLocalSpace = value;
+                config.dirty = true;
+            }
+        }
+
+        /// <summary>
+        /// ギズモを表示する対象。メイドを多数呼ぶとギズモが重なって選びづらくなるため、
+        /// 選択中だけに絞れるようにしている。ModItemExplorer とは GizmoToolClient 経由で連動する
+        /// </summary>
+        public static GizmoTargetType gizmoTargetType
+        {
+            get => config.gizmoTargetType;
+            set
+            {
+                if (config.gizmoTargetType == value)
+                {
+                    return;
+                }
+                config.gizmoTargetType = value;
+                config.dirty = true;
+            }
+        }
 
         private static readonly Color BoundsColor = new Color(1f, 0.6f, 0f, 0.8f);
         private static readonly Color FrustumColor = new Color(0.4f, 0.8f, 1f, 0.9f);
@@ -56,6 +90,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool isDragging => _gizmo.isDragging;
 
         private static SelectionManager selectionManager => SelectionManager.instance;
+
+        private static Config config => ConfigManager.instance.config;
 
         /// <summary>
         /// ギズモを描画・操作してよいか (ホスト側の表示状態)。

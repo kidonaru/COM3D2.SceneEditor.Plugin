@@ -60,6 +60,11 @@ namespace COM3D2.SceneEditor.Plugin
         // 選択・配置に連動した自動フォーカス。OFF でも Inspector のフォーカスボタンと F キーは効く
         public bool sceneViewAutoFocus = true;
 
+        // ギズモ設定。SceneView / GameView 双方のギズモが共有する。
+        // 操作種別 (currentTool) はホットキーで頻繁に切り替える一時的なモードなので永続化しない
+        public GizmoTargetType gizmoTargetType = GizmoTargetType.All;
+        public bool gizmoUseLocalSpace = true;
+
         public int hierarchyPosX = -1;
         public int hierarchyPosY = -1;
         public int hierarchyWidth = 260;
