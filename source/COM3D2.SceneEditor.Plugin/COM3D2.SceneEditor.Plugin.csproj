@@ -341,6 +341,7 @@
     <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGrounding.cs" />
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
     <Compile Include="Timeline\TransformXml.cs" />
