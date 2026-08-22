@@ -128,6 +128,7 @@
     <Compile Include="MTEUtils\GUITreeView.cs" />
     <Compile Include="MTEUtils\GUIView.cs" />
     <Compile Include="MTEUtils\GearMenu.cs" />
+    <Compile Include="MTEUtils\GizmoTargetRowDrawer.cs" />
     <Compile Include="MTEUtils\GizmoToolRowDrawer.cs" />
     <Compile Include="MTEUtils\IGUIWindow.cs" />
     <!-- ホスト側でも WindowManagerBase.Update が参照するため必要。
