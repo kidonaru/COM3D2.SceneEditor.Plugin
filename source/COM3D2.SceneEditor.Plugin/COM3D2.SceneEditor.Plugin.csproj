@@ -335,6 +335,7 @@
     <Compile Include="Timeline\TrackData.cs" />
     <Compile Include="Timeline\TransformData\ITransformData.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBase.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGrounding.cs" />
