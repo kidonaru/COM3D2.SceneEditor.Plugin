@@ -54,7 +54,12 @@ MotionTimelineEditor（MTE）のタイムライン機能を、SceneEditor の内
   - MTE 方式の .anm バイナリを手組みで生成 → `Animation` に適用できるか検証
   - ExtendBone / IKHold / FingerBlend の直接適用経路（MaidCache 相当）の成立性確認
 - 成果物: 検証メモ（新旧ボディ差分表、動く/動かない API 一覧）
-- **ここで CRC ボディの .anm 適用が成立しない場合、モーションレイヤーの設計を根本から見直す**（旧ボディ限定で先行する等の判断ポイント）
+- **検証完了（2026-08-23、devbridge 実機検証）: CRC ボディで全経路成立**
+  - `CacheBoneDataArray.GetAnmBinary(bool, bool)` は 2.5 にも存在し、CRC ボディ（`_SM_crc_body001`）から `CM3D2_ANIM` ver=1001 / Bip01 系 65 ボーン / チャンネル 100〜106 の MTE 想定どおりのバイナリを生成できる
+  - `TBody.CrossFade(string, byte[], ...)` で生成 .anm を CRC ボディへ適用・再生できる（`playing=True` を確認）
+  - `PoseEditWindow.GetMaidIKManager(maid)` → `IKManager.GetBone(BoneType)` が CRC ボディで動作（`Maid.IKObject` は 2.5 に存在しないが移植コードは元からこの経路）
+  - `goSlot.Count` + インデクサ走査（ExtendBoneCache の経路）が CRC ボディで動作、`FingerBlend.BaseFinger` も存在
+  - → モーションレイヤーの設計見直しは不要。CRC ボディ対応の障壁は解消
 
 ### Phase 1: データモデル・補間層の移植
 
