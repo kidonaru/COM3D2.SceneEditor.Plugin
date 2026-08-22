@@ -17,7 +17,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 操作種別・軸空間・表示対象。SceneView と GameView のギズモで共有するため static で持つ。
         /// 切り替え UI は Inspector にある。
-        /// 軸空間と表示対象は一度決めたら変えない設定なので Config へ永続化する
+        /// 軸空間と表示対象はゲーム再起動をまたいでも保持したい設定なので Config へ永続化する
         /// (バッキングを Config のフィールドにして、GizmoRenderer の生成順に依存させない)。
         /// 操作種別はホットキーで頻繁に切り替える一時的なモードなので永続化しない
         /// </summary>
@@ -644,7 +644,20 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void UpdateDrag(Vector2 rtPoint)
         {
-            _activeDragGizmo?.UpdateDrag(rtPoint);
+            if (_activeDragGizmo == null)
+            {
+                return;
+            }
+
+            _activeDragGizmo.UpdateDrag(rtPoint);
+
+            // 対象が破棄されると TransformGizmo は自分でドラッグを終える。
+            // このとき isDragging も false になり呼び出し側の EndDrag 分岐を通らなくなるため、
+            // 掴んだ側をここで外さないと SyncGizmo がドラッグ中と誤認したまま復帰しない
+            if (!_activeDragGizmo.isDragging)
+            {
+                _activeDragGizmo = null;
+            }
         }
 
         public void EndDrag()
