@@ -143,9 +143,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 外部提供モデル (またはその子) ならモデルのルートへ、
-        /// それ以外 (メイド等・null) は null へ写像する
+        /// それ以外 (メイド等・null) は null へ写像する。
+        /// SceneEditor 内部からも「選択がモデルかどうか」の判定に使うため internal
+        /// (連動設定のゲートは通知側にあり、この写像自体は設定と無関係)
         /// </summary>
-        private static GameObject ResolveModel(GameObject go)
+        internal static GameObject ResolveModel(GameObject go)
         {
             return go != null ? FindProvidedModelRoot(go) : null;
         }

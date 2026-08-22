@@ -36,8 +36,48 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>編集対象の種別。Model のときは targetModel 配下のボーンを編集する</summary>
         public BoneEditTargetType targetType = BoneEditTargetType.Maid;
 
-        /// <summary>モデルモードの編集対象 (外部プラグインが配置したモデルのルート)</summary>
-        public GameObject targetModel;
+        // 代入は必ず targetModel setter か ClearTargetModelSilently を経由すること。
+        // 直接代入すると Inspector の選択と食い違い、外部プラグインへの選択変更通知
+        // (ModelSelectHost) も漏れる。
+        // 逆方向 (選択 → 対象) の追従だけは ReleaseBoneOnObjectSelected が
+        // 選択済みの値を書き戻すため、setter を通さず直接代入する
+        private GameObject _targetModel;
+
+        /// <summary>
+        /// モデルモードの編集対象 (外部プラグインが配置したモデルのルート)。
+        /// 選択中モデルと双方向で連動する。ここへ代入すると Inspector の選択も揃い、
+        /// 外部プラグインへは ModelSelectHost 経由で選択変更が通知される。
+        /// 逆に SceneView クリック等でモデルが選択されたときはこちらが追従する
+        /// </summary>
+        public GameObject targetModel
+        {
+            get
+            {
+                // 破棄済みのモデルを掴み続けない。
+                // ここで backing field を実 null へ書き戻すと、CleanupModelStores の
+                // 破棄検出 (fake-null かつ実参照あり) が読み取り順で取りこぼされ、
+                // ボーン選択の解除が漏れる。書き戻さず null を返すだけにする
+                return _targetModel == null ? null : _targetModel;
+            }
+            set
+            {
+                var previous = _targetModel;
+                _targetModel = value;
+
+                // ギズモは Inspector の選択オブジェクトに出るため、対象モデルを選んだら
+                // 選択も揃える。モデルルートのギズモは外部プラグイン側が持つため
+                // showGizmo は出さない (SelectModelBone と同じ規約)
+                if (value != null)
+                {
+                    selectionManager.Select(value, false);
+                }
+                // 対象を外したらモデルの選択も外す。他のオブジェクトを選んでいるなら横取りしない
+                else if (previous != null && selectionManager.selectedObject == previous)
+                {
+                    selectionManager.ClearSelection();
+                }
+            }
+        }
 
         /// <summary>モデルの差分ストアで slotName の代わりに使う固定キー (モデルにスロット概念は無い)</summary>
         public const string ModelSlotKey = "model";
@@ -511,15 +551,27 @@ namespace COM3D2.SceneEditor.Plugin
                 _modelStores.Remove(model);
             }
 
-            // 対象モデルが削除されたら参照を実 null に落とし、選択も外す
-            if (targetModel == null && !ReferenceEquals(targetModel, null))
+            // 対象モデルが削除されたら参照を実 null に落とし、ボーン選択も外す。
+            // 破棄済みオブジェクトの選択解除は SelectionManager が行うため、
+            // setter を通して選択へ触りにいかない (getter は破棄を実 null に均すため
+            // 判定には backing field を使う)
+            if (_targetModel == null && !ReferenceEquals(_targetModel, null))
             {
-                targetModel = null;
+                ClearTargetModelSilently();
                 if (isModelMode)
                 {
                     selectedBone = null;
                 }
             }
+        }
+
+        /// <summary>
+        /// setter の後片付け (選択の同期) を通さずに対象モデルだけ捨てる。
+        /// 破棄検出・シーン遷移の一括後片付け用 (どちらも選択は別経路で解除される)
+        /// </summary>
+        private void ClearTargetModelSilently()
+        {
+            _targetModel = null;
         }
 
         /// <summary>
@@ -566,6 +618,28 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _lastSelectedObject = selectedObject;
                 selectedBone = null;
+                SyncTargetModelFromSelection(selectedObject);
+            }
+        }
+
+        /// <summary>
+        /// 選択がモデル (またはその子) へ移ったら編集対象モデルを揃える。
+        /// SceneView クリックや外部プラグインからの選択でもボーンウィンドウの対象が追従する。
+        /// モデル以外 (メイド等) が選ばれた場合は対象を保持する
+        /// (無関係なクリックのたびに編集対象を見失わないため。targetMaid と同じ流儀)。
+        /// 選択済みの値を書き戻すだけなので、再選択を誘発しないよう setter は通さない
+        /// </summary>
+        private void SyncTargetModelFromSelection(GameObject selectedObject)
+        {
+            if (selectedObject == null)
+            {
+                return;
+            }
+
+            var model = ModelSelectHost.ResolveModel(selectedObject);
+            if (model != null)
+            {
+                _targetModel = model;
             }
         }
 
@@ -663,7 +737,8 @@ namespace COM3D2.SceneEditor.Plugin
             _stores.Clear();
             _wasLoading.Clear();
             _modelStores.Clear();
-            targetModel = null;
+            // シーン遷移では SelectionManager 側が選択を解除するため setter は通さない
+            ClearTargetModelSilently();
             _boneTree.Clear();
             _boneTreeSource = null;
             selectedBone = null;
