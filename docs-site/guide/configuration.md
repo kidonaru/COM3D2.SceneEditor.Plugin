@@ -30,7 +30,7 @@
 | `backgroundColor` | `0.15, 0.15, 0.15` | GameView の外側とレターボックス余白の色 |
 | `screenshotScale` | `2` | スクリーンショットの解像度倍率（1〜4） |
 | `historyLimit` | `20` | 操作履歴の最大保持数（`0` で無効） |
-| `linkExternalPlugin` | `true` | SceneEditor の ON/OFF に対応プラグインを追従させる |
+| `linkExternalPlugin` | `true` | 対応プラグインを連動させる（SceneEditor の ON/OFF の追従と、選択中メイド / モデルの共有） |
 
 ## ウィンドウの配置
 
