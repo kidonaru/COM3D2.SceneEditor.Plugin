@@ -37,6 +37,7 @@ export default defineConfig({
             { text: 'Inspector 描画の委譲', link: '/dev/inspector-guest-guide' },
             { text: '有効/無効の連動', link: '/dev/editor-state-guest-guide' },
             { text: '選択中メイドの共有', link: '/dev/maid-select-guest-guide' },
+            { text: '選択中モデルの共有', link: '/dev/model-select-guest-guide' },
             { text: 'その他（選択 / ツール / 入力）', link: '/dev/misc-guest-guide' },
           ],
         },

@@ -255,6 +255,7 @@ t.GetMethod("Unregister").Invoke(null, new object[] { handle });
 | `HistoryAPI` | `HistoryClient` | 操作履歴（undo/redo）への参加 | [操作履歴連携](history-guest-guide.md) |
 | `EditorStateHost` | `EditorStateClient` | SceneEditor の有効/無効への追従 | [有効/無効の連動](editor-state-guest-guide.md) |
 | `MaidSelectHost` | `MaidSelectClient` | 選択中メイドの共有（読み取り・購読・外部からの選択変更） | [選択中メイドの共有](maid-select-guest-guide.md) |
+| `ModelSelectHost` | `ModelSelectClient` | 選択中モデル（外部提供モデル）の共有（読み取り・購読・外部からの選択変更） | [選択中モデルの共有](model-select-guest-guide.md) |
 | `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の入力・描画へ参加させる | [ギズモ連携](gizmo-guest-guide.md) |
 | `InspectorHost` | `InspectorHostClient` | Inspector の内容描画の委譲 | [Inspector 描画の委譲](inspector-guest-guide.md) |
 | `SelectionManager` | `SelectionClient` | 選択オブジェクトの取得・変更通知・選択時の SceneView フォーカス指定 | [その他の連携](misc-guest-guide.md) |
