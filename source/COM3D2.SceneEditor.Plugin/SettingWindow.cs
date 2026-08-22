@@ -318,6 +318,7 @@ namespace COM3D2.SceneEditor.Plugin
                     config.dirty = true;
                     EditorStateHost.OnLinkEnabledChanged(newValue);
                     MaidSelectHost.OnLinkEnabledChanged(newValue);
+                    ModelSelectHost.OnLinkEnabledChanged(newValue);
                 });
 
             _view.DrawLabel("SceneEditor の ON/OFF に対応プラグインを追従させる", -1, ROW_HEIGHT,

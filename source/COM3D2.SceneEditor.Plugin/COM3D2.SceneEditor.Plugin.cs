@@ -360,6 +360,9 @@ namespace COM3D2.SceneEditor.Plugin
                 managerRegistry.RegisterManager(WindowManager.instance);
                 managerRegistry.RegisterManager(GameViewManager.instance);
                 managerRegistry.RegisterManager(SelectionManager.instance);
+                // モデル選択の外部プラグイン共有。SelectionManager のイベントを購読するため
+                // インスタンス生成後に配線する
+                ModelSelectHost.Init();
                 managerRegistry.RegisterManager(SceneViewManager.instance);
                 managerRegistry.RegisterManager(StudioLightManager.instance);
                 managerRegistry.RegisterManager(PngPlacementManager.instance);

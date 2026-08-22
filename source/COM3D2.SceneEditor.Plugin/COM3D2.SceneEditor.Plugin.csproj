@@ -120,6 +120,7 @@
     <Compile Include="MTEUtils\DockableWindowBase.cs" />
     <Compile Include="MTEUtils\EditorStateClient.cs" />
     <Compile Include="MTEUtils\MaidSelectClient.cs" />
+    <Compile Include="MTEUtils\ModelSelectClient.cs" />
     <Compile Include="MTEUtils\Extensions.cs" />
     <Compile Include="MTEUtils\GUICache.cs" />
     <Compile Include="MTEUtils\HistoryClient.cs" />
@@ -248,6 +249,7 @@
     <Compile Include="MaidGravityWindow.cs" />
     <Compile Include="BoneEditWindow.cs" />
     <Compile Include="ModelProviderHost.cs" />
+    <Compile Include="ModelSelectHost.cs" />
     <Compile Include="MenuBarWindow.cs" />
     <Compile Include="BackgroundUtils.cs" />
     <Compile Include="BackgroundWindow.cs" />
