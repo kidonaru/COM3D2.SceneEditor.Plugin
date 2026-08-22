@@ -204,7 +204,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
                     break;
                 }
-                // StudioModelManager は未移植のためモデル注視は提供しない
+                case LookAtTargetType.Model:
+                    // StudioModelManager は未移植のため対象を解決しない
+                    break;
             }
 
             return null;
@@ -401,7 +403,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
-            _targetTypeComboBox.currentIndex = (int) maidCache.lookAtTargetType;
+            // 選択肢から除外した Model が既存データに保存されている場合は手動 (None) へ丸める
+            var targetTypeIndex = (int) maidCache.lookAtTargetType;
+            if (targetTypeIndex >= _targetTypeComboBox.items.Count)
+            {
+                targetTypeIndex = (int) LookAtTargetType.None;
+            }
+            _targetTypeComboBox.currentIndex = targetTypeIndex;
             _targetTypeComboBox.onSelected = (type, index) => maidCache.lookAtTargetType = type;
             _targetTypeComboBox.DrawButton("注視先", view);
 
