@@ -56,16 +56,45 @@ public enum GizmoTargetType
 **SceneEditor（ホスト）**
 
 - `GizmoRenderer.gizmoTargetType`（static プロパティ、既定 `All`）を新設
-- `Config` に永続化する。`currentTool` / `useLocalSpace` は永続化されていないが、
-  MIE 側の `gizmoTargetType` は Config に永続化されているため、正の側でも保存しないと
-  再起動でユーザーの選択が失われる
+- `Config` に永続化する。MIE 側の `gizmoTargetType` は Config に永続化されているため、
+  正の側でも保存しないと再起動でユーザーの選択が失われる
+
+**既存 `useLocalSpace` の永続化（ついで対応）**
+
+`GizmoRenderer.useLocalSpace` は現在 static プロパティのままで永続化されていない。
+表示対象と同じくユーザーが一度決めたら変えない性質の設定なので、この機会に
+`Config.gizmoUseLocalSpace`（既定 true）へ永続化する。
+
+`currentTool`（移動/回転/拡縮）は Q/W/E 相当のホットキーで頻繁に切り替える一時的な
+モードなので永続化しない。
+
+Config へ永続化する 2 項目は、`Config` のロード完了後に `GizmoRenderer` の static へ
+反映する必要がある。`GizmoRenderer` は MonoBehaviour で SceneView / GameView の
+カメラ生成時に付くため、初期値は Config を直接読む形（プロパティのバッキングを
+Config のフィールドにする）にして、生成順への依存をなくす:
+
+```csharp
+public static bool useLocalSpace
+{
+    get => config.gizmoUseLocalSpace;
+    set
+    {
+        if (config.gizmoUseLocalSpace == value) return;
+        config.gizmoUseLocalSpace = value;
+        config.dirty = true;
+    }
+}
+```
+
+`gizmoTargetType` も同じ形にする（MIE の `SelfModelPlacer.gizmoTargetType` と同型）。
 
 **ブリッジ**
 
 `MTEUtils/GizmoToolClient.cs` に `targetType` プロパティを追加する。既存 `tool` と同じく
 enum はアセンブリ間で別型になるため int 経由で授受し、ホスト側 enum 型は
 `_hostTargetTypeProp.PropertyType` から取得する。取得失敗時は `GizmoTargetType.All`
-（＝ SceneEditor の既定値）を返し、`isAvailable` を false へ倒す。
+（＝ SceneEditor の既定値）を返し、`isTargetTypeAvailable` を false へ倒す
+（`isAvailable` は倒さない。理由は下記）。
 
 既存の初期化は `GizmoRenderer` から `tool` / `useLocalSpace` の 2 プロパティが揃って
 見つかることを条件にしている。ここに `gizmoTargetType` を必須として加えると、
@@ -185,7 +214,7 @@ MIE のモデル操作ウィンドウ（`ModelOperationWindow`）の行はその
 | SceneEditor | `MTEUtils/TransformGizmo.cs` | `GizmoTargetType` 追加 |
 | SceneEditor | `MTEUtils/GizmoToolClient.cs` | `targetType` / `isTargetTypeAvailable` 追加 |
 | SceneEditor | `Manager/GizmoRenderer.cs` | static 設定、メイドギズモのプール・描画・ヒット判定・ドラッグ委譲 |
-| SceneEditor | `Config.cs` | `gizmoTargetType` の永続化 |
+| SceneEditor | `Config.cs` | `gizmoTargetType` / `gizmoUseLocalSpace` の永続化 |
 | SceneEditor | `InspectorWindow.cs` | `DrawGizmoToolRow` に表示対象行を追加 |
 | SceneEditor | `GizmoTargetRowDrawer.cs`（新規） | 表示対象の切替行 |
 | ModItemExplorer | `MTEUtils/TransformGizmo.cs` | 同一ソースの複製更新 |
@@ -218,4 +247,5 @@ MIE のモデル操作ウィンドウ（`ModelOperationWindow`）の行はその
 6. ボーン編集ウィンドウを開いている間・ポーズボーン選択中はメイドルートのギズモが出ないこと
 7. 退避（非表示）中のメイドにギズモが出ないこと
 8. SceneView / GameView の両方で 2〜7 が成立すること
-9. 設定がゲーム再起動後も保持されること
+9. 表示対象と軸空間 (Local/Global) がゲーム再起動後も保持されること。
+   再起動後の初回同期で MIE 側も保存値へ揃うこと
