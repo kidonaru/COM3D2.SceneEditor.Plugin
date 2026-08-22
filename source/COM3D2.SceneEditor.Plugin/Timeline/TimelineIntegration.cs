@@ -28,6 +28,7 @@ namespace COM3D2.SceneEditor.Plugin
                 studioHackManager,
                 MTEP.MaidManager.instance,
                 MTEP.TimelineManager.instance,
+                MTEP.StudioLightManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -133,6 +134,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.MotionTimelineLayer), MTEP.MotionTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.CameraTimelineLayer), MTEP.CameraTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.LightTimelineLayer), MTEP.LightTimelineLayer.Create);
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Camera,
@@ -149,6 +152,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.IKHold,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataIKHold>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Light,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataLight>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Root,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRoot>);
