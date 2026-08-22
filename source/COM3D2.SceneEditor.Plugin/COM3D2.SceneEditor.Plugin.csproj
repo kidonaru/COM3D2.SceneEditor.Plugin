@@ -342,12 +342,15 @@
     <Compile Include="Timeline\TransformData\TransformDataBase.cs" />
     <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataEyes.cs" />
     <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGrounding.cs" />
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
     <Compile Include="Timeline\TransformXml.cs" />
     <Compile Include="Timeline\ValueData.cs" />
     <Compile Include="Timeline\VideoDisplayType.cs" />
