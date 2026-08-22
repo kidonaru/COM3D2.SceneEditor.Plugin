@@ -66,6 +66,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>コンボのフォーカス状態を各ビューで共有するためのルート</summary>
+        private readonly GUIView _rootView = new GUIView();
         private readonly GUIView contentView = new GUIView();
         private readonly GUIView timelineView = new GUIView();
         private readonly GUIView boneMenuView = new GUIView();
@@ -332,6 +334,26 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         protected override void DrawContent()
+        {
+            _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
+            // 各ビューを子にして、どこに描いたコンボもフォーカス状態を共有させる
+            contentView.parent = _rootView;
+            timelineView.parent = _rootView;
+            boneMenuView.parent = _rootView;
+
+            DrawBody();
+
+            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
+            // (BackgroundWindow と同じ流儀。これを呼ばないとフォーカスが残留し
+            //  guiEnabled=false のまま全 UI が無効化されて操作不能になる)
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
+        }
+
+        /// <summary>
+        /// 本体の描画。早期 return しても DrawContent 末尾の
+        /// ProcessFocus を飛ばさないようメソッドを分けている
+        /// </summary>
+        private void DrawBody()
         {
             InitGUI();
 
