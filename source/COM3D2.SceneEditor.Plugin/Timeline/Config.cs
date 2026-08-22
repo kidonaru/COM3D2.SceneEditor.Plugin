@@ -63,6 +63,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isIkBoxVisibleRoot = true;
         public bool isIkBoxVisibleBody = true;
         public bool isAutoScroll = false;
+        // ドラッグ編集完了時に現在フレームへ自動でキーフレーム登録する (SE 独自機能)
+        public bool isAutoKeyFrame = false;
         public TangentType defaultTangentType = TangentType.Smooth;
         public MoveEasingType defaultEasingType = MoveEasingType.SineInOut;
         public int detailTransformCount = 16;

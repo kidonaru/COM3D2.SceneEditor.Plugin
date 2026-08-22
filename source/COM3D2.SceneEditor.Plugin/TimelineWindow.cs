@@ -103,6 +103,25 @@ namespace COM3D2.SceneEditor.Plugin
         {
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
             SelectionManager.instance.onSelectionChanged += OnSelectionChanged;
+            MaidDragBoneTracker.onDragEnd += OnDragEnd;
+        }
+
+        // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能、既定 OFF)
+        private void OnDragEnd()
+        {
+            if (!MTEP.ConfigManager.instance.config.isAutoKeyFrame)
+            {
+                return;
+            }
+
+            var timelineManager = MTEP.TimelineManager.instance;
+            var currentLayer = timelineManager.currentLayer;
+            if (currentLayer == null || timelineManager.initialEditFrame == null)
+            {
+                return;
+            }
+
+            currentLayer.AddKeyFrameDiff();
         }
 
         private bool _syncingSelection = false;
@@ -895,6 +914,12 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawToggle("編集モード", studioHackManager.isPoseEditing, 80, 20, newValue =>
                 {
                     studioHackManager.isPoseEditing = newValue;
+                });
+
+                view.DrawToggle("自動登録", timelineConfig.isAutoKeyFrame, 80, 20, newValue =>
+                {
+                    timelineConfig.isAutoKeyFrame = newValue;
+                    timelineConfig.dirty = true;
                 });
 
                 view.DrawToggle("メイド表示", maidManager.maid.Visible, 80, 20, newValue =>
