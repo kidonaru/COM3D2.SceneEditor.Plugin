@@ -102,8 +102,8 @@ UI とゲーム API に依存しない純粋データ層を先に持ち込む。
 
 ### Phase 5: 仕上げ・拡張判断
 
-- .anm エクスポート（マイポーズ/モーションとしての書き出し）
-- パフォーマンス調整（キーフレーム描画カリングは MTE 実装済みのものを踏襲）
+- .anm エクスポート（マイポーズ/モーションとしての書き出し） — **移植済み・検証完了（2026-08-23）**。「ファイル > アニメ出力」→ `OutputAnm` → `PhotoModePoseSave.folder_path` への書き出しチェーンは Phase 2 の移植に含まれており、COM3D2.5 実機で出力先が SE ポーズブラウザのフォルダ（PhotoModeData\MyPose）と一致することを devbridge で確認。`OnUpdateMyPose` の override は SE のポーズ一覧がキャッシュレスのため不要
+- パフォーマンス調整（キーフレーム描画カリングは MTE 実装済みのものを踏襲） — **対応済み（2026-08-23 確認）**。TimelineWindow にキーフレームの X/Y カリングとフレームラベルのカリングを実装済み
 - docs-site へのユーザーガイド追加、CHANGELOG、リリース
 - 拡張判断: MTE 固有レイヤー（Psyllium / StageLight / StageLaser 等）や DCM 出力を追加するか
   - **PostEffect / PngObject は実装可能と確認（2026-08-23）**: PostEffect は PostEffects.Plugin、PngObject は StageEditor との連携で実現できる見込み。実施時期は拡張判断のまま
