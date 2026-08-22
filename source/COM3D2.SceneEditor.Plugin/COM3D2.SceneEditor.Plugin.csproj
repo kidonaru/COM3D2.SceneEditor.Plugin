@@ -326,6 +326,7 @@
     <Compile Include="Timeline\TangentPair.cs" />
     <Compile Include="Timeline\TimelineData.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
+    <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
