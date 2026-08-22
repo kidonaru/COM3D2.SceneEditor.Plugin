@@ -45,12 +45,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private int historyLimit => config.historyLimit;
 
+        // 現在のタイムライン状態に対応する確定済みスナップショット。
+        // SE 履歴ブリッジの before として使う。AddHistory と
+        // TimelineHistoryEntry (SE 側 Undo/Redo 適用) の双方で更新する
+        public TimelineXml lastCommittedXml { get; set; }
+
         private TimelineHistoryManager()
         {
         }
 
         public void AddHistory(TimelineData timeline, string description)
         {
+            var beforeXml = lastCommittedXml;
+
             if (historyIndex < historyList.Count - 1)
             {
                 historyList.RemoveRange(historyIndex + 1, historyList.Count - historyIndex - 1);
@@ -76,6 +83,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             historyList.Add(history);
             historyIndex = historyList.Count - 1;
+
+            // SE の履歴スタックへも同じ操作を積み、Ctrl+Z を一本化する。
+            // 直前スナップショットが無い場合 (新規作成・読み込み直後) は
+            // それ以前へ戻る意味がないため積まない
+            if (beforeXml != null)
+            {
+                SceneEditor.Plugin.HistoryManager.instance.AddEntry(
+                    new SceneEditor.Plugin.TimelineHistoryEntry(beforeXml, history.xml, description));
+            }
+            lastCommittedXml = history.xml;
         }
 
         public void Undo()
@@ -119,6 +136,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             historyList.Clear();
             historyIndex = -1;
+            // タイムライン破棄時に古い状態を SE 履歴ブリッジへ持ち越さない
+            lastCommittedXml = null;
         }
     }
 }
