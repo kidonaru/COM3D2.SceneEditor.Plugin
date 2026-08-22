@@ -294,6 +294,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _prevUpdateFrame = -1;
 
             seLightManager.ClearAll();
+            RemoveMainLightFollow();
+        }
+
+        // メインライトはゲーム側の恒久オブジェクトのため、
+        // タイムラインが付与した MaidFollowLight を残さないよう明示的に除去する
+        private void RemoveMainLightFollow()
+        {
+            var mainLight = seLightManager.mainLight;
+            var followLight = mainLight != null ? mainLight.GetComponent<MaidFollowLight>() : null;
+            if (followLight != null)
+            {
+                UnityEngine.Object.Destroy(followLight);
+            }
         }
 
         public StudioLightStat CreateLightStat(

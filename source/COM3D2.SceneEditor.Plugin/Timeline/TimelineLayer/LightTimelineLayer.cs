@@ -117,7 +117,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var start = motion.start as TransformDataLight;
 
-            followLight.maidSlotNo = start.maidSlotNo;
+            // SE のメインライト (index 0) はゲーム側の恒久オブジェクトのためメイド追従を適用しない
+            followLight.maidSlotNo = stat.index > 0 ? start.maidSlotNo : -1;
 
             stat.position = start.position;
             stat.rotation = start.rotation;
@@ -391,7 +392,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // SE 版 GUIView には IsComboBoxFocused がないため focusedComboBox 判定に置き換え
             view.SetEnabled(view.focusedComboBox == null);
 
             _lightComboBox.items = lights;
@@ -411,7 +411,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             view.BeginScrollView();
 
-            // SE 版 GUIView には IsComboBoxFocused がないため focusedComboBox 判定に置き換え
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
             {
@@ -619,7 +618,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 view.DrawHorizontalLine(Color.gray);
             }
 
-            // SE 版 GUIView には IsComboBoxFocused がないため focusedComboBox 判定に置き換え
             view.SetEnabled(view.focusedComboBox == null);
             view.EndScrollView();
         }
