@@ -136,6 +136,10 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.CameraTimelineLayer), MTEP.CameraTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.LightTimelineLayer), MTEP.LightTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.EyesTimelineLayer), MTEP.EyesTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ShapeKeyTimelineLayer), MTEP.ShapeKeyTimelineLayer.Create);
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Camera,
@@ -143,6 +147,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.ExtendBone,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataExtendBone>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Eyes,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataEyes>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.FingerBlend,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataFingerBlend>);
@@ -156,11 +163,17 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.Light,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataLight>);
             timelineManager.RegisterTransform(
+                MTEP.TransformType.LookAtTarget,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataLookAtTarget>);
+            timelineManager.RegisterTransform(
                 MTEP.TransformType.Root,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRoot>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Rotation,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRotation>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.ShapeKey,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataShapeKey>);
 
             var updateManager = new TimelineUpdateManager();
             managerRegistry.RegisterManager(updateManager);
