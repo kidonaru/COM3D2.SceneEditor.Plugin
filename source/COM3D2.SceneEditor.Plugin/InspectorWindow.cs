@@ -590,7 +590,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ギズモの操作種別と軸空間の切り替え。
+        /// ギズモの操作種別・軸空間・表示対象の切り替え。
         /// SceneView / GameView 双方のギズモがこの設定を共有する
         /// </summary>
         private void DrawGizmoToolRow()
@@ -603,6 +603,14 @@ namespace COM3D2.SceneEditor.Plugin
                 setTool = tool => GizmoRenderer.currentTool = tool,
                 getUseLocalSpace = () => GizmoRenderer.useLocalSpace,
                 setUseLocalSpace = value => GizmoRenderer.useLocalSpace = value,
+            });
+
+            GizmoTargetRowDrawer.Draw(_view, new GizmoTargetRowOption
+            {
+                labelWidth = LabelWidth,
+                height = RowHeight,
+                getTargetType = () => GizmoRenderer.gizmoTargetType,
+                setTargetType = value => GizmoRenderer.gizmoTargetType = value,
             });
         }
 
