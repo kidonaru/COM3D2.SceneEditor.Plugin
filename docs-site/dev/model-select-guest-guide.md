@@ -20,7 +20,7 @@ SceneEditor 内製のオブジェクト（メイド・ライト等）は対象�
 |---|---|
 | 現在の選択中モデルを読む | ✅ `selectedModel` |
 | 選択の変化を購読する（選択解除 = null も流れる） | ✅ `Subscribe` |
-| 外部から SceneEditor の選択を変更する | ✅ `TrySelectModel` |
+| 外部から SceneEditor の選択を変更する（null で解除、focus でカメラ寄せ） | ✅ `TrySelectModel` |
 | 連携の ON/OFF をゲスト側から切り替える | ❌ 設定は SceneEditor の設定ウィンドウ「連携」タブが持つ（読み取りのみ `isLinkEnabled`） |
 
 `GameObject` は Unity 本体の型なので、プラグイン独自型と違い DLL 間でそのまま受け渡せる。
@@ -46,11 +46,15 @@ ModelSelectClient.Subscribe(OnSelectedModelChanged);
 ModelSelectClient.Unsubscribe(OnSelectedModelChanged);
 
 // 外部から SceneEditor の選択を変更する。
-// 自前ギズモを持つプラグインは showGizmo: false で SceneEditor 側ギズモを抑止する
-if (!ModelSelectClient.TrySelectModel(model, showGizmo: false))
+// 自前ギズモを持つプラグインは showGizmo: false で SceneEditor 側ギズモを抑止する。
+// focus: true なら SceneView のカメラを対象へ寄せる
+if (!ModelSelectClient.TrySelectModel(model, showGizmo: false, focus: true))
 {
     // SceneEditor が無効 / 不在 / 連携設定 OFF / モデルが提供中一覧に無い
 }
+
+// モデル選択を解除する (モデル以外を選択中の場合はその選択を巻き込まず true)
+ModelSelectClient.TrySelectModel(null);
 ```
 
 クライアントが以下を肩代わりするため、ゲスト側の分岐は不要:
@@ -75,7 +79,7 @@ MTEUtils を使わない場合は `ModelSelectClient.cs` と同じ手順で接�
 // COM3D2.SceneEditor.Plugin.ModelSelectHost (public static)
 GameObject selectedModel { get; }    // 選択中モデル。モデル以外を選択中・未選択なら null
 bool isLinkEnabled { get; }          // 連携設定が ON か
-bool TrySelectModel(GameObject model, bool showGizmo);  // 外部からの選択変更。無効時は false
+bool TrySelectModel(GameObject model, bool showGizmo, bool focus);  // 外部からの選択変更。null で解除。無効時は false
 void Subscribe(Action<GameObject> onChanged);  // 変化の購読 (解除・モデル以外への切替は null)
 void Unsubscribe(Action<GameObject> onChanged);
 ```
@@ -93,12 +97,17 @@ void Unsubscribe(Action<GameObject> onChanged);
   同じ変更の通知が流れる。無限ループや二重処理を避けたい場合は、
   自分が直前に Set した値と同じ通知を無視するなどの抑止をゲスト側で行うこと
 - **`TrySelectModel` が false になる条件**: SceneEditor の UI が無効 /
-  連携設定が OFF / `model` が null / モデルが `ModelProviderHost` で提供中の一覧に無い。
+  連携設定が OFF / モデルが `ModelProviderHost` で提供中の一覧に無い。
   受け付けるのは提供中モデルの**ルート GameObject** のみで、子オブジェクト指定は false になる
+- **`TrySelectModel(null)` はモデル選択の解除**。SceneEditor 側でモデルを選択中なら
+  選択を解除して null が通知される。モデル以外（メイド等）を選択中の場合は
+  その選択を巻き込まず、何も起きずに true を返す
 - **既に選択中のモデルへの `TrySelectModel` は true を返すが、通知は流れない**
-  （選択の変化が無いため）
+  （選択の変化が無いため）。ただし `focus: true` のカメラ寄せだけは再選択でも毎回実行される
 - **`showGizmo`**: false を渡すと SceneEditor 側のギズモ表示を抑止する。
-  外部プラグインが自前のギズモを持つ場合に二重表示を避けるために使う
+  外部プラグインが自前のギズモを持つ場合に二重表示を避けるために使う。
+  解除（`TrySelectModel(null)`）時は無視され、抑止状態も選択解除と同時にリセットされる
+- **`focus`**: true を渡すと SceneView のカメラを選択対象へ寄せる（解除時は無視）
 - **連携設定が OFF の間は通知が来ない**。購読自体は維持されるので、再登録は不要。
   OFF → ON へ切り替えられた瞬間だけ、その時点の選択が 1 回プッシュされる
 - **ホストの `Subscribe` は購読時に通知しない**。A の `ModelSelectClient` はこれを補って
