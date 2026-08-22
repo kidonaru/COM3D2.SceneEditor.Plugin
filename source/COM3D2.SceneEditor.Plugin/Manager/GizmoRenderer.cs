@@ -212,23 +212,22 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 非選択メイド用ギズモの対象を組み直す。
-        /// ボーン編集中 (externalTargetProvider) とポーズボーン選択中は、ボーン用ギズモと
-        /// 根本のギズモが重なって掴み間違いが起きるため 1 件も出さない。
-        /// IK ドラッグ点の選択中は抑止しない (選択中メイドのルートギズモも出たままのため、
-        /// SelectionManager.gizmoSuppressed の意味にそのまま揃える)
+        /// メイドルート用ギズモの対象を組み直す。
+        /// ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
+        /// (ボーンを触っている間に他のメイドを動かせなくなるのを避ける)。
+        /// ボーン用ギズモと重なった場合は TryBeginDrag が _gizmo を先に試すので
+        /// ボーン側が優先され、掴み間違いにはならない
         /// </summary>
         private void RebuildMaidGizmos()
         {
             _maidGizmoCount = 0;
 
-            if (gizmoTargetType != GizmoTargetType.All ||
-                externalTargetProvider?.Invoke() != null ||
-                selectionManager.gizmoSuppressed)
+            if (gizmoTargetType != GizmoTargetType.All)
             {
                 return;
             }
 
+            // 抑止中は gizmoTarget が null になるため、選択中メイドのルートもここが担当する
             var selected = gizmoTarget;
             var maidManager = MaidManipulateManager.instance;
 
@@ -243,7 +242,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var go = maid.gameObject;
                 if (go == null || go == selected)
                 {
-                    // 選択中のメイドは _gizmo が担当する (二重描画しない)
+                    // _gizmo が担当している対象は二重に描かない
                     continue;
                 }
 
@@ -596,7 +595,13 @@ namespace COM3D2.SceneEditor.Plugin
             if (_gizmo.TryBeginDrag(_camera, rtPoint))
             {
                 _activeDragGizmo = _gizmo;
-                RecordGizmoDragHistory(gizmoTarget);
+
+                // ボーン編集中の _gizmo はボーン自体を掴んでおり、
+                // BoneEditManager 側が Pose スコープで記録するためここでは記録しない
+                if (externalTargetProvider?.Invoke() == null)
+                {
+                    RecordGizmoDragHistory(gizmoTarget);
+                }
                 return true;
             }
 
@@ -627,12 +632,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ギズモ操作を Undo 履歴へ記録する。
-        /// ボーン編集 (externalTargetProvider) 中は BoneEditManager 側が Pose スコープで
-        /// 記録するため、通常のオブジェクト操作だけ記録する
+        /// メイドルートの移動はボーン編集中でも Object スコープの操作なので、
+        /// 呼び出し側が記録要否を判断する
         /// </summary>
         private void RecordGizmoDragHistory(GameObject go)
         {
-            if (go == null || externalTargetProvider?.Invoke() != null)
+            if (go == null)
             {
                 return;
             }
