@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -53,6 +54,18 @@ namespace COM3D2.SceneEditor.Plugin
         public static void EndDrag()
         {
             draggingBoneName = null;
+        }
+
+        /// <summary>
+        /// ドラッグ編集の完了通知。タイムラインの自動キーフレーム登録などが購読する。
+        /// 各ドラッグ点の正常終了 (EndDrag) からのみ発火し、
+        /// キャンセルやコンポーネント破棄による終了では発火しない
+        /// </summary>
+        public static event Action onDragEnd;
+
+        public static void NotifyDragEnd()
+        {
+            onDragEnd?.Invoke();
         }
     }
 }
