@@ -190,6 +190,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected static MaidManager maidManager => MaidManager.instance;
         protected static StudioHackManager studioHackManager => StudioHackManager.instance;
         protected static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        protected static StudioLightManager lightManager => StudioLightManager.instance;
 
         protected TimelineLayerBase(int slotNo)
         {

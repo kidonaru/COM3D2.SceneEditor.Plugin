@@ -313,6 +313,7 @@
     <Compile Include="Timeline\Manager\MaidManager.cs" />
     <Compile Include="Timeline\Manager\ManagerBase.cs" />
     <Compile Include="Timeline\Manager\StudioHackManager.cs" />
+    <Compile Include="Timeline\Manager\StudioLightManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -329,6 +330,8 @@
     <Compile Include="Timeline\TimelineIntegration.cs" />
     <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
