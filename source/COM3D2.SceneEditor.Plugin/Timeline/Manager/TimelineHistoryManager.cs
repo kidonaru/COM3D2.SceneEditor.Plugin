@@ -71,6 +71,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (historyLimit <= 0)
             {
+                // 履歴無効時も現在状態の追跡は維持する (再有効化時に古い before を積まないため)
+                lastCommittedXml = timeline.ToXml();
                 return;
             }
 
@@ -130,6 +132,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var xml = historyList[historyIndex].xml;
             TimelineManager.instance.UpdateTimeline(xml);
+            // SE 履歴ブリッジの before がこの復元後状態を指すよう追従させる
+            // (現状この経路の呼び出し元は無いが、復活時の整合のため揃えておく)
+            lastCommittedXml = xml;
         }
 
         public void ClearHistory()

@@ -324,6 +324,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             ClearTimeline();
+            // 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
+            // タイムライン間の壊れた undo エントリを積むため、切替時に必ずクリアする
+            historyManager.ClearHistory();
             currentLayerIndex = 0;
 
             _timeline = new TimelineData
@@ -369,6 +372,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             ClearTimeline();
+            // 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
+            // タイムライン間の壊れた undo エントリを積むため、切替時に必ずクリアする
+            historyManager.ClearHistory();
             currentLayerIndex = 0;
 
             using (var stream = new FileStream(path, FileMode.Open))
