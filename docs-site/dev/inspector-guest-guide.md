@@ -15,7 +15,8 @@ SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）の Inspector ウィ�
 |---|---|
 | 選択オブジェクトが自分の管理下のとき、Inspector の内容描画を丸ごと受け取る | ✅ `canDraw` が true を返した登録者の `draw` が呼ばれる |
 | Inspector ウィンドウの矩形・表示状態を読む | ✅ `GetWindowRect` / `IsWindowVisible`（自前ドロップダウン等の座標計算用） |
-| ヘッダー行（アクティブ・名前・フォーカス）の描画変更 | ❌ ヘッダーはホストが描く。委譲されるのはその下の残り領域のみ |
+| ヘッダー行（ギズモ行 + アクティブ・名前・フォーカス）を自前のスクロールビュー内へ描く | ✅ `drawsHeader: true` で登録し、`DrawHeader` を呼ぶ（ヘッダーも一緒にスクロールする） |
+| ヘッダー行の内容そのものの変更 | ❌ 中身を描くのはホスト。委譲先が選べるのは描く位置だけ |
 | 複数登録者による同一オブジェクトの分担描画 | ❌ 最初に `canDraw` が true を返した 1 者が全面を描く |
 
 ## 連携方法は 2 通り
@@ -37,6 +38,23 @@ _inspectorHandle = InspectorHostClient.Register(
 InspectorHostClient.Unregister(_inspectorHandle);
 _inspectorHandle = null;
 ```
+
+ヘッダー行（ギズモ行 + アクティブ・名前・フォーカス行）は既定ではホストが
+委譲領域の外へ固定表示する。内容と一緒にスクロールさせたい場合は
+`drawsHeader: true` で登録し、自前のスクロールビューの先頭で `DrawHeader` を呼ぶ:
+
+```csharp
+_inspectorHandle = InspectorHostClient.Register(
+    "MyPlugin", canDraw, draw,
+    drawsHeader: InspectorHostClient.isHeaderDrawAvailable);
+
+// draw の中（自前の BeginScrollView の直後）
+var height = InspectorHostClient.DrawHeader(go, _view.GetDrawRect(-1, 0f));
+_view.DrawEmpty(-1, height);   // 描いたぶんだけレイアウトを送る
+```
+
+`isHeaderDrawAvailable` が false（旧ホスト）のときは `drawsHeader` に false を渡すこと。
+その場合ヘッダーは従来どおりホストが固定表示し、`contentRect` はその下の残り領域になる。
 
 コンボのドロップダウンを自前ウィンドウとして出す場合は、ボタン座標を
 スクリーン座標へ直す基準にホストのウィンドウ状態を使う:
@@ -67,9 +85,15 @@ object Register(
     string name,                        // 登録名。同名の再登録は置き換え（リロード対応）
     Func<GameObject, bool> canDraw,     // 選択オブジェクトを自分が描くべきか
     Action<GameObject, Rect> draw);     // contentRect（ヘッダー下の残り領域）の中だけを描く
+object Register2(                       // ヘッダーの描画者を選べる登録（後発 API）
+    string name,
+    Func<GameObject, bool> canDraw,
+    Action<GameObject, Rect> draw,
+    bool drawsHeader);                  // true なら contentRect からヘッダー行のぶんを引かない
 void Unregister(object handle);
 Rect GetWindowRect();                   // Inspector ウィンドウのスクリーン矩形（後発 API）
 bool IsWindowVisible();                 // Inspector が描画中か（後発 API）
+float DrawHeader(GameObject go, Rect rect);  // ヘッダー行を描く。戻り値は使った高さ（後発 API）
 ```
 
 ## 挙動の詳細・注意点
@@ -84,6 +108,9 @@ bool IsWindowVisible();                 // Inspector が描画中か（後発 AP
 - **同名の再登録は置き換え**として扱われる（プラグインのリロード対応）
 - `GetWindowRect` / `IsWindowVisible` は後から足した API のため、旧ホストには無い。
   A の `isWindowStateAvailable` で有無を判定し、無ければドロップダウンを使わない UI へ倒す
+- `Register2` / `DrawHeader` も後発 API。A の `isHeaderDrawAvailable` で有無を判定する。
+  `DrawHeader` はホスト側の別ビューで描くため、呼び出し元のレイアウトは進まない。
+  戻り値の高さぶんを自分で送ること（末尾の余白は含まれない）
 - **不要になったら必ず `Unregister`**。ホストは常駐するため、解除を怠ると
   デリゲートが掴んだ参照ごと残る
 

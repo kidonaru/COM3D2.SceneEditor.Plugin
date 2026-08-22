@@ -18,6 +18,8 @@ namespace COM3D2.SceneEditor.Plugin
             public string name;
             public Func<GameObject, bool> canDraw;
             public Action<GameObject, Rect> draw;
+            /// <summary>委譲先が自前のスクロールビュー内で DrawHeader を呼ぶか</summary>
+            public bool drawsHeader;
             /// <summary>連続で例外になった回数。成功したら 0 に戻す</summary>
             public int failureCount;
         }
@@ -52,10 +54,36 @@ namespace COM3D2.SceneEditor.Plugin
             return _windowVisible;
         }
 
+        /// <summary>
+        /// ホストのヘッダー行 (ギズモ行 + アクティブ・名前・フォーカス行) を指定矩形へ描く。
+        /// Register2 で drawsHeader: true を指定した登録者が、自前のスクロールビューの
+        /// 先頭で呼ぶための API。戻り値は描画に使った高さで、呼び出し側はこのぶん
+        /// 次の要素を下げる (末尾の余白は含まない)
+        /// </summary>
+        public static float DrawHeader(GameObject go, Rect rect)
+        {
+            return InspectorWindow.instance.DrawDelegatedHeader(go, rect);
+        }
+
         public static object Register(
             string name,
             Func<GameObject, bool> canDraw,
             Action<GameObject, Rect> draw)
+        {
+            return Register2(name, canDraw, draw, false);
+        }
+
+        /// <summary>
+        /// ヘッダー行の描画者を選べる登録 (後発 API)。
+        /// drawsHeader が true の登録者へは、ホストのヘッダー行のぶんを引かない
+        /// 内容領域を渡す。代わりに登録者が自前のスクロールビューの先頭で
+        /// <see cref="DrawHeader"/> を呼び、ヘッダーも一緒にスクロールさせる
+        /// </summary>
+        public static object Register2(
+            string name,
+            Func<GameObject, bool> canDraw,
+            Action<GameObject, Rect> draw,
+            bool drawsHeader)
         {
             if (canDraw == null || draw == null)
             {
@@ -77,6 +105,7 @@ namespace COM3D2.SceneEditor.Plugin
                 name = name ?? "",
                 canDraw = canDraw,
                 draw = draw,
+                drawsHeader = drawsHeader,
             };
             _entries.Add(entry);
             return entry;
@@ -94,13 +123,19 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 選択オブジェクトを管理下に持つ登録者がいれば内容描画を委譲して true を返す。
-        /// contentRect はホストが描くヘッダー行 (アクティブ・名前・フォーカス) の下の残り領域で、
-        /// 登録者はこの中だけを描く。
+        /// 登録者は渡された領域の中だけを描く。領域は drawsHeader で使い分け、
+        /// false の登録者へは contentRect (ホストが描くヘッダー行の下の残り) を、
+        /// true の登録者へは fullContentRect (ヘッダー行のぶんを引かない領域) を渡し、
+        /// headerDelegated に true を返す。呼び出し側はこの場合ヘッダーを描いてはならない
+        /// (委譲先が自前のスクロールビュー内で DrawHeader を呼んで描くため)。
         /// 例外は登録者単位で隔離し、失敗した委譲はそのフレームだけ既定描画へ戻す。
         /// 連続で失敗し続ける登録者は打ち切り、以後は既定描画のままにする
         /// </summary>
-        public static bool TryDraw(GameObject go, Rect contentRect)
+        public static bool TryDraw(
+            GameObject go, Rect contentRect, Rect fullContentRect, out bool headerDelegated)
         {
+            headerDelegated = false;
+
             foreach (var entry in _entries)
             {
                 if (entry.failureCount >= MaxConsecutiveFailures)
@@ -114,8 +149,9 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         continue;
                     }
-                    entry.draw(go, contentRect);
+                    entry.draw(go, entry.drawsHeader ? fullContentRect : contentRect);
                     entry.failureCount = 0;
+                    headerDelegated = entry.drawsHeader;
                     return true;
                 }
                 catch (Exception e)

@@ -45,6 +45,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly GUIView _view = new GUIView();
 
+        /// <summary>
+        /// 委譲先のスクロールビュー内へヘッダー行を描くための専用ビュー。
+        /// _view はそのとき委譲先の呼び出しを挟んでレイアウト途中なので流用できない
+        /// </summary>
+        private readonly GUIView _headerView = new GUIView();
+
         private readonly GUIComboBox<BoneSliderDef> _boneComboBox = new GUIComboBox<BoneSliderDef>
         {
             getName = (def, _) => def.displayName,
@@ -128,28 +134,28 @@ namespace COM3D2.SceneEditor.Plugin
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
                 // ギズモ行は選択状態に依らず同じ位置に出したいので、
                 // どの内容でも内容本体の前に描く
-                DrawGizmoHeader();
+                DrawGizmoHeader(_view);
                 DrawIKContent();
                 _view.EndScrollView();
             }
             else if (selectionManager.hasBoneSelection)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
-                DrawGizmoHeader();
+                DrawGizmoHeader(_view);
                 DrawBoneContent();
                 _view.EndScrollView();
             }
             else if (boneEditManager.editMode && boneEditManager.selectedBone != null)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
-                DrawGizmoHeader();
+                DrawGizmoHeader(_view);
                 DrawSlotBoneContent();
                 _view.EndScrollView();
             }
             else if (go == null)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
-                DrawGizmoHeader();
+                DrawGizmoHeader(_view);
                 _view.DrawLabel("オブジェクトが選択されていません", -1, RowHeight);
                 _view.EndScrollView();
             }
@@ -157,17 +163,27 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // 外部プラグイン管理下のオブジェクトは内容描画を委譲する
                 // (スクロールも委譲先が必要に応じて自前で行う)。
-                // ヘッダー行はどの対象でも同じ操作を出したいのでホスト側に残す
+                // ヘッダー行は委譲先が自前のスクロールビュー内で描く (InspectorHost.DrawHeader)
+                // か、描かない委譲先の代わりにホストが領域外へ固定で描くかのどちらか
                 // GetDrawRect は位置送りしない計算専用なので、ここではまだ描かない
                 var headerRect = _view.GetDrawRect(-1, RowHeight);
+                // 委譲先がヘッダーを描く場合は現在位置から下をすべて渡し、
+                // ヘッダーも内容と一緒にスクロールさせる
+                var fullTop = headerRect.y;
                 // ヘッダー行の上にギズモ行を描くぶん下げる
                 headerRect.y += GizmoHeaderHeight;
-                if (InspectorHost.TryDraw(go, GetDelegatedContentRect(headerRect)))
+                bool headerDelegated;
+                if (InspectorHost.TryDraw(go,
+                        GetDelegatedContentRect(headerRect.yMax + _view.margin),
+                        GetDelegatedContentRect(fullTop), out headerDelegated))
                 {
                     // 委譲が成立してから描く。下の既定描画にも DrawHeader があるため、
                     // 先に無条件で描くと委譲失敗時に二重描画になる
-                    DrawGizmoHeader();
-                    DrawHeader(go);
+                    if (!headerDelegated)
+                    {
+                        DrawGizmoHeader(_view);
+                        DrawHeader(_view, go);
+                    }
 
                     ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
                     return;
@@ -175,7 +191,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-                DrawGizmoHeader();
+                DrawGizmoHeader(_view);
 
                 var maid = go.GetComponent<Maid>();
                 if (maid != null)
@@ -183,7 +199,7 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawMaidContent(maid);
                 }
 
-                DrawHeader(go);
+                DrawHeader(_view, go);
 
                 var t = go.transform;
                 // ギズモの Local/Global 切替に合わせて表示・編集する座標系も切り替える
@@ -611,14 +627,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// SceneView / GameView 双方のギズモがこの設定を共有するため、
         /// 選択状態に依らず同じ位置で操作できるようどの内容の前にも共通で描く
         /// </summary>
-        private void DrawGizmoHeader()
+        private void DrawGizmoHeader(GUIView view)
         {
             var toolRowOption = GizmoRenderer.CreateToolRowOption();
             toolRowOption.labelWidth = LabelWidth;
             toolRowOption.height = RowHeight;
-            GizmoToolRowDrawer.Draw(_view, toolRowOption);
+            GizmoToolRowDrawer.Draw(view, toolRowOption);
 
-            GizmoTargetRowDrawer.Draw(_view, new GizmoTargetRowOption
+            GizmoTargetRowDrawer.Draw(view, new GizmoTargetRowOption
             {
                 labelWidth = LabelWidth,
                 height = RowHeight,
@@ -626,47 +642,65 @@ namespace COM3D2.SceneEditor.Plugin
                 setTargetType = value => GizmoRenderer.gizmoTargetType = value,
             });
 
-            _view.DrawHorizontalLine();
+            view.DrawHorizontalLine();
         }
 
         /// <summary>アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行</summary>
-        private void DrawHeader(GameObject go)
+        private void DrawHeader(GUIView view, GameObject go)
         {
             // 名前ラベルを自動幅にするとフォーカスボタンが右端からはみ出すため、
             // 残り幅を明示計算して割り当てる (DrawVector3Row と同じ式)。
             // margin は NextElement が要素ごとに加算するため、要素数ぶん引く
-            var labelWidth = _view.viewRect.width - _view.padding.x * 2
-                - (HeaderToggleWidth + _view.margin)
-                - (HeaderFocusButtonWidth + _view.margin)
-                - _view.margin;
+            var labelWidth = view.viewRect.width - view.padding.x * 2
+                - (HeaderToggleWidth + view.margin)
+                - (HeaderFocusButtonWidth + view.margin)
+                - view.margin;
 
-            _view.BeginHorizontal();
+            view.BeginHorizontal();
             {
-                _view.DrawToggle(go.activeSelf, HeaderToggleWidth, RowHeight, value =>
+                view.DrawToggle(go.activeSelf, HeaderToggleWidth, RowHeight, value =>
                 {
                     RecordObjectEdit(go);
                     go.SetActive(value);
                 });
-                _view.DrawLabel(go.name, labelWidth, RowHeight);
+                view.DrawLabel(go.name, labelWidth, RowHeight);
 
                 var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
-                if (_view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
+                if (view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
                 {
                     // 明示的なフォーカス要求なのでオートフォーカス設定に関わらず寄せる
                     SceneViewWindow.instance.FocusOn(go, true);
                 }
             }
-            _view.EndLayout();
+            view.EndLayout();
         }
 
         /// <summary>
-        /// 委譲先へ渡す内容領域。ホストが描くヘッダー行 (とその上のギズモ行) の下から始まり、
+        /// 委譲先のスクロールビュー内へヘッダー行一式を描く (InspectorHost.DrawHeader の実体)。
+        /// 委譲先のビューとは座標系だけを共有する別ビューで描くため、渡された矩形を
+        /// 余白なしの原点として使う。戻り値は末尾の余白を除いた描画高さ
+        /// </summary>
+        internal float DrawDelegatedHeader(GameObject go, Rect rect)
+        {
+            // 委譲先が確保した矩形をそのまま使う (内側で二重に余白を取らない)
+            _headerView.padding = Vector2.zero;
+            _headerView.Init(rect);
+
+            DrawGizmoHeader(_headerView);
+            DrawHeader(_headerView, go);
+
+            // EndLayout 後の currentPos.y は最後の要素の下端 + margin なので、
+            // 委譲先が余白を重ねないよう 1 個ぶん差し引いて返す
+            return Mathf.Max(0f, _headerView.currentPos.y - _headerView.margin);
+        }
+
+        /// <summary>
+        /// 委譲先へ渡す内容領域。top から下をビューの下端まで割り当て、
         /// 左右は従来どおりビュー全幅を渡す (委譲先が自前の余白を持つため)
         /// </summary>
-        private Rect GetDelegatedContentRect(Rect headerRect)
+        private Rect GetDelegatedContentRect(float top)
         {
             var viewRect = _view.viewRect;
-            var top = headerRect.yMax + _view.margin;
             return new Rect(viewRect.x, top, viewRect.width, Mathf.Max(0f, viewRect.yMax - top));
         }
 
