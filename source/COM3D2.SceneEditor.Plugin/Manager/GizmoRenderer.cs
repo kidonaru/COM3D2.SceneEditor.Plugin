@@ -103,7 +103,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>SceneView ツールバーからのギズモ表示切替。false の間は描画もドラッグ開始もしない</summary>
         public bool drawEnabled = true;
 
-        public bool isDragging => _gizmo.isDragging;
+        public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
         private static SelectionManager selectionManager => SelectionManager.instance;
 
@@ -591,31 +591,71 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             SyncGizmo();
-            var began = _gizmo.TryBeginDrag(_camera, rtPoint);
 
-            // ボーン編集 (externalTargetProvider) 中は BoneEditManager 側が
-            // Pose スコープで記録するため、通常のオブジェクト操作だけ記録する
-            if (began && externalTargetProvider?.Invoke() == null)
+            // 選択中のギズモを先に試す。ギズモが重なっている場合は選択中を優先する
+            if (_gizmo.TryBeginDrag(_camera, rtPoint))
             {
-                var go = gizmoTarget;
+                _activeDragGizmo = _gizmo;
+                RecordGizmoDragHistory(gizmoTarget);
+                return true;
+            }
+
+            for (var i = 0; i < _maidGizmoCount; i++)
+            {
+                if (!_maidGizmos[i].TryBeginDrag(_camera, rtPoint))
+                {
+                    continue;
+                }
+
+                _activeDragGizmo = _maidGizmos[i];
+
+                var go = _maidGizmoTargets[i];
+                RecordGizmoDragHistory(go);
+
+                // 掴んだメイドを選択へ移す。カメラは寄せない (掴んだ位置から視点が飛ぶため)。
+                // 次フレーム以降このメイドは _gizmo が担当するが、_activeDragGizmo が
+                // インスタンスを直接掴んでいるのでドラッグはそのまま続く
                 if (go != null)
                 {
-                    HistoryManager.instance.BeforeEdit(
-                        go.GetComponent<Maid>(), HistoryScope.Object,
-                        "ギズモ操作: " + go.name, new[] { go.transform });
+                    selectionManager.Select(go, true, false);
                 }
+                return true;
             }
-            return began;
+
+            return false;
+        }
+
+        /// <summary>
+        /// ギズモ操作を Undo 履歴へ記録する。
+        /// ボーン編集 (externalTargetProvider) 中は BoneEditManager 側が Pose スコープで
+        /// 記録するため、通常のオブジェクト操作だけ記録する
+        /// </summary>
+        private void RecordGizmoDragHistory(GameObject go)
+        {
+            if (go == null || externalTargetProvider?.Invoke() != null)
+            {
+                return;
+            }
+
+            HistoryManager.instance.BeforeEdit(
+                go.GetComponent<Maid>(), HistoryScope.Object,
+                "ギズモ操作: " + go.name, new[] { go.transform });
         }
 
         public void UpdateDrag(Vector2 rtPoint)
         {
-            _gizmo.UpdateDrag(rtPoint);
+            _activeDragGizmo?.UpdateDrag(rtPoint);
         }
 
         public void EndDrag()
         {
-            _gizmo.EndDrag();
+            if (_activeDragGizmo == null)
+            {
+                return;
+            }
+
+            _activeDragGizmo.EndDrag();
+            _activeDragGizmo = null;
         }
     }
 }
