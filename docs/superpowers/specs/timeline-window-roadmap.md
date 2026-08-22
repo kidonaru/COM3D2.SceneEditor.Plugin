@@ -105,7 +105,8 @@ UI とゲーム API に依存しない純粋データ層を先に持ち込む。
 - .anm エクスポート（マイポーズ/モーションとしての書き出し）
 - パフォーマンス調整（キーフレーム描画カリングは MTE 実装済みのものを踏襲）
 - docs-site へのユーザーガイド追加、CHANGELOG、リリース
-- 拡張判断: MTE 固有レイヤー（Psyllium / PostEffect / PngObject 等）や DCM 出力を追加するか、MTE 本体との XML 互換（相互読み込み）をどこまで保証するか
+- 拡張判断: MTE 固有レイヤー（Psyllium / StageLight / StageLaser 等）や DCM 出力を追加するか
+  - **PostEffect / PngObject は実装可能と確認（2026-08-23）**: PostEffect は PostEffects.Plugin、PngObject は StageEditor との連携で実現できる見込み。実施時期は拡張判断のまま
 
 ## 4. 主要リスクと対応
 
