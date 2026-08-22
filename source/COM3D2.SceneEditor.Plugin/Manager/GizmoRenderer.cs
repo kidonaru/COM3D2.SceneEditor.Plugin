@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -83,6 +84,21 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>ギズモ本体。描画・ヒット判定・ドラッグ解決はすべてここが持つ</summary>
         private readonly TransformGizmo _gizmo = new TransformGizmo();
+
+        /// <summary>
+        /// 非選択メイド用のギズモ。表示対象が「すべて表示」のときだけ使う。
+        /// 対象が増減しても List を作り直さず、必要な数だけ確保して使い回す
+        /// </summary>
+        private readonly List<TransformGizmo> _maidGizmos = new List<TransformGizmo>();
+
+        /// <summary>_maidGizmos と同じ添字で対象メイドのルートを保持する</summary>
+        private readonly List<GameObject> _maidGizmoTargets = new List<GameObject>();
+
+        /// <summary>現在有効な要素数。_maidGizmos は縮めずに使い回すため件数を別に持つ</summary>
+        private int _maidGizmoCount;
+
+        /// <summary>ドラッグ中のギズモ。_gizmo か _maidGizmos のいずれか</summary>
+        private TransformGizmo _activeDragGizmo;
 
         /// <summary>SceneView ツールバーからのギズモ表示切替。false の間は描画もドラッグ開始もしない</summary>
         public bool drawEnabled = true;
@@ -177,10 +193,80 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>static な UI 設定と選択対象をギズモ本体へ反映する</summary>
         private void SyncGizmo()
         {
-            var go = gizmoTarget;
+            // 非選択メイドのギズモを掴んでいる間は選択がそのメイドへ移っているため、
+            // そのまま同期すると _gizmo と掴んでいるインスタンスが同じ Transform を指して
+            // 二重に描かれる。掴んでいる側だけに任せる (軸のハイライトも掴んだ側に出る)
+            var isMaidGizmoDragging = _activeDragGizmo != null && _activeDragGizmo != _gizmo;
+
+            var go = isMaidGizmoDragging ? null : gizmoTarget;
             _gizmo.target = go != null ? go.transform : null;
             _gizmo.tool = currentTool;
             _gizmo.useLocalSpace = useLocalSpace;
+
+            // ドラッグ中に組み直すと、掴んでいるインスタンスが別のメイドへ
+            // 使い回されて操作対象がすり替わる
+            if (_activeDragGizmo == null)
+            {
+                RebuildMaidGizmos();
+            }
+        }
+
+        /// <summary>
+        /// 非選択メイド用ギズモの対象を組み直す。
+        /// ボーン編集中 (externalTargetProvider) とポーズボーン選択中は、ボーン用ギズモと
+        /// 根本のギズモが重なって掴み間違いが起きるため 1 件も出さない。
+        /// IK ドラッグ点の選択中は抑止しない (選択中メイドのルートギズモも出たままのため、
+        /// SelectionManager.gizmoSuppressed の意味にそのまま揃える)
+        /// </summary>
+        private void RebuildMaidGizmos()
+        {
+            _maidGizmoCount = 0;
+
+            if (gizmoTargetType != GizmoTargetType.All ||
+                externalTargetProvider?.Invoke() != null ||
+                selectionManager.gizmoSuppressed)
+            {
+                return;
+            }
+
+            var selected = gizmoTarget;
+            var maidManager = MaidManipulateManager.instance;
+
+            foreach (var maid in maidManager.calledMaids)
+            {
+                // 退避中のメイドは画面外に居るのでギズモも出さない
+                if (maid == null || !maidManager.IsVisible(maid))
+                {
+                    continue;
+                }
+
+                var go = maid.gameObject;
+                if (go == null || go == selected)
+                {
+                    // 選択中のメイドは _gizmo が担当する (二重描画しない)
+                    continue;
+                }
+
+                AddMaidGizmo(go);
+            }
+        }
+
+        /// <summary>ギズモを 1 件ぶん確保して対象と表示設定を反映する</summary>
+        private void AddMaidGizmo(GameObject go)
+        {
+            if (_maidGizmoCount >= _maidGizmos.Count)
+            {
+                _maidGizmos.Add(new TransformGizmo());
+                _maidGizmoTargets.Add(null);
+            }
+
+            var gizmo = _maidGizmos[_maidGizmoCount];
+            gizmo.target = go.transform;
+            gizmo.tool = currentTool;
+            gizmo.useLocalSpace = useLocalSpace;
+
+            _maidGizmoTargets[_maidGizmoCount] = go;
+            _maidGizmoCount++;
         }
 
         /// <summary>ギズモの世界サイズ。カメラ距離に比例させ見かけの大きさを一定に保つ</summary>
@@ -228,6 +314,11 @@ namespace COM3D2.SceneEditor.Plugin
             // ギズモ本体は自前でマトリクスとマテリアルを設定するため、固有描画の外で呼ぶ
             SyncGizmo();
             _gizmo.Draw(_camera);
+
+            for (var i = 0; i < _maidGizmoCount; i++)
+            {
+                _maidGizmos[i].Draw(_camera);
+            }
         }
 
         /// <summary>
