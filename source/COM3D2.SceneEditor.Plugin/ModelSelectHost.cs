@@ -18,6 +18,7 @@ namespace COM3D2.SceneEditor.Plugin
     ///   モデルの子オブジェクトが選択された場合はモデルのルートへ丸めて扱う
     /// - 選択の共有は双方向。読み取り (selectedModel) と購読 (Subscribe) に加え、
     ///   TrySelectModel で外部から SceneEditor の選択を変更できる
+    ///   (model = null でモデル選択の解除、focus = true で SceneView のカメラ寄せも可能)
     /// - 通知は SceneEditor 側の選択切り替え処理が完了した後に流れる。
     ///   選択解除 (null) も通知される。モデルとして同値の変化は通知しない。
     ///   選択済みモデルへの TrySelectModel (同値の再選択) も選択変化が無いため通知されない
@@ -54,24 +55,38 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 外部から SceneEditor の選択中モデルを変更する。
         /// SceneEditor が無効・連動設定が OFF・モデルが提供中一覧に無い場合は何もせず false。
+        /// model = null はモデル選択の解除。選択中がモデル以外 (メイド等) の場合は
+        /// その選択を巻き込まず、何もせず true を返す (モデルとしては既に解除状態のため)。
         /// showGizmo = false なら SceneEditor 側ギズモを抑止する (外部側が自前ギズモを持つ場合用)。
+        /// focus = true なら SceneView のカメラを対象へ寄せる (解除時は無視)。
         /// 成功時は購読者へ通知が流れる (呼び出し元にもエコーされる)。
         /// ただし既に選択中のモデルへの再選択は選択変化が無いため通知されない
+        /// (focus = true のカメラ寄せだけは再選択でも毎回実行される)
         /// </summary>
-        public static bool TrySelectModel(GameObject model, bool showGizmo)
+        public static bool TrySelectModel(GameObject model, bool showGizmo, bool focus)
         {
             if (!EditorStateHost.isEditorEnabled || !isLinkEnabled)
             {
                 return false;
             }
 
+            if (model == null)
+            {
+                // モデル選択中のときだけ解除する。メイド等の選択は外部から巻き込まない
+                if (selectedModel != null)
+                {
+                    SelectionManager.instance.ClearSelection();
+                }
+                return true;
+            }
+
             // 受け付けるのは提供中モデルのルートのみ (子オブジェクト指定は不可)
-            if (model == null || !ReferenceEquals(FindProvidedModelRoot(model), model))
+            if (!ReferenceEquals(FindProvidedModelRoot(model), model))
             {
                 return false;
             }
 
-            SelectionManager.instance.Select(model, showGizmo);
+            SelectionManager.instance.Select(model, showGizmo, focus);
             return true;
         }
 
