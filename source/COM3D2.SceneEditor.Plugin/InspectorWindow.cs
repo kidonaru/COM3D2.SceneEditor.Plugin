@@ -613,15 +613,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawGizmoHeader()
         {
-            GizmoToolRowDrawer.Draw(_view, new GizmoToolRowOption
-            {
-                labelWidth = LabelWidth,
-                height = RowHeight,
-                getTool = () => GizmoRenderer.currentTool,
-                setTool = tool => GizmoRenderer.currentTool = tool,
-                getUseLocalSpace = () => GizmoRenderer.useLocalSpace,
-                setUseLocalSpace = value => GizmoRenderer.useLocalSpace = value,
-            });
+            var toolRowOption = GizmoRenderer.CreateToolRowOption();
+            toolRowOption.labelWidth = LabelWidth;
+            toolRowOption.height = RowHeight;
+            GizmoToolRowDrawer.Draw(_view, toolRowOption);
 
             GizmoTargetRowDrawer.Draw(_view, new GizmoTargetRowOption
             {

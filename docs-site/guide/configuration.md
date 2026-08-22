@@ -97,6 +97,8 @@
 | `sceneViewShowGizmo` | `true` | SceneView にギズモを描画する |
 | `sceneViewOrthographic` | `false` | SceneView を平行投影にする |
 | `sceneViewAutoFocus` | `true` | 選択・配置に連動して SceneView を自動でフォーカスする |
+| `gizmoUseLocalSpace` | `true` | ギズモの軸空間を `Local` にする（OFF で `Global`） |
+| `gizmoTargetType` | `All` | ギズモの表示対象（`All` = すべて表示 / `Selected` = 選択中） |
 | `inspectorScaleLinked` | `false` | Inspector の拡縮を XYZ 連動で編集する |
 | `maidPlacementMode` | `0` | メイド呼出の配置プリセット（`0` = V字 / `1` = 横一列） |
 

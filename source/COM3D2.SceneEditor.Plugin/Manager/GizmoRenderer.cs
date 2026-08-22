@@ -16,7 +16,7 @@ namespace COM3D2.SceneEditor.Plugin
     {
         /// <summary>
         /// 操作種別・軸空間・表示対象。SceneView と GameView のギズモで共有するため static で持つ。
-        /// 切り替え UI は Inspector にある。
+        /// 切り替え UI は Inspector のギズモ行にあり、軸空間は SceneView のツールバーからも切り替えられる。
         /// 軸空間と表示対象はゲーム再起動をまたいでも保持したい設定なので Config へ永続化する
         /// (バッキングを Config のフィールドにして、GizmoRenderer の生成順に依存させない)。
         /// 操作種別はホットキーで頻繁に切り替える一時的なモードなので永続化しない
@@ -53,6 +53,23 @@ namespace COM3D2.SceneEditor.Plugin
                 config.gizmoTargetType = value;
                 config.dirty = true;
             }
+        }
+
+        /// <summary>
+        /// ギズモ行・軸空間ボタンの描画設定。static な UI 設定への読み書きとアイコンの対応を
+        /// 1 箇所にまとめ、Inspector のギズモ行と SceneView のツールバーで共有する。
+        /// 寸法 (labelWidth / height) は呼び出し側で補うこと
+        /// </summary>
+        public static GizmoToolRowOption CreateToolRowOption()
+        {
+            return new GizmoToolRowOption
+            {
+                getTool = () => currentTool,
+                setTool = value => currentTool = value,
+                getUseLocalSpace = () => useLocalSpace,
+                setUseLocalSpace = value => useLocalSpace = value,
+                globalIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Global),
+            };
         }
 
         private static readonly Color BoundsColor = new Color(1f, 0.6f, 0f, 0.8f);

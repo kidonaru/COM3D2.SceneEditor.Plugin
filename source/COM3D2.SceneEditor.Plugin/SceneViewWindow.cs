@@ -277,12 +277,14 @@ namespace COM3D2.SceneEditor.Plugin
             var gizmoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Gizmo);
             var orthoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Ortho);
             var autoFocusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
+            var spaceOption = GizmoRenderer.CreateToolRowOption();
 
-            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 4 箇所分
-            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 4 +
+            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 5 箇所分
+            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 5 +
                 GetToolbarToggleWidth(bgIcon) + GetToolbarToggleWidth(maidIcon) +
                 GetToolbarToggleWidth(gizmoIcon) + GetToolbarToggleWidth(orthoIcon) +
-                GetToolbarToggleWidth(autoFocusIcon);
+                GetToolbarToggleWidth(autoFocusIcon) +
+                GizmoToolRowDrawer.GetSpaceButtonWidth(spaceOption, TOOLBAR_ITEM_HEIGHT);
             _toolbarLocalRect = new Rect(0, HEADER_HEIGHT, totalWidth, TOOLBAR_HEIGHT);
 
             var prevColor = GUI.color;
@@ -305,6 +307,8 @@ namespace COM3D2.SceneEditor.Plugin
             // カメラ設定ではないので描画設定の再適用は不要
             DrawToolbarToggle(view, autoFocusIcon, "追従", config.sceneViewAutoFocus,
                 value => config.sceneViewAutoFocus = value, applyViewSettings: false);
+            // ギズモの軸空間は Inspector のギズモ行と同じ設定を操作する
+            GizmoToolRowDrawer.DrawSpaceButton(view, spaceOption, TOOLBAR_ITEM_HEIGHT);
 
             view.EndLayout();
 
