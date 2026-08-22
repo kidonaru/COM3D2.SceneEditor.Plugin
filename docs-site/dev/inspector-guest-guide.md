@@ -45,16 +45,16 @@ _inspectorHandle = null;
 
 ```csharp
 _inspectorHandle = InspectorHostClient.Register(
-    "MyPlugin", canDraw, draw,
-    drawsHeader: InspectorHostClient.isHeaderDrawAvailable);
+    "MyPlugin", canDraw, draw, drawsHeader: true);
 
 // draw の中（自前の BeginScrollView の直後）
 var height = InspectorHostClient.DrawHeader(go, _view.GetDrawRect(-1, 0f));
 _view.DrawEmpty(-1, height);   // 描いたぶんだけレイアウトを送る
 ```
 
-`isHeaderDrawAvailable` が false（旧ホスト）のときは `drawsHeader` に false を渡すこと。
-その場合ヘッダーは従来どおりホストが固定表示し、`contentRect` はその下の残り領域になる。
+旧ホストでは `Register` が自動的に従来どおりの登録へ倒し、`DrawHeader` は 0 を返す
+（ヘッダーはホストが固定表示し、`contentRect` はその下の残り領域になる）。
+分岐が必要なら `isHeaderDrawAvailable` で判定できる。
 
 コンボのドロップダウンを自前ウィンドウとして出す場合は、ボタン座標を
 スクリーン座標へ直す基準にホストのウィンドウ状態を使う:
