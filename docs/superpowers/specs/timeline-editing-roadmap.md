@@ -4,6 +4,8 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 
 作成日: 2026-08-23
 
+> Phase W1〜W3 完了時点の未移植機能・残作業の棚卸しは `timeline-remaining-work.md` を参照。
+
 ## 1. 現状
 
 ### 完了していること
