@@ -615,6 +615,10 @@ namespace COM3D2.SceneEditor.Plugin
                         return;
                     }
                     timelineManager.SaveTimeline();
+
+                    // 保存したタイムラインをサムネ付きで一覧へ出す
+                    TimelineLoadManager.Reload();
+                    RefreshTimelineFileList();
                 }
 
                 _loadComboBox.currentIndex = -1;
@@ -633,6 +637,11 @@ namespace COM3D2.SceneEditor.Plugin
                 if (view.DrawButton("設定", 50, 20))
                 {
                     WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
+                }
+
+                if (view.DrawButton("一覧", 50, 20))
+                {
+                    WindowManager.ToggleWindowVisible(TimelineLoadWindow.instance);
                 }
 
                 view.AddSpace(20);

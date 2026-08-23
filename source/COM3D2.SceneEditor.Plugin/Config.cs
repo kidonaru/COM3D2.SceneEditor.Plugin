@@ -205,6 +205,13 @@ namespace COM3D2.SceneEditor.Plugin
         public int timelineSettingHeight = 420;
         public bool timelineSettingVisible = false;
 
+        // タイムラインロードウィンドウ
+        public int timelineLoadPosX = -1;
+        public int timelineLoadPosY = -1;
+        public int timelineLoadWidth = 480;
+        public int timelineLoadHeight = 420;
+        public bool timelineLoadVisible = false;
+
         /// <summary>スクリーンショットの解像度倍率 (画面サイズの何倍で撮るか)</summary>
         public int screenshotScale = 2;
 
