@@ -281,6 +281,7 @@
     <Compile Include="SaveFingerPresetPopupWindow.cs" />
     <Compile Include="SaveBonePresetPopupWindow.cs" />
     <Compile Include="SceneViewWindow.cs" />
+    <Compile Include="TimelineSettingWindow.cs" />
     <Compile Include="TimelineWindow.cs" />
     <Compile Include="ToolbarIcons.cs" />
     <Compile Include="TabGroup.cs" />
