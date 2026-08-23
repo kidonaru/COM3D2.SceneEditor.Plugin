@@ -349,6 +349,7 @@
     <Compile Include="Timeline\Manager\TimelineSeManager.cs" />
     <Compile Include="Timeline\Manager\TimelineTextManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineTemplateManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
     <Compile Include="Timeline\MotionPlayData.cs" />
