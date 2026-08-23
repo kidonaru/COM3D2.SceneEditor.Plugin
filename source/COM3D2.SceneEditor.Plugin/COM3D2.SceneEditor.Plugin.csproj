@@ -286,6 +286,7 @@
     <Compile Include="MTEUtils\BinaryExtensions.cs" />
     <Compile Include="MTEUtils\BinaryLoader.cs" />
     <Compile Include="MTEUtils\ModMenuLoader.cs" />
+    <Compile Include="MTEUtils\ParallelHelper.cs" />
     <Compile Include="MTEUtils\BoneUtils.cs" />
     <Compile Include="MTEUtils\MaidPartType.cs" />
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
@@ -326,6 +327,7 @@
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />
     <Compile Include="Timeline\Manager\BGModelManager.cs" />
     <Compile Include="Timeline\Manager\SubCameraManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineBundleManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -346,6 +348,17 @@
     <Compile Include="Timeline\ModelMaterialController.cs" />
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
+    <Compile Include="Timeline\UnityScripts\Psyllium.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumArea.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumConfig.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumController.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumHand.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumPattern.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumRandomValues.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLaser.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLaserController.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLight.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLightController.cs" />
     <Compile Include="Timeline\TimelineData.cs" />
     <Compile Include="Timeline\TimelineHistoryEntry.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
@@ -409,6 +422,11 @@
     <Compile Include="Timeline\TransformXml.cs" />
     <Compile Include="Timeline\ValueData.cs" />
     <Compile Include="Timeline\VideoDisplayType.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Timeline\mte_bundle">
+      <LogicalName>mte_bundle</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
