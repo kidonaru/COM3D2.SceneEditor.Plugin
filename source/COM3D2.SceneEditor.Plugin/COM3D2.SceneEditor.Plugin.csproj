@@ -345,6 +345,7 @@
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
     <Compile Include="Timeline\TimelineLayerXml.cs" />
     <Compile Include="Timeline\TimelineXml.cs" />
@@ -369,6 +370,7 @@
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
     <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
     <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
     <Compile Include="Timeline\TransformXml.cs" />
     <Compile Include="Timeline\ValueData.cs" />
     <Compile Include="Timeline\VideoDisplayType.cs" />

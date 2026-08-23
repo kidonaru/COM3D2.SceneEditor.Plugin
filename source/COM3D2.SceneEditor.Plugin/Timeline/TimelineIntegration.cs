@@ -152,6 +152,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.UndressTimelineLayer), MTEP.UndressTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.DressTimelineLayer), MTEP.DressTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.VoiceTimelineLayer), MTEP.VoiceTimelineLayer.Create);
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
@@ -171,6 +173,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Dress,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDress>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Voice,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataVoice>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Move,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataMove>);
