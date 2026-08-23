@@ -152,6 +152,15 @@ namespace COM3D2.SceneEditor.Plugin
                 DrawSlotBoneContent();
                 _view.EndScrollView();
             }
+            else if (KeyFrameInspector.ShouldDraw())
+            {
+                // タイムラインのキーフレーム選択はオブジェクト選択より優先して表示する
+                // (選択解除で元の表示に戻る)
+                _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+                DrawGizmoHeader(_view);
+                KeyFrameInspector.instance.Draw(_view);
+                _view.EndScrollView();
+            }
             else if (go == null)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);

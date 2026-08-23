@@ -24,6 +24,14 @@
 - 計画: `docs/superpowers/plans/2026-08-24-timeline-movie-bgm.md`（plan-review / code-review 済み）
 - **残: 実機確認**（計画 Task 5 Step 2 の手順。BGM/動画の実再生、OpenFileDialog の STA 挙動、Mesh/Backmost でのシェーダ解決）
 
+### キーフレーム詳細（MTE KeyFrameUI）✅ 実装完了（2026-08-24、実機確認はゲーム再起動後）
+
+- MTE のキーフレーム詳細ウィンドウは専用ウィンドウとして移植せず、**キーフレーム選択時に Inspector へ表示**する方式で実装（2026-08-24 仕様決定）
+- `KeyFrameInspector`（KeyFrameUI 逐語移植）を新設し、`InspectorWindow` の分岐チェーンに追加。キーフレーム選択（`TimelineManager.selectedBones`）はオブジェクト選択より優先し、選択解除で元の表示に戻る
+- 表示内容: Transform 値（複数選択は mixed=NaN 表示）/ カスタム値・文字列値 / 初期化 / Tangent 編集（曲線テクスチャ・プリセット）/ Easing
+- 適合修正: `IsComboBoxFocused` → `focusedComboBox`、`WINDOW_WIDTH` → `view.viewRect.width`、テクスチャは Draw 内遅延生成
+- **残: 実機確認**（キーフレーム選択 → Inspector 表示 → 値/Tangent/Easing 編集の反映）
+
 ## 2. 意図的にスコープ外（未移植だが方針どおり）
 
 | 項目 | 決定内容 |
