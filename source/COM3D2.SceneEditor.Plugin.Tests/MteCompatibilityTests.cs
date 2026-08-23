@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,14 +13,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     public class MteCompatibilityTests
     {
         private static string BaseDir => AppDomain.CurrentDomain.BaseDirectory;
-
-        // DCM 連携 3 レイヤーはロードマップでスコープ外 (破棄は既知の仕様)
-        private static readonly HashSet<string> KnownExcluded = new HashSet<string>
-        {
-            "MorphTimelineLayer",
-            "SeTimelineLayer",
-            "TextTimelineLayer",
-        };
 
         // TimelineIntegration.cs の RegisterLayer 呼び出しから登録済みレイヤー名を抽出する。
         // リポジトリ内でのみ実行可能な開発用テスト (ソースツリー前提)
@@ -59,7 +51,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 foreach (var className in GetLayerClassNames(xml))
                 {
-                    if (!registered.Contains(className) && !KnownExcluded.Contains(className))
+                    if (!registered.Contains(className))
                     {
                         missing.Add(Path.GetFileName(xml) + ": " + className);
                     }
@@ -90,7 +82,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 {
                     foreach (var className in GetLayerClassNames(xml))
                     {
-                        if (!registered.Contains(className) && !KnownExcluded.Contains(className))
+                        if (!registered.Contains(className))
                         {
                             missing.Add(Path.GetFileName(xml) + ": " + className);
                         }

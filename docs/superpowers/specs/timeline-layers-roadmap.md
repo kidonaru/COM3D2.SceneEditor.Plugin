@@ -47,7 +47,7 @@ MTE 本体 `RegisterLayer` 登録順。行数は MTE ソースの目安。
 | レイヤー | 由来 | 備考 |
 |---|---|---|
 | PngPlacementTimelineLayer | MTE_PngPlacement | SE は PngPlacementManager / PngPlacementWindow を既に保有。実装可能と確認済み（2026-08-23） |
-| MorphTimelineLayer / SeTimelineLayer / TextTimelineLayer | MTE_DCM | DCM（DanceCameraMotion）連携。**DCM 出力は未移植方針のためスコープ外**（将来ユーザー要望があれば再判断） |
+| MorphTimelineLayer / SeTimelineLayer / TextTimelineLayer | MTE_DCM | DCM（DanceCameraMotion）連携。Phase L8 で再生・編集を移植済み（2026-08-23）。**DCM 出力（CSV/XML 生成）は引き続きスコープ外** |
 
 ### 重要な技術前提
 
@@ -66,7 +66,8 @@ MTE 本体 `RegisterLayer` 登録順。行数は MTE ソースの目安。
 
 - **目標**: MTE コアの全レイヤーを SE タイムラインで再生・キーフレーム編集できる状態にする
 - **委譲**: 各対象の操作 UI は SE 既存ウィンドウ（Inspector / Hierarchy / 各種ウィンドウ）に寄せ、タイムラインはキーフレーム管理と再生に徹する
-- **スコープ外**: DCM 連携 3 レイヤー（Morph / Se / Text）、DCM 出力、mte_bundle 以外の MTE 固有アセット追加
+- **スコープ外**: DCM 出力（CSV/XML 生成）、mte_bundle 以外の MTE 固有アセット追加
+  - DCM 連携 3 レイヤー（Morph / Se / Text）は当初スコープ外だったが、再生・編集のみ Phase L8 で移植した
 
 ## 3. ロードマップ
 
@@ -162,10 +163,10 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 - PostEffects.Plugin との連携で実現可能と確認済み（2026-08-23）。エフェクト実体を PostEffects.Plugin に委ねるか MTE 実装を持ち込むかは計画時に決める
 - 成果物: ポストエフェクトがタイムライン制御できる状態
 
-### Phase L7: PngPlacement 連携 + 仕上げ ✅ 完了 (2026-08-23) — **全フェーズ完遂**
+### Phase L7: PngPlacement 連携 + 仕上げ ✅ 完了 (2026-08-23)
 
 - PngPlacementTimelineLayer は SE ネイティブ PngPlacementManager 接続のアダプタ版（外部 PngPlacement.dll 非依存）。画像は UserData\PngPlacement / PhotoModeData\Texture から探索
-- MTE 互換総点検: 登録網羅テスト（MteCompatibilityTests）でローカル実プロジェクト XML 全件に未登録レイヤーが無いことを機械確認済み（DCM 3 レイヤーは既知除外）
+- MTE 互換総点検: 登録網羅テスト（MteCompatibilityTests）でローカル実プロジェクト XML 全件に未登録レイヤーが無いことを機械確認済み（当時は DCM 3 レイヤーを既知除外。Phase L8 で除外解除）
 - docs-site の timeline ガイド（レイヤー一覧・互換性の注意書き）を更新済み
 
 #### 次回ゲーム起動時の実機通し確認チェックリスト（全フェーズ共通の残タスク）
@@ -176,6 +177,25 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 2. MTE 互換性の総点検: MTE で作成した実プロジェクト XML を読み込み、全レイヤーが破棄されず再生できることを実機確認
 3. docs-site ユーザーガイド更新（「未対応レイヤーは破棄」の注意書きを削減・更新）
 - 成果物: MTE プロジェクトがほぼ完全な形で SE で開ける状態
+
+### Phase L8: DCM 連携 3 レイヤー ✅ 完了 (2026-08-23) — **全フェーズ完遂**
+
+当初スコープ外としていた MTE_DCM 由来の 3 レイヤーを、**再生・編集に限って**移植した。DCM 出力（morph.csv / se.csv / text.csv と song XML への追記）は方針どおり未移植で、OutputDCM は既存レイヤーと同じ空実装。
+
+- **MorphTimelineLayer**（メイド表情）: DCM MyConst のモーフ名表を `FaceMorphUtils` へ、MaidFaceManager の適用経路を `TimelineFaceManager` へ最小移植。COM3D2.5 の CRC/FB 顔で名前解決できるよう `CheckMorphFB`（`TMorph.crcFaceTypesStr` + PartsVersion>=120 判定）を含む
+- **SeTimelineLayer**（効果音）: DCM SoundManager の SE 列挙・再生を `TimelineSeManager` へ移植。SE 名の列挙はファイル存在確認が 100 回走るため遅延構築する
+- **TextTimelineLayer**（字幕）: DCM TextManager のキャンバス生成・フォント解決・破棄を `TimelineTextManager` へ移植。Canvas は ScreenSpaceOverlay 固定で、GameObject が残らないよう `ReleaseTexts` をプラグイン無効化・シーン遷移へ接続。uGUI 使用のため csproj へ `UnityEngine.UI` / `UnityEngine.UIModule` 参照を追加（COM3D2 / COM3D25 両構成でビルド確認済み）
+- DCM 本体 DLL への参照・リフレクションアクセスは追加していない（DCMUtils は非移植）
+- MteCompatibilityTests の既知除外リストを撤廃。ローカル実プロジェクト XML 全件が未登録レイヤーなしで PASS する
+- ラウンドトリップ用フィクスチャ `l8-dcm-layers.xml` と `FaceMorphUtilsTests`（モーフ名表の整合検証）を追加
+
+#### 実機通し確認の残タスク
+1. `仮装狂騒曲 篠澤広122.xml`（123 は Morph/Text が消失済みのため 122 を使う）をロードし、Morph / Text レイヤーが現れること
+2. 再生でメイド表情が変化し、字幕が GameView に表示されること
+3. SE レイヤーのシーク・巻き戻し・停止で二重再生や鳴りっぱなしが起きないこと
+4. ポーズ編集モード中に Morph が MaidFaceWindow 操作を妨げないこと
+5. 保存し直して 3 レイヤーの ClassName が XML に残ること
+- 既知課題: Text の既定フォント "Yu Gothic Bold" が無い非日本語 OS でのフォールバックは未対応
 
 ## 4. 主要リスクと対応
 
