@@ -116,7 +116,10 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 - リスク: SE には StudioModelManager 相当が無く、シーンプリセット（モデル保存）との整合が論点。移植計画時に SE 側モデル管理の現状調査を必須とする
 - 成果物: スタジオモデルがタイムライン制御できる状態
 
-### Phase L3: 背景モデル・マテリアル系（3 レイヤー）
+### Phase L3: 背景モデル・マテリアル系（3 レイヤー）✅ 完了 (2026-08-23)
+
+- MaidSlotStat のマテリアル機能 (ModelMaterialController) と MaidCache の materialMap / モデル注視 (LookAtTargetType.Model) を MTE から復元
+- 実機確認状況: BgMgr.BgObject 経路のスモークはゲームのメインスレッド停止により未実施。**次回ゲーム起動時に BGModel 走査とメイドマテリアル走査を devbridge で確認すること**
 
 1. 基盤: BGModelManager (479 行) の移植
 2. **BGModelTimelineLayer**: 背景構成オブジェクトの操作
