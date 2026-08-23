@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -342,6 +344,42 @@ namespace COM3D2.SceneEditor.Plugin
             // タイムライン作成・読み込み時の mte.OnLoad も同じ複合マネージャへ集約し、
             // OnLoad の二重発火とガード漏れを防ぐ
             MTEP.MotionTimelineEditor.instance.RegisterManager(updateManager);
+
+            RegisterModelProvider();
+        }
+
+        /// <summary>
+        /// タイムラインの StudioModelManager が配置したモデルを ModelProviderHost へ提供し、
+        /// BoneEdit / ScenePreset から外部モデルと同じ経路で参照できるようにする。
+        /// プラグインと同寿命のため Unregister は行わない
+        /// </summary>
+        private static void RegisterModelProvider()
+        {
+            ModelProviderHost.Register(
+                "SceneEditor.Timeline",
+                () =>
+                {
+                    var result = new List<GameObject>();
+                    foreach (var model in MTEP.StudioModelManager.instance.models)
+                    {
+                        if (model?.transform != null)
+                        {
+                            result.Add(model.transform.gameObject);
+                        }
+                    }
+                    return result;
+                },
+                go =>
+                {
+                    foreach (var model in MTEP.StudioModelManager.instance.models)
+                    {
+                        if (model?.transform != null && model.transform.gameObject == go)
+                        {
+                            return model.displayName;
+                        }
+                    }
+                    return null;
+                });
         }
     }
 }
