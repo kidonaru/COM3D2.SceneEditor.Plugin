@@ -324,6 +324,7 @@
     <Compile Include="Timeline\Manager\StudioLightManager.cs" />
     <Compile Include="Timeline\Manager\StudioModelManager.cs" />
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />
+    <Compile Include="Timeline\Manager\BGModelManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -335,6 +336,7 @@
     <Compile Include="Timeline\StopwatchDebug.cs" />
     <Compile Include="Timeline\StudioLightStat.cs" />
     <Compile Include="Timeline\StudioModelStat.cs" />
+    <Compile Include="Timeline\BGModelStat.cs" />
     <Compile Include="Timeline\BlendShapeCacheData.cs" />
     <Compile Include="Timeline\BlendShapeLoader.cs" />
     <Compile Include="Timeline\ModelBoneController.cs" />
@@ -349,6 +351,10 @@
     <Compile Include="Timeline\BGGround.cs" />
     <Compile Include="Timeline\TimelineLayer\AnimationTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BGColorTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGModelTimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGModelTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGModelMaterialTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MaidMaterialTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BGTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\DressTimelineLayer.cs" />
@@ -377,6 +383,7 @@
     <Compile Include="Timeline\TransformData\TransformDataBG.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBGColor.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBGGroundColor.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBGModel.cs" />
     <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
     <Compile Include="Timeline\TransformData\TransformDataDress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />

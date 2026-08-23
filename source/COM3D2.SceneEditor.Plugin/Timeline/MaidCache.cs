@@ -45,6 +45,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Dictionary<IKHoldType, IKHoldEntity> ikHoldEntities = new Dictionary<IKHoldType, IKHoldEntity>(6);
         public List<MaidSlotStat> slotStats = new List<MaidSlotStat>(32);
         public Dictionary<TBody.SlotID, MaidSlotStat> slotStatMap = new Dictionary<TBody.SlotID, MaidSlotStat>(32);
+        public Dictionary<string, ModelMaterial> materialMap = new Dictionary<string, ModelMaterial>(32);
         public List<string> materialNames = new List<string>(32);
         public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>(10);
 
@@ -354,6 +355,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static TimelineData timeline => timelineManager.timeline;
         private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
         private static MaidManager maidManager => MaidManager.instance;
+        private static StudioModelManager modelManager => StudioModelManager.instance;
 
         public MaidCache(int slotNo)
         {
@@ -455,6 +457,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _blendShapeCache.Clear();
             slotStats.Clear();
             slotStatMap.Clear();
+            materialMap.Clear();
             materialNames.Clear();
             lookAtTargetType = LookAtTargetType.None;
             lookAtTargetIndex = 0;
@@ -848,6 +851,31 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
+        public void UpdateMaterials()
+        {
+            materialMap.Clear();
+            materialNames.Clear();
+
+            foreach (var stat in slotStats)
+            {
+                foreach (var material in stat.materials)
+                {
+                    materialMap[material.name] = material;
+                    materialNames.Add(material.name);
+                }
+            }
+        }
+
+        public ModelMaterial GetMaterial(string name)
+        {
+            ModelMaterial material;
+            if (materialMap.TryGetValue(name, out material))
+            {
+                return material;
+            }
+            return null;
+        }
+
         public Transform GetPointTransform(MaidPointType type)
         {
             if (maid == null || maid.body0 == null)
@@ -910,8 +938,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     break;
                 }
                 case LookAtTargetType.Model:
-                    // モデル管理 (StudioModelManager) は未移植のため、モデル注視は未対応
+                {
+                    var model = modelManager.GetModel(lookAtTargetIndex);
+                    if (model != null)
+                    {
+                        return model.transform;
+                    }
                     break;
+                }
             }
             return null;
         }
@@ -1084,6 +1118,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 slotStats.Add(stat);
                 slotStatMap[slotId] = stat;
             }
+
+            UpdateMaterials();
 
             onMaidChanged?.Invoke(slotNo, maid);
         }

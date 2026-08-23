@@ -114,6 +114,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
+        public TimelineBGModelData(BGModelStat model)
+        {
+            FromModel(model);
+        }
+
+        public void FromModel(BGModelStat model)
+        {
+            sourceName = model.sourceName;
+            group = model.group;
+        }
+
         public void FromXml(TimelineBGModelXml xml)
         {
             sourceName = xml.sourceName;

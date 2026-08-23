@@ -1,10 +1,9 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    // MTE からの移植にあたり、マテリアル編集機能 (ModelMaterialController) は
-    // スコープ外のため削除している
-    public class MaidSlotStat
+    public class MaidSlotStat : IModelStat
     {
         public string name { get; private set; }
         public string displayName { get; private set; }
@@ -16,6 +15,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public MPN mpn => bodySkin?.m_ParentMPN ?? MPN.null_mpn;
         public MaidProp prop => bodySkin.m_mp;
 
+        public ModelMaterialController modelMaterialController { get; private set; }
+
+        public List<ModelMaterial> materials
+        {
+            get
+            {
+                if (modelMaterialController != null)
+                {
+                    return modelMaterialController.materials;
+                }
+                return new List<ModelMaterial>();
+            }
+        }
+
         public MaidSlotStat()
         {
         }
@@ -25,6 +38,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this.bodySkin = bodySkin;
             this.name = bodySkin.Category;
             this.displayName = displayName;
+
+            CreateControllers();
+        }
+
+        private void CreateControllers()
+        {
+            modelMaterialController = ModelMaterialController.GetOrCreate(this);
+        }
+
+        public ModelMaterial GetMaterial(int index)
+        {
+            if (modelMaterialController != null)
+            {
+                return modelMaterialController.GetMaterial(index);
+            }
+            return null;
         }
     }
 }
