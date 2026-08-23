@@ -630,6 +630,11 @@ namespace COM3D2.SceneEditor.Plugin
                     RefreshTimelineFileList();
                 }
 
+                if (view.DrawButton("設定", 50, 20))
+                {
+                    WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
+                }
+
                 view.AddSpace(20);
 
                 // 状態メッセージ

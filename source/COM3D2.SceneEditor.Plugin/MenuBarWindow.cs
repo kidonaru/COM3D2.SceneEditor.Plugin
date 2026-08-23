@@ -318,23 +318,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 label = label,
                 isOn = () => window.isShowWnd,
-                toggle = () =>
-                {
-                    window.isShowWnd = !window.isShowWnd;
-
-                    if (window.isShowWnd)
-                    {
-                        // 表示位置のヘッダーが他ウィンドウと重なっていればそのままドッキングする
-                        TabGroupManager.instance.MergeIfHeaderOverlaps(window);
-                    }
-                    else
-                    {
-                        // 非表示にしたウィンドウをグループへ残すとタブバーに出続けるため、
-                        // ウィンドウ自身の x ボタンと同様にグループからも外す
-                        TabGroupManager.instance.RemoveFromGroup(window);
-                        WindowConnectManager.instance.OnWindowHidden(window);
-                    }
-                },
+                toggle = () => WindowManager.ToggleWindowVisible(window),
             };
         }
 

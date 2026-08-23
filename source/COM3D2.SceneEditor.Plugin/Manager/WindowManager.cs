@@ -122,6 +122,28 @@ namespace COM3D2.SceneEditor.Plugin
             WindowConnectManager.instance.ClampGroups();
         }
 
+        /// <summary>
+        /// サブウィンドウの表示をトグルする。
+        /// メニューバーと各ウィンドウの導線ボタンで挙動を揃えるための共通処理
+        /// </summary>
+        public static void ToggleWindowVisible(EditorSubWindow window)
+        {
+            window.isShowWnd = !window.isShowWnd;
+
+            if (window.isShowWnd)
+            {
+                // 表示位置のヘッダーが他ウィンドウと重なっていればそのままドッキングする
+                TabGroupManager.instance.MergeIfHeaderOverlaps(window);
+            }
+            else
+            {
+                // 非表示にしたウィンドウをグループへ残すとタブバーに出続けるため、
+                // ウィンドウ自身の x ボタンと同様にグループからも外す
+                TabGroupManager.instance.RemoveFromGroup(window);
+                WindowConnectManager.instance.OnWindowHidden(window);
+            }
+        }
+
         /// <summary>サブウィンドウの配置と表示状態を config へ書き出す</summary>
         public void SavePlacements()
         {
