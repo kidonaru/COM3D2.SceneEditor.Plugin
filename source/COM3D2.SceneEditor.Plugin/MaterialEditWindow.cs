@@ -304,11 +304,10 @@ namespace COM3D2.SceneEditor.Plugin
                     var color = material.GetColor(propertyType);
                     var initialColor = material.GetInitialColor(propertyType);
 
-                    // GetColorFieldCache のラベルは DrawColor 内で描画されるため、
-                    // プロパティ名を渡すと直前の DrawLabel と二重に出る。空文字で取る
-                    var cache = view.GetColorFieldCache("", true);
-
-                    view.DrawLabel(propertyType.ToString(), -1, ROW_HEIGHT);
+                    // ColorPickerWindow はラベル文字列で編集対象を同定するため、
+                    // 行ごとに一意なプロパティ名を渡す (空文字だと全行が「編集中」扱いになり、
+                    // ピッカーの反映先も最後の行へ化ける)。ラベル描画は DrawColor 内で行われる
+                    var cache = view.GetColorFieldCache(propertyType.ToString(), true);
 
                     view.DrawColor(cache, color, initialColor,
                         newColor => material.SetColor(propertyType, newColor));
