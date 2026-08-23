@@ -63,6 +63,7 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(PresetWindow.instance);
             AddWindow(HistoryWindow.instance);
             AddWindow(TimelineWindow.instance);
+            AddWindow(TimelineLayerWindow.instance);
             AddWindow(SettingWindow.instance);
 
             // ComboBoxPopupWindow はホストの描画中に開閉が確定するため、
