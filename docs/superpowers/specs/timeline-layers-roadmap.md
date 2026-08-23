@@ -136,7 +136,10 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 - SE GameViewManager / CameraWindow との関係（ピクチャインピクチャ表示をどのウィンドウに出すか）を計画時に決める
 - 成果物: サブカメラ演出がタイムライン制御できる状態
 
-### Phase L5: 演出系（mte_bundle 導入 + 3 レイヤー）
+### Phase L5: 演出系（mte_bundle 導入 + 3 レイヤー）✅ 完了 (2026-08-23)
+
+- 実機確認状況: devbridge で SE DLL 埋め込み mte_bundle の AssetBundle.LoadFromMemory が Unity 2022 (COM3D2.5) で成功（21 アセット、MTE/GTToneMap マテリアル取得 OK）→ 最大リスク解消。シェーダーの実表示とタイムライン再生の通し確認はゲーム再起動後
+- TimelineBundleManager の周辺機能 (lockIcon / song.ogg / icon.png) は SE スコープ外
 
 最大工数。mte_bundle 埋め込みと UnityProject スクリプト群の持ち込みが前提。
 
