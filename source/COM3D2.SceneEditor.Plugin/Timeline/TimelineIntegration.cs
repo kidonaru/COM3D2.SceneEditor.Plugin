@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -355,31 +356,32 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void RegisterModelProvider()
         {
+            // ホスト側は getModels の直後に各 GameObject へ getDisplayName を呼ぶため、
+            // 列挙時に表示名の逆引きを作っておき、毎回の線形探索を避ける
+            var displayNameMap = new Dictionary<GameObject, string>();
+
             ModelProviderHost.Register(
                 "SceneEditor.Timeline",
                 () =>
                 {
+                    displayNameMap.Clear();
                     var result = new List<GameObject>();
-                    foreach (var model in MTEP.StudioModelManager.instance.models)
+                    foreach (var model in ValidTimelineModels())
                     {
-                        if (model?.transform != null)
-                        {
-                            result.Add(model.transform.gameObject);
-                        }
+                        var go = model.transform.gameObject;
+                        result.Add(go);
+                        displayNameMap[go] = model.displayName;
                     }
                     return result;
                 },
-                go =>
-                {
-                    foreach (var model in MTEP.StudioModelManager.instance.models)
-                    {
-                        if (model?.transform != null && model.transform.gameObject == go)
-                        {
-                            return model.displayName;
-                        }
-                    }
-                    return null;
-                });
+                go => displayNameMap.TryGetValue(go, out var name) ? name : null);
+        }
+
+        /// <summary>Transform を持つ有効な配置モデルだけを列挙する</summary>
+        private static IEnumerable<MTEP.StudioModelStat> ValidTimelineModels()
+        {
+            return MTEP.StudioModelManager.instance.models
+                .Where(model => model?.transform != null);
         }
     }
 }
