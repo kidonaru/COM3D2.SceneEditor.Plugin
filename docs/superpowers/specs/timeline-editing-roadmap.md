@@ -25,7 +25,7 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 | MTE サブウィンドウ | 状態 | 備考 |
 |---|---|---|
 | TimelineLoad（ロード） | ⚠️ 簡易版のみ | TimelineWindow 内蔵のコンボボックス（相対パスの文字列一覧。`RefreshTimelineFileList` / `LoadTimelineByRelativePath`）はあるが、MTE のサムネイルタイル表示・ディレクトリ階層の移動・エクスプローラで開く・更新ボタンは未移植。サムネイル自体は SE でも保存時に出力済み（`TimelineManager.SaveTimeline` / `SaveThumbnail`）のため、不足は表示 UI のみ |
-| TimelineSetting | ❌ UI 未移植 | 設定項目（ループ再生・目線制御・顔/胸の固定化・フレームレート等。全項目は Phase W1 参照）は XML 互換のため TimelineData に全て存在するが、編集 UI はコントロールパネルの maxFrameNo のみ。**値は読めるが GUI から変えられない** |
+| TimelineSetting | ✅ 移植済み（2026-08-23、Phase W1） | `TimelineSettingWindow`（個別 / 共通タブ）を追加。TimelineWindow の「設定」ボタンとメニューバーから開く。SE に適用経路が無い項目は意図的に非対象（Phase W1 の除外項目を参照） |
 | Track（トラック設定） | ❌ UI 未移植 | `TrackData` / `activeTrack` はデータ層に存在し、TimelineWindow はスクロールジャンプで参照するだけ。トラックの追加・名前変更・範囲編集 UI がない |
 | Template（テンプレート） | ❌ 完全未移植 | `TimelineTemplateManager` 自体が SE に存在しない。キーフレームのカテゴリ / テンプレ管理機能ごと持ち込みが必要 |
 
@@ -80,7 +80,9 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 
 優先度は **TimelineSetting > Track / TimelineLoad > レイヤー編集の受け皿 > Template**。Setting はタイムライン品質（ループ再生・顔/胸物理・目線制御）に直結し、データ層が既にあるため UI だけの作業で済む。
 
-### Phase W1: タイムライン設定 UI
+### Phase W1: タイムライン設定 UI ✅ 完了（2026-08-23）
+
+実装: `TimelineSettingWindow`（`EditorSubWindow` 派生、内部タブ 個別 / 共通）。TimelineWindow のコントロールパネルの「設定」ボタン、またはメニューバー「Window > タイムライン設定」から開く。計画は `docs/superpowers/plans/2026-08-23-timeline-phase-w1-setting-ui.md`。
 
 - MTE `TimelineSettingUI` を SE 流儀で移植。配置は新規ウィンドウではなく、TimelineWindow からの呼び出し（設定ボタン → ポップアップまたはタブ）を計画時に決める
 - 対象項目（MTE の個別設定 + 共通設定）:
@@ -94,6 +96,31 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 - DCM 出力・連番画像出力・サムネ更新の項目は持ち込まない
 - 個別設定の初期化ボタンは確認ダイアログ付きで移植
 - 成果物: タイムラインの再生挙動・物理・目線を GUI から制御できる状態
+
+#### 実装時のスコープ判断（2026-08-23）
+
+**SE 側に適用経路が無いため出さなかった項目**（GUI を出しても何も起きないため。実装するには受け皿側の機能追加が先に必要）:
+
+| 項目 | 理由 |
+|---|---|
+| アスペクト比 / レターボックス透過度 | `aspectWidth` / `aspectHeight` / `letterBoxAlpha` を参照する描画コードが SE に無い（MTE ではカメラのレターボックス描画が消費していた） |
+| オフセット時間 / フェード時間 | `startOffsetTime` は DCM CSV 出力のみで参照。`endOffsetTime` / `startFadeTime` / `endFadeTime` は SE 内で未参照 |
+| Trans詳細表示数 / Tangent表示数 / 自動で BackgroundCustom に登録 / 動画先読み秒数 / 簡易設定の表示切り替え | 対応する config フィールドが SE 内で未参照 |
+| ウィンドウ幅・高さ・ボーンリスト幅 | ウィンドウサイズは SE の EditorSubWindow がドラッグリサイズと config 保存を担う。ボーンリスト幅は TimelineWindow 上のドラッグで調整可能 |
+
+**追加した項目**: ライト / モデル / モデルボーン / モデルシェイプのタンジェント補間トグル。MTE では各レイヤーの DrawWindow にあったが、SE はレイヤー UI を接続しない方針のため個別設定タブへ集約した。
+
+**併せて直したもの**: `TimelineData.isBackgroundVisible` の setter で、背景表示の切替時に地面色レイヤーを再適用する経路を復元（BGColorTimelineLayer 未移植だった頃の名残で無効化されていた）。
+
+**未実施**: 実機での通し確認。DLL がゲームプロセスにロックされており、次回ゲーム起動時に以下を確認する:
+
+- 設定ウィンドウが「設定」ボタン / メニューバーの両方から開閉でき、配置が再起動後も復元される
+- フレームレート変更が再生速度に反映される
+- メイド目線 / 顔・瞳の固定化 / 胸(左右)の物理無効が即座に反映される
+- ループアニメーションの ON/OFF で再生末尾の挙動が変わる
+- タンジェント補間トグルの切り替えでカーブが作り直される
+- 個別設定の初期化が確認ダイアログ付きで動く
+- 共通設定の変更が保存され、再起動後も残る
 
 ### Phase W2: トラック設定 / タイムラインロード UI
 
