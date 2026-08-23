@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using SE = SceneEditor.Plugin;
+
     /// <summary>
     /// 字幕テキスト 1 件分の実体。
     /// DCM の FreeTextSet から、タイムライン再生に使う 3 つの参照だけを持ち込んでいる
@@ -50,11 +52,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public FreeTextSet[] TextData => _textData;
 
         private GameObject _canvasObject = null;
+        private Canvas _canvas = null;
         private readonly Dictionary<string, Font> _fontMap = new Dictionary<string, Font>();
 
         public override void OnLoad()
         {
             InitTexts();
+        }
+
+        public override void LateUpdate()
+        {
+            UpdateCanvasCamera();
         }
 
         public override void OnPluginDisable()
@@ -118,6 +126,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 Object.Destroy(_canvasObject);
                 _canvasObject = null;
+                _canvas = null;
             }
         }
 
@@ -159,6 +168,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_canvasObject == null)
             {
                 _canvasObject = CreateCanvas();
+                _canvas = _canvasObject.GetComponent<Canvas>();
+                UpdateCanvasCamera();
             }
 
             var obj = new GameObject("TimelineText" + index);
@@ -176,12 +187,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
+        /// <summary>
+        /// 字幕を GameView へ映すため、メインカメラ経由で描画する ScreenSpaceCamera を使う。
+        /// GameView はメインカメラを RenderTexture に描いて IMGUI で表示しているが、
+        /// ScreenSpaceOverlay はカメラを通らず画面へ直接描くため RT に入らず、
+        /// GameView の外 (プラグインのウィンドウごと) を覆ってしまう
+        /// </summary>
         private static GameObject CreateCanvas()
         {
             var obj = new GameObject("TimelineTextCanvas");
 
             var canvas = obj.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
             canvas.pixelPerfect = false;
             canvas.sortingOrder = 0;
             canvas.targetDisplay = 0;
@@ -194,6 +211,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             scaler.referencePixelsPerUnit = 100f;
 
             return obj;
+        }
+
+        /// <summary>
+        /// キャンバスの投影先カメラとニアクリップ追随。
+        /// メインカメラは差し替わることがあり、ニアクリップもカメラレイヤーで変化するため、
+        /// 固定値にすると字幕がクリップで消えたり手前の被写体に隠れたりする
+        /// </summary>
+        private void UpdateCanvasCamera()
+        {
+            if (_canvas == null)
+            {
+                return;
+            }
+
+            var camera = SE.GameViewManager.mainCamera;
+            if (camera == null)
+            {
+                return;
+            }
+
+            if (_canvas.worldCamera != camera)
+            {
+                _canvas.worldCamera = camera;
+            }
+
+            // ニアクリップのすぐ手前に置き、シーン内の被写体より前へ出す
+            _canvas.planeDistance = camera.nearClipPlane + 0.01f;
         }
 
         private static List<string> GetOSFontNames()
