@@ -140,7 +140,12 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.EyesTimelineLayer), MTEP.EyesTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.ShapeKeyTimelineLayer), MTEP.ShapeKeyTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.MoveTimelineLayer), MTEP.MoveTimelineLayer.Create);
 
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Move,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataMove>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Camera,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataCamera>);

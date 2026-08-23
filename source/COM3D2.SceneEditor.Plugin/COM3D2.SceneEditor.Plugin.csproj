@@ -335,6 +335,7 @@
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
@@ -351,6 +352,7 @@
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataMove.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
     <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
