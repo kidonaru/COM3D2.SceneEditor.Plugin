@@ -427,10 +427,11 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>モデルのシェイプキー 1 件。modelName + pluginName で ModelProviderHost のモデルと照合する</summary>
     public class ScenePresetModelShapeKey
     {
-        [XmlAttribute("model")]
+        // 属性名は同種の ScenePresetModelBoneEdit (modelName/pluginName) と揃える
+        [XmlAttribute]
         public string modelName;
 
-        [XmlAttribute("plugin")]
+        [XmlAttribute]
         public string pluginName;
 
         [XmlAttribute]

@@ -661,12 +661,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public MaidBlendShape GetBlendShape(string shapeKey)
         {
-            if (!_blendShapeCache.ContainsKey(shapeKey))
+            MaidBlendShape blendShape;
+            if (_blendShapeCache.TryGetValue(shapeKey, out blendShape))
             {
-                var blendShape = GetBlendShapeInternal(shapeKey);
+                return blendShape;
+            }
+
+            blendShape = GetBlendShapeInternal(shapeKey);
+            // ボディ未ロード時の null を覚えると、ロード後もキャッシュ破棄まで null を返し続けるため
+            if (blendShape != null)
+            {
                 _blendShapeCache[shapeKey] = blendShape;
             }
-            return _blendShapeCache[shapeKey];
+            return blendShape;
         }
 
         private MaidBlendShape GetBlendShapeInternal(string shapeKey)
@@ -732,6 +739,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             foreach (var shapeKey in shapeKeys)
             {
                 var blendShape = GetBlendShape(shapeKey);
+                if (blendShape == null)
+                {
+                    continue;
+                }
                 foreach (var entity in blendShape.entities)
                 {
                     morphs.Add(entity.morph);
