@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using SE = SceneEditor.Plugin;
+
     /// <summary>
     /// 字幕テキスト 1 件分の実体。
     /// DCM の FreeTextSet から、タイムライン再生に使う 3 つの参照だけを持ち込んでいる
@@ -25,6 +27,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     public class TimelineTextManager : ManagerBase
     {
         public static readonly string DefaultFontName = "Yu Gothic Bold";
+
+        /// <summary>
+        /// 字幕を載せるレイヤー ("UI")。シーン側で未使用かつメインカメラのカリング対象外なので、
+        /// 専用カメラだけが描く = ポストエフェクトの影響を受けない
+        /// </summary>
+        private const int TextLayer = 5;
+
+        /// <summary>
+        /// 字幕カメラの配置。SceneView のカメラは "UI" レイヤーも描くため、
+        /// シーンから遠く離してキャンバスが編集画面に映り込まないようにする
+        /// </summary>
+        private static readonly Vector3 CameraPosition = new Vector3(0f, -10000f, 0f);
+
+        /// <summary>PIP (サブカメラ) の後に描いて字幕を最前面にするための描画順オフセット</summary>
+        private const float CameraDepthOffset = 100f;
+
+        private const float CanvasPlaneDistance = 100f;
 
         private static TimelineTextManager _instance;
         public static TimelineTextManager instance
@@ -50,11 +69,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public FreeTextSet[] TextData => _textData;
 
         private GameObject _canvasObject = null;
+        private GameObject _cameraObject = null;
+        private Camera _camera = null;
         private readonly Dictionary<string, Font> _fontMap = new Dictionary<string, Font>();
 
         public override void OnLoad()
         {
             InitTexts();
+        }
+
+        public override void LateUpdate()
+        {
+            UpdateRenderTarget();
         }
 
         public override void OnPluginDisable()
@@ -119,6 +145,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 Object.Destroy(_canvasObject);
                 _canvasObject = null;
             }
+
+            if (_cameraObject != null)
+            {
+                Object.Destroy(_cameraObject);
+                _cameraObject = null;
+                _camera = null;
+            }
         }
 
         public bool IsValidIndex(int index)
@@ -158,11 +191,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             if (_canvasObject == null)
             {
-                _canvasObject = CreateCanvas();
+                CreateCanvasAndCamera();
             }
 
             var obj = new GameObject("TimelineText" + index);
-            obj.transform.parent = _canvasObject.transform;
+            obj.layer = TextLayer;
+            obj.transform.SetParent(_canvasObject.transform, false);
 
             var text = obj.AddComponent<Text>();
             text.text = "";
@@ -176,24 +210,73 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        private static GameObject CreateCanvas()
+        /// <summary>
+        /// 字幕用のキャンバスと専用カメラを作る。
+        /// GameView はメインカメラを RenderTexture に描いて表示しているため、
+        /// 同じ RT へ後乗せするカメラを立てて字幕を GameView 内に映す。
+        /// メインカメラに相乗りするとポストエフェクトの対象に入ってしまう
+        /// </summary>
+        private void CreateCanvasAndCamera()
         {
-            var obj = new GameObject("TimelineTextCanvas");
+            _cameraObject = new GameObject("TimelineTextCamera");
+            _cameraObject.transform.position = CameraPosition;
+            _cameraObject.transform.rotation = Quaternion.identity;
 
-            var canvas = obj.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _camera = _cameraObject.AddComponent<Camera>();
+            _camera.cullingMask = 1 << TextLayer;
+            // 背景と 3D はメインカメラが描き終えているので、深度だけ消して上に重ねる
+            _camera.clearFlags = CameraClearFlags.Depth;
+            _camera.orthographic = false;
+            _camera.fieldOfView = 60f;
+            _camera.nearClipPlane = 1f;
+            _camera.farClipPlane = CanvasPlaneDistance * 2f;
+
+            _canvasObject = new GameObject("TimelineTextCanvas");
+            _canvasObject.layer = TextLayer;
+
+            var canvas = _canvasObject.AddComponent<Canvas>();
+            // worldCamera は renderMode と同時に必ず入れること。カメラ未設定のまま
+            // 一度でも描画されたキャンバスに後からカメラを挿すと、字幕が左右反転する
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = _camera;
+            canvas.planeDistance = CanvasPlaneDistance;
             canvas.pixelPerfect = false;
             canvas.sortingOrder = 0;
             canvas.targetDisplay = 0;
 
-            var scaler = obj.AddComponent<CanvasScaler>();
+            var scaler = _canvasObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0f;
             scaler.referencePixelsPerUnit = 100f;
 
-            return obj;
+            UpdateRenderTarget();
+        }
+
+        /// <summary>
+        /// 描画先 (GameView の RenderTexture) と描画順をメインカメラへ追随させる。
+        /// GameView はウィンドウのリサイズで RT を作り直し、最大化中は RT を持たない
+        /// </summary>
+        private void UpdateRenderTarget()
+        {
+            if (_camera == null)
+            {
+                return;
+            }
+
+            var mainCamera = SE.GameViewManager.mainCamera;
+            if (mainCamera == null)
+            {
+                return;
+            }
+
+            if (_camera.targetTexture != mainCamera.targetTexture)
+            {
+                _camera.targetTexture = mainCamera.targetTexture;
+            }
+
+            _camera.depth = mainCamera.depth + CameraDepthOffset;
         }
 
         private static List<string> GetOSFontNames()
