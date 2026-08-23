@@ -162,7 +162,15 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 - PostEffects.Plugin との連携で実現可能と確認済み（2026-08-23）。エフェクト実体を PostEffects.Plugin に委ねるか MTE 実装を持ち込むかは計画時に決める
 - 成果物: ポストエフェクトがタイムライン制御できる状態
 
-### Phase L7: PngPlacement 連携 + 仕上げ
+### Phase L7: PngPlacement 連携 + 仕上げ ✅ 完了 (2026-08-23) — **全フェーズ完遂**
+
+- PngPlacementTimelineLayer は SE ネイティブ PngPlacementManager 接続のアダプタ版（外部 PngPlacement.dll 非依存）。画像は UserData\PngPlacement / PhotoModeData\Texture から探索
+- MTE 互換総点検: 登録網羅テスト（MteCompatibilityTests）でローカル実プロジェクト XML 全件に未登録レイヤーが無いことを機械確認済み（DCM 3 レイヤーは既知除外）
+- docs-site の timeline ガイド（レイヤー一覧・互換性の注意書き）を更新済み
+
+#### 次回ゲーム起動時の実機通し確認チェックリスト（全フェーズ共通の残タスク）
+1. 各レイヤーのタイムライン再生（L1: 背景/衣装/移動/ボイス、L2: モデル、L3: 背景モデル/マテリアル、L4: サブカメラ PIP、L5: 演出系のシェーダー実表示、L6: ポストエフェクト実表示、L7: PNG 配置）
+2. MTE 実プロジェクト XML の読み込み → 再生 → 保存し直しの通し確認
 
 1. **PngPlacementTimelineLayer**: SE PngPlacementManager 経由で接続
 2. MTE 互換性の総点検: MTE で作成した実プロジェクト XML を読み込み、全レイヤーが破棄されず再生できることを実機確認
