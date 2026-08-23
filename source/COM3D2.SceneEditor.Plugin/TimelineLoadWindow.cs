@@ -70,10 +70,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _view.Init(ToLocalRect(contentRect));
 
-            var currentDirItem = TimelineLoadManager.GetOrLoadCurrentDirItem();
+            DrawHeader(TimelineLoadManager.GetOrLoadCurrentDirItem());
 
-            DrawHeader(currentDirItem);
-            DrawTiles(currentDirItem);
+            // ヘッダーの「更新」やフォルダ移動で差し替わるため、描画直前に取り直す
+            DrawTiles(TimelineLoadManager.currentDirItem);
         }
 
         /// <summary>階層移動・フォルダを開く・一覧の更新</summary>

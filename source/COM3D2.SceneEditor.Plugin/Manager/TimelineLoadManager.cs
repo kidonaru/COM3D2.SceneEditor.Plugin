@@ -16,7 +16,9 @@ namespace COM3D2.SceneEditor.Plugin
 
     /// <summary>
     /// タイムライン XML の一覧をタイルビュー用のツリーとして構築する。
-    /// 一覧の作法は ScenePresetManager に合わせている (サムネは XML と同名の PNG)
+    /// 一覧の作法は ScenePresetManager に合わせている (サムネは XML と同名の PNG)。
+    /// ツリー構築の処理は ScenePresetManager とほぼ同じだが、移植元 MTE の
+    /// TimelineLoadManager との対応を追えるようにするため、共通化せず据え置いている
     /// </summary>
     public static class TimelineLoadManager
     {

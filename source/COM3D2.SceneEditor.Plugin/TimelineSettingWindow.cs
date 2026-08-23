@@ -513,9 +513,11 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 行の内側で位置を決めるため、リスト側の余白は殺す
+            // 行の内側で位置を決めるため、リスト側の余白は殺す。
+            // padding は Init でリセットされないので、他タブへ持ち越さないよう必ず戻す
             view.padding = Vector2.zero;
             view.DrawContentListView(tracks, DrawTrack, -1, -1, TRACK_ROW_HEIGHT);
+            view.padding = GUIView.defaultPadding;
         }
 
         /// <summary>トラック 1 件分の行。有効化トグル・名前・範囲・並べ替え・削除</summary>
