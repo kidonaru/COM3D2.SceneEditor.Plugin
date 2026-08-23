@@ -30,9 +30,6 @@ namespace COM3D2.SceneEditor.Plugin
         private TargetTabType _targetTab = TargetTabType.メイド;
 
         private static MTEP.MaidManager timelineMaidManager => MTEP.MaidManager.instance;
-        private static MTEP.StudioModelManager modelManager => MTEP.StudioModelManager.instance;
-        private static MTEP.BGModelManager bgModelManager => MTEP.BGModelManager.instance;
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
 
         private readonly GUIComboBox<MTEP.MaidSlotStat> _slotComboBox
             = new GUIComboBox<MTEP.MaidSlotStat>
@@ -40,14 +37,14 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (slot, _) => slot.displayName,
         };
 
-        private readonly GUIComboBox<MTEP.StudioModelStat> _modelComboBox
-            = new GUIComboBox<MTEP.StudioModelStat>
+        private readonly GUIComboBox<ProviderModelStat> _modelComboBox
+            = new GUIComboBox<ProviderModelStat>
         {
             getName = (model, _) => model.displayName,
         };
 
-        private readonly GUIComboBox<MTEP.BGModelStat> _bgModelComboBox
-            = new GUIComboBox<MTEP.BGModelStat>
+        private readonly GUIComboBox<ProviderModelStat> _bgModelComboBox
+            = new GUIComboBox<ProviderModelStat>
         {
             getName = (model, _) => model.displayName,
         };
@@ -174,9 +171,25 @@ namespace COM3D2.SceneEditor.Plugin
             DrawMaterialSelector(slot.materials);
         }
 
+        /// <summary>
+        /// モデルタブ。ModelProviderHost 経由で列挙するため、
+        /// タイムラインモデルも ModItemExplorer 等の外部モデルも同じ経路で編集できる
+        /// </summary>
         private void DrawModelMaterial()
         {
-            var models = modelManager.models;
+            ProviderModelStat.CleanupDestroyed();
+
+            var entries = ModelProviderHost.GetModels();
+            var models = new List<ProviderModelStat>(entries.Count);
+            foreach (var entry in entries)
+            {
+                var stat = ProviderModelStat.GetOrCreate(entry.obj, entry.displayName);
+                if (stat != null)
+                {
+                    models.Add(stat);
+                }
+            }
+
             if (models.Count == 0)
             {
                 view.DrawLabel("配置中のモデルがありません", -1, ROW_HEIGHT);
@@ -196,12 +209,34 @@ namespace COM3D2.SceneEditor.Plugin
             DrawMaterialSelector(model.materials);
         }
 
+        /// <summary>
+        /// 背景タブ。現在の背景オブジェクト配下の Renderer 持ち GameObject を列挙する。
+        /// BGModelManager はタイムラインデータと双方向同期するため使わない
+        /// </summary>
         private void DrawBGModelMaterial()
         {
-            var models = bgModelManager.models;
+            ProviderModelStat.CleanupDestroyed();
+
+            var bgObject = GameMain.Instance.BgMgr.BgObject;
+            if (bgObject == null)
+            {
+                view.DrawLabel("背景が設定されていません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            var models = new List<ProviderModelStat>();
+            foreach (var renderer in bgObject.GetComponentsInChildren<Renderer>(true))
+            {
+                var stat = ProviderModelStat.GetOrCreate(renderer.gameObject, renderer.gameObject.name);
+                if (stat != null)
+                {
+                    models.Add(stat);
+                }
+            }
+
             if (models.Count == 0)
             {
-                view.DrawLabel("背景モデルがありません", -1, ROW_HEIGHT);
+                view.DrawLabel("背景にマテリアルがありません", -1, ROW_HEIGHT);
                 return;
             }
 
@@ -250,8 +285,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            // 再生中は値の取り合いになるため、ポーズ編集中だけ触らせる (既存レイヤーと同条件)
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.SetEnabled(view.focusedComboBox == null);
 
             view.BeginScrollView();
             {

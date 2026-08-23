@@ -285,6 +285,7 @@
     <Compile Include="TimelineLayerWindow.cs" />
     <Compile Include="TimelineTemplateWindow.cs" />
     <Compile Include="ShapeKeyEditWindow.cs" />
+    <Compile Include="ProviderModelStat.cs" />
     <Compile Include="MaterialEditWindow.cs" />
     <Compile Include="TimelineLoadWindow.cs" />
     <Compile Include="TimelineSettingWindow.cs" />
