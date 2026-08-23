@@ -181,6 +181,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Update()
         {
+            // SE 追加ガード: タイムラインを閉じた直後は本コンポーネントが
+            // 1 フレーム生き残るため、timeline/currentLayer の null で NRE しないようにする
+            if (timeline == null || currentLayer == null)
+            {
+                return;
+            }
+
             if (mediaControl == null)
             {
                 return;
@@ -219,6 +226,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void LateUpdate()
         {
+            // SE 追加ガード: Update と同じくタイムライン破棄直後の NRE を防ぐ
+            if (timeline == null)
+            {
+                return;
+            }
+
             if (isDisplayBackmost)
             {
                 // カメラの位置に合わせて毎フレーム更新

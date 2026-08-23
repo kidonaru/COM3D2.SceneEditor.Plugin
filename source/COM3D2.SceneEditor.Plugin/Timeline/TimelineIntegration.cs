@@ -44,9 +44,10 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.PngObjectTimelineManager.instance,
                 MTEP.TimelineFaceManager.instance,
                 MTEP.TimelineSeManager.instance,
-                MTEP.CameraManager.instance,
+                // MovieManager は frontCamera 依存のため CameraManager より先に破棄する
                 MTEP.MovieManager.instance,
                 MTEP.BGMManager.instance,
+                MTEP.CameraManager.instance,
                 MTEP.TimelineTextManager.instance,
                 MTEP.TimelineHistoryManager.instance,
                 MTEP.TimelineTemplateManager.instance,
