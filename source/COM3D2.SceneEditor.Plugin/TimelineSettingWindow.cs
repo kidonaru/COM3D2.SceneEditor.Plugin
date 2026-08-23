@@ -3,6 +3,9 @@ using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
+// UnityEngine と同名型 (Screen 等) の衝突を避けるため WinForms はエイリアスで参照する
+using WinFormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using WinFormsDialogResult = System.Windows.Forms.DialogResult;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -43,6 +46,30 @@ namespace COM3D2.SceneEditor.Plugin
             "なし",
             "1F遅らせる",
             "1F早める",
+        };
+
+        private static readonly string[] VideoDisplayTypeNames = new string[]
+        {
+            "GUI",
+            "3Dビュー",
+            "最背面",
+            "最前面",
+        };
+
+        private readonly GUIComboBox<MTEP.VideoDisplayType> _videoDisplayTypeComboBox = new GUIComboBox<MTEP.VideoDisplayType>
+        {
+            items = Enum.GetValues(typeof(MTEP.VideoDisplayType)).Cast<MTEP.VideoDisplayType>().ToList(),
+            getName = (type, index) => VideoDisplayTypeNames[index],
+            onSelected = (type, index) =>
+            {
+                if (timeline == null)
+                {
+                    return;
+                }
+
+                timeline.videoDisplayType = type;
+                movieManager.ReloadMovie();
+            },
         };
 
         private readonly GUIComboBox<Maid.EyeMoveType> _eyeMoveTypeComboBox = new GUIComboBox<Maid.EyeMoveType>
@@ -105,6 +132,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
+        private static MTEP.MovieManager movieManager => MTEP.MovieManager.instance;
+        private static MTEP.BGMManager bgmManager => MTEP.BGMManager.instance;
 
         private static TimelineSettingWindow _instance = null;
         public static TimelineSettingWindow instance
@@ -280,6 +309,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            DrawBGMSetting(view);
+
+            DrawVideoSetting(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
             if (view.DrawButton("個別設定を初期化", 130, ROW_HEIGHT))
             {
                 MTEUtils.ShowConfirmDialog("個別設定を初期化しますか？", () =>
@@ -358,6 +393,447 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
+        /// <summary>BGM の読み込みと BPM ライン表示 (MTE TimelineSettingUI から移植)</summary>
+        private void DrawBGMSetting(GUIView view)
+        {
+            view.DrawLabel("BGM設定", 100, ROW_HEIGHT);
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("BGMパス", 50, ROW_HEIGHT);
+
+                if (view.DrawButton("選択", 50, ROW_HEIGHT))
+                {
+                    var openFileDialog = new WinFormsOpenFileDialog
+                    {
+                        Title = "BGMファイルを選択してください",
+                        Filter = "音楽ファイル (*.wav;*.ogg)|*.wav;*.ogg",
+                        InitialDirectory = timeline.bgmPath,
+                    };
+
+                    if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
+                    {
+                        var path = openFileDialog.FileName;
+                        timeline.bgmPath = path;
+                        bgmManager.Load();
+                    }
+                }
+
+                if (view.DrawButton("再読込", 80, ROW_HEIGHT))
+                {
+                    bgmManager.Reload();
+                }
+            }
+            view.EndLayout();
+
+            view.DrawTextField(timeline.bgmPath, 240, ROW_HEIGHT, newText => timeline.bgmPath = newText);
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "音量",
+                labelWidth = 50,
+                fieldType = FloatFieldType.Int,
+                min = 0,
+                max = 100,
+                step = 0,
+                defaultValue = 100,
+                value = bgmManager.volumeDance,
+                onChanged = value =>
+                {
+                    bgmManager.volumeDance = (int)value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.DrawToggle("BPMライン表示", timeline.isShowBPMLine, 120, ROW_HEIGHT, newValue =>
+            {
+                timeline.isShowBPMLine = newValue;
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "BPM",
+                labelWidth = 50,
+                min = 1,
+                max = 300,
+                step = 0.1f,
+                defaultValue = 120,
+                value = timeline.bpm,
+                onChanged = value => timeline.bpm = value,
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "オフセット",
+                labelWidth = 50,
+                min = -timeline.frameRate,
+                max = timeline.frameRate,
+                step = 0.1f,
+                defaultValue = 0,
+                value = timeline.bpmLineOffsetFrame,
+                onChanged = value => timeline.bpmLineOffsetFrame = value,
+            });
+
+            view.AddSpace(10);
+            view.DrawHorizontalLine(Color.gray);
+        }
+
+        /// <summary>動画の読み込みと表示形式ごとの配置調整 (MTE TimelineSettingUI から移植)</summary>
+        private void DrawVideoSetting(GUIView view)
+        {
+            var isEnabled = timeline.videoEnabled;
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("動画設定", 100, ROW_HEIGHT);
+
+                view.DrawToggle("有効", isEnabled, 60, ROW_HEIGHT, newValue =>
+                {
+                    timeline.videoEnabled = newValue;
+                    if (newValue)
+                    {
+                        movieManager.LoadMovie();
+                    }
+                    else
+                    {
+                        movieManager.UnloadMovie();
+                    }
+                });
+            }
+            view.EndLayout();
+
+            _videoDisplayTypeComboBox.currentIndex = (int)timeline.videoDisplayType;
+            _videoDisplayTypeComboBox.DrawButton("表示形式", view);
+
+            view.SetEnabled(isEnabled);
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("動画パス", 50, ROW_HEIGHT);
+
+                if (view.DrawButton("選択", 50, ROW_HEIGHT))
+                {
+                    var openFileDialog = new WinFormsOpenFileDialog
+                    {
+                        Title = "動画ファイルを選択してください",
+                        Filter = "動画ファイル (*.mp4;*.avi;*.wmv;*.mov;*.flv;*.mkv;*.webm)|*.mp4;*.avi;*.wmv;*.mov;*.flv;*.mkv;*.webm|すべてのファイル (*.*)|*.*",
+                        InitialDirectory = timeline.videoPath
+                    };
+
+                    if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
+                    {
+                        var path = openFileDialog.FileName;
+                        timeline.videoPath = path;
+                        movieManager.LoadMovie();
+                    }
+                }
+
+                if (view.DrawButton("再読込", 80, ROW_HEIGHT))
+                {
+                    movieManager.ReloadMovie();
+                }
+            }
+            view.EndLayout();
+
+            view.DrawTextField(timeline.videoPath, 240, ROW_HEIGHT, newText => timeline.videoPath = newText);
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "開始位置",
+                labelWidth = 60,
+                min = -1f,
+                max = movieManager.duration,
+                step = movieManager.frameRate > 0f ? 1f / movieManager.frameRate : 0.01f,
+                defaultValue = 0f,
+                value = timeline.videoStartTime,
+                onChanged = newValue =>
+                {
+                    timeline.videoStartTime = newValue;
+                    movieManager.UpdateSeekTime();
+                },
+            });
+
+            if (timeline.videoDisplayType == MTEP.VideoDisplayType.GUI)
+            {
+                var guiPosition = timeline.videoGUIPosition;
+                var newGUIPosition = guiPosition;
+                for (var i = 0; i < 2; i++)
+                {
+                    var value = guiPosition[i];
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = MTEP.TransformDataBase.PositionNames[i],
+                        labelWidth = 60,
+                        min = -1f,
+                        max = 1f,
+                        step = 0.01f,
+                        defaultValue = 0f,
+                        value = value,
+                        onChanged = newValue => newGUIPosition[i] = newValue,
+                    });
+                }
+
+                if (newGUIPosition != guiPosition)
+                {
+                    timeline.videoGUIPosition = newGUIPosition;
+                    movieManager.UpdateTransform();
+                }
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "表示サイズ",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = 1f,
+                    value = timeline.videoGUIScale,
+                    onChanged = value =>
+                    {
+                        timeline.videoGUIScale = value;
+                        movieManager.UpdateTransform();
+                    },
+                });
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "透過度",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = 1f,
+                    value = timeline.videoGUIAlpha,
+                    onChanged = value =>
+                    {
+                        timeline.videoGUIAlpha = value;
+                        movieManager.UpdateColor();
+                    },
+                });
+            }
+            if (timeline.videoDisplayType == MTEP.VideoDisplayType.Mesh)
+            {
+                var position = timeline.videoPosition;
+                var newPosition = position;
+                for (var i = 0; i < 3; i++)
+                {
+                    var value = position[i];
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = MTEP.TransformDataBase.PositionNames[i],
+                        labelWidth = 60,
+                        min = -timelineConfig.positionRange,
+                        max = timelineConfig.positionRange,
+                        step = 0.01f,
+                        defaultValue = 0f,
+                        value = value,
+                        onChanged = newValue => newPosition[i] = newValue,
+                    });
+                }
+
+                if (newPosition != position)
+                {
+                    timeline.videoPosition = newPosition;
+                    movieManager.UpdateTransform();
+                }
+
+                var rotation = MTEP.TransformDataBase.GetNormalizedEulerAngles(timeline.videoRotation);
+                var newRotation = rotation;
+                for (var i = 0; i < 3; i++)
+                {
+                    var value = rotation[i];
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = MTEP.TransformDataBase.RotationNames[i],
+                        labelWidth = 60,
+                        min = -180f,
+                        max = 180f,
+                        step = 1f,
+                        defaultValue = 0f,
+                        value = value,
+                        onChanged = newValue => newRotation[i] = newValue,
+                    });
+                }
+
+                if (newRotation != rotation)
+                {
+                    timeline.videoRotation = newRotation;
+                    movieManager.UpdateTransform();
+                }
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "表示サイズ",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 5f,
+                    step = 0.01f,
+                    defaultValue = 1f,
+                    value = timeline.videoScale,
+                    onChanged = value =>
+                    {
+                        timeline.videoScale = value;
+                        movieManager.UpdateTransform();
+                    },
+                });
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "透過度",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = 1f,
+                    value = timeline.videoAlpha,
+                    onChanged = value =>
+                    {
+                        timeline.videoAlpha = value;
+                        movieManager.UpdateColor();
+                    },
+                });
+            }
+            if (timeline.videoDisplayType == MTEP.VideoDisplayType.Backmost)
+            {
+                var position = timeline.videoBackmostPosition;
+                var newPosition = position;
+                for (var i = 0; i < 2; i++)
+                {
+                    var value = position[i];
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = MTEP.TransformDataBase.PositionNames[i],
+                        labelWidth = 60,
+                        min = -2f,
+                        max = 2f,
+                        step = 0.01f,
+                        defaultValue = 0f,
+                        value = value,
+                        onChanged = newValue => newPosition[i] = newValue,
+                    });
+                }
+
+                if (newPosition != position)
+                {
+                    timeline.videoBackmostPosition = newPosition;
+                    movieManager.UpdateMesh();
+                }
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "表示サイズ",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 2f,
+                    step = 0.1f,
+                    defaultValue = 1f,
+                    value = timeline.videoBackmostScale,
+                    onChanged = value =>
+                    {
+                        timeline.videoBackmostScale = value;
+                        movieManager.UpdateTransform();
+                    },
+                });
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "透過度",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = 0.5f,
+                    value = timeline.videoBackmostAlpha,
+                    onChanged = value =>
+                    {
+                        timeline.videoBackmostAlpha = value;
+                        movieManager.UpdateColor();
+                    },
+                });
+            }
+            if (timeline.videoDisplayType == MTEP.VideoDisplayType.Frontmost)
+            {
+                var position = timeline.videoFrontmostPosition;
+                var newPosition = position;
+                for (var i = 0; i < 2; i++)
+                {
+                    var value = position[i];
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = MTEP.TransformDataBase.PositionNames[i],
+                        labelWidth = 60,
+                        min = -2f,
+                        max = 2f,
+                        step = 0.01f,
+                        defaultValue = i == 0 ? -0.8f : 0.8f,
+                        value = value,
+                        onChanged = newValue => newPosition[i] = newValue,
+                    });
+                }
+
+                if (newPosition != position)
+                {
+                    timeline.videoFrontmostPosition = newPosition;
+                    movieManager.UpdateMesh();
+                }
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "表示サイズ",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 2f,
+                    step = 0.1f,
+                    defaultValue = 0.38f,
+                    value = timeline.videoFrontmostScale,
+                    onChanged = value =>
+                    {
+                        timeline.videoFrontmostScale = value;
+                        movieManager.UpdateTransform();
+                    },
+                });
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
+                    label = "透過度",
+                    labelWidth = 60,
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = 1f,
+                    value = timeline.videoFrontmostAlpha,
+                    onChanged = value =>
+                    {
+                        timeline.videoFrontmostAlpha = value;
+                        movieManager.UpdateColor();
+                    },
+                });
+            }
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "音量",
+                labelWidth = 60,
+                min = 0f,
+                max = 1f,
+                step = 0.01f,
+                defaultValue = 0.5f,
+                value = timeline.videoVolume,
+                onChanged = newValue =>
+                {
+                    timeline.videoVolume = newValue;
+                    movieManager.UpdateVolume();
+                },
+            });
+
+            view.SetEnabled(true);
+        }
+
         /// <summary>共通設定 (タイムライン全体で共有する設定) の描画</summary>
         private void DrawCommonSetting(GUIView view)
         {
@@ -421,6 +897,23 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     timelineConfig.voiceMaxLength = value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "動画先読み秒数",
+                labelWidth = 100,
+                width = -1,
+                min = 0f,
+                max = 1f,
+                step = 0f,
+                defaultValue = 0.5f,
+                value = timelineConfig.videoPrebufferTime,
+                onChanged = value =>
+                {
+                    timelineConfig.videoPrebufferTime = value;
                     timelineConfig.dirty = true;
                 },
             });
