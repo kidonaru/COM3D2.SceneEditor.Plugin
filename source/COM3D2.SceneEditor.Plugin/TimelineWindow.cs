@@ -649,6 +649,11 @@ namespace COM3D2.SceneEditor.Plugin
                     WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
                 }
 
+                if (view.DrawButton("テンプレ", 60, 20))
+                {
+                    WindowManager.ToggleWindowVisible(TimelineTemplateWindow.instance);
+                }
+
                 view.AddSpace(20);
 
                 // 状態メッセージ

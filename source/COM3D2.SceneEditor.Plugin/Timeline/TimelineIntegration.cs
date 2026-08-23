@@ -43,6 +43,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TimelineSeManager.instance,
                 MTEP.TimelineTextManager.instance,
                 MTEP.TimelineHistoryManager.instance,
+                MTEP.TimelineTemplateManager.instance,
             };
 
             public void Init()
