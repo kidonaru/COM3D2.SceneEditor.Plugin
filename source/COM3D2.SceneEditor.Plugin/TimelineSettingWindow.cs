@@ -23,12 +23,15 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int TAB_WIDTH = 60;
         /// <summary>横並びトグルの幅。ラベルが見切れない程度に固定する</summary>
         private static readonly int TOGGLE_WIDTH = 130;
+        /// <summary>トラック 1 件分の行の高さ (名前行 + 範囲行 + 区切り線)</summary>
+        private static readonly int TRACK_ROW_HEIGHT = 55;
 
         /// <summary>ウィンドウ内の内部タブ</summary>
         private enum SettingTabType
         {
             個別,
             共通,
+            トラック,
         }
 
         private SettingTabType _tabType = SettingTabType.個別;
@@ -169,6 +172,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
+
+            // トラック一覧 (DrawContentListView) は自前でスクロールするため、
+            // 共有のスクロールビューには入れない (ネストしたスクロールは GUIView が非対応)
+            if (_tabType == SettingTabType.トラック)
+            {
+                DrawTrackSetting(_view);
+                return;
+            }
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
@@ -481,6 +492,115 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineConfig.outputElapsedTime = newValue;
                     timelineConfig.dirty = true;
                 });
+            }
+            view.EndLayout();
+        }
+
+        /// <summary>トラック設定 (再生範囲の分割) の描画</summary>
+        private void DrawTrackSetting(GUIView view)
+        {
+            if (view.DrawButton("追加", 80, ROW_HEIGHT))
+            {
+                timelineManager.AddTrack();
+            }
+
+            view.AddSpace(10);
+
+            var tracks = timeline.tracks;
+            if (tracks.Count == 0)
+            {
+                view.DrawLabel("トラックがありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            // 行の内側で位置を決めるため、リスト側の余白は殺す
+            view.padding = Vector2.zero;
+            view.DrawContentListView(tracks, DrawTrack, -1, -1, TRACK_ROW_HEIGHT);
+        }
+
+        /// <summary>トラック 1 件分の行。有効化トグル・名前・範囲・並べ替え・削除</summary>
+        private void DrawTrack(GUIView view, MTEP.TrackData track, int index)
+        {
+            if (track == null)
+            {
+                return;
+            }
+
+            var width = view.viewRect.width;
+
+            view.currentPos.x = 5;
+            view.currentPos.y = 5;
+
+            view.BeginHorizontal();
+            {
+                var isActive = timeline.activeTrack == track;
+
+                view.DrawToggle("", isActive, 20, ROW_HEIGHT, newValue =>
+                {
+                    timelineManager.SetActiveTrack(track, !isActive);
+                });
+
+                // 並べ替えボタン (右端 30px) に被らない幅で名前欄を取る
+                view.DrawTextField(track.name, width - 30 - view.currentPos.x, ROW_HEIGHT, newText =>
+                {
+                    track.name = newText;
+                });
+            }
+            view.EndLayout();
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("範囲", 40, ROW_HEIGHT);
+
+                var updated = false;
+                updated |= view.DrawIntField(new GUIView.IntFieldOption
+                {
+                    value = track.startFrameNo,
+                    width = 50,
+                    height = ROW_HEIGHT,
+                    onChanged = x => track.startFrameNo = x,
+                });
+
+                view.DrawLabel("～", 15, ROW_HEIGHT);
+
+                updated |= view.DrawIntField(new GUIView.IntFieldOption
+                {
+                    value = track.endFrameNo,
+                    width = 50,
+                    height = ROW_HEIGHT,
+                    onChanged = x => track.endFrameNo = x,
+                });
+
+                if (view.DrawButton("削除", 50, ROW_HEIGHT))
+                {
+                    timelineManager.RemoveTrack(track);
+                }
+
+                // 再生中のトラックの範囲を変えたときだけ、その場で再生位置へ反映する
+                if (updated && track == timeline.activeTrack)
+                {
+                    timelineManager.ApplyCurrentFrame(true);
+                }
+            }
+            view.EndLayout();
+
+            view.DrawHorizontalLine(Color.gray);
+
+            view.BeginLayout(GUIView.LayoutDirection.Free);
+            {
+                view.currentPos.x = width - 30;
+                view.currentPos.y = 5;
+
+                if (view.DrawButton("∧", 20, ROW_HEIGHT))
+                {
+                    timelineManager.MoveUpTrack(track);
+                }
+
+                view.currentPos.y += 25;
+                if (view.DrawButton("∨", 20, ROW_HEIGHT))
+                {
+                    timelineManager.MoveDownTrack(track);
+                }
             }
             view.EndLayout();
         }
