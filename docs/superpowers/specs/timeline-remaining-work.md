@@ -14,6 +14,16 @@
 - 計画: `docs/superpowers/plans/2026-08-23-timeline-phase-w5-template.md`（plan-review / code-review 済み）
 - **残: 実機確認**（計画 Task 5 の手順）。ゲーム再起動後に UI 表示・テンプレ保存/適用/上書き確認・XML 生成を通しで確認する
 
+### 動画/BGM 再生 ✅ 実装完了（2026-08-24、実機確認はゲーム再起動後）
+
+- `MovieManager` + `MoviePlayerImpl`（AVProVideo。GUI / 3Dビュー / 最背面 / 最前面の 4 表示形式）と `BGMManager`（.ogg/.wav、タイムライン同期・速度連動）を MTE から逐語移植
+- Frontmost 表示用に MTE `CameraManager` を frontCamera 部分のみ trim 移植（LetterBoxView はスコープ外のまま）
+- UI: タイムライン設定の個別タブに「BGM設定」「動画設定」、共通タブに「動画先読み秒数」を追加
+- 適合修正: `BGMManager.OnPluginDisable` で Stop（MTE 非対称の解消）、`MoviePlayerImpl` にタイムライン破棄直後の NRE ガード、COM3D25 用 `UnityWebRequestWWWModule` 参照追加
+- AVPro ネイティブデコーダ（`COM3D2x64_Data\Plugins\x86_64\AVProVideo.dll`）は 2.5 に同梱確認済み
+- 計画: `docs/superpowers/plans/2026-08-24-timeline-movie-bgm.md`（plan-review / code-review 済み）
+- **残: 実機確認**（計画 Task 5 Step 2 の手順。BGM/動画の実再生、OpenFileDialog の STA 挙動、Mesh/Backmost でのシェーダ解決）
+
 ## 2. 意図的にスコープ外（未移植だが方針どおり）
 
 | 項目 | 決定内容 |
