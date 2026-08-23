@@ -63,6 +63,30 @@ namespace COM3D2.SceneEditor.Plugin
             },
         };
 
+        private readonly GUIComboBox<MTEP.TangentType> _defaultTangentTypeComboBox = new GUIComboBox<MTEP.TangentType>
+        {
+            items = Enum.GetValues(typeof(MTEP.TangentType)).Cast<MTEP.TangentType>().ToList(),
+            getName = (type, index) => MTEP.TangentData.TangentTypeNames[index],
+            onSelected = (type, index) =>
+            {
+                timelineConfig.defaultTangentType = type;
+                timelineConfig.dirty = true;
+            },
+        };
+
+        private readonly GUIComboBox<MTEP.MoveEasingType> _defaultEasingTypeComboBox = new GUIComboBox<MTEP.MoveEasingType>
+        {
+            // Max は要素数を表す番兵で、選ぶとイージング関数の添字が範囲外になるため候補から外す
+            items = Enum.GetValues(typeof(MTEP.MoveEasingType)).Cast<MTEP.MoveEasingType>()
+                .Where(type => type != MTEP.MoveEasingType.Max).ToList(),
+            getName = (type, index) => type.ToString(),
+            onSelected = (type, index) =>
+            {
+                timelineConfig.defaultEasingType = type;
+                timelineConfig.dirty = true;
+            },
+        };
+
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
@@ -296,6 +320,127 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>共通設定 (タイムライン全体で共有する設定) の描画</summary>
         private void DrawCommonSetting(GUIView view)
         {
+            _defaultTangentTypeComboBox.currentIndex = (int)timelineConfig.defaultTangentType;
+            _defaultTangentTypeComboBox.DrawButton("初期補間曲線", view);
+
+            _defaultEasingTypeComboBox.currentIndex = (int)timelineConfig.defaultEasingType;
+            _defaultEasingTypeComboBox.DrawButton("初期イージング", view);
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "移動範囲",
+                labelWidth = 100,
+                width = -1,
+                min = 1f,
+                max = 100f,
+                step = 0.1f,
+                defaultValue = 5f,
+                value = timelineConfig.positionRange,
+                onChanged = value =>
+                {
+                    timelineConfig.positionRange = value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "拡縮範囲",
+                labelWidth = 100,
+                width = -1,
+                min = 1f,
+                max = 10f,
+                step = 0.1f,
+                defaultValue = 5f,
+                value = timelineConfig.scaleRange,
+                onChanged = value =>
+                {
+                    timelineConfig.scaleRange = value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "ボイス最大秒数",
+                labelWidth = 100,
+                width = -1,
+                min = 1f,
+                max = 30f,
+                step = 0f,
+                defaultValue = 20f,
+                value = timelineConfig.voiceMaxLength,
+                onChanged = value =>
+                {
+                    timelineConfig.voiceMaxLength = value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "背景透過度",
+                labelWidth = 100,
+                width = -1,
+                min = 0f,
+                max = 1f,
+                step = 0f,
+                defaultValue = 0.5f,
+                value = timelineConfig.timelineBgAlpha,
+                onChanged = value =>
+                {
+                    timelineConfig.timelineBgAlpha = value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.BeginHorizontal();
+            {
+                view.DrawToggle("自動スクロール", timelineConfig.isAutoScroll, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.isAutoScroll = newValue;
+                    timelineConfig.dirty = true;
+                });
+
+                view.DrawToggle("ポーズ履歴無効", timelineConfig.disablePoseHistory, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.disablePoseHistory = newValue;
+                    timelineConfig.dirty = true;
+                });
+            }
+            view.EndLayout();
+
+            view.BeginHorizontal();
+            {
+                view.DrawToggle("自動揺れボーン", timelineConfig.isAutoYureBone, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.isAutoYureBone = newValue;
+                    timelineConfig.dirty = true;
+                });
+
+                view.DrawToggle("常にIKを表示", timelineConfig.alwaysShowIK, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.alwaysShowIK = newValue;
+                    timelineConfig.dirty = true;
+                });
+            }
+            view.EndLayout();
+
+            view.BeginHorizontal();
+            {
+                view.DrawToggle("色をHSVで指定", timelineConfig.useHSVColor, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.useHSVColor = newValue;
+                    timelineConfig.dirty = true;
+                });
+
+                view.DrawToggle("処理時間出力", timelineConfig.outputElapsedTime, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.outputElapsedTime = newValue;
+                    timelineConfig.dirty = true;
+                });
+            }
+            view.EndLayout();
         }
     }
 }
