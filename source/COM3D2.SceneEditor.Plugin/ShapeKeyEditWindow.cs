@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -9,9 +7,8 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// シェイプキー編集ウィンドウ。
-    /// メイドの任意 blendshape と配置モデルのシェイプキー重みを直接編集する。
-    /// キーフレーム化は TimelineWindow のキーフレーム全登録 (Shift+Return) に委ね、
-    /// ここでは現在値を書き換えるだけに留める
+    /// メイドの全シェイプキーと配置モデルのシェイプキー重みをタイムラインとは独立に直接編集する。
+    /// キーフレーム対象タグの登録はレイヤー編集ウィンドウ (ShapeKey レイヤー) の責務で、ここでは扱わない
     /// </summary>
     public class ShapeKeyEditWindow : MaidWindowBase
     {
@@ -19,9 +16,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>対象種別タブの幅</summary>
         private static readonly int TAB_WIDTH = 70;
-
-        /// <summary>メイドタブ内の内部タブの幅</summary>
-        private static readonly int MAID_TAB_WIDTH = 50;
 
         private static readonly int UpdateButtonWidth = 50;
 
@@ -32,21 +26,10 @@ namespace COM3D2.SceneEditor.Plugin
             モデル,
         }
 
-        /// <summary>メイドタブ内の内部タブ</summary>
-        private enum MaidTabType
-        {
-            操作,
-            追加,
-        }
-
         private TargetTabType _targetTab = TargetTabType.メイド;
-        private MaidTabType _maidTab = MaidTabType.操作;
 
-        private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
-        private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.MaidManager timelineMaidManager => MTEP.MaidManager.instance;
         private static MTEP.StudioModelManager modelManager => MTEP.StudioModelManager.instance;
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
 
         private readonly GUIComboBox<string> _slotNameComboBox = new GUIComboBox<string>
         {
@@ -59,7 +42,7 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (model, _) => model.displayName,
         };
 
-        // 追加タブの一覧。全スロットの morph 走査と GetTags() はどちらも
+        // スロット/タグ一覧のキャッシュ。全スロットの morph 走査と GetTags() はどちらも
         // 毎フレーム回すには重いため、対象が変わったときだけ作り直す。
         // 着替えではスロット構成が変わっても検知できないので「更新」ボタンで捨てられるようにする
         private readonly List<string> _slotNames = new List<string>();
@@ -159,41 +142,34 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _maidTab = DrawInnerTabs(_maidTab, MAID_TAB_WIDTH);
-
-            if (_maidTab == MaidTabType.追加)
-            {
-                DrawMaidShapeKeyAdd(target, maidCache);
-            }
-            else
-            {
-                DrawMaidShapeKeyEdit(maidCache);
-            }
+            DrawMaidShapeKeys(target, maidCache);
         }
 
-        /// <summary>
-        /// 追加タブ。スロットが持つ morph タグを列挙し、編集対象として登録する。
-        /// 登録先はタイムライン (メイドシェイプキーレイヤーと共用)
-        /// </summary>
-        private void DrawMaidShapeKeyAdd(Maid target, MTEP.MaidCache maidCache)
+        /// <summary>スロット選択 → そのスロットの全シェイプキーをスライダー表示する</summary>
+        private void DrawMaidShapeKeys(Maid target, MTEP.MaidCache maidCache)
         {
-            var maidSlotNo = maidCache.slotNo;
-
             UpdateSlotNames(target);
+
+            if (_slotNames.Count == 0)
+            {
+                view.DrawLabel("シェイプキーを持つスロットがありません", -1, ROW_HEIGHT);
+                return;
+            }
 
             _slotNameComboBox.items = _slotNames;
             DrawLabeledComboBox("スロット", _slotNameComboBox, UpdateButtonWidth + view.margin, () =>
             {
+                // 着替えはウィンドウ側から検知できないため明示更新
                 if (view.DrawButton("更新", UpdateButtonWidth, ROW_HEIGHT))
                 {
                     ClearSlotCache();
+                    maidCache.ClearBlendShapeCache();
                 }
             });
 
             var slotName = _slotNameComboBox.currentItem;
             if (string.IsNullOrEmpty(slotName) || !target.body0.IsSlotNo(slotName))
             {
-                view.DrawLabel("シェイプキーを持つスロットがありません", -1, ROW_HEIGHT);
                 return;
             }
 
@@ -202,38 +178,43 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            // 登録先はタイムラインなので、ここから先だけは読み込み済みでないと触れない
-            if (timeline == null)
-            {
-                view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
-                return;
-            }
-
             view.SetEnabled(view.focusedComboBox == null);
 
             view.BeginScrollView();
             {
                 foreach (var tag in _tags)
                 {
-                    var enable = timeline.HasMaidShapeKey(maidSlotNo, tag);
-
-                    view.DrawToggle(tag, enable, -1, ROW_HEIGHT, newValue =>
+                    var blendShape = maidCache.GetBlendShape(tag);
+                    if (blendShape == null || blendShape.entities.Count == 0)
                     {
-                        if (newValue)
-                        {
-                            timeline.AddMaidShapeKey(maidSlotNo, tag);
-                        }
-                        else
-                        {
-                            timeline.RemoveMaidShapeKey(maidSlotNo, tag);
-                        }
+                        continue;
+                    }
+
+                    var weight = blendShape.weight;
+
+                    view.DrawLabel(tag, -1, ROW_HEIGHT);
+
+                    var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        min = 0f,
+                        max = 2f,
+                        step = 0.01f,
+                        defaultValue = 0f,
+                        value = weight,
+                        onChanged = x => weight = x,
                     });
+
+                    if (updateTransform)
+                    {
+                        blendShape.weight = weight;
+                        maidCache.FixBlendValues(new string[] { tag });
+                    }
                 }
             }
             view.EndScrollView();
         }
 
-        /// <summary>追加タブの一覧キャッシュを捨てる。「更新」ボタンから呼ぶ</summary>
+        /// <summary>スロット/タグ一覧のキャッシュを捨てる。「更新」ボタンから呼ぶ</summary>
         private void ClearSlotCache()
         {
             _slotNamesMaid = null;
@@ -278,63 +259,6 @@ namespace COM3D2.SceneEditor.Plugin
             _tags.Sort();
         }
 
-        /// <summary>操作タブ。追加タブで登録済みのシェイプキーの重みを編集する</summary>
-        private void DrawMaidShapeKeyEdit(MTEP.MaidCache maidCache)
-        {
-            // 登録済みシェイプキーの一覧はタイムラインが持つ
-            if (timeline == null)
-            {
-                view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
-                return;
-            }
-
-            var shapeKeys = timeline.GetMaidShapeKeys(maidCache.slotNo);
-            if (shapeKeys.Count == 0)
-            {
-                view.DrawLabel("追加タブでシェイプキーを登録してください", -1, ROW_HEIGHT);
-                return;
-            }
-
-            view.DrawHorizontalLine(Color.gray);
-            view.AddSpace(5);
-
-            // 再生中は値の取り合いになるため、ポーズ編集中だけ触らせる (既存レイヤーと同条件)
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            view.BeginScrollView();
-            {
-                foreach (var shapeKey in shapeKeys.OrderBy(x => x, StringComparer.Ordinal))
-                {
-                    var blendShape = maidCache.GetBlendShape(shapeKey);
-                    if (blendShape == null)
-                    {
-                        continue;
-                    }
-
-                    var weight = blendShape.weight;
-
-                    view.DrawLabel(shapeKey, -1, ROW_HEIGHT);
-
-                    var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        min = 0f,
-                        max = 2f,
-                        step = 0.01f,
-                        defaultValue = 0f,
-                        value = weight,
-                        onChanged = x => weight = x,
-                    });
-
-                    if (updateTransform)
-                    {
-                        blendShape.weight = weight;
-                        maidCache.FixBlendValues(new string[] { shapeKey });
-                    }
-                }
-            }
-            view.EndScrollView();
-        }
-
         /// <summary>モデルタブ。配置モデルが持つシェイプキーをそのまま列挙する</summary>
         private void DrawModelContent()
         {
@@ -365,7 +289,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.SetEnabled(view.focusedComboBox == null);
 
             view.BeginScrollView();
             {

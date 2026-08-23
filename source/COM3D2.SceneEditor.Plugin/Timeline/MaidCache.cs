@@ -653,6 +653,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private Dictionary<string, MaidBlendShape> _blendShapeCache =
                 new Dictionary<string, MaidBlendShape>();
 
+        /// <summary>着替えで TMorph が差し替わった後に呼び、シェイプキーのキャッシュを破棄する</summary>
+        public void ClearBlendShapeCache()
+        {
+            _blendShapeCache.Clear();
+        }
+
         public MaidBlendShape GetBlendShape(string shapeKey)
         {
             if (!_blendShapeCache.ContainsKey(shapeKey))
