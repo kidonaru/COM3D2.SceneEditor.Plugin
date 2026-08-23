@@ -133,6 +133,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             // 登録がシーンロード後になるため、初期状態はアクティブ扱いにする
             isSceneActive = true;
+
+            // SceneEdit では photo mode の背景オブジェクト CSV が未ロードのため明示的に読み込む
+            // (StudioModelManager の BGObjectIdMap / モデル生成が PhotoBGObjectData.data に依存する)
+            if (PhotoBGObjectData.data == null)
+            {
+                PhotoBGObjectData.Create();
+            }
             return true;
         }
 

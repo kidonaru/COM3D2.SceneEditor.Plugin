@@ -100,7 +100,11 @@ SE 既存機能・ゲーム API に直結し、専用マネージャの移植が
 7. **VoiceTimelineLayer**: ボイス再生
 - 成果物: 背景・衣装・移動・ボイスがタイムライン制御できる状態
 
-### Phase L2: モデル系（StudioModelManager 基盤 + 4 レイヤー）
+### Phase L2: モデル系（StudioModelManager 基盤 + 4 レイヤー）✅ 完了 (2026-08-23)
+
+- モデル生成は MultipleMaidsHack 方式の直接ロードを SceneEditorHack に実装（photo studio 非依存）。SceneEdit では PhotoBGObjectData.Create() の明示ロードが必要（実機確認済み）
+- 実機確認状況: devbridge でアセットロード・Instantiate・PlacementData 経路を確認済み。タイムライン再生の通し確認はゲーム再起動後に実施すること
+- 将来課題: SE 自前配置モデルの ModelProviderHost へのプロバイダ登録（BoneEdit / ScenePreset 連携）は L7 で検討
 
 MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の ManagerRegistry 規約で移植し、SE の Hierarchy / SelectionManager / ScenePreset と整合させるのが本丸。レイヤー自体は薄い。
 
