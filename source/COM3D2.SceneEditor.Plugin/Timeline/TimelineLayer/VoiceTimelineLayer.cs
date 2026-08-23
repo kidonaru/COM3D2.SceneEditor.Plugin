@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -188,11 +186,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             // ボイス一覧出力 UI は ScriptLoader (DCM 系) 未移植のため省略
-        }
-
-        public static string[] GetFileListAtExtension(string extention)
-        {
-            return GameUty.FileSystem.GetFileListAtExtension(extention).Concat(GameUty.FileSystemOld.GetFileListAtExtension(extention)).ToArray();
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
