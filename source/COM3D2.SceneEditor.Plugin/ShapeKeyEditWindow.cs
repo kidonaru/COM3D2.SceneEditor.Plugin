@@ -131,13 +131,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawBody(Maid target)
         {
-            // 登録済みシェイプキーの一覧をタイムラインが持つため、未読み込みでは編集できない
-            if (timeline == null)
-            {
-                view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
-                return;
-            }
-
             _targetTab = DrawInnerTabs(_targetTab, TAB_WIDTH);
 
             if (_targetTab == TargetTabType.モデル)
@@ -208,6 +201,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
+
+            // 登録先はタイムラインなので、ここから先だけは読み込み済みでないと触れない
+            if (timeline == null)
+            {
+                view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
+                return;
+            }
 
             view.SetEnabled(view.focusedComboBox == null);
 
@@ -281,6 +281,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>操作タブ。追加タブで登録済みのシェイプキーの重みを編集する</summary>
         private void DrawMaidShapeKeyEdit(MTEP.MaidCache maidCache)
         {
+            // 登録済みシェイプキーの一覧はタイムラインが持つ
+            if (timeline == null)
+            {
+                view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
+                return;
+            }
+
             var shapeKeys = timeline.GetMaidShapeKeys(maidCache.slotNo);
             if (shapeKeys.Count == 0)
             {

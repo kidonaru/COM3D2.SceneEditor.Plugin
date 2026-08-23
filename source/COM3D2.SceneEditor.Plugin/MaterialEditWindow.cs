@@ -29,8 +29,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private TargetTabType _targetTab = TargetTabType.メイド;
 
-        private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
-        private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.MaidManager timelineMaidManager => MTEP.MaidManager.instance;
         private static MTEP.StudioModelManager modelManager => MTEP.StudioModelManager.instance;
         private static MTEP.BGModelManager bgModelManager => MTEP.BGModelManager.instance;
@@ -124,13 +122,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawBody(Maid target)
         {
-            // マテリアル一覧はタイムラインのデータ層 (ModelMaterialController 等) が収集する
-            if (timeline == null)
-            {
-                view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
-                return;
-            }
-
             _targetTab = DrawInnerTabs(_targetTab, TAB_WIDTH);
 
             switch (_targetTab)
