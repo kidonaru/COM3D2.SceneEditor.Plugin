@@ -325,6 +325,7 @@
     <Compile Include="Timeline\Manager\StudioModelManager.cs" />
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />
     <Compile Include="Timeline\Manager\BGModelManager.cs" />
+    <Compile Include="Timeline\Manager\SubCameraManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -370,6 +371,7 @@
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\SubCameraTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
@@ -401,6 +403,7 @@
     <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
     <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataSubCamera.cs" />
     <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
     <Compile Include="Timeline\TransformXml.cs" />

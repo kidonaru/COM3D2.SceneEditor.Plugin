@@ -32,6 +32,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.ModelHackManager.instance,
                 MTEP.StudioModelManager.instance,
                 MTEP.BGModelManager.instance,
+                MTEP.SubCameraManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -144,6 +145,8 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.ShapeKeyTimelineLayer), MTEP.ShapeKeyTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.SubCameraTimelineLayer), MTEP.SubCameraTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
@@ -187,6 +190,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.BGGroundColor,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataBGGroundColor>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.SubCamera,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataSubCamera>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Undress,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataUndress>);
