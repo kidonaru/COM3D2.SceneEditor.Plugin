@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -80,7 +81,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 		{
 			if (_computeBuffer == null)
 			{
-				_computeBuffer = new ComputeBuffer(MAX_FOG_COUNT, sizeof(float) * 16);
+				// ストライドは構造体から導出する (他のポストエフェクトと揃え、シェーダー側の実サイズとの
+				// 不一致で Unity 2022.3 の SetData 検証に引っかかるのを防ぐ)
+				_computeBuffer = new ComputeBuffer(MAX_FOG_COUNT, Marshal.SizeOf(typeof(DistanceFogBuffer)));
 			}
 
 			camera.depthTextureMode |= DepthTextureMode.Depth;

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -84,7 +85,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 		{
 			if (_computeBuffer == null)
 			{
-				_computeBuffer = new ComputeBuffer(MAX_PARAFFIN_COUNT, sizeof(float) * 24);
+				// ストライドは構造体から導出する (MTE 原典の固定値はシェーダー側の実サイズと不一致で、
+				// Unity 2022.3 は SetData のストライド検証で例外になるため修正)
+				_computeBuffer = new ComputeBuffer(MAX_PARAFFIN_COUNT, Marshal.SizeOf(typeof(ParaffinBuffer)));
 			}
 
 			camera.depthTextureMode |= DepthTextureMode.Depth;
