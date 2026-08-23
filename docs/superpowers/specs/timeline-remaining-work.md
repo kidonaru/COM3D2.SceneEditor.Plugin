@@ -30,8 +30,8 @@
 DrawWindow 接続（`TimelineLayerWindow`）により全 28 レイヤーの編集自体は可能になったため、SE ネイティブ UI への置き換えは需要を見て個別判断とする。
 
 - **Phase W3-旧（大物）**: 演出系（Psyllium / StageLight / StageLaser）専用ウィンドウ、ポストエフェクト編集ウィンドウ
-  - シェイプキー編集（メイド任意 blendshape / モデル）✅ 実装完了（2026-08-23）—— `ShapeKeyEditWindow`。導線: メニューバー「メイド > シェイプキー」
-  - マテリアル編集 3 系統（メイド / モデル / 背景モデル）✅ 実装完了（2026-08-23）—— `MaterialEditWindow`。導線: メニューバー「メイド > マテリアル」
+  - シェイプキー編集（メイド任意 blendshape / モデル）✅ 実装完了（2026-08-23、同日タイムライン非依存版へ作り直し）—— `ShapeKeyEditWindow`。導線: メニューバー「メイド > シェイプキー」。タイムライン登録集合に依存せず全シェイプキーを操作できる（キーフレーム対象タグの登録はレイヤー編集ウィンドウの責務）。シーンプリセット保存対応（v21）
+  - マテリアル編集 3 系統（メイド / モデル / 背景モデル）✅ 実装完了（2026-08-23、同日タイムライン非依存版へ作り直し）—— `MaterialEditWindow`。導線: メニューバー「メイド > マテリアル」。モデルは ModelProviderHost、背景は BG オブジェクト直下の Renderer 走査で列挙し、タイムライン無しで編集できる。シーンプリセット保存対応（v21）
 - **Phase W4（小物）**: Se（一覧選択 + 試聴）、Voice（ファイル指定 + 試聴）、Text（スタイル編集）、BGColor（地面色の BackgroundWindow 統合）、BGModel（Hierarchy / Inspector 連携）、SubCamera（CameraWindow タブ追加）
 
 ## 4. 機能未対応として明記されている細部
@@ -42,6 +42,9 @@ DrawWindow 接続（`TimelineLayerWindow`）により全 28 レイヤーの編�
 | CRC ボディと旧ボディ間のシェイプキー名互換（eyeclose1 サフィックス等） | window-roadmap Phase 3 将来課題 |
 | ShapeKey / Eyes レイヤーと MaidFaceWindow との相互排他 | window-roadmap Phase 3 将来課題 |
 | シェイプキー / マテリアル編集ウィンドウの SE HistoryManager（Undo）未対応。タイムライン側 Undo（AddKeyFrameAll）は従来どおり効く | 2026-08-23 shapekey-material-windows 計画の設計判断 |
+| モデルのシェイプキー編集はタイムライン経由で配置したモデルのみ（BlendShapeController が StudioModelStat 依存で、ModelProviderHost の素の GameObject には構築できない） | 2026-08-23 shapekey-material-rework 計画の設計判断 |
+| タイムライン再生中はレイヤーの毎フレーム適用とシェイプキー/マテリアルスライダー編集が取り合いになる（isPoseEditing ガードを外し常時編集可を選択） | 2026-08-23 shapekey-material-rework 計画の設計判断 |
+| シーンプリセットのシェイプキー適用は保存タグのみ設定（未保存タグはゼロ化しない。プリセットに無い編集値は適用後も残る） | 2026-08-23 shapekey-material-rework 計画の設計判断 |
 
 ## 5. 実装済みだが検証・整理が残っているもの
 
