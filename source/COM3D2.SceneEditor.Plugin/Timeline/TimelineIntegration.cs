@@ -315,6 +315,17 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.ShapeKey,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataShapeKey>);
 
+            // DCM 由来レイヤーの TransformData
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Morph,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataMorph>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Se,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataSe>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Text,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataText>);
+
             var updateManager = new TimelineUpdateManager();
             managerRegistry.RegisterManager(updateManager);
 

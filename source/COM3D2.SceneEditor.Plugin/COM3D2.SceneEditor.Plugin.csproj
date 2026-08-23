@@ -462,6 +462,9 @@
     <Compile Include="Timeline\TransformData\TransformDataRimlight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataMorph.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataSe.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataText.cs" />
     <Compile Include="Timeline\TransformXml.cs" />
     <Compile Include="Timeline\ValueData.cs" />
     <Compile Include="Timeline\VideoDisplayType.cs" />
