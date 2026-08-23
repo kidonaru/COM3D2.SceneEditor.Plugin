@@ -73,6 +73,42 @@
           <Value>5</Value>
         </Transform>
       </Bone>
+      <Bone>
+        <Transform>
+          <Name>PsylliumBar1</Name>
+          <Type>PsylliumBar</Type>
+          <Value>1</Value>
+          <Value>0.5</Value>
+        </Transform>
+      </Bone>
+      <Bone>
+        <Transform>
+          <Name>PsylliumHand1</Name>
+          <Type>PsylliumHand</Type>
+          <Value>0.1</Value>
+          <Value>0.2</Value>
+        </Transform>
+      </Bone>
+      <Bone>
+        <Transform>
+          <Name>PsylliumPattern1</Name>
+          <Type>PsylliumPattern</Type>
+          <Value>1</Value>
+          <Value>0</Value>
+          <StrValues>
+            <Value>pattern_a</Value>
+          </StrValues>
+        </Transform>
+      </Bone>
+      <Bone>
+        <Transform>
+          <Name>PsylliumTransform1</Name>
+          <Type>PsylliumTransform</Type>
+          <Value>0</Value>
+          <Value>1</Value>
+          <Value>0</Value>
+        </Transform>
+      </Bone>
     </Frame>
   </Layer>
 </TimelineData>
