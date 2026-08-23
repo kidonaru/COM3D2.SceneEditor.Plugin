@@ -5,6 +5,7 @@ using System.Linq;
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -878,6 +879,17 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            // 任意シェイプキーとスロットマテリアル (v21)。1 体の失敗で保存全体を止めない
+            try
+            {
+                CaptureShapeKeysAndMaterials(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogError("シェイプキー/マテリアルの保存に失敗しました: {0}", maid.name);
+                MTEUtils.LogException(e);
+            }
+
             state.undress = new ScenePresetUndress
             {
                 slots = MaidUndressController.CaptureUndressedSlots(maid),
@@ -1700,6 +1712,23 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogException(e);
             }
+            // シェイプキー/マテリアルは ApplyUndress で装備が出入りした後に適用する
+            try
+            {
+                ApplyShapeKeys(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+            try
+            {
+                ApplyMaidMaterials(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
             try
             {
                 ApplyGravity(maid, state);
@@ -1754,6 +1783,247 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             maidManager.fingerBlendController.RestoreStates(maid, state.fingerBlends);
+        }
+
+        /// <summary>
+        /// 任意シェイプキーとスロットマテリアルの差分を控える (v21)。
+        /// 公式表情モーフは faceName/morphs セクションの責務なので除外し、非ゼロ値だけを記録する
+        /// </summary>
+        private static void CaptureShapeKeysAndMaterials(Maid maid, ScenePresetMaid state)
+        {
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            var faceMorphNames = new HashSet<string>();
+            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
+            {
+                foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
+                {
+                    faceMorphNames.Add(def.name);
+                }
+            }
+
+            // 着替え後の古い TMorph を掴んだまま読まないよう作り直してから走査する
+            maidCache.ClearBlendShapeCache();
+
+            state.shapeKeys = new List<ScenePresetMorph>();
+            var seenTags = new HashSet<string>();
+            // COM3D2.5 の goSlot は直接列挙できないため、インデックス走査で両バージョンに対応する
+            var slotCount = Mathf.Min((int) TBody.SlotID.end, maid.body0.goSlot.Count);
+            for (var i = 0; i < slotCount; i++)
+            {
+                var slot = maid.body0.GetSlot(i);
+                if (slot == null || slot.morph == null || slot.morph.hash.Count == 0)
+                {
+                    continue;
+                }
+                foreach (var tag in slot.morph.GetTags())
+                {
+                    if (faceMorphNames.Contains(tag) || !seenTags.Add(tag))
+                    {
+                        continue;
+                    }
+                    var value = maidCache.GetBlendShapeValue(tag);
+                    if (Mathf.Approximately(value, 0f))
+                    {
+                        continue;
+                    }
+                    state.shapeKeys.Add(new ScenePresetMorph { name = tag, value = value });
+                }
+            }
+
+            // スロットマテリアル: 初期値と異なるプロパティを持つものだけ控える
+            maidCache.UpdateMaterials();
+            state.materials = new List<ScenePresetMaterial>();
+            foreach (var slotStat in maidCache.slotStats)
+            {
+                var slotMaterials = slotStat.materials;
+                for (var m = 0; m < slotMaterials.Count; m++)
+                {
+                    var materialData = CaptureMaterial(slotMaterials[m], slotStat.name, m);
+                    if (materialData != null)
+                    {
+                        state.materials.Add(materialData);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 保存された任意シェイプキーを適用する (v21)。未保存タグのゼロ化は行わない
+        /// (表情モーフと同じ TMorph を共有するため、ApplyFace の結果を踏まないようにする)
+        /// </summary>
+        private static void ApplyShapeKeys(Maid maid, ScenePresetMaid state)
+        {
+            if (state.shapeKeys == null || state.shapeKeys.Count == 0)
+            {
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            // 着替え直後に古い TMorph を掴まないようキャッシュを破棄してから書く
+            maidCache.ClearBlendShapeCache();
+
+            var appliedTags = new List<string>(state.shapeKeys.Count);
+            foreach (var shapeKey in state.shapeKeys)
+            {
+                maidCache.SetBlendShapeValue(shapeKey.name, shapeKey.value);
+                appliedTags.Add(shapeKey.name);
+            }
+            // FixBlendValues は対象 TMorph を集約するため 1 回でまとめて呼ぶ
+            maidCache.FixBlendValues(appliedTags);
+        }
+
+        /// <summary>
+        /// 保存されたスロットマテリアル差分を適用する (v21)。
+        /// スロット/マテリアル名が一致しないものは飛ばす
+        /// </summary>
+        private static void ApplyMaidMaterials(Maid maid, ScenePresetMaid state)
+        {
+            if (state.materials == null || state.materials.Count == 0)
+            {
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            // ApplyUndress で装備が出入りした後の状態でスロット一覧を作り直す
+            maidCache.UpdateMaterials();
+
+            foreach (var materialState in state.materials)
+            {
+                var slotStat = maidCache.slotStats.Find(s => s.name == materialState.owner);
+                if (slotStat == null)
+                {
+                    continue;
+                }
+                var material = FindMaterial(slotStat.materials, materialState);
+                if (material == null)
+                {
+                    continue;
+                }
+                ApplyMaterial(material, materialState);
+            }
+        }
+
+        /// <summary>マテリアルの編集差分（初期値と異なるプロパティのみ）を控える。差分ゼロなら null</summary>
+        private static ScenePresetMaterial CaptureMaterial(MTEP.ModelMaterial material, string owner, int index)
+        {
+            var data = new ScenePresetMaterial
+            {
+                owner = owner,
+                material = material.displayName,
+                index = index,
+            };
+
+            foreach (var propertyType in MTEP.ModelMaterial.ColorPropertyTypes)
+            {
+                if (!material.HasColor(propertyType))
+                {
+                    continue;
+                }
+                var color = material.GetColor(propertyType);
+                if (color == material.GetInitialColor(propertyType))
+                {
+                    continue;
+                }
+                data.colors.Add(new ScenePresetMaterialColor
+                {
+                    name = propertyType.ToString(),
+                    rgba = color,
+                });
+            }
+
+            foreach (var propertyType in MTEP.ModelMaterial.ValuePropertyTypes)
+            {
+                if (!material.HasValue(propertyType))
+                {
+                    continue;
+                }
+                var value = material.GetValue(propertyType);
+                if (value == material.GetInitialValue(propertyType))
+                {
+                    continue;
+                }
+                data.values.Add(new ScenePresetMaterialValue
+                {
+                    name = propertyType.ToString(),
+                    value = value,
+                });
+            }
+
+            return data.isEmpty ? null : data;
+        }
+
+        /// <summary>保存されたプロパティだけをマテリアルへ書き戻す。未知のプロパティ名は無視して互換を保つ</summary>
+        private static void ApplyMaterial(MTEP.ModelMaterial material, ScenePresetMaterial state)
+        {
+            if (state.colors != null)
+            {
+                foreach (var color in state.colors)
+                {
+                    MTEP.ModelMaterial.ColorPropertyType type;
+                    if (!TryParseEnum(color.name, out type) || !material.HasColor(type))
+                    {
+                        continue;
+                    }
+                    material.SetColor(type, color.rgba);
+                }
+            }
+
+            if (state.values != null)
+            {
+                foreach (var value in state.values)
+                {
+                    MTEP.ModelMaterial.ValuePropertyType type;
+                    if (!TryParseEnum(value.name, out type) || !material.HasValue(type))
+                    {
+                        continue;
+                    }
+                    material.SetValue(type, value.value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 保存されたマテリアルを一覧から同定する。
+        /// 同名マテリアルが複数ある場合に備え、保存時インデックスの名前一致を優先し、無ければ先頭の名前一致
+        /// </summary>
+        private static MTEP.ModelMaterial FindMaterial(List<MTEP.ModelMaterial> materials, ScenePresetMaterial state)
+        {
+            if (state.index >= 0 && state.index < materials.Count
+                && materials[state.index].displayName == state.material)
+            {
+                return materials[state.index];
+            }
+            return materials.Find(m => m.displayName == state.material);
+        }
+
+        /// <summary>Enum.TryParse が使えない .NET 3.5 向けの安全なパース</summary>
+        private static bool TryParseEnum<T>(string name, out T result) where T : struct
+        {
+            try
+            {
+                result = (T) Enum.Parse(typeof(T), name);
+                return true;
+            }
+            catch (Exception)
+            {
+                result = default(T);
+                return false;
+            }
         }
 
         /// <summary>

@@ -360,6 +360,86 @@ namespace COM3D2.SceneEditor.Plugin
         public float value;
     }
 
+    /// <summary>マテリアルの色プロパティ 1 件（初期値と異なるもののみ保存）</summary>
+    public class ScenePresetMaterialColor
+    {
+        [XmlAttribute]
+        public string name;
+
+        // Color を直に持つと XmlSerializer が余計なプロパティまで直列化し、
+        // 自前の文字列化はカルチャ依存になるため、素の float 4 属性で持つ
+        [XmlAttribute]
+        public float r;
+        [XmlAttribute]
+        public float g;
+        [XmlAttribute]
+        public float b;
+        [XmlAttribute]
+        public float a;
+
+        [XmlIgnore]
+        public Color rgba
+        {
+            get => new Color(r, g, b, a);
+            set
+            {
+                r = value.r;
+                g = value.g;
+                b = value.b;
+                a = value.a;
+            }
+        }
+    }
+
+    /// <summary>マテリアルの数値プロパティ 1 件（初期値と異なるもののみ保存）</summary>
+    public class ScenePresetMaterialValue
+    {
+        [XmlAttribute]
+        public string name;
+        [XmlAttribute]
+        public float value;
+    }
+
+    /// <summary>マテリアル 1 件分の編集差分（初期値と異なるプロパティのみ）</summary>
+    public class ScenePresetMaterial
+    {
+        /// <summary>持ち主の識別子。メイドはスロット名、モデルは "GameObject名|プラグイン名"、背景は BG ルートからの相対パス</summary>
+        [XmlAttribute]
+        public string owner;
+
+        [XmlAttribute]
+        public string material;
+
+        /// <summary>同名マテリアルが複数ある場合の同定用インデックス（一覧内の位置）</summary>
+        [XmlAttribute]
+        public int index;
+
+        [XmlElement("color")]
+        public List<ScenePresetMaterialColor> colors = new List<ScenePresetMaterialColor>();
+
+        [XmlElement("value")]
+        public List<ScenePresetMaterialValue> values = new List<ScenePresetMaterialValue>();
+
+        [XmlIgnore]
+        public bool isEmpty => (colors == null || colors.Count == 0) && (values == null || values.Count == 0);
+    }
+
+    /// <summary>モデルのシェイプキー 1 件。modelName + pluginName で ModelProviderHost のモデルと照合する</summary>
+    public class ScenePresetModelShapeKey
+    {
+        [XmlAttribute("model")]
+        public string modelName;
+
+        [XmlAttribute("plugin")]
+        public string pluginName;
+
+        [XmlAttribute]
+        public string name;
+
+        [XmlAttribute]
+        public float value;
+    }
+
     /// <summary>
     /// 視線の状態。旧プリセット (v10 以前) は null になり、適用時に視線へ触らない。
     /// 注視対象はメイドなら guid + ボーン名、それ以外は階層パスで同定する
@@ -459,6 +539,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>値が 0 でない表情モーフだけ持つ。適用時は未記録のモーフを 0 に戻す</summary>
         [XmlElement("morph")]
         public List<ScenePresetMorph> morphs = new List<ScenePresetMorph>();
+
+        /// <summary>
+        /// 任意シェイプキー (v21)。公式表情モーフを除く非ゼロ値のみ持つ。
+        /// 表情モーフと同じ TMorph を共有するため、適用時は保存タグだけ設定し未記録タグのゼロ化はしない。
+        /// 旧プリセットは null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("shapeKey")]
+        public List<ScenePresetMorph> shapeKeys;
+
+        /// <summary>
+        /// スロットマテリアルの編集差分 (v21)。owner はスロット名。
+        /// 旧プリセットは null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("material")]
+        public List<ScenePresetMaterial> materials;
 
         /// <summary>脱衣状態。旧プリセット (v4 以前) は null になり、適用時に変更しない</summary>
         public ScenePresetUndress undress;
@@ -563,7 +658,10 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は null で読め、適用時に表情タグを変更しない
         // v20: maid に fingerBlends（指の開き/握り/ロック）を追加。
         //      旧形式は null で読め、適用時に指の状態へ触らない
-        public static readonly int CurrentVersion = 20;
+        // v21: maid に shapeKeys（任意シェイプキー）と materials（スロットマテリアル差分）、
+        //      ルートに modelShapeKeys / modelMaterials / bgMaterials を追加。
+        //      旧形式はいずれも null で読め、適用時に触らない
+        public static readonly int CurrentVersion = 21;
 
         [XmlAttribute]
         public int version = CurrentVersion;
@@ -602,5 +700,26 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlElement("modelBoneEdit")]
         public List<ScenePresetModelBoneEdit> modelBoneEdits;
+
+        /// <summary>
+        /// モデルのシェイプキー (v21)。非ゼロ値のみ。外部プロバイダ保存時のみ入る。
+        /// 旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("modelShapeKey")]
+        public List<ScenePresetModelShapeKey> modelShapeKeys;
+
+        /// <summary>
+        /// モデルのマテリアル差分 (v21)。owner は "GameObject名|プラグイン名"。外部プロバイダ保存時のみ入る。
+        /// 旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("modelMaterial")]
+        public List<ScenePresetMaterial> modelMaterials;
+
+        /// <summary>
+        /// 背景オブジェクトのマテリアル差分 (v21)。owner は BG ルートからの相対パス。
+        /// 「背景」カテゴリ保存時のみ入る。旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("bgMaterial")]
+        public List<ScenePresetMaterial> bgMaterials;
     }
 }
