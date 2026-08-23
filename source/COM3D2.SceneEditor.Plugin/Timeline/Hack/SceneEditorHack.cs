@@ -362,7 +362,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return null;
             }
 
-            int modelVersion = 0;
             // 2.5 では SlotID の並びが拡張されているため、旧版参照実装の goSlot[8] 添字ではなく
             // スロット名 "handitemr" を明示指定する
             var bodySkin = maid.body0.GetSlot("handitemr");
@@ -371,7 +370,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 MTEUtils.LogError("LoadModObject: bodySkin が取得できません");
                 return null;
             }
+#if COM3D25
+            // 2.5 の LoadSkinMesh_R は modelVersion を ref 引数で返す
+            int modelVersion = 0;
             var obj = ImportCM.LoadSkinMesh_R(menu.modelFileName, null, "", bodySkin, 1, ref modelVersion);
+#else
+            var obj = ImportCM.LoadSkinMesh_R(menu.modelFileName, null, "", bodySkin, 1);
+#endif
             if (obj == null)
             {
                 MTEUtils.LogError("LoadModObject: model の読み込みに失敗しました " + menu.modelFileName);
