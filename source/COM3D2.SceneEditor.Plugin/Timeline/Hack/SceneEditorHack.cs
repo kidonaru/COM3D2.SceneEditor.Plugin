@@ -2,6 +2,14 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+// Assembly-UnityScript-firstpass のグローバル名前空間には Unity 5 世代の DepthOfFieldScatter が
+// 残骸として残っており、素の型名ではそちらに束縛されて Unity 2022 で削除された
+// Graphics.DrawProceduralIndirect を呼んでしまう。ゲームが実際に使う PostEffects_Dummy 側へ束縛する
+#if COM3D25
+using DepthOfFieldEffect = PostEffects_Dummy.DepthOfFieldScatter;
+#else
+using DepthOfFieldEffect = global::DepthOfFieldScatter;
+#endif
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -123,10 +131,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Camera subCamera => null;
 
-        // SE のゲーム内メインカメラには DepthOfFieldScatter が付いていない場合があるため、
+        // SE のゲーム内メインカメラに DOF コンポーネントが無いケースへの保険として、
         // 基底の GetComponent (null あり得る) ではなく必要時に追加する
-        public override DepthOfFieldScatter depthOfField
-            => PluginUtils.MainCamera.gameObject.GetOrAddComponent<DepthOfFieldScatter>();
+        public override DepthOfFieldEffect depthOfField
+            => PluginUtils.MainCamera.gameObject.GetOrAddComponent<DepthOfFieldEffect>();
 
         public override bool isUIVisible
         {

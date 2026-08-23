@@ -1,6 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+// Assembly-UnityScript-firstpass のグローバル名前空間には Unity 5 世代の DepthOfFieldScatter が
+// 残骸として残っており、素の型名ではそちらに束縛されて Unity 2022 で削除された
+// Graphics.DrawProceduralIndirect を呼んでしまう。ゲームが実際に使う PostEffects_Dummy 側へ束縛する
+#if COM3D25
+using DepthOfFieldEffect = PostEffects_Dummy.DepthOfFieldScatter;
+#else
+using DepthOfFieldEffect = global::DepthOfFieldScatter;
+#endif
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -89,9 +97,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public abstract bool isAnmEnabled { get; set; }
 
-        public virtual DepthOfFieldScatter depthOfField
+        public virtual DepthOfFieldEffect depthOfField
         {
-            get => PluginUtils.MainCamera.gameObject.GetComponent<DepthOfFieldScatter>();
+            get => PluginUtils.MainCamera.gameObject.GetComponent<DepthOfFieldEffect>();
         }
 
         protected static MaidManager maidManager => MaidManager.instance;
