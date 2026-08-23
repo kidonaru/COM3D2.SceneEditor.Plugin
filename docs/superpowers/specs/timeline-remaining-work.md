@@ -6,11 +6,13 @@
 
 ## 1. 完全未移植の機能
 
-### テンプレート機能（Phase W5）— 唯一の未移植機能
+### テンプレート機能（Phase W5）✅ 実装完了（2026-08-23、実機確認はゲーム再起動後）
 
-- MTE の `TimelineTemplateManager` + `TimelineTemplateUI`（操作 / カテゴリ編集 / テンプレ編集の 3 タブ）が SE に一切存在しない
-- キーフレームのテンプレ保存・適用、MTE 互換のテンプレ XML 資産の利用が丸ごと未対応
-- 位置づけ: W1〜W4 完了後にユーザー需要を見て実施判断（優先度最低）
+- `TimelineTemplateManager`（データ層、MTE 逐語移植）+ `TimelineTemplateWindow`（操作 / カテゴリ編集 / テンプレ編集の 3 タブ、EditorSubWindow 版）を実装
+- 格納先は `Config\SceneEditor\Template\<レイヤー名>.xml`（MTE 互換スキーマ）。SE 側 0 件の初回起動時に `UserData\MotionTimelineEditor\Template` の MTE 資産を自動インポート
+- 導線: TimelineWindow「テンプレ」ボタン / メニューバー「Window > テンプレート」
+- 計画: `docs/superpowers/plans/2026-08-23-timeline-phase-w5-template.md`（plan-review / code-review 済み）
+- **残: 実機確認**（計画 Task 5 の手順）。ゲーム再起動後に UI 表示・テンプレ保存/適用/上書き確認・XML 生成を通しで確認する
 
 ## 2. 意図的にスコープ外（未移植だが方針どおり）
 
@@ -65,13 +67,17 @@ DrawWindow 接続（`TimelineLayerWindow`）により全 28 レイヤーの編�
 - CRC/FB 顔での `CheckMorphFB` 未検証: 現環境のメイドが `m_crcFaceTypeNow=NORMAL` で FB 分岐に入らない。FB 顔メイドを用意して確認する必要あり
 - Se レイヤーの interval 再トリガは上記のとおり多重再生の可能性を実機で確認済み（挙動判断待ちに変更）
 
-### 未消化の将来課題（L7 で検討予定のまま完了記録に言及なし）
+### 将来課題の消化結果（2026-08-23）
 
-- PhotoBGManager と SE BackgroundWindow / BackgroundUtils の BG 一覧管理の重複整理（L1 将来課題）
-- SE 自前配置モデルの ModelProviderHost へのプロバイダ登録（BoneEdit / ScenePreset 連携、L2 将来課題）
+- **BG 一覧管理の重複整理（L1）→ 統合見送りを決定**。PhotoBGManager（114 行、利用箇所は TimelineLayerBase のみ）と BackgroundUtils（215 行、BG 適用・地面色管理）は呼び出し元が完全に分離しており、重複は PhotoBGData からの一覧構築のみ。Timeline 側は MTE 逐語移植方針のため、統合は結合を増やす割に得るものがない
+- **ModelProviderHost へのプロバイダ登録（L2）✅ 実装完了**。`TimelineIntegration.RegisterModelProvider` で StudioModelManager の配置モデルを提供し、BoneEdit / ScenePreset から外部モデルと同じ経路で参照可能にした（実機確認はゲーム再起動後）
 
 ## 6. まとめ
 
-機能としての未移植は実質 **テンプレート機能（W5）のみ**。残りはスコープ外の確定事項・任意のネイティブ化・検証残に分類される。
+2026-08-23 時点で、未移植機能（テンプレート W5）と将来課題 2 件（BG 統合は見送り決定、ModelProviderHost 登録は実装）を消化し、実機通し確認も完了した。残りは以下のみ:
 
-2026-08-23 の実機通し確認により検証残はほぼ消化した。残りは FB 顔での CheckMorphFB、目視 3 点（初期化ダイアログ・エクスプローラ起動・コンボポップアップ位置）、および検証から出た改修候補 1 件（Se 多重再生ガードの要否判断）。
+- **ゲーム再起動後の実機確認**: テンプレート機能（W5 計画 Task 5）と ModelProviderHost 登録の動作確認
+- FB 顔での CheckMorphFB（FB 顔メイドの用意が必要）
+- 目視 3 点（初期化ダイアログ・エクスプローラ起動・コンボポップアップ位置）
+- Se 多重再生ガードの要否判断（挙動仕様の決め）
+- 任意のネイティブ化（W3-旧 / W4）: 需要を見て個別判断のまま据え置き
