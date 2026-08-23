@@ -1,7 +1,6 @@
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    // MTE の MovieManager.cs から enum のみ移植。
-    // 動画再生機能自体は未移植だが、タイムライン XML の互換維持のため定義を残す
+    // MTE の MovieManager.cs から移植した enum。定義位置のみ分離している
     public enum VideoDisplayType
     {
         GUI,
