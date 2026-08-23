@@ -53,6 +53,35 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return MTEUtils.CombinePaths(TimelineDirPath, directoryName, anmName + ".xml");
         }
 
+        /// <summary>テンプレート XML の格納先 (SE 設定ディレクトリ配下、MTE 互換スキーマ)</summary>
+        public static string TemplateDirPath
+        {
+            get
+            {
+                var path = MTEUtils.CombinePaths(
+                    SceneEditor.Plugin.PluginUtils.PluginDataPath, "Template");
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+
+                return path;
+            }
+        }
+
+        /// <summary>MTE がテンプレートを保存するディレクトリ (資産の引き継ぎ元。存在しないこともある)</summary>
+        public static string MteTemplateDirPath
+        {
+            get => MTEUtils.CombinePaths(
+                Path.GetFullPath(Path.Combine(UnityEngine.Application.dataPath, "..")),
+                "UserData", "MotionTimelineEditor", "Template");
+        }
+
+        public static string GetTemplatePath(string layerName)
+        {
+            return MTEUtils.CombinePaths(TemplateDirPath, layerName + ".xml");
+        }
+
         public static string ConvertThumPath(string path)
         {
             return Path.ChangeExtension(path, ".png");
