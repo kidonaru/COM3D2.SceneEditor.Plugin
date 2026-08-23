@@ -29,6 +29,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected static StudioModelManager modelManager => StudioModelManager.instance;
         protected static ModelHackManager modelHackManager => ModelHackManager.instance;
         protected static BGModelManager bgModelManager => BGModelManager.instance;
+        protected static StageLaserManager stageLaserManager => StageLaserManager.instance;
+        protected static StageLightManager stageLightManager => StageLightManager.instance;
+        protected static PsylliumManager psylliumManager => PsylliumManager.instance;
+        protected static TimelineBundleManager bundleManager => TimelineBundleManager.instance;
 
         protected static ConfigManager configManager => ConfigManager.instance;
         protected static BoneMenuManager boneMenuManager => BoneMenuManager.Instance;

@@ -328,6 +328,9 @@
     <Compile Include="Timeline\Manager\BGModelManager.cs" />
     <Compile Include="Timeline\Manager\SubCameraManager.cs" />
     <Compile Include="Timeline\Manager\TimelineBundleManager.cs" />
+    <Compile Include="Timeline\Manager\StageLightManager.cs" />
+    <Compile Include="Timeline\Manager\StageLaserManager.cs" />
+    <Compile Include="Timeline\Manager\PsylliumManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -385,6 +388,9 @@
     <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\SubCameraTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\StageLightTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\StageLaserTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\PsylliumTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
     <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
@@ -417,6 +423,16 @@
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
     <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
     <Compile Include="Timeline\TransformData\TransformDataSubCamera.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLight.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLightController.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLaser.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLaserController.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumArea.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumBar.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumController.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumHand.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumPattern.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumTransform.cs" />
     <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
     <Compile Include="Timeline\TransformXml.cs" />

@@ -34,6 +34,9 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.BGModelManager.instance,
                 MTEP.SubCameraManager.instance,
                 MTEP.TimelineBundleManager.instance,
+                MTEP.StageLightManager.instance,
+                MTEP.StageLaserManager.instance,
+                MTEP.PsylliumManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -148,6 +151,12 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.SubCameraTimelineLayer), MTEP.SubCameraTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.StageLightTimelineLayer), MTEP.StageLightTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.StageLaserTimelineLayer), MTEP.StageLaserTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.PsylliumTimelineLayer), MTEP.PsylliumTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
@@ -194,6 +203,36 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.SubCamera,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataSubCamera>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.StageLight,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataStageLight>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.StageLightController,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataStageLightController>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.StageLaser,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataStageLaser>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.StageLaserController,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataStageLaserController>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PsylliumArea,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumArea>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PsylliumBar,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumBar>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PsylliumController,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumController>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PsylliumHand,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumHand>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PsylliumPattern,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumPattern>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PsylliumTransform,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumTransform>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Undress,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataUndress>);
