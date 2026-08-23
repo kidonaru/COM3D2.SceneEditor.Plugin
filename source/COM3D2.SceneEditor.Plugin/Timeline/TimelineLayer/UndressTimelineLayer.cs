@@ -1,0 +1,200 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Xml.Linq;
+using UnityEngine;
+
+namespace COM3D2.MotionTimelineEditor.Plugin
+{
+    [TimelineLayerDesc("メイド脱衣", 16)]
+    public class UndressTimelineLayer : TimelineLayerBase
+    {
+        public override Type layerType => typeof(UndressTimelineLayer);
+        public override string layerName => nameof(UndressTimelineLayer);
+
+        public override bool hasSlotNo => true;
+
+        public override List<string> allBoneNames => DressUtils.DressSlotNames;
+
+        private UndressTimelineLayer(int slotNo) : base(slotNo)
+        {
+        }
+
+        public static UndressTimelineLayer Create(int slotNo)
+        {
+            return new UndressTimelineLayer(slotNo);
+        }
+
+        protected override void InitMenuItems()
+        {
+            _allMenuItems.Clear();
+
+            Action<string, string, List<DressSlotID>> addCategory = (setName, setJpName, slotIds) =>
+            {
+                var setMenuItem = new BoneSetMenuItem(setName, setJpName);
+                _allMenuItems.Add(setMenuItem);
+
+                foreach (var slotId in slotIds)
+                {
+                    var displayName = DressUtils.GetDressSlotJpName(slotId);
+                    var menuItem = new BoneMenuItem(slotId.ToString(), displayName);
+                    setMenuItem.AddChild(menuItem);
+                }
+            };
+
+            addCategory("clothing", "衣装", DressUtils.ClothingSlotIds);
+            addCategory("headwear", "頭部衣装", DressUtils.HeadwearSlotIds);
+            addCategory("accessory", "アクセ", DressUtils.AccessorySlotIds);
+            addCategory("mekure", "めくれ", DressUtils.MekureSlotIds);
+        }
+
+        public override bool IsValidData()
+        {
+            errorMessage = "";
+
+            var firstFrame = this.firstFrame;
+            if (firstFrame == null || firstFrame.frameNo != 0)
+            {
+                errorMessage = "0フレーム目にキーフレームが必要です";
+                return false;
+            }
+
+            return true;
+        }
+
+        public override void Update()
+        {
+            base.Update();
+        }
+
+        public override void LateUpdate()
+        {
+            base.LateUpdate();
+
+            if (!studioHackManager.isPoseEditing)
+            {
+                ApplyPlayData();
+            }
+        }
+
+        protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
+        {
+            var start = motion.start as TransformDataUndress;
+
+            if (indexUpdated)
+            {
+                maidCache.SetSlotVisible(start.slotId, start.isVisible);
+            }
+        }
+
+        public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
+        {
+            var maidCache = this.maidCache;
+            if (maidCache == null) return;
+
+            foreach (var slotName in allBoneNames)
+            {
+                var slotId = DressUtils.GetDressSlotId(slotName);
+                var trans = frame.GetOrCreateTransformData<TransformDataUndress>(slotName);
+                trans.isVisible = maidCache.IsSlotVisible(slotId);
+            }
+        }
+
+        // DCM 連携は未移植のため出力しない
+        public override void OutputDCM(XElement songElement)
+        {
+        }
+
+        private enum TabType
+        {
+            衣装,
+            頭部,
+            アクセ,
+            めくれ,
+        }
+
+        private static TabType _tabType = TabType.衣装;
+
+        public override void DrawWindow(GUIView view)
+        {
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            _tabType = view.DrawTabs(_tabType, 50, 20);
+
+            view.DrawHorizontalLine(Color.gray);
+
+            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+
+            DrawUndress(view);
+        }
+
+        private void DrawUndress(GUIView view)
+        {
+            view.DrawLabel(_tabType.ToString(), 80, 20);
+
+            switch (_tabType)
+            {
+                case TabType.衣装:
+                    DrawUndressByCategory(view, DressUtils.ClothingSlotIds);
+                    break;
+                case TabType.頭部:
+                    DrawUndressByCategory(view, DressUtils.HeadwearSlotIds);
+                    break;
+                case TabType.アクセ:
+                    DrawUndressByCategory(view, DressUtils.AccessorySlotIds);
+                    break;
+                case TabType.めくれ:
+                    DrawUndressByCategory(view, DressUtils.MekureSlotIds);
+                    break;
+            }
+        }
+
+        private void DrawUndressByCategory(GUIView view, List<DressSlotID> slotIds)
+        {
+            for (var i = 0; i < slotIds.Count; i++)
+            {
+                if (i % 2 == 0)
+                {
+                    view.BeginHorizontal();
+                }
+
+                var slotId = slotIds[i];
+                //var isLoaded = maidCache.IsSlotLoaded(slotId);
+                var isVisible = maidCache.IsSlotVisible(slotId);
+
+                DrawUndressToggle(view, slotId, isVisible);
+
+                if (i % 2 == 1)
+                {
+                    view.EndLayout();
+                }
+            }
+            view.EndLayout();
+        }
+
+        private void DrawUndressToggle(GUIView view, DressSlotID slotId, bool isVisible)
+        {
+            var displayName = DressUtils.GetDressSlotJpName(slotId);
+
+            view.DrawToggle(displayName, isVisible, 100, 20, newIsVisible =>
+            {
+                maidCache.SetSlotVisible(slotId, newIsVisible);
+            });
+        }
+
+        public override SingleFrameType GetSingleFrameType(TransformType transformType)
+        {
+            return SingleFrameType.None;
+        }
+
+        public override TransformType GetTransformType(string name)
+        {
+            return TransformType.Undress;
+        }
+    }
+}

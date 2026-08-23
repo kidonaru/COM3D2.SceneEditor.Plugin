@@ -330,6 +330,7 @@
     <Compile Include="Timeline\TimelineHistoryEntry.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
     <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\DressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\EyesTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
@@ -338,6 +339,7 @@
     <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
     <Compile Include="Timeline\TimelineLayerXml.cs" />
     <Compile Include="Timeline\TimelineXml.cs" />
@@ -345,6 +347,7 @@
     <Compile Include="Timeline\TransformData\ITransformData.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBase.cs" />
     <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataDress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataEyes.cs" />
     <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
@@ -356,6 +359,7 @@
     <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
     <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
     <Compile Include="Timeline\TransformXml.cs" />
     <Compile Include="Timeline\ValueData.cs" />
     <Compile Include="Timeline\VideoDisplayType.cs" />
