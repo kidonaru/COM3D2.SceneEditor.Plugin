@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -22,6 +23,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
 
+        /// <summary>直近に描画で例外を投げたレイヤー。毎フレーム同じ例外を出し続けないよう記録する</summary>
+        private Type _drawFailedLayerType = null;
+
         private readonly GUIView _view = new GUIView();
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
@@ -35,6 +39,7 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (layerInfo, index) => layerInfo.displayName,
             onSelected = (layerInfo, index) =>
             {
+                instance.ResetCurrentLayerDraw();
                 timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
             },
             contentSize = new Vector2(150, 300),
@@ -45,6 +50,7 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
             onSelected = (maidCache, index) =>
             {
+                instance.ResetCurrentLayerDraw();
                 maidManager.ChangeMaid(maidCache.maid);
             },
             buttonSize = new Vector2(150, 20),
@@ -111,9 +117,54 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawHeader();
 
-            // レイヤーの DrawWindow は内部で自前のスクロールビューを張るため、
-            // ここでは包まない (ネストしたスクロールは GUIView が非対応)
-            currentLayer.DrawWindow(_view);
+            DrawLayerWindow();
+        }
+
+        /// <summary>
+        /// レイヤー側の編集 UI を描く。
+        /// 各レイヤーの DrawWindow は本ウィンドウが初めて呼ぶ経路のため、
+        /// 1 レイヤーの不具合で編集セッション全体が止まらないよう例外を切り離す
+        /// </summary>
+        private void DrawLayerWindow()
+        {
+            var layerType = currentLayer.layerType;
+
+            try
+            {
+                // DrawWindow は内部で自前のスクロールビューを張るため、ここでは包まない
+                // (ネストしたスクロールは GUIView が非対応)
+                currentLayer.DrawWindow(_view);
+
+                if (_drawFailedLayerType == layerType)
+                {
+                    _drawFailedLayerType = null;
+                }
+            }
+            catch (Exception e)
+            {
+                // 毎フレーム描画されるため、同じレイヤーのログは 1 回だけ出す
+                if (_drawFailedLayerType != layerType)
+                {
+                    _drawFailedLayerType = layerType;
+                    MTEUtils.LogError("レイヤーの編集 UI を描画できませんでした: {0}", layerType.Name);
+                    MTEUtils.LogException(e);
+                }
+            }
+
+            if (_drawFailedLayerType == layerType)
+            {
+                _view.DrawLabel("このレイヤーの編集 UI でエラーが発生しました", -1, ROW_HEIGHT, Color.yellow);
+            }
+        }
+
+        /// <summary>
+        /// レイヤー / 操作対象の切替時に、切り替え前のレイヤーへ描画状態のリセットを通知する。
+        /// 既定実装は何もしないが、状態を持つレイヤーが出たときに切替が反映されるようにしておく
+        /// </summary>
+        private void ResetCurrentLayerDraw()
+        {
+            currentLayer?.ResetDraw(_view);
+            _drawFailedLayerType = null;
         }
 
         /// <summary>編集対象のレイヤーと操作対象メイドの選択</summary>
