@@ -91,8 +91,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => FindLayers(typeof(CameraTimelineLayer)).Count > 0;
         }
 
-        // ポストエフェクトレイヤーは未移植のため常に false
-        public bool hasPostEffectLayer => false;
+        public bool hasPostEffectLayer
+        {
+            get => FindLayers(typeof(PostEffectTimelineLayer)).Count > 0;
+        }
 
         private bool _isMotionEditing = false;
         public bool isMotionEditing

@@ -48,6 +48,7 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.ITimelineLayer currentLayer => timelineManager.currentLayer;
         private static MTEP.BoneMenuManager boneMenuManager => MTEP.BoneMenuManager.Instance;
+        private static MTEP.StudioModelManager modelManager => MTEP.StudioModelManager.instance;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
 
         private static string anmName
@@ -575,6 +576,25 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
+        /// <summary>未使用レイヤーの追加コンボ。選択と同時にアクティブ化する</summary>
+        private readonly GUIComboBox<MTEP.TimelineLayerInfo> _addLayerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
+        {
+            getName = (layerInfo, index) => layerInfo.displayName,
+            onSelected = (layerInfo, index) =>
+            {
+                timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
+                // MTE では追加後にレイヤー情報サブウィンドウを開くため、対応する編集ウィンドウを開く
+                if (!TimelineLayerWindow.instance.isShowWnd)
+                {
+                    WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
+                }
+            },
+            defaultName = "+",
+            buttonSize = new Vector2(20, 20),
+            contentSize = new Vector2(150, 300),
+            showArrow = false,
+        };
+
         private readonly GUIComboBox<MTEP.MaidCache> _maidComboBox = new GUIComboBox<MTEP.MaidCache>
         {
             getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
@@ -634,7 +654,9 @@ namespace COM3D2.SceneEditor.Plugin
                     RefreshTimelineFileList();
                 }
 
-                if (view.DrawButton("設定", 50, 20))
+                // MTE のトラックボタンと同様、アクティブトラックありを緑で示す (SE はトラック UI が設定ウィンドウ内)
+                var trackColor = editEnabled && timeline.activeTrack != null ? Color.green : Color.white;
+                if (view.DrawButton("設定", 50, 20, true, trackColor))
                 {
                     WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
                 }
@@ -921,6 +943,15 @@ namespace COM3D2.SceneEditor.Plugin
                 _layerComboBox.items = timelineManager.usingLayerInfoList;
                 _layerComboBox.DrawButton("レイヤー", view);
 
+                if (view.DrawButton("-", 20, 20, layerType != typeof(MTEP.MotionTimelineLayer)))
+                {
+                    timelineManager.RemoveLayers(layerType);
+                }
+
+                _addLayerComboBox.currentIndex = -1;
+                _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
+                _addLayerComboBox.DrawButton(null, view);
+
                 view.AddSpace(10);
 
                 if (currentLayer.hasSlotNo)
@@ -960,10 +991,55 @@ namespace COM3D2.SceneEditor.Plugin
                     maidManager.maid.Visible = newValue;
                 });
 
+                view.DrawToggle("モデル表示", modelManager.Visible, 80, 20, newValue =>
+                {
+                    modelManager.Visible = newValue;
+                });
+
                 view.DrawToggle("背景表示", timeline.isBackgroundVisible, 80, 20, newValue =>
                 {
                     timeline.isBackgroundVisible = newValue;
                 });
+
+                if (timelineManager.hasCameraLayer)
+                {
+                    var cameraUpdated = false;
+                    cameraUpdated |= view.DrawToggle("カメラ同期", timelineConfig.isCameraSync, 80, 20, !currentLayer.isCameraLayer, newValue =>
+                    {
+                        timelineConfig.isCameraSync = newValue;
+                        timelineConfig.dirty = true;
+                    });
+
+                    cameraUpdated |= view.DrawToggle("視野角固定", timelineConfig.isFixedFoV, 80, 20, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                    {
+                        timelineConfig.isFixedFoV = newValue;
+                        timelineConfig.dirty = true;
+                    });
+
+                    cameraUpdated |= view.DrawToggle("フォーカス固定", timelineConfig.isFixedFocus, 100, 20, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                    {
+                        timelineConfig.isFixedFocus = newValue;
+                        timelineConfig.dirty = true;
+                    });
+
+                    if (cameraUpdated)
+                    {
+                        var cameraLayer = timelineManager.GetLayer(typeof(MTEP.CameraTimelineLayer));
+                        if (cameraLayer != null)
+                        {
+                            cameraLayer.ApplyCurrentFrame(false);
+                        }
+                    }
+                }
+
+                if (timelineManager.hasPostEffectLayer)
+                {
+                    view.DrawToggle("ポスプロ同期", timelineConfig.isPostEffectSync, 100, 20, !currentLayer.isPostEffectLayer, newValue =>
+                    {
+                        timelineConfig.isPostEffectSync = newValue;
+                        timelineConfig.dirty = true;
+                    });
+                }
             }
             view.EndLayout();
         }
