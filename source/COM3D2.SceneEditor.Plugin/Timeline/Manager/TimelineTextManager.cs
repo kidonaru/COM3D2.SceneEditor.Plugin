@@ -6,8 +6,6 @@ using UnityEngine.UI;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    using SE = SceneEditor.Plugin;
-
     /// <summary>
     /// 字幕テキスト 1 件分の実体。
     /// DCM の FreeTextSet から、タイムライン再生に使う 3 つの参照だけを持ち込んでいる
@@ -29,10 +27,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public static readonly string DefaultFontName = "Yu Gothic Bold";
 
         /// <summary>
-        /// 字幕を載せるレイヤー ("UI")。シーン側で未使用かつメインカメラのカリング対象外なので、
+        /// 字幕を載せるレイヤー。シーン側で未使用かつメインカメラのカリング対象外なので、
         /// 専用カメラだけが描く = ポストエフェクトの影響を受けない
         /// </summary>
-        private const int TextLayer = 5;
+        private static readonly int TextLayer = LayerMask.NameToLayer("UI");
 
         /// <summary>
         /// 字幕カメラの配置。SceneView のカメラは "UI" レイヤーも描くため、
@@ -43,6 +41,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>PIP (サブカメラ) の後に描いて字幕を最前面にするための描画順オフセット</summary>
         private const float CameraDepthOffset = 100f;
 
+        /// <summary>
+        /// キャンバスをカメラから離す距離。遠いほどキャンバスがワールド座標で大きくなり、
+        /// カメラを原点から離して置いても座標精度が落ちにくい
+        /// </summary>
         private const float CanvasPlaneDistance = 100f;
 
         private static TimelineTextManager _instance;
@@ -229,6 +231,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _camera.orthographic = false;
             _camera.fieldOfView = 60f;
             _camera.nearClipPlane = 1f;
+            // キャンバス (planeDistance の位置) が確実に収まるよう余裕を持たせる
             _camera.farClipPlane = CanvasPlaneDistance * 2f;
 
             _canvasObject = new GameObject("TimelineTextCanvas");
@@ -242,7 +245,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             canvas.planeDistance = CanvasPlaneDistance;
             canvas.pixelPerfect = false;
             canvas.sortingOrder = 0;
-            canvas.targetDisplay = 0;
 
             var scaler = _canvasObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -265,13 +267,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var mainCamera = SE.GameViewManager.mainCamera;
+            var mainCamera = PluginUtils.MainCamera;
             if (mainCamera == null)
             {
                 return;
             }
 
-            if (_camera.targetTexture != mainCamera.targetTexture)
+            // 破棄済み RT は Unity の演算子オーバーロードで null と等価判定されるため、
+            // != 比較だと破棄済み参照の掃除がスキップされる。参照同一性で比較する
+            if (!ReferenceEquals(_camera.targetTexture, mainCamera.targetTexture))
             {
                 _camera.targetTexture = mainCamera.targetTexture;
             }
