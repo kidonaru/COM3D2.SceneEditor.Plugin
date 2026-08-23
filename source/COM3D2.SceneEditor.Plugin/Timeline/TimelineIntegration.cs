@@ -37,6 +37,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.StageLightManager.instance,
                 MTEP.StageLaserManager.instance,
                 MTEP.PsylliumManager.instance,
+                MTEP.PostEffectManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -157,6 +158,8 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.PsylliumTimelineLayer), MTEP.PsylliumTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
@@ -215,6 +218,21 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.StageLaserController,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataStageLaserController>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.DepthOfField,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.DistanceFog,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDistanceFog>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.GTToneMap,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGTToneMap>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Paraffin,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataParaffin>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Rimlight,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.PsylliumArea,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumArea>);
