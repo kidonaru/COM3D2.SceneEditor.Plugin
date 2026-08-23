@@ -196,7 +196,7 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 | `仮装狂騒曲 篠澤広122.xml` ロードで Morph / Text がアクティブレイヤーに出現 | ✅ 18 レイヤー中に両方を確認（従来は破棄されていた） |
 | レイヤー・TransformType の登録 | ✅ レイヤー 28 件（+3）、TransformType に Morph / Se / Text |
 | 再生でメイド表情が変化 | ✅ F0 / F700 / F1500 でモーフ値が変化。`boMabataki=false` / `EyeMabataki=0` も適用 |
-| 字幕が GameView に表示される | ✅ 専用カメラ経由で GameView 内に描画。XML 指定のフォント（BIZ UDGothic Bold）とサイズ 42 が反映 |
+| 字幕が GameView に表示される | ✅ 専用カメラ経由で GameView 内に描画。XML 指定のフォント（BIZ UDGothic Bold）とサイズ 42 が反映。ポストエフェクトの影響を受けず、GameView 最大化のトグルでも破綻しないことを実機で確認 |
 | SE の再生・停止 | ✅ 公式 SE を 92 件列挙（連番 89 + 追加 3）。ループ再生と `StopSe` で鳴りっぱなしなし |
 | 保存往復で 3 レイヤーが保持される | ✅ ToXml で ClassName・TextCount=1・モーフ 373 フレーム・テキスト 32 フレーム（日本語文字列とフォント名を含む）を保持 |
 | 例外・エラーログ | ✅ ApplyPlayData のログに Morph / Text が並び、例外なし |
