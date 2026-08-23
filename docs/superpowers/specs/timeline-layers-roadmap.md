@@ -189,13 +189,24 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 - MteCompatibilityTests の既知除外リストを撤廃。ローカル実プロジェクト XML 全件が未登録レイヤーなしで PASS する
 - ラウンドトリップ用フィクスチャ `l8-dcm-layers.xml` と `FaceMorphUtilsTests`（モーフ名表の整合検証）を追加
 
-#### 実機通し確認の残タスク
-1. `仮装狂騒曲 篠澤広122.xml`（123 は Morph/Text が消失済みのため 122 を使う）をロードし、Morph / Text レイヤーが現れること
-2. 再生でメイド表情が変化し、字幕が GameView に表示されること
-3. SE レイヤーのシーク・巻き戻し・停止で二重再生や鳴りっぱなしが起きないこと
-4. ポーズ編集モード中に Morph が MaidFaceWindow 操作を妨げないこと
-5. 保存し直して 3 レイヤーの ClassName が XML に残ること
-- 既知課題: Text の既定フォント "Yu Gothic Bold" が無い非日本語 OS でのフォールバックは未対応
+#### 実機通し確認（2026-08-23 実施、devbridge）
+
+| 確認項目 | 結果 |
+|---|---|
+| `仮装狂騒曲 篠澤広122.xml` ロードで Morph / Text がアクティブレイヤーに出現 | ✅ 18 レイヤー中に両方を確認（従来は破棄されていた） |
+| レイヤー・TransformType の登録 | ✅ レイヤー 28 件（+3）、TransformType に Morph / Se / Text |
+| 再生でメイド表情が変化 | ✅ F0 / F700 / F1500 でモーフ値が変化。`boMabataki=false` / `EyeMabataki=0` も適用 |
+| 字幕が画面に表示される | ✅ ScreenSpaceOverlay 1920x1080、XML 指定のフォント（BIZ UDGothic Bold）とサイズ 42 で描画 |
+| SE の再生・停止 | ✅ 公式 SE を 92 件列挙（連番 89 + 追加 3）。ループ再生と `StopSe` で鳴りっぱなしなし |
+| 保存往復で 3 レイヤーが保持される | ✅ ToXml で ClassName・TextCount=1・モーフ 373 フレーム・テキスト 32 フレーム（日本語文字列とフォント名を含む）を保持 |
+| 例外・エラーログ | ✅ ApplyPlayData のログに Morph / Text が並び、例外なし |
+
+未実施・限定確認:
+
+- **CRC/FB 顔での `CheckMorphFB` は未検証**。確認に使ったメイドは `PartsVersion=100`（旧ボディ）で FB 分岐に入らないため、CRC ボディのメイドでの再確認が必要
+- **SE の interval 再トリガ**（シーク・巻き戻し中の二重再生）は、確認に使ったプロジェクトに SE レイヤーが無いため未実行。停止時に鳴りっぱなしにならないことのみ確認済み
+- **ポーズ編集モード中の Morph 抑止**は、他の移植済みレイヤーと同一の `isPoseEditing` ガードであることの構造確認に留めた（編集モードの切り替えが侵襲的なため）
+- 既知課題: Text の既定フォント "Yu Gothic Bold" が無い非日本語 OS でのフォールバックは未対応（確認環境には存在）
 
 ## 4. 主要リスクと対応
 
