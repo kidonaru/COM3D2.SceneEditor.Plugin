@@ -728,6 +728,7 @@ namespace COM3D2.SceneEditor.Plugin
             CaptureExternals(data, options.enabledProviderIds);
             // data.externals を保存対象の有無判定に使うため CaptureExternals の後に呼ぶ
             CaptureModelBoneEdits(data);
+            CaptureModelAppearances(data, options);
 
             return data;
         }
@@ -824,6 +825,139 @@ namespace COM3D2.SceneEditor.Plugin
                         pair.Key.name, entry.pluginName, edit));
                 }
             }
+        }
+
+        /// <summary>
+        /// モデル/背景のシェイプキーとマテリアル差分を控える (v21)。
+        /// 差分が生じるのは編集された (= ModelMaterialController 生成済みの) マテリアルだけなので、
+        /// 捕捉時は GetOrCreate を使わず既存コントローラのみを対象にし、
+        /// 保存のたびに全レンダラーへコンポーネントが増える副作用を避ける
+        /// </summary>
+        private static void CaptureModelAppearances(ScenePresetData data, ScenePresetSaveOptions options)
+        {
+            ProviderModelStat.CleanupDestroyed();
+
+            // モデル分は ModelBoneEdit と同じ規約: 復元先が無い孤立データを避けるため
+            // 外部プロバイダの保存が無い場合はスキップする
+            if (data.externals.Count > 0)
+            {
+                data.modelShapeKeys = new List<ScenePresetModelShapeKey>();
+                data.modelMaterials = new List<ScenePresetMaterial>();
+
+                var entries = ModelProviderHost.GetModels();
+
+                // モデルマテリアル: 編集済みコントローラを持つモデルから差分を控える
+                foreach (var entry in entries)
+                {
+                    if (entry.obj == null)
+                    {
+                        continue;
+                    }
+                    var controller = entry.obj.GetComponentInChildren<MTEP.ModelMaterialController>(true);
+                    if (controller == null)
+                    {
+                        continue;
+                    }
+                    var owner = entry.obj.name + "|" + entry.pluginName;
+                    var materials = controller.materials;
+                    for (var m = 0; m < materials.Count; m++)
+                    {
+                        var materialData = CaptureMaterial(materials[m], owner, m);
+                        if (materialData != null)
+                        {
+                            data.modelMaterials.Add(materialData);
+                        }
+                    }
+                }
+
+                // モデルシェイプキー: BlendShapeController を持つ StudioModelStat からのみ取れる。
+                // 照合キーは ModelBoneEdit と同じ「ルート GameObject 名 + pluginName」に寄せる
+                foreach (var model in MTEP.StudioModelManager.instance.models)
+                {
+                    if (model == null || model.transform == null)
+                    {
+                        continue;
+                    }
+                    var entry = FindProviderEntry(entries, model.transform);
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+                    foreach (var blendShape in model.blendShapes)
+                    {
+                        if (Mathf.Approximately(blendShape.weight, 0f))
+                        {
+                            continue;
+                        }
+                        data.modelShapeKeys.Add(new ScenePresetModelShapeKey
+                        {
+                            modelName = entry.obj.name,
+                            pluginName = entry.pluginName,
+                            name = blendShape.shapeKeyName,
+                            value = blendShape.weight,
+                        });
+                    }
+                }
+            }
+
+            // 背景分は背景セクションと同じカテゴリに従う
+            if (options.saveBackground)
+            {
+                data.bgMaterials = new List<ScenePresetMaterial>();
+
+                var bgObject = GameMain.Instance.BgMgr.BgObject;
+                if (bgObject != null)
+                {
+                    // 編集済みコントローラだけを直接拾う (全 Renderer へ AddComponent する副作用を避ける)
+                    foreach (var controller in bgObject.GetComponentsInChildren<MTEP.ModelMaterialController>(true))
+                    {
+                        var owner = GetRelativePath(bgObject.transform, controller.transform);
+                        var materials = controller.materials;
+                        for (var m = 0; m < materials.Count; m++)
+                        {
+                            var materialData = CaptureMaterial(materials[m], owner, m);
+                            if (materialData != null)
+                            {
+                                data.bgMaterials.Add(materialData);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>Transform が ModelProviderHost のどのモデル配下かを逆引きする (entries は呼び出し側で 1 回だけ取得)</summary>
+        private static ExternalModelEntry FindProviderEntry(List<ExternalModelEntry> entries, Transform transform)
+        {
+            foreach (var entry in entries)
+            {
+                if (entry.obj == null)
+                {
+                    continue;
+                }
+                if (transform == entry.obj.transform || transform.IsChildOf(entry.obj.transform))
+                {
+                    return entry;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>root からの相対パス ("child/grandchild" 形式)。root 自身は空文字</summary>
+        private static string GetRelativePath(Transform root, Transform target)
+        {
+            if (target == root)
+            {
+                return "";
+            }
+            var path = target.name;
+            var current = target.parent;
+            while (current != null && current != root)
+            {
+                path = current.name + "/" + path;
+                current = current.parent;
+            }
+            return path;
         }
 
         private static ScenePresetMaid CaptureMaid(Maid maid)
@@ -1434,6 +1568,7 @@ namespace COM3D2.SceneEditor.Plugin
             ApplyExternals(data);
             // 外部プロバイダのモデル復元 (同期) の後でないと GameObject が存在しない
             ApplyModelBoneEdits(data);
+            ApplyModelAppearances(data);
             if (applyMaids)
             {
                 RequestFocusOnAppliedMaid(data);
@@ -2175,6 +2310,116 @@ namespace COM3D2.SceneEditor.Plugin
                 bone.localScale = new Vector3(edit.scl[0], edit.scl[1], edit.scl[2]);
 
                 store.RecordEdit(BoneEditManager.ModelSlotKey, null, bone);
+            }
+        }
+
+        /// <summary>
+        /// モデル/背景のシェイプキーとマテリアル差分を適用する (v21)。
+        /// ApplyModelBoneEdits と同じく外部プロバイダのモデル復元 (同期) の後に呼ぶ。
+        /// 照合に失敗したものは警告のみで飛ばす
+        /// </summary>
+        private static void ApplyModelAppearances(ScenePresetData data)
+        {
+            ProviderModelStat.CleanupDestroyed();
+
+            // モデルマテリアル
+            if (data.modelMaterials != null && data.modelMaterials.Count > 0)
+            {
+                var entries = ModelProviderHost.GetModels();
+                foreach (var materialState in data.modelMaterials)
+                {
+                    var separatorIndex = (materialState.owner ?? "").LastIndexOf('|');
+                    if (separatorIndex < 0)
+                    {
+                        continue;
+                    }
+                    var modelName = materialState.owner.Substring(0, separatorIndex);
+                    var pluginName = materialState.owner.Substring(separatorIndex + 1);
+
+                    // ModelBoneEdit と同じ照合 (同名複数は先勝ち)
+                    var entry = entries.Find(e =>
+                        e.obj != null && e.obj.name == modelName && e.pluginName == pluginName);
+                    if (entry == null)
+                    {
+                        MTEUtils.LogWarning(
+                            "マテリアル適用先のモデルが見つかりません: {0}", materialState.owner);
+                        continue;
+                    }
+
+                    var stat = ProviderModelStat.GetOrCreate(entry.obj, entry.displayName);
+                    var material = FindMaterial(stat.materials, materialState);
+                    if (material == null)
+                    {
+                        continue;
+                    }
+                    ApplyMaterial(material, materialState);
+                }
+            }
+
+            // モデルシェイプキー: StudioModelStat を transform 一致で逆引きする
+            if (data.modelShapeKeys != null && data.modelShapeKeys.Count > 0)
+            {
+                var entries = ModelProviderHost.GetModels();
+                var models = MTEP.StudioModelManager.instance.models;
+                var touchedModels = new HashSet<MTEP.StudioModelStat>();
+                foreach (var shapeKeyState in data.modelShapeKeys)
+                {
+                    var entry = entries.Find(e => e.obj != null
+                        && e.obj.name == shapeKeyState.modelName
+                        && e.pluginName == shapeKeyState.pluginName);
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+                    var model = models.Find(m => m != null && m.transform != null
+                        && (m.transform == entry.obj.transform || m.transform.IsChildOf(entry.obj.transform)));
+                    if (model == null)
+                    {
+                        MTEUtils.LogWarning(
+                            "シェイプキー適用先のモデルが見つかりません: {0}", shapeKeyState.modelName);
+                        continue;
+                    }
+                    var blendShape = model.blendShapes.Find(b => b.shapeKeyName == shapeKeyState.name);
+                    if (blendShape == null)
+                    {
+                        continue;
+                    }
+                    blendShape.weight = shapeKeyState.value;
+                    touchedModels.Add(model);
+                }
+                // FixBlendValues は頂点全走査で重いためモデルごとに 1 回
+                foreach (var model in touchedModels)
+                {
+                    model.FixBlendValues();
+                }
+            }
+
+            // 背景マテリアル (背景を復元しない設定のときは触らない)
+            if (data.bgMaterials != null && data.bgMaterials.Count > 0 && ShouldApplyBackground(data))
+            {
+                var bgObject = GameMain.Instance.BgMgr.BgObject;
+                if (bgObject != null)
+                {
+                    foreach (var materialState in data.bgMaterials)
+                    {
+                        var target = string.IsNullOrEmpty(materialState.owner)
+                            ? bgObject.transform
+                            : bgObject.transform.Find(materialState.owner);
+                        if (target == null)
+                        {
+                            MTEUtils.LogWarning(
+                                "背景マテリアル適用先が見つかりません: {0}", materialState.owner);
+                            continue;
+                        }
+                        var stat = ProviderModelStat.GetOrCreate(target.gameObject, target.name);
+                        var material = FindMaterial(stat.materials, materialState);
+                        if (material == null)
+                        {
+                            continue;
+                        }
+                        ApplyMaterial(material, materialState);
+                    }
+                }
             }
         }
 
