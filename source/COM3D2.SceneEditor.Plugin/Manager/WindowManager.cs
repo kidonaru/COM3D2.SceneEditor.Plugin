@@ -55,6 +55,8 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(MaidUndressWindow.instance);
             AddWindow(MaidGravityWindow.instance);
             AddWindow(BoneEditWindow.instance);
+            AddWindow(ShapeKeyEditWindow.instance);
+            AddWindow(MaterialEditWindow.instance);
             AddWindow(CameraWindow.instance);
             AddWindow(BackgroundWindow.instance);
             AddWindow(BgmWindow.instance);

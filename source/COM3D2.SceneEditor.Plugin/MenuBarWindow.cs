@@ -151,6 +151,8 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("脱衣", MaidUndressWindow.instance),
                         CreateWindowItem("重力", MaidGravityWindow.instance),
                         CreateWindowItem("ボーン", BoneEditWindow.instance),
+                        CreateWindowItem("シェイプキー", ShapeKeyEditWindow.instance),
+                        CreateWindowItem("マテリアル", MaterialEditWindow.instance),
                     },
                 },
                 new MenuDef
