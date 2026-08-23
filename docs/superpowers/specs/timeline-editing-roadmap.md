@@ -14,7 +14,7 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 | MTE サブウィンドウ | SE での対応 |
 |---|---|
 | KeyFrame（補間編集） | ✅ CurveEditorWindow 接続済み（Phase 2） |
-| TimelineLayer | ✅ 「接続しない」と決定済み（2026-08-23）。レイヤー固有編集は SE 各ウィンドウへ委譲 |
+| TimelineLayer | ✅ 汎用ホスト `TimelineLayerWindow` で接続（2026-08-23 に方針転換。下記参照） |
 | History | ✅ SE HistoryManager / HistoryWindow へブリッジ済み（Phase 4） |
 | IKHold（IK固定） | ✅ MaidIKWindow が MTE の IK固定相当として実装済み（四肢の空間固定 + 足の接地） |
 
@@ -30,6 +30,8 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 | Template（テンプレート） | ❌ 完全未移植 | `TimelineTemplateManager` 自体が SE に存在しない。キーフレームのカテゴリ / テンプレ管理機能ごと持ち込みが必要 |
 
 **B. レイヤー個別編集の受け皿が無い領域**
+
+> **2026-08-23 追記（方針転換）**: 調査の結果、SE 側の全 28 レイヤーに編集 UI（`ITimelineLayer.DrawWindow`）が移植済みでありながら、呼び出し箇所が 1 つも無い（＝コードが死んでいる）ことが判明した。そのため「レイヤー UI は接続せず SE 各ウィンドウへ吸収する」方針を改め、汎用ホスト `TimelineLayerWindow` から `DrawWindow` を描く方式へ切り替えた（ユーザー判断）。**以下の「受け皿なし・不足」の領域は、この接続により GUI から編集できる状態になっている**。SE ネイティブなウィンドウへの置き換えは、需要の高い領域から段階的に判断する。
 
 方針「レイヤー UI（DrawWindow）は接続せず、SE 各ウィンドウへ機能を吸収する」（2026-08-23 決定）に対し、吸収先ウィンドウ自体が無い・不足しているレイヤーが残っている。これらは XML を読み込めば再生できるが、SE 上でキーフレームの中身を GUI で作成・編集できない。
 
@@ -149,7 +151,28 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 - 一覧を何度も更新してもメモリ使用量が積み上がらない
 - トラックタブを開いた後に個別 / 共通タブへ戻してもレイアウトが崩れない（padding の復元確認）
 
-### Phase W3: レイヤー編集の受け皿整備（大物）
+### Phase W3: レイヤー編集ウィンドウ（DrawWindow 接続） ✅ 完了（2026-08-23）
+
+実装: 新規 `TimelineLayerWindow`（`EditorSubWindow` 派生）。ヘッダーでレイヤーと操作対象メイドを選び、本体で `currentLayer.DrawWindow(view)` を呼ぶ薄いホスト。TimelineWindow の「編集」ボタン、またはメニューバー「Window > レイヤー編集」から開く。計画は `docs/superpowers/plans/2026-08-23-timeline-phase-w3-layer-edit-window.md`。
+
+実装上の判断:
+
+- **ホスト側でスクロールビューを張らない**: レイヤーの `DrawWindow` は 24 ファイルが内部で `BeginScrollView` を張り、`GUIView` はネストしたスクロールに対応しないため。内部スクロールを持たないレイヤー（BGColor / BG / Camera / Morph / Move / PngPlacement / SubCamera / Undress / Voice / PostEffect 系）向けに、既定サイズと最小サイズを大きめ（480x560 / 下限 400x400）に取っている
+- **1 レイヤーの例外を切り離す**: 28 レイヤーの `DrawWindow` は本ウィンドウが初めて実行する経路のため、描画例外を捕まえてラベル表示に留める（同じレイヤーのログは 1 回だけ出す）
+- **レイヤー側のコードは変更していない**: 破綻するレイヤーが出た場合は記録して別途対応する
+
+**未実施**: 実機での通し確認。次回ゲーム起動時に W1 / W2 の項目と併せて以下を確認する:
+
+- レイヤーコンボの切り替えでそれぞれの編集 UI が出る（28 レイヤーを一巡し、例外ログが出ないことを確認する）
+- 演出系（Psyllium / StageLight / StageLaser）のタブ切り替えとパラメータ編集が動く
+- コンボのポップアップが正しい位置に出る / レイヤー内のスクロールが二重にならない
+- 内部スクロールを持たないレイヤーで、既定サイズのまま下部の項目まで操作できる
+
+---
+
+### Phase W3-旧: レイヤー編集の受け皿整備（大物）— SE ネイティブ化（任意）
+
+> DrawWindow 接続により編集自体は可能になったため、以下は「SE ネイティブなウィンドウへの置き換え」として優先度を下げる。需要を見て個別に判断する。
 
 MTE の各レイヤー DrawWindow が持っていた編集機能を SE ウィンドウへ吸収する。工数が大きいものから独立して進められる。
 
@@ -159,7 +182,9 @@ MTE の各レイヤー DrawWindow が持っていた編集機能を SE ウィン
 4. **ポストエフェクト編集**: DoF / DistanceFog / GTToneMap / Paraffin / Rimlight の 5 種。専用ウィンドウ 1 枚に集約する
 - 成果物: 演出・マテリアル・シェイプキー・ポストエフェクトのキーフレームを GUI で作成・調整できる状態
 
-### Phase W4: レイヤー編集の受け皿整備（小物）
+### Phase W4: レイヤー編集の受け皿整備（小物）— SE ネイティブ化（任意）
+
+> こちらも DrawWindow 接続で編集可能になっているため、置き換えの必要性は需要を見て判断する。
 
 キーフレーム値の編集で足りる可能性が高い領域。専用ウィンドウを起こす前に「TimelineWindow で選択したキーフレームの値を InspectorWindow で編集する」方式で足りるかの設計判断を先に行う。
 
