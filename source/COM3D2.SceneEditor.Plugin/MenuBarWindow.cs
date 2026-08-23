@@ -130,7 +130,6 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("PNG配置", PngPlacementWindow.instance),
                         CreateWindowItem("プリセット", PresetWindow.instance),
                         CreateWindowItem("タイムライン", TimelineWindow.instance),
-                        CreateWindowItem("レイヤー設定", TimelineLayerWindow.instance),
                         CreateWindowItem("操作履歴", HistoryWindow.instance),
                         CreateWindowItem("設定", SettingWindow.instance),
                     },
