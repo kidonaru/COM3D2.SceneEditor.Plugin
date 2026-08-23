@@ -87,6 +87,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var text = freeTextSet.text;
                 var rect = freeTextSet.rect;
 
+                // 以下の初期値は TransformDataText の CustomValueInfoMap / StrValueInfoMap の
+                // defaultValue と対。TransformDataText は XML 互換のため変更しないので、
+                // 片方だけ変えるとキーフレーム既定値と初期表示がずれる
                 text.font = GetFont(DefaultFontName);
                 text.fontSize = 50;
                 text.lineSpacing = 50f;

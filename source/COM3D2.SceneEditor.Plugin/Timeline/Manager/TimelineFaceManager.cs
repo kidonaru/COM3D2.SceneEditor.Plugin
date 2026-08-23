@@ -27,7 +27,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public float GetMorphValue(Maid maid, string key)
+        public float GetMorphValue(Maid maid, string morphName)
         {
             var morph = GetFaceMorph(maid);
             if (morph == null)
@@ -35,13 +35,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return 0f;
             }
 
-            var morphName = CheckMorph(morph, key);
-            if (string.IsNullOrEmpty(morphName))
+            var resolvedName = CheckMorph(morph, morphName);
+            if (string.IsNullOrEmpty(resolvedName))
             {
                 return 0f;
             }
 
-            return morph.GetBlendValues((int)morph.hash[morphName]) / GetRatio(morph, key);
+            return morph.GetBlendValues((int)morph.hash[resolvedName]) / GetRatio(morph, morphName);
         }
 
         /// <summary>
@@ -92,15 +92,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return maid.body0.Face.morph;
         }
 
-        private void SetBlendValues(TMorph morph, string key, float value)
+        private void SetBlendValues(TMorph morph, string morphName, float value)
         {
-            var morphName = CheckMorph(morph, key);
-            if (string.IsNullOrEmpty(morphName) || value == -1f || !morph.hash.ContainsKey(morphName))
+            var resolvedName = CheckMorph(morph, morphName);
+            if (string.IsNullOrEmpty(resolvedName) || value == -1f || !morph.hash.ContainsKey(resolvedName))
             {
                 return;
             }
 
-            morph.SetBlendValues((int)morph.hash[morphName], value * GetRatio(morph, key));
+            morph.SetBlendValues((int)morph.hash[resolvedName], value * GetRatio(morph, morphName));
         }
 
         /// <summary>
@@ -144,15 +144,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 adjusted = true;
             }
 
-            var winkTotal = (winkL1 + winkL2 < winkR1 + winkR2) ? (winkR1 + winkR2) : (winkL1 + winkL2);
+            var winkTotal = Mathf.Max(winkL1 + winkL2, winkR1 + winkR2);
 
             if (1f < close + close2 + winkTotal)
             {
                 var closeTotal = close + close2;
-                var rest = 1f - winkTotal;
-                close = rest * close / closeTotal;
-                close2 = rest * close2 / closeTotal;
-                adjusted = true;
+                // ウィンク単体が 1 を超える XML では winkTotal が 1 を超えたまま残り、
+                // 目閉じが両方 0 だと 0 除算で NaN が TMorph へ流れる (移植元にある穴)
+                if (closeTotal > 0f)
+                {
+                    var rest = 1f - winkTotal;
+                    close = rest * close / closeTotal;
+                    close2 = rest * close2 / closeTotal;
+                    adjusted = true;
+                }
             }
 
             if (!adjusted)
@@ -169,13 +174,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>ウィンク系モーフを持たない顔では補正しないよう 0 を返す</summary>
-        private float GetAdjustValue(Maid maid, TMorph morph, string key)
+        private float GetAdjustValue(Maid maid, TMorph morph, string morphName)
         {
             if (string.IsNullOrEmpty(CheckMorph(morph, "eyeclose5")))
             {
                 return 0f;
             }
-            return GetMorphValue(maid, key) * GetRatio(morph, key);
+            return GetMorphValue(maid, morphName) * GetRatio(morph, morphName);
         }
 
         private static float GetLimitValue(float value)
@@ -217,9 +222,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>FB 顔のジト目だけ値域が 3 倍なので換算する</summary>
-        private static float GetRatio(TMorph morph, string key)
+        private static float GetRatio(TMorph morph, string morphName)
         {
-            if (IsFBFace(morph) && key == "eyeclose3")
+            if (IsFBFace(morph) && morphName == "eyeclose3")
             {
                 return 3f;
             }

@@ -137,7 +137,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var morphValue = faceManager.GetMorphValue(maid, morphName);
 
-            // 目閉じ補正を戻す
+            // ゲーム側が m_fEyeCloseRate で掛けた目閉じ補正を打ち消し、素の値へ戻す
             if (morphName == "eyeclose")
             {
                 var morph = maid.body0.Face.morph;
