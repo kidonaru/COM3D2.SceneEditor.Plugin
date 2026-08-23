@@ -99,17 +99,37 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>rootPath から見た相対パス。範囲外・同一なら空文字</summary>
         private static string GetRelativePath(string rootPath, string path)
         {
-            var normalizedRoot = rootPath.TrimEnd(Path.DirectorySeparatorChar);
+            // GetFullPath は null/空文字・不正文字・過長パスで例外を投げる。
+            // GUI のクリック経路から直接呼ばれるため、失敗は範囲外扱い (空文字) に倒す
+            if (string.IsNullOrEmpty(rootPath) || string.IsNullOrEmpty(path))
+            {
+                return "";
+            }
+
+            string normalizedRoot;
+            string normalizedPath;
+            try
+            {
+                // ゲームの返すルートは区切り文字が混在するため (例: "W:/COM3D2_5\PhotoModeData\")、
+                // 正規化してから比較する。生のまま比較すると StartsWith が外れて常に空文字になり、
+                // サブフォルダのタイムラインをロードできなくなる
+                normalizedRoot = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar);
+                normalizedPath = Path.GetFullPath(path);
+            }
+            catch (Exception)
+            {
+                return "";
+            }
 
             // 区切り文字まで含めて比較する。接頭辞が同じ兄弟フォルダ
             // (例: ルートが ...\Timeline のとき ...\TimelineBackup) を配下と誤判定しないため
-            if (!path.StartsWith(normalizedRoot + Path.DirectorySeparatorChar,
+            if (!normalizedPath.StartsWith(normalizedRoot + Path.DirectorySeparatorChar,
                 StringComparison.OrdinalIgnoreCase))
             {
                 return "";
             }
 
-            return path.Substring(normalizedRoot.Length)
+            return normalizedPath.Substring(normalizedRoot.Length)
                 .Trim(Path.DirectorySeparatorChar);
         }
 

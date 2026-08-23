@@ -20,6 +20,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData(@"C:\timeline\", @"C:\timeline\sub\sample.xml", "sub")]
         // 接頭辞が同じだけの兄弟フォルダは配下とみなさない
         [InlineData(@"C:\timeline", @"C:\timelineBackup\sample.xml", "")]
+        // ゲームの返すルートは区切り文字が混在する (例: "W:/COM3D2_5\PhotoModeData\_Timeline")。
+        // 正規化せず比較するとサブフォルダのタイムラインが常にルート直下扱いになる
+        [InlineData(@"C:/game\timeline", @"C:/game\timeline\sub\sample.xml", "sub")]
+        [InlineData(@"C:/game\timeline", @"C:\game\timeline\sub\sample.xml", "sub")]
         public void 相対ディレクトリ名を算出できる(string rootPath, string filePath, string expected)
         {
             var actual = TimelineLoadManager.GetRelativeDirectoryName(rootPath, filePath);
