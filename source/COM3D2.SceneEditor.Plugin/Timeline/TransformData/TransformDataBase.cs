@@ -262,6 +262,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected static MaidCache maidCache => maidManager.maidCache;
 
+        protected static StudioModelManager modelManager => StudioModelManager.instance;
+
         public virtual void Initialize(string name)
         {
             this.name = name;

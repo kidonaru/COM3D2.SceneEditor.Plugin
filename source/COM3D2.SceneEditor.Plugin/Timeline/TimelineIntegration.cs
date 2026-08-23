@@ -29,6 +29,8 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.MaidManager.instance,
                 MTEP.TimelineManager.instance,
                 MTEP.StudioLightManager.instance,
+                MTEP.ModelHackManager.instance,
+                MTEP.StudioModelManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -141,6 +143,14 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.ShapeKeyTimelineLayer), MTEP.ShapeKeyTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelShapeKeyTimelineLayer), MTEP.ModelShapeKeyTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelMaterialTimelineLayer), MTEP.ModelMaterialTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.MoveTimelineLayer), MTEP.MoveTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.AnimationTimelineLayer), MTEP.AnimationTimelineLayer.Create);
@@ -173,6 +183,18 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Dress,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDress>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Model,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataModel>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.ModelBone,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataModelBone>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.ModelShapeKey,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataModelShapeKey>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.ModelMaterial,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataModelMaterial>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Voice,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataVoice>);

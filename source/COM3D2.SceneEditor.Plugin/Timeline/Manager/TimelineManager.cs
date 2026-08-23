@@ -1617,6 +1617,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return trans;
         }
 
+        public void CopyModel(StudioModelStat model)
+        {
+            if (model == null || timeline == null)
+            {
+                return;
+            }
+
+            var newModel = new StudioModelStat();
+            newModel.FromModel(model);
+
+            var group = newModel.group;
+            while (modelManager.GetModel(newModel.name) != null)
+            {
+                group++;
+                if (group == 1) group++; // 1は使わない
+                newModel.SetGroup(group);
+            }
+
+            timeline.OnCopyModel(model, newModel);
+            modelManager.CreateModel(newModel);
+        }
+
         public override void OnPluginDisable()
         {
             if (timeline != null)

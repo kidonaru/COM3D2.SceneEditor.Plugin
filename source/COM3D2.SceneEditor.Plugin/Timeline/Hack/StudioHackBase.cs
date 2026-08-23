@@ -4,12 +4,15 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    public abstract class StudioHackBase
+    // モデル系は ModelHackManager が IModelHack 型を要求するため MTE と同じ interface 実装を採用
+    // (L1 までの Light/BG 系フラット virtual 追加とは方針が異なる)
+    public abstract class StudioHackBase : IModelHack
     {
         public abstract string pluginName { get; }
         public abstract int priority { get; }
         public abstract Maid selectedMaid { get; }
         public abstract List<Maid> allMaids { get; }
+        public abstract List<StudioModelStat> modelList { get; }
         public abstract int selectedMaidSlotNo { get; }
         public abstract string outputAnmPath { get; }
         public abstract bool isPoseEditing { get; set; }
@@ -171,6 +174,35 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual void ClearPoseHistory()
         {
             // do nothing
+        }
+
+        public virtual void DeleteAllModels()
+        {
+            // do nothing
+        }
+
+        public virtual void DeleteModel(StudioModelStat model)
+        {
+            // do nothing
+        }
+
+        public virtual void CreateModel(StudioModelStat model)
+        {
+            // do nothing
+        }
+
+        public virtual void UpdateAttachPoint(StudioModelStat model)
+        {
+            // do nothing
+        }
+
+        public virtual void SetModelVisible(StudioModelStat model, bool visible)
+        {
+            var go = model.transform != null ? model.transform.gameObject : null;
+            if (go != null && go.activeSelf != visible)
+            {
+                go.SetActive(visible);
+            }
         }
 
         private void DeleteBGObject()

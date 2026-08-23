@@ -22,6 +22,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 SceneEditor.Plugin.PluginUtils.PluginDataPath, "Timeline.xml");
         }
 
+        /// <summary>公式オブジェクト名の拡張 CSV (MTE 互換)</summary>
+        public static string ExtraModelCsvPath
+        {
+            get => MTEUtils.CombinePaths(
+                SceneEditor.Plugin.PluginUtils.PluginDataPath, "ExtraModel.csv");
+        }
+
         public static string TimelineDirPath
         {
             get
