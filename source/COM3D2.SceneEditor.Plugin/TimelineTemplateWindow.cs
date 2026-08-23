@@ -24,8 +24,8 @@ namespace COM3D2.SceneEditor.Plugin
         private enum TabType
         {
             操作,
-            ｶﾃｺﾞﾘ編集,
-            ﾃﾝﾌﾟﾚ編集,
+            カテゴリ編集,
+            テンプレ編集,
         }
 
         private TabType _tabType = TabType.操作;
@@ -103,10 +103,10 @@ namespace COM3D2.SceneEditor.Plugin
                 case TabType.操作:
                     DrawControl(_view);
                     break;
-                case TabType.ｶﾃｺﾞﾘ編集:
+                case TabType.カテゴリ編集:
                     DrawCategory(_view);
                     break;
-                case TabType.ﾃﾝﾌﾟﾚ編集:
+                case TabType.テンプレ編集:
                     DrawTemplate(_view);
                     break;
             }

@@ -316,6 +316,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        // テンプレ XML はレイヤー種別ごとに 1 ファイル。未ロード時は Motion レイヤー扱い
         public string layerName => currentLayer?.layerName ?? "MotionTimelineLayer";
 
         private TimelineTemplateManager()
@@ -360,6 +361,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>MTE 資産の初回インポートを実施済みか (セッション内で 1 回だけ試行する)</summary>
+        private bool _mteImportTried = false;
+
         /// <summary>
         /// SE 側にテンプレが 1 件も無い初回だけ、MTE のテンプレ資産をコピーして引き継ぐ。
         /// 以後は SE 側のファイルを正とし、MTE 側の変更は追従しない。
@@ -367,6 +371,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private void ImportMteTemplatesIfEmpty()
         {
+            if (_mteImportTried)
+            {
+                return;
+            }
+            _mteImportTried = true;
+
             try
             {
                 var templateDirPath = PluginUtils.TemplateDirPath;
@@ -381,13 +391,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return;
                 }
 
+                var count = 0;
                 foreach (var srcPath in Directory.GetFiles(mteDirPath, "*.xml"))
                 {
-                    var dstPath = MTEUtils.CombinePaths(templateDirPath, Path.GetFileName(srcPath));
-                    File.Copy(srcPath, dstPath, false);
+                    // 1 ファイルの失敗 (ロック中・権限エラー等) で残りのコピーを止めない
+                    try
+                    {
+                        var dstPath = MTEUtils.CombinePaths(templateDirPath, Path.GetFileName(srcPath));
+                        File.Copy(srcPath, dstPath, false);
+                        count++;
+                    }
+                    catch (Exception e)
+                    {
+                        MTEUtils.LogException(e);
+                    }
                 }
 
-                MTEUtils.Log("MTE のテンプレートを取り込みました: " + mteDirPath);
+                MTEUtils.Log($"MTE のテンプレートを {count} 件取り込みました: {mteDirPath}");
             }
             catch (Exception e)
             {

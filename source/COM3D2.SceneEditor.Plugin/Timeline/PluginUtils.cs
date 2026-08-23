@@ -79,7 +79,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static string GetTemplatePath(string layerName)
         {
-            return MTEUtils.CombinePaths(TemplateDirPath, layerName + ".xml");
+            // レイヤー名は現状固定文字列だが、将来の入力経路追加に備えてパス区切りを除去する
+            return MTEUtils.CombinePaths(TemplateDirPath, Path.GetFileName(layerName) + ".xml");
         }
 
         public static string ConvertThumPath(string path)
