@@ -38,6 +38,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.StageLaserManager.instance,
                 MTEP.PsylliumManager.instance,
                 MTEP.PostEffectManager.instance,
+                MTEP.PngObjectTimelineManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -160,6 +161,8 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.PngPlacementTimelineLayer), MTEP.PngPlacementTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
@@ -218,6 +221,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.StageLaserController,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataStageLaserController>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.PngObject,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPngObject>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.DepthOfField,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);

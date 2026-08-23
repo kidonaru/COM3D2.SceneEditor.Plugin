@@ -332,6 +332,7 @@
     <Compile Include="Timeline\Manager\StageLaserManager.cs" />
     <Compile Include="Timeline\Manager\PsylliumManager.cs" />
     <Compile Include="Timeline\Manager\PostEffectManager.cs" />
+    <Compile Include="Timeline\Manager\PngObjectTimelineManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -404,6 +405,7 @@
     <Compile Include="Timeline\TimelineLayer\StageLightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\StageLaserTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\PsylliumTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\PngPlacementTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DepthOfField.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DistanceFog.cs" />
@@ -456,6 +458,7 @@
     <Compile Include="Timeline\TransformData\TransformDataDistanceFog.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGTToneMap.cs" />
     <Compile Include="Timeline\TransformData\TransformDataParaffin.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPngObject.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRimlight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
