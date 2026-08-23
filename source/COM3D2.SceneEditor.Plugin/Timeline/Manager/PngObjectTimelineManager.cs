@@ -69,12 +69,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private static SE.PngPlacementManager seManager => SE.PngPlacementManager.instance;
+        private static SE.PngPlacementManager sePngManager => SE.PngPlacementManager.instance;
 
         public List<TimelinePngObjectEntry> pngObjects = new List<TimelinePngObjectEntry>();
         public List<string> pngObjectNames = new List<string>();
         private Dictionary<string, TimelinePngObjectEntry> _entryMap
             = new Dictionary<string, TimelinePngObjectEntry>();
+        // SE 実体 → エントリの恒久対応。一度割り当てた名前 (group) は実体が削除されるまで
+        // 維持し、SE 側の削除・並べ替えで既存キーフレームの紐付き先がすり替わるのを防ぐ
+        private Dictionary<SE.PngObjectData, TimelinePngObjectEntry> _dataMap
+            = new Dictionary<SE.PngObjectData, TimelinePngObjectEntry>();
 
         public static event UnityAction<TimelinePngObjectEntry> onObjectAdded;
         public static event UnityAction<TimelinePngObjectEntry> onObjectRemoved;
@@ -105,24 +109,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public void RebuildIfChanged()
         {
-            var seObjects = seManager.pngObjects;
+            var seObjects = sePngManager.pngObjects;
             if (!IsChanged(seObjects))
             {
                 return;
             }
 
-            var oldEntries = pngObjects;
-            pngObjects = new List<TimelinePngObjectEntry>(seObjects.Count);
-            pngObjectNames.Clear();
-            _entryMap.Clear();
+            // 削除検出: SE 一覧から消えた実体の対応を破棄する
+            var removed = _dataMap.Keys.Where(d => !seObjects.Contains(d)).ToList();
+            var removedEntries = removed.Select(d => _dataMap[d]).ToList();
+            foreach (var data in removed)
+            {
+                _dataMap.Remove(data);
+            }
 
-            var groupCounter = new Dictionary<string, int>();
+            // 追加検出: 既存の名前は維持し、新規実体には同名画像内で空いている最小 group を割り当てる
+            var addedEntries = new List<TimelinePngObjectEntry>();
             foreach (var data in seObjects)
             {
+                if (_dataMap.ContainsKey(data))
+                {
+                    continue;
+                }
                 var imageName = Path.GetFileNameWithoutExtension(data.relativePath ?? "");
-                int group;
-                groupCounter.TryGetValue(imageName, out group);
-                groupCounter[imageName] = group + 1;
+                var usedGroups = new HashSet<int>(
+                    _dataMap.Values.Where(e => e.imageName == imageName).Select(e => e.group));
+                var group = 0;
+                while (usedGroups.Contains(group))
+                {
+                    group++;
+                }
 
                 var entry = new TimelinePngObjectEntry
                 {
@@ -131,25 +147,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     name = imageName + PluginUtils.GetGroupSuffix(group),
                     data = data,
                 };
-                pngObjects.Add(entry);
-                pngObjectNames.Add(entry.name);
-                _entryMap[entry.name] = entry;
+                _dataMap[data] = entry;
+                addedEntries.Add(entry);
             }
 
-            foreach (var entry in pngObjects)
+            pngObjects = seObjects.Select(d => _dataMap[d]).ToList();
+            pngObjectNames = pngObjects.Select(e => e.name).ToList();
+            _entryMap = pngObjects.ToDictionary(e => e.name);
+
+            foreach (var entry in addedEntries)
             {
-                if (!oldEntries.Any(e => e.name == entry.name))
-                {
-                    onObjectAdded?.Invoke(entry);
-                }
+                onObjectAdded?.Invoke(entry);
             }
-            foreach (var entry in oldEntries)
+            foreach (var entry in removedEntries)
             {
-                if (!_entryMap.ContainsKey(entry.name))
-                {
-                    onObjectRemoved?.Invoke(entry);
-                }
+                onObjectRemoved?.Invoke(entry);
             }
+
+            // 配置の増減をタイムライン保存データへ即時反映する
+            // (保存フックは無いため、変更検知のこのタイミングで書き戻すのが唯一の経路)
+            UpdateTimelineData();
         }
 
         private bool IsChanged(List<SE.PngObjectData> seObjects)
@@ -177,6 +194,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             RebuildIfChanged();
 
+            // ソースディレクトリの走査は 1 回にまとめ、画像名 → (source, relativePath) の辞書で解決する
+            Dictionary<string, KeyValuePair<string, string>> imageIndex = null;
+
             foreach (var data in pngObjectDatas)
             {
                 var name = data.name;
@@ -185,8 +205,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                string source, relativePath;
-                if (!FindImage(data.imageName, out source, out relativePath))
+                if (imageIndex == null)
+                {
+                    imageIndex = BuildImageIndex();
+                }
+
+                KeyValuePair<string, string> found;
+                if (!imageIndex.TryGetValue(data.imageName, out found))
                 {
                     MTEUtils.LogWarning(
                         "PNG 画像が見つかりません: {0} (UserData\\PngPlacement または PhotoModeData\\Texture へ配置してください)",
@@ -194,7 +219,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var created = seManager.AddPng(source, relativePath);
+                var created = sePngManager.AddPng(found.Key, found.Value);
                 if (created == null)
                 {
                     MTEUtils.LogWarning("PNG の生成に失敗しました: {0}", data.imageName);
@@ -204,8 +229,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             RebuildIfChanged();
         }
 
-        private static bool FindImage(string imageName, out string source, out string relativePath)
+        // 画像名 → (source, relativePath)。config を優先するため後勝ちしないよう先着のみ登録する
+        private static Dictionary<string, KeyValuePair<string, string>> BuildImageIndex()
         {
+            var index = new Dictionary<string, KeyValuePair<string, string>>();
             foreach (var src in new[] { SE.PngPlacementManager.SOURCE_CONFIG, SE.PngPlacementManager.SOURCE_PHOTO })
             {
                 var dir = SE.PngPlacementManager.GetSourceDirectory(src);
@@ -215,17 +242,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
                 foreach (var file in Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories))
                 {
-                    if (Path.GetFileNameWithoutExtension(file) == imageName)
+                    var imageName = Path.GetFileNameWithoutExtension(file);
+                    if (!index.ContainsKey(imageName))
                     {
-                        source = src;
-                        relativePath = file.Substring(dir.Length).TrimStart('\\', '/');
-                        return true;
+                        index[imageName] = new KeyValuePair<string, string>(
+                            src, file.Substring(dir.Length).TrimStart('\\', '/'));
                     }
                 }
             }
-            source = null;
-            relativePath = null;
-            return false;
+            return index;
         }
 
         /// <summary>タイムライン保存用に配置一覧を書き戻す</summary>
@@ -269,6 +294,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             pngObjects.Clear();
             pngObjectNames.Clear();
             _entryMap.Clear();
+            _dataMap.Clear();
         }
     }
 }
