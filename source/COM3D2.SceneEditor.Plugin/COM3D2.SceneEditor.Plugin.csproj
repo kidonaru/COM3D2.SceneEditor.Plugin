@@ -231,6 +231,7 @@
     <Compile Include="Manager\PngPlacementManager.cs" />
     <Compile Include="Manager\StudioLightManager.cs" />
     <Compile Include="Manager\ToastManager.cs" />
+    <Compile Include="Manager\TimelineLoadManager.cs" />
     <Compile Include="Manager\TabGroupManager.cs" />
     <Compile Include="Manager\WindowConnectManager.cs" />
     <Compile Include="Manager\WindowLayoutManager.cs" />
