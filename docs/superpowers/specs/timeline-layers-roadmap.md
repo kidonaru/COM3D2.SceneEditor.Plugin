@@ -119,7 +119,7 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 ### Phase L3: 背景モデル・マテリアル系（3 レイヤー）✅ 完了 (2026-08-23)
 
 - MaidSlotStat のマテリアル機能 (ModelMaterialController) と MaidCache の materialMap / モデル注視 (LookAtTargetType.Model) を MTE から復元
-- 実機確認状況: BgMgr.BgObject 経路のスモークはゲームのメインスレッド停止により未実施。**次回ゲーム起動時に BGModel 走査とメイドマテリアル走査を devbridge で確認すること**
+- 実機確認状況: devbridge で BgMgr.BgObject 走査 (MeshRenderer 23 件) とメイドマテリアル走査 (body 3 件) を確認済み。タイムライン再生の通し確認はゲーム再起動後
 
 1. 基盤: BGModelManager (479 行) の移植
 2. **BGModelTimelineLayer**: 背景構成オブジェクトの操作
@@ -127,7 +127,10 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 4. **MaidMaterialTimelineLayer**: メイドのマテリアル（基盤不要のためここに同居）
 - 成果物: 背景オブジェクト・マテリアルがタイムライン制御できる状態
 
-### Phase L4: サブカメラ
+### Phase L4: サブカメラ ✅ 完了 (2026-08-23)
+
+- PIP 表示先の決定: SE 適合として、サブカメラの targetTexture をメインカメラへ毎フレームミラー（GameViewManager のウィンドウモード RT リダイレクトに自動追従し、PIP は GameViewWindow 内に合成される）
+- 実機確認状況: devbridge でサブカメラ生成 + rect + RT ミラーを確認済み（tt=RT）。タイムライン再生の通し確認はゲーム再起動後
 
 1. SubCameraManager (432 行) + **SubCameraTimelineLayer** (507 行)
 - SE GameViewManager / CameraWindow との関係（ピクチャインピクチャ表示をどのウィンドウに出すか）を計画時に決める
