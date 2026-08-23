@@ -17,8 +17,9 @@ namespace COM3D2.SceneEditor.Plugin
         protected override string windowTitle => "タイムラインロード";
 
         private static readonly int ROW_HEIGHT = 20;
-        /// <summary>タイルの幅。高さはサムネの縦横比から決める</summary>
-        private static readonly int TILE_WIDTH = 120;
+        /// <summary>タイルの幅。高さはサムネの縦横比から決める。
+        /// 幅はシーンプリセット (PresetWindow.TILE_WIDTH) と揃えている</summary>
+        private static readonly int TILE_WIDTH = 96;
         /// <summary>ヘッダー右端に並べる「開く」「更新」ボタン 2 つ分の幅</summary>
         private static readonly int HEADER_BUTTON_AREA_WIDTH = 110;
 
