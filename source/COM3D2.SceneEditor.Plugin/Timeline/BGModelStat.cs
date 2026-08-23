@@ -105,7 +105,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public ModelMaterial GetMaterial(int index)
         {
-            return modelMaterialController.GetMaterial(index);
+            // 背景オブジェクト未検出時は modelMaterialController が null になるため防御する (SE 追加)
+            if (modelMaterialController != null)
+            {
+                return modelMaterialController.GetMaterial(index);
+            }
+            return null;
         }
     }
 }

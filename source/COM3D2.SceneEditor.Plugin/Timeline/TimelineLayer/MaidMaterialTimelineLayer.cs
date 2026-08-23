@@ -13,8 +13,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(MaidMaterialTimelineLayer);
         public override string layerName => nameof(MaidMaterialTimelineLayer);
 
+        // MTE 原本は三項演算子の条件が反転しており (null 時に参照 / 非 null 時に空リスト)、
+        // マテリアル一覧が常に空になるため SE 側で修正している
         public override List<string> allBoneNames =>
-            maidCache == null ? maidCache.materialNames : new List<string>();
+            maidCache == null ? new List<string>() : maidCache.materialNames;
 
         private MaidMaterialTimelineLayer(int slotNo) : base(slotNo)
         {
