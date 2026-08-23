@@ -184,7 +184,7 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 
 - **MorphTimelineLayer**（メイド表情）: DCM MyConst のモーフ名表を `FaceMorphUtils` へ、MaidFaceManager の適用経路を `TimelineFaceManager` へ最小移植。COM3D2.5 の CRC/FB 顔で名前解決できるよう `CheckMorphFB`（`TMorph.crcFaceTypesStr` + PartsVersion>=120 判定）を含む
 - **SeTimelineLayer**（効果音）: DCM SoundManager の SE 列挙・再生を `TimelineSeManager` へ移植。SE 名の列挙はファイル存在確認が 100 回走るため遅延構築する
-- **TextTimelineLayer**（字幕）: DCM TextManager のキャンバス生成・フォント解決・破棄を `TimelineTextManager` へ移植。Canvas はメインカメラ経由の ScreenSpaceCamera（GameView の RenderTexture に乗せるため。ScreenSpaceOverlay だとカメラを通らず GameView の外まで覆う）。カメラとニアクリップは毎フレーム追随する。GameObject が残らないよう `ReleaseTexts` をプラグイン無効化・シーン遷移へ接続。uGUI 使用のため csproj へ `UnityEngine.UI` / `UnityEngine.UIModule` 参照を追加（COM3D2 / COM3D25 両構成でビルド確認済み）
+- **TextTimelineLayer**（字幕）: DCM TextManager のキャンバス生成・フォント解決・破棄を `TimelineTextManager` へ移植。Canvas は ScreenSpaceOverlay 固定で、GameObject が残らないよう `ReleaseTexts` をプラグイン無効化・シーン遷移へ接続。uGUI 使用のため csproj へ `UnityEngine.UI` / `UnityEngine.UIModule` 参照を追加（COM3D2 / COM3D25 両構成でビルド確認済み）
 - DCM 本体 DLL への参照・リフレクションアクセスは追加していない（DCMUtils は非移植）
 - MteCompatibilityTests の既知除外リストを撤廃。ローカル実プロジェクト XML 全件が未登録レイヤーなしで PASS する
 - ラウンドトリップ用フィクスチャ `l8-dcm-layers.xml` と `FaceMorphUtilsTests`（モーフ名表の整合検証）を追加
@@ -196,7 +196,7 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 | `仮装狂騒曲 篠澤広122.xml` ロードで Morph / Text がアクティブレイヤーに出現 | ✅ 18 レイヤー中に両方を確認（従来は破棄されていた） |
 | レイヤー・TransformType の登録 | ✅ レイヤー 28 件（+3）、TransformType に Morph / Se / Text |
 | 再生でメイド表情が変化 | ✅ F0 / F700 / F1500 でモーフ値が変化。`boMabataki=false` / `EyeMabataki=0` も適用 |
-| 字幕が GameView に表示される | ✅ ScreenSpaceCamera 1920x1080 で GameView 内に描画。XML 指定のフォント（BIZ UDGothic Bold）とサイズ 42 が反映 |
+| 字幕が画面に表示される | ✅ ScreenSpaceOverlay 1920x1080、XML 指定のフォント（BIZ UDGothic Bold）とサイズ 42 で描画 |
 | SE の再生・停止 | ✅ 公式 SE を 92 件列挙（連番 89 + 追加 3）。ループ再生と `StopSe` で鳴りっぱなしなし |
 | 保存往復で 3 レイヤーが保持される | ✅ ToXml で ClassName・TextCount=1・モーフ 373 フレーム・テキスト 32 フレーム（日本語文字列とフォント名を含む）を保持 |
 | 例外・エラーログ | ✅ ApplyPlayData のログに Morph / Text が並び、例外なし |
