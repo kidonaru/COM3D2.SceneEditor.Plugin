@@ -1,6 +1,7 @@
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    // PartsEdit 連携は未移植 (partsEditHack が常に null) のため、現状は base への委譲のみ有効
     public class ModelBoneMenuItem : BoneMenuItem
     {
         public override bool isSelectedMenu

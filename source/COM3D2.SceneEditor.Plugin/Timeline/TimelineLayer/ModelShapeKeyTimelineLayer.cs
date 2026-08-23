@@ -193,8 +193,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static TabType _tabType = TabType.操作;
 
+        // DCM 連携は未移植のため出力しない
+        public override void OutputDCM(XElement songElement)
+        {
+        }
+
         public override void DrawWindow(GUIView view)
         {
+            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
             _tabType = view.DrawTabs(_tabType, 50, 20);
 
             switch (_tabType)

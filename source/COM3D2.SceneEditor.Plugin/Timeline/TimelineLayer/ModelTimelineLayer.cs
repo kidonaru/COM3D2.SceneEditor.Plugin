@@ -233,6 +233,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void DrawWindow(GUIView view)
         {
+            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
             _tabType = view.DrawTabs(_tabType, 50, 20);
 
             switch (_tabType)

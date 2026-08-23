@@ -265,6 +265,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return parentObj;
         }
 
+        // 参照実装にある "name:index" 形式の子オブジェクト選択は、SE のモデル ID 体系
+        // (PhotoBGObjectData) では使われないため意図的に省略している
         private GameObject LoadGameModel(string assetName)
         {
             var sourceObj = GameMain.Instance.BgMgr.CreateAssetBundle(assetName);
@@ -348,7 +350,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             int modelVersion = 0;
+            // 2.5 では SlotID の並びが拡張されているため、旧版参照実装の goSlot[8] 添字ではなく
+            // スロット名 "handitemr" を明示指定する
             var bodySkin = maid.body0.GetSlot("handitemr");
+            if (bodySkin == null)
+            {
+                MTEUtils.LogError("LoadModObject: bodySkin が取得できません");
+                return null;
+            }
             var obj = ImportCM.LoadSkinMesh_R(menu.modelFileName, null, "", bodySkin, 1, ref modelVersion);
             if (obj == null)
             {
