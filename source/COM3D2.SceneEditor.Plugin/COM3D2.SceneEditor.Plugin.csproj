@@ -306,6 +306,7 @@
     <Compile Include="Timeline\EasingFunctions.cs" />
     <Compile Include="Timeline\ExtendBoneCache.cs" />
     <Compile Include="Timeline\Extensions.cs" />
+    <Compile Include="Timeline\FaceMorphUtils.cs" />
     <Compile Include="Timeline\FrameData.cs" />
     <Compile Include="Timeline\FrameXml.cs" />
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
@@ -333,6 +334,7 @@
     <Compile Include="Timeline\Manager\PsylliumManager.cs" />
     <Compile Include="Timeline\Manager\PostEffectManager.cs" />
     <Compile Include="Timeline\Manager\PngObjectTimelineManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineFaceManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -399,6 +401,7 @@
     <Compile Include="Timeline\TimelineLayer\ModelShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ModelMaterialTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MorphTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\SubCameraTimelineLayer.cs" />
