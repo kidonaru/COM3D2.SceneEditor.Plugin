@@ -331,6 +331,7 @@
     <Compile Include="Timeline\TimelineHistoryEntry.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
     <Compile Include="Timeline\BGGround.cs" />
+    <Compile Include="Timeline\TimelineLayer\AnimationTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BGColorTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BGTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
@@ -349,6 +350,7 @@
     <Compile Include="Timeline\TimelineXml.cs" />
     <Compile Include="Timeline\TrackData.cs" />
     <Compile Include="Timeline\TransformData\ITransformData.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataAnimation.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBase.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBG.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBGColor.cs" />
