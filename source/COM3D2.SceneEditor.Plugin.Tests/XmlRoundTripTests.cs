@@ -42,6 +42,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             // フィクスチャ 0 件だと Theory がサイレントスキップになるのを防ぐ番兵
             Assert.NotEmpty(Directory.GetFiles(FixtureDir, "*.xml"));
+            // 現行スキーマ用 (legacy 除外後) も 0 件にならないことを保証する
+            Assert.NotEmpty(CurrentSchemaFixtureFiles());
         }
 
         private static string SerializeToString(TimelineXml xml, XmlSerializer serializer)
@@ -117,6 +119,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 return;
             }
 
+            // 同名兄弟要素 (Frame 等のリスト) は出現順で 1 対 1 に対応付けて比較する
             var savedGroups = saved.Elements().GroupBy(e => e.Name)
                 .ToDictionary(g => g.Key, g => g.ToList());
             var indexByName = new System.Collections.Generic.Dictionary<XName, int>();

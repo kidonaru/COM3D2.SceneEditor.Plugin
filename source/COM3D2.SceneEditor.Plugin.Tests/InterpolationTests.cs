@@ -21,7 +21,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [MemberData(nameof(AllEasingTypes))]
         public void Easingは端点で0と1を返す(MoveEasingType type)
         {
-            // Exp 系は 2^-10 ≒ 0.001 のオフセットを持つ標準実装 (MTE 互換) のため誤差 2 桁で判定
+            // Exp 系は 2^-10 ≒ 0.001 のオフセットを持つ標準実装 (MTE 互換) のため、
+            // これを吸収できる小数 2 桁精度で判定する。
+            // 値域テスト共々、overshoot 系 Easing (Back/Elastic 等) 追加時は境界を見直すこと
             Assert.Equal(0f, EasingFunctions.MoveEasing(0f, type), 2);
             Assert.Equal(1f, EasingFunctions.MoveEasing(1f, type), 2);
         }

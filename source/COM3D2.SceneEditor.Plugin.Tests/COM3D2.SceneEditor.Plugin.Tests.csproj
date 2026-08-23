@@ -31,4 +31,9 @@
     <None Include="$(PluginBin)\UnityEngine*.dll;$(PluginBin)\Assembly-CSharp*.dll;$(PluginBin)\COM3D2.SceneEditor.Plugin.dll;$(PluginBin)\netstandard.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="Fixtures\**\*.xml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!-- プラグイン未ビルドだと参照解決エラーが分かりにくいため、前提条件を明示する -->
+  <Target Name="EnsurePluginBuilt" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(PluginBin)\COM3D2.SceneEditor.Plugin.dll')"
+           Text="プラグインが未ビルドです。先に COM3D25 構成でビルドしてください (MSBuild source\COM3D2.SceneEditor.Plugin\COM3D2.SceneEditor.Plugin.csproj /p:Configuration=Debug /p:GameVersion=COM3D25)。debug.bat は実機へ DLL をコピーするため使わないこと" />
+  </Target>
 </Project>
