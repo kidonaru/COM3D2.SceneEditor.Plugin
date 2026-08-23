@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -527,45 +526,6 @@ namespace COM3D2.SceneEditor.Plugin
             buttonSize = new Vector2(60, 20),
         };
 
-        /// <summary>ロード用のタイムラインファイル一覧 ("ディレクトリ/名前" 表記)</summary>
-        private readonly GUIComboBox<string> _loadComboBox = new GUIComboBox<string>
-        {
-            defaultName = "ロード",
-            getName = (path, index) => path,
-            showArrow = false,
-            buttonSize = new Vector2(60, 20),
-            contentSize = new Vector2(250, 300),
-        };
-
-        private void RefreshTimelineFileList()
-        {
-            var items = new List<string>();
-            try
-            {
-                var dirPath = MTEP.PluginUtils.TimelineDirPath;
-                foreach (var path in Directory.GetFiles(dirPath, "*.xml", SearchOption.AllDirectories))
-                {
-                    var relative = path.Substring(dirPath.Length + 1)
-                        .Replace('\\', '/');
-                    items.Add(relative.Substring(0, relative.Length - ".xml".Length));
-                }
-                items.Sort();
-            }
-            catch (Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
-            _loadComboBox.items = items;
-        }
-
-        private void LoadTimelineByRelativePath(string relative)
-        {
-            var slash = relative.LastIndexOf('/');
-            var directoryName = slash >= 0 ? relative.Substring(0, slash).Replace('/', '\\') : "";
-            var name = slash >= 0 ? relative.Substring(slash + 1) : relative;
-            timelineManager.LoadTimeline(name, directoryName);
-        }
-
         private readonly GUIComboBox<MTEP.TimelineLayerInfo> _layerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
         {
             getName = (layerInfo, index) => layerInfo.displayName,
@@ -638,20 +598,20 @@ namespace COM3D2.SceneEditor.Plugin
 
                     // 保存したタイムラインをサムネ付きで一覧へ出す
                     TimelineLoadManager.Reload();
-                    RefreshTimelineFileList();
                 }
 
-                _loadComboBox.currentIndex = -1;
-                _loadComboBox.onSelected = (path, index) => LoadTimelineByRelativePath(path);
-                if (_loadComboBox.items.Count == 0)
+                // MTE のロードボタンと同様に開く動作のみ (他ボタンと違いトグルしない)
+                if (view.DrawButton("ロード", 60, 20))
                 {
-                    RefreshTimelineFileList();
-                }
-                _loadComboBox.DrawButton(view);
-
-                if (view.DrawButton("更新", 40, 20))
-                {
-                    RefreshTimelineFileList();
+                    if (!studioHack.IsValid())
+                    {
+                        MTEUtils.ShowDialog(studioHack.errorMessage);
+                        return;
+                    }
+                    if (!TimelineLoadWindow.instance.isShowWnd)
+                    {
+                        WindowManager.ToggleWindowVisible(TimelineLoadWindow.instance);
+                    }
                 }
 
                 // MTE のトラックボタンと同様、アクティブトラックありを緑で示す (SE はトラック UI が設定ウィンドウ内)
@@ -659,11 +619,6 @@ namespace COM3D2.SceneEditor.Plugin
                 if (view.DrawButton("設定", 50, 20, true, trackColor))
                 {
                     WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
-                }
-
-                if (view.DrawButton("一覧", 50, 20))
-                {
-                    WindowManager.ToggleWindowVisible(TimelineLoadWindow.instance);
                 }
 
                 if (view.DrawButton("編集", 50, 20))
@@ -1564,7 +1519,6 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (visible)
             {
-                RefreshTimelineFileList();
                 requestUpdateTexture = true;
             }
         }
