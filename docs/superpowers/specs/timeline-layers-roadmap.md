@@ -152,7 +152,11 @@ MTE の StudioModelManager (806 行) + ModelHackManager (244 行) を SE の Man
 4. **PsylliumTimelineLayer** (1794 行) + PsylliumManager: 最大のレイヤー。TransformData 派生 6 種
 - 成果物: ライブ演出（ステージライト・レーザー・ペンライト）がタイムライン制御できる状態
 
-### Phase L6: ポストエフェクト
+### Phase L6: ポストエフェクト ✅ 完了 (2026-08-23)
+
+- 計画時決定: エフェクト実体は PostEffects.Plugin 連携ではなく MTE 実装持ち込み（UnityScripts/PostEffect + mte_bundle シェーダーで自己完結、ソフト依存不要）
+- SE 適合: SceneEditorHack.depthOfField を GetOrAddComponent に上書き（ゲーム内カメラに DoF 不在時の NRE 防止）
+- 実機確認状況: devbridge で PostEffect 型ロード確認済み。注意: SE がコンパイル時に束縛する DepthOfFieldScatter は Assembly-UnityScript-firstpass 側（グローバル名前空間）で、2.5 の Assembly-CSharp には別実装 PostEffects_Dummy.DepthOfFieldScatter も存在する。DoF の実表示検証はゲーム再起動後の通し確認で行うこと
 
 1. PostEffectManager (322 行) + PostEffectUtils + **PostEffectTimelineLayer**（本体 + DepthOfField / DistanceFog / GTToneMap / Paraffin / Rimlight の 5 分割）
 - PostEffects.Plugin との連携で実現可能と確認済み（2026-08-23）。エフェクト実体を PostEffects.Plugin に委ねるか MTE 実装を持ち込むかは計画時に決める
