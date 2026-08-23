@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -356,7 +356,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _isBackgroundVisible = value;
                 studioHack.SetBackgroundVisible(value);
 
-                // BGColorTimelineLayer は未移植のため、地面色連動の再適用は行わない
+                // 地面色を背景表示に連動させる設定のときだけ、地面色レイヤーを再適用する
+                if (isGroundLinkedToBackground)
+                {
+                    var bgColorLayer = timelineManager.GetLayer<BGColorTimelineLayer>();
+                    bgColorLayer?.ApplyCurrentFrame(true);
+                }
             }
         }
 
