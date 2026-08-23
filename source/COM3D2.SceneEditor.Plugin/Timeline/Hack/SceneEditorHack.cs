@@ -123,6 +123,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Camera subCamera => null;
 
+        // SE のゲーム内メインカメラには DepthOfFieldScatter が付いていない場合があるため、
+        // 基底の GetComponent (null あり得る) ではなく必要時に追加する
+        public override DepthOfFieldScatter depthOfField
+            => PluginUtils.MainCamera.gameObject.GetOrAddComponent<DepthOfFieldScatter>();
+
         public override bool isUIVisible
         {
             get => !SE.WindowManager.instance.isWindowsHidden;
