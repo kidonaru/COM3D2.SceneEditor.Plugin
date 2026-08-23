@@ -280,7 +280,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // SE 適合: GameViewManager のウィンドウモードではメインカメラが RenderTexture へ
         // リダイレクトされるため、サブカメラの出力先も毎フレーム追従させる。
         // targetTexture 内でも camera.rect は正規化 viewport として機能し、
-        // PIP は GameViewWindow 内に正しく合成される
+        // PIP は GameViewWindow 内に正しく合成される。
+        // 無効 (enabled=false) のカメラも対象に含め、再有効化時の出力先不整合を防ぐ
         public override void LateUpdate()
         {
             base.LateUpdate();
@@ -290,11 +291,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 return;
             }
+            var target = mainCam.targetTexture;
             foreach (var data in _subCameras)
             {
-                if (data.camera != null && data.camera.targetTexture != mainCam.targetTexture)
+                if (data.camera == null)
                 {
-                    data.camera.targetTexture = mainCam.targetTexture;
+                    continue;
+                }
+                // 破棄済み RT は Unity の演算子オーバーロードで null と等価判定されるため、
+                // != 比較だと破棄済み参照の掃除がスキップされる。参照同一性で比較する
+                if (!ReferenceEquals(data.camera.targetTexture, target))
+                {
+                    data.camera.targetTexture = target;
                 }
             }
         }
