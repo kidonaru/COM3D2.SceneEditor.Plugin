@@ -40,6 +40,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected static MaidCache maidCache => MaidManager.instance.maidCache;
 
+        protected static StudioModelManager modelManager => StudioModelManager.instance;
+
         // PartsEdit 連携は未移植のため常に null (呼び出し側は null チェック済み)
         protected static IPartsEditHack partsEditHack => null;
 

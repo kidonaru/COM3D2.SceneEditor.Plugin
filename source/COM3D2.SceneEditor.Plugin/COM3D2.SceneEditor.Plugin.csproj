@@ -105,6 +105,9 @@
     <Reference Include="UnityEngine.UnityWebRequestModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.AudioModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
     </Reference>
@@ -280,6 +283,9 @@
     <Compile Include="PluginInfo.cs" />
     <Compile Include="PluginUtils.cs" />
     <Compile Include="MTEUtils\AnimationLayerInfo.cs" />
+    <Compile Include="MTEUtils\BinaryExtensions.cs" />
+    <Compile Include="MTEUtils\BinaryLoader.cs" />
+    <Compile Include="MTEUtils\ModMenuLoader.cs" />
     <Compile Include="MTEUtils\BoneUtils.cs" />
     <Compile Include="MTEUtils\MaidPartType.cs" />
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
@@ -292,6 +298,7 @@
     <Compile Include="Timeline\BoneMenu\ExtendBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\IBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\MaidBoneMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\ModelBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneXml.cs" />
     <Compile Include="Timeline\Config.cs" />
     <Compile Include="Timeline\DressUtils.cs" />
@@ -303,6 +310,7 @@
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
     <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
     <Compile Include="Timeline\Hack\StudioHackBase.cs" />
+    <Compile Include="Timeline\Hack\ModelHackBase.cs" />
     <Compile Include="Timeline\IKHoldEntity.cs" />
     <Compile Include="Timeline\MaidBlendShape.cs" />
     <Compile Include="Timeline\MaidCache.cs" />
@@ -314,6 +322,8 @@
     <Compile Include="Timeline\Manager\ManagerBase.cs" />
     <Compile Include="Timeline\Manager\StudioHackManager.cs" />
     <Compile Include="Timeline\Manager\StudioLightManager.cs" />
+    <Compile Include="Timeline\Manager\StudioModelManager.cs" />
+    <Compile Include="Timeline\Manager\ModelHackManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -324,7 +334,13 @@
     <Compile Include="Timeline\PluginUtils.cs" />
     <Compile Include="Timeline\StopwatchDebug.cs" />
     <Compile Include="Timeline\StudioLightStat.cs" />
-    <Compile Include="Timeline\StudioStats.cs" />
+    <Compile Include="Timeline\StudioModelStat.cs" />
+    <Compile Include="Timeline\BlendShapeCacheData.cs" />
+    <Compile Include="Timeline\BlendShapeLoader.cs" />
+    <Compile Include="Timeline\ModelBoneController.cs" />
+    <Compile Include="Timeline\BlendShapeController.cs" />
+    <Compile Include="Timeline\ModelMaterial.cs" />
+    <Compile Include="Timeline\ModelMaterialController.cs" />
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
     <Compile Include="Timeline\TimelineData.cs" />
@@ -340,6 +356,11 @@
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelTimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelBoneTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelShapeKeyTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelMaterialTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
@@ -365,6 +386,10 @@
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModel.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModelBone.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModelShapeKey.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModelMaterial.cs" />
     <Compile Include="Timeline\TransformData\TransformDataMove.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />

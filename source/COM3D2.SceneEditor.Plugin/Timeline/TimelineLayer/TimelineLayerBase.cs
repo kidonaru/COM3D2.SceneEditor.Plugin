@@ -190,6 +190,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected static MaidManager maidManager => MaidManager.instance;
         protected static StudioHackManager studioHackManager => StudioHackManager.instance;
         protected static PhotoBGManager photoBGManager => PhotoBGManager.instance;
+        protected static StudioModelManager modelManager => StudioModelManager.instance;
+        protected static ModelHackManager modelHackManager => ModelHackManager.instance;
         protected static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
         protected static StudioLightManager lightManager => StudioLightManager.instance;
 
