@@ -46,8 +46,15 @@ namespace COM3D2.SceneEditor.Plugin
         {
             items = Enum.GetValues(typeof(Maid.EyeMoveType)).Cast<Maid.EyeMoveType>().ToList(),
             getName = (type, index) => type.ToString(),
+            // 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
+            // 開いている間にタイムラインが閉じられた場合に備えて null を弾く
             onSelected = (type, index) =>
             {
+                if (timeline == null)
+                {
+                    return;
+                }
+
                 timeline.eyeMoveType = type;
             },
         };
@@ -58,6 +65,11 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (type, index) => SingleFrameTypeNames[index],
             onSelected = (type, index) =>
             {
+                if (timeline == null)
+                {
+                    return;
+                }
+
                 timeline.singleFrameType = type;
                 timelineManager.ApplyCurrentFrame(true);
             },
@@ -248,6 +260,34 @@ namespace COM3D2.SceneEditor.Plugin
             });
 
             view.DrawHorizontalLine(Color.gray);
+
+            DrawTangentSection(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
+            DrawPostEffectSection(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
+            if (view.DrawButton("個別設定を初期化", 130, ROW_HEIGHT))
+            {
+                MTEUtils.ShowConfirmDialog("個別設定を初期化しますか？", () =>
+                {
+                    if (timeline == null)
+                    {
+                        return;
+                    }
+
+                    timeline.ResetSettings();
+                    timelineManager.Refresh();
+                    timelineManager.ApplyCurrentFrame(true);
+                }, null);
+            }
+        }
+
+        /// <summary>レイヤー種別ごとのタンジェント補間の有効化</summary>
+        private void DrawTangentSection(GUIView view)
+        {
             view.DrawLabel("タンジェント補間", -1, ROW_HEIGHT);
 
             DrawTangentToggle(view, "カメラ", timeline.isTangentCamera,
@@ -267,9 +307,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTangentToggle(view, "モデルシェイプ", timeline.isTangentModelShapeKey,
                 newValue => timeline.isTangentModelShapeKey = newValue, typeof(MTEP.ModelShapeKeyTimelineLayer));
+        }
 
-            view.DrawHorizontalLine(Color.gray);
-
+        /// <summary>ポストエフェクトの拡張と地面色の連動</summary>
+        private void DrawPostEffectSection(GUIView view)
+        {
             view.DrawToggle("ポストエフェクトの色拡張", timeline.usePostEffectExtraColor, -1, ROW_HEIGHT, newValue =>
             {
                 timeline.usePostEffectExtraColor = newValue;
@@ -284,18 +326,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 timeline.isGroundLinkedToBackground = newValue;
             });
-
-            view.DrawHorizontalLine(Color.gray);
-
-            if (view.DrawButton("個別設定を初期化", 130, ROW_HEIGHT))
-            {
-                MTEUtils.ShowConfirmDialog("個別設定を初期化しますか？", () =>
-                {
-                    timeline.ResetSettings();
-                    timelineManager.Refresh();
-                    timelineManager.ApplyCurrentFrame(true);
-                }, null);
-            }
         }
 
         /// <summary>
@@ -319,6 +349,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>共通設定 (タイムライン全体で共有する設定) の描画</summary>
         private void DrawCommonSetting(GUIView view)
+        {
+            DrawCommonValueSection(view);
+            DrawCommonToggleSection(view);
+        }
+
+        /// <summary>キーフレームの既定値と各種の編集レンジ</summary>
+        private void DrawCommonValueSection(GUIView view)
         {
             _defaultTangentTypeComboBox.currentIndex = (int)timelineConfig.defaultTangentType;
             _defaultTangentTypeComboBox.DrawButton("初期補間曲線", view);
@@ -394,6 +431,11 @@ namespace COM3D2.SceneEditor.Plugin
                 },
             });
 
+        }
+
+        /// <summary>編集の挙動を切り替えるトグル群</summary>
+        private void DrawCommonToggleSection(GUIView view)
+        {
             view.BeginHorizontal();
             {
                 view.DrawToggle("自動スクロール", timelineConfig.isAutoScroll, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
