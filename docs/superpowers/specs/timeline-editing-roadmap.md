@@ -24,9 +24,9 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 
 | MTE サブウィンドウ | 状態 | 備考 |
 |---|---|---|
-| TimelineLoad（ロード） | ⚠️ 簡易版のみ | TimelineWindow 内蔵のコンボボックス（相対パスの文字列一覧。`RefreshTimelineFileList` / `LoadTimelineByRelativePath`）はあるが、MTE のサムネイルタイル表示・ディレクトリ階層の移動・エクスプローラで開く・更新ボタンは未移植。サムネイル自体は SE でも保存時に出力済み（`TimelineManager.SaveTimeline` / `SaveThumbnail`）のため、不足は表示 UI のみ |
+| TimelineLoad（ロード） | ✅ 移植済み（2026-08-23、Phase W2） | `TimelineLoadWindow` + `TimelineLoadManager` でサムネイルタイル表示・階層移動・エクスプローラで開く・更新に対応。TimelineWindow 内蔵のコンボボックスは素早く選ぶ導線として併存させている |
 | TimelineSetting | ✅ 移植済み（2026-08-23、Phase W1） | `TimelineSettingWindow`（個別 / 共通タブ）を追加。TimelineWindow の「設定」ボタンとメニューバーから開く。SE に適用経路が無い項目は意図的に非対象（Phase W1 の除外項目を参照） |
-| Track（トラック設定） | ❌ UI 未移植 | `TrackData` / `activeTrack` はデータ層に存在し、TimelineWindow はスクロールジャンプで参照するだけ。トラックの追加・名前変更・範囲編集 UI がない |
+| Track（トラック設定） | ✅ 移植済み（2026-08-23、Phase W2） | `TimelineSettingWindow` の「トラック」タブで追加・名前変更・範囲編集・並べ替え・削除・アクティブ切替に対応 |
 | Template（テンプレート） | ❌ 完全未移植 | `TimelineTemplateManager` 自体が SE に存在しない。キーフレームのカテゴリ / テンプレ管理機能ごと持ち込みが必要 |
 
 **B. レイヤー個別編集の受け皿が無い領域**
@@ -122,7 +122,9 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 - 個別設定の初期化が確認ダイアログ付きで動く
 - 共通設定の変更が保存され、再起動後も残る
 
-### Phase W2: トラック設定 / タイムラインロード UI
+### Phase W2: トラック設定 / タイムラインロード UI ✅ 完了（2026-08-23）
+
+実装: トラック設定は `TimelineSettingWindow` の「トラック」タブ、ロード UI は新規 `TimelineLoadWindow` + `Manager/TimelineLoadManager.cs`。TimelineWindow のコントロールパネルの「一覧」ボタン、またはメニューバー「Window > タイムラインロード」から開く。計画は `docs/superpowers/plans/2026-08-23-timeline-phase-w2-track-load-ui.md`。
 
 - MTE `TimelineTrackUI` 相当（トラック追加・名前変更・開始/終了フレーム編集・アクティブ切替・削除）を移植
 - TimelineWindow 内の表示（アクティブトラック範囲のハイライト等）との連動を確認
@@ -130,6 +132,22 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
   - サムネイルは SE でも保存時に出力済みのため、表示側の実装のみ
   - 既存のコンボボックス簡易ロードを残すか置き換えるかは計画時に決める
 - 成果物: トラック運用と、サムネイル付き一覧からのタイムラインロードが GUI で完結する状態
+
+#### 実装時の判断（2026-08-23）
+
+- **既存のコンボボックスは残した**: タイル一覧は目で選べる一方、コンボは 2 クリックで開ける。役割が違うため置き換えず併存させた
+- **一覧構築は `ScenePresetManager` の流儀に合わせた**: サムネ付きタイル一覧・階層移動・更新は SE のプリセット一覧に実績があるため、そちらへ寄せた。ツリー構築の処理は `ScenePresetManager` とほぼ同じだが、移植元 MTE との対応を追えるようにするため共通化していない
+- **保存時に一覧を作り直す**: 保存したタイムラインが一覧に出ないと「保存できていない」ように見えるため
+- **ジャンクション対策**: 保存先はユーザー環境配下でジャンクションが張られうる。無限再帰は `StackOverflowException` になり握れないため、訪問済みフォルダは辿らない
+
+**未実施**: 実機での通し確認（DLL がゲームプロセスにロックされているため）。次回ゲーム起動時に Phase W1 の確認項目と併せて以下を確認する:
+
+- トラックの追加・名前変更・範囲変更・並べ替え・削除ができ、アクティブトラックの範囲でループ再生される
+- ロードウィンドウにサムネイル付きで並び、フォルダを辿れる。サブフォルダのタイムラインも開ける
+- 「開く」でエクスプローラが開き、「更新」で一覧が作り直される
+- 保存すると一覧へ即座に出る
+- 一覧を何度も更新してもメモリ使用量が積み上がらない
+- トラックタブを開いた後に個別 / 共通タブへ戻してもレイアウトが崩れない（padding の復元確認）
 
 ### Phase W3: レイヤー編集の受け皿整備（大物）
 
