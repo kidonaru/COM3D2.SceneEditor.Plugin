@@ -143,10 +143,15 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.MoveTimelineLayer), MTEP.MoveTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.BGTimelineLayer), MTEP.BGTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.UndressTimelineLayer), MTEP.UndressTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.DressTimelineLayer), MTEP.DressTimelineLayer.Create);
 
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.BG,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataBG>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Undress,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataUndress>);

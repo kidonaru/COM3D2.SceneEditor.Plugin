@@ -320,6 +320,7 @@
     <Compile Include="Timeline\MotionPlayData.cs" />
     <Compile Include="Timeline\MotionTimelineEditor.cs" />
     <Compile Include="Timeline\MoveEasingType.cs" />
+    <Compile Include="Timeline\PhotoBGManager.cs" />
     <Compile Include="Timeline\PluginUtils.cs" />
     <Compile Include="Timeline\StopwatchDebug.cs" />
     <Compile Include="Timeline\StudioLightStat.cs" />
@@ -329,6 +330,7 @@
     <Compile Include="Timeline\TimelineData.cs" />
     <Compile Include="Timeline\TimelineHistoryEntry.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\DressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\EyesTimelineLayer.cs" />
@@ -346,6 +348,7 @@
     <Compile Include="Timeline\TrackData.cs" />
     <Compile Include="Timeline\TransformData\ITransformData.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBase.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBG.cs" />
     <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
     <Compile Include="Timeline\TransformData\TransformDataDress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
