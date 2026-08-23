@@ -335,6 +335,7 @@
     <Compile Include="Timeline\Manager\PostEffectManager.cs" />
     <Compile Include="Timeline\Manager\PngObjectTimelineManager.cs" />
     <Compile Include="Timeline\Manager\TimelineFaceManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineSeManager.cs" />
     <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
     <Compile Include="Timeline\MotionData.cs" />
@@ -401,6 +402,7 @@
     <Compile Include="Timeline\TimelineLayer\ModelShapeKeyTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ModelMaterialTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\SeTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MorphTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />

@@ -40,6 +40,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.PostEffectManager.instance,
                 MTEP.PngObjectTimelineManager.instance,
                 MTEP.TimelineFaceManager.instance,
+                MTEP.TimelineSeManager.instance,
                 MTEP.TimelineHistoryManager.instance,
             };
 
@@ -193,6 +194,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.VoiceTimelineLayer), MTEP.VoiceTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.MorphTimelineLayer), MTEP.MorphTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.SeTimelineLayer), MTEP.SeTimelineLayer.Create);
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
