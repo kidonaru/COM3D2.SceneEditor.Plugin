@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -34,6 +35,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>コンボをウィンドウ幅に合わせて縮めるときの下限</summary>
         private static readonly float MinComboWidth = 80f;
 
+        /// <summary>ドロップダウンの縦幅</summary>
+        private static readonly float ComboContentHeight = 300f;
+
         /// <summary>対象メイドの選択行を出すか。呼出ウィンドウは一覧から選ぶため不要</summary>
         protected virtual bool showMaidSelector => true;
 
@@ -51,6 +55,35 @@ namespace COM3D2.SceneEditor.Plugin
                 view.viewRect.width - view.padding.x * 2
                     - LABEL_WIDTH - view.margin - ComboArrowWidth,
                 MinComboWidth);
+        }
+
+        /// <summary>
+        /// ラベル + コンボの 1 行を描く。コンボ幅は残り幅から決めるため、
+        /// ウィンドウを縮めてもボタンがはみ出さない
+        /// </summary>
+        /// <param name="trailingWidth">コンボの後ろに置くコントロールのために空ける幅</param>
+        /// <param name="drawTrailing">コンボの後ろに置くコントロールの描画</param>
+        protected void DrawLabeledComboBox<T>(
+            string label,
+            GUIComboBox<T> comboBox,
+            float trailingWidth = 0f,
+            Action drawTrailing = null)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel(label, LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
+
+                var comboWidth = CalcLabeledComboWidth(view) - trailingWidth;
+                comboBox.buttonSize = new Vector2(comboWidth, ROW_HEIGHT);
+                comboBox.contentSize = new Vector2(comboWidth, ComboContentHeight);
+                comboBox.DrawButton(view);
+
+                if (drawTrailing != null)
+                {
+                    drawTrailing();
+                }
+            }
+            view.EndLayout();
         }
 
         /// <summary>

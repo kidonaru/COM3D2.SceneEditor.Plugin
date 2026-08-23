@@ -226,6 +226,20 @@ namespace COM3D2.SceneEditor.Plugin
         public int timelineTemplateHeight = 480;
         public bool timelineTemplateVisible = false;
 
+        // シェイプキー編集ウィンドウ
+        public int shapeKeyEditPosX = -1;
+        public int shapeKeyEditPosY = -1;
+        public int shapeKeyEditWidth = 400;
+        public int shapeKeyEditHeight = 480;
+        public bool shapeKeyEditVisible = false;
+
+        // マテリアル編集ウィンドウ
+        public int materialEditPosX = -1;
+        public int materialEditPosY = -1;
+        public int materialEditWidth = 400;
+        public int materialEditHeight = 480;
+        public bool materialEditVisible = false;
+
         /// <summary>スクリーンショットの解像度倍率 (画面サイズの何倍で撮るか)</summary>
         public int screenshotScale = 2;
 
