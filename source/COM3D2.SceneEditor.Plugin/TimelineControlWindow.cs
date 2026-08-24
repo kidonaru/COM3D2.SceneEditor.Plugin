@@ -15,7 +15,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "タイムライン操作";
-        protected override int minWidth => 640;
+        protected override int minWidth => 300;
         protected override int minHeight => 190;
 
         private static TimelineControlWindow _instance = null;
@@ -171,6 +171,19 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
+        /// <summary>
+        /// 次の要素が右端を超える場合に折り返す
+        /// (TimelineTemplateWindow のテンプレボタンと同じ流儀)
+        /// </summary>
+        private static void WrapIfNeeded(GUIView view, float width)
+        {
+            if (view.currentPos.x + width > view.viewRect.width)
+            {
+                view.EndLayout();
+                view.BeginHorizontal();
+            }
+        }
+
         protected override void DrawContent()
         {
             DrawBody();
@@ -212,6 +225,7 @@ namespace COM3D2.SceneEditor.Plugin
                 fileMenuComboBox.currentIndex = -1;
                 fileMenuComboBox.DrawButton(view);
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("セーブ", 60, 20, editEnabled))
                 {
                     if (!studioHack.IsValid())
@@ -231,6 +245,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // MTE のロードボタンと同様に開く動作のみ (他ボタンと違いトグルしない)
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("ロード", 60, 20))
                 {
                     if (!studioHack.IsValid())
@@ -246,16 +261,19 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // MTE のトラックボタンと同様、アクティブトラックありを緑で示す (SE はトラック UI が設定ウィンドウ内)
                 var trackColor = editEnabled && timeline.activeTrack != null ? Color.green : Color.white;
+                WrapIfNeeded(view, 50);
                 if (view.DrawButton("設定", 50, 20, true, trackColor))
                 {
                     WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
                 }
 
+                WrapIfNeeded(view, 50);
                 if (view.DrawButton("編集", 50, 20))
                 {
                     WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("テンプレ", 60, 20))
                 {
                     WindowManager.ToggleWindowVisible(TimelineTemplateWindow.instance);
@@ -264,6 +282,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.AddSpace(20);
 
                 // 状態メッセージ
+                WrapIfNeeded(view, 400);
                 if (!isStudioHackValid)
                 {
                     view.DrawLabel(studioHack.errorMessage, 400, 20, Color.yellow);
@@ -303,6 +322,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                 view.AddSpace(10);
 
+                // 最終フレームのラベル+数値入力はまとめて折り返す (DrawIntSelect の実描画幅は 220 固定)
+                WrapIfNeeded(view, 75 + 220);
                 view.DrawLabel("最終フレーム", 75, 20);
 
                 var newMaxFrameNo = timeline.maxFrameNo;
@@ -330,6 +351,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var newFrameNo = timelineManager.currentFrameNo;
 
+                // シークボタン群 (|< .< < [num] > >. >|) は分断すると操作しにくいためまとめて折り返す
+                WrapIfNeeded(view, 25 * 6 + 50);
                 view.margin = 0;
 
                 if (view.DrawButton("|<", 25, 20))
@@ -384,6 +407,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 view.AddSpace(10);
 
+                WrapIfNeeded(view, 20);
                 if (currentLayer.isAnmPlaying)
                 {
                     if (view.DrawButton("■", 20, 20))
@@ -401,6 +425,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 view.AddSpace(10);
 
+                WrapIfNeeded(view, 250);
                 view.DrawSliderValue(
                     new GUIView.SliderOption
                     {
@@ -420,41 +445,49 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("キーフレーム", 100, 20);
 
+                WrapIfNeeded(view, 50);
                 if (view.DrawButton("登録", 50, 20, studioHackManager.isPoseEditing))
                 {
                     currentLayer.AddKeyFrameDiff();
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("全登録", 60, 20))
                 {
                     currentLayer.AddKeyFrameAll();
                 }
 
+                WrapIfNeeded(view, 50);
                 if (view.DrawButton("削除", 50, 20, timelineManager.HasSelected()))
                 {
                     timelineManager.RemoveSelectedFrame();
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("コピー", 60, 20, timelineManager.HasSelected()))
                 {
                     timelineManager.CopyFramesToClipboard();
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("ペースト", 60, 20))
                 {
                     timelineManager.PasteFramesFromClipboard(false);
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("反転P", 60, 20))
                 {
                     timelineManager.PasteFramesFromClipboard(true);
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("ポーズC", 60, 20))
                 {
                     timelineManager.CopyPoseToClipboard();
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("ポーズP", 60, 20, studioHackManager.isPoseEditing))
                 {
                     timelineManager.PastePoseFromClipboard();
@@ -466,6 +499,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("範囲操作", 100, 20);
 
+                // 開始～終了の入力欄とリセットはまとめて折り返す (要素間 margin 3 つ分を含む)
+                WrapIfNeeded(view, 50 + 15 + 50 + 20 + 5 * 3);
                 view.DrawIntField(new GUIView.IntFieldOption
                 {
                     value = selectStartFrameNo,
@@ -492,26 +527,31 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var isValidRange = timelineManager.IsValidFrameRnage(selectStartFrameNo, selectEndFrameNo);
 
+                WrapIfNeeded(view, 65);
                 if (view.DrawButton("範囲選択", 65, 20))
                 {
                     timelineManager.SelectFramesRange(selectStartFrameNo, selectEndFrameNo);
                 }
 
+                WrapIfNeeded(view, 65);
                 if (view.DrawButton("ﾌﾚｰﾑ挿入", 65, 20, isValidRange && selectStartFrameNo > 0))
                 {
                     timelineManager.InsertFrames(selectStartFrameNo, selectEndFrameNo);
                 }
 
+                WrapIfNeeded(view, 65);
                 if (view.DrawButton("ﾌﾚｰﾑ削除", 65, 20, isValidRange && selectStartFrameNo > 0))
                 {
                     timelineManager.DeleteFrames(selectStartFrameNo, selectEndFrameNo);
                 }
 
+                WrapIfNeeded(view, 65);
                 if (view.DrawButton("ﾌﾚｰﾑ複製", 65, 20, isValidRange))
                 {
                     timelineManager.DuplicateFrames(selectStartFrameNo, selectEndFrameNo);
                 }
 
+                WrapIfNeeded(view, 60);
                 if (view.DrawButton("縦選択", 60, 20, !timelineConfig.isEasyEdit))
                 {
                     timelineManager.SelectVerticalBones();
@@ -528,11 +568,13 @@ namespace COM3D2.SceneEditor.Plugin
                 _layerComboBox.items = timelineManager.usingLayerInfoList;
                 _layerComboBox.DrawButton("レイヤー", view);
 
+                WrapIfNeeded(view, 20);
                 if (view.DrawButton("-", 20, 20, layerType != typeof(MTEP.MotionTimelineLayer)))
                 {
                     timelineManager.RemoveLayers(layerType);
                 }
 
+                WrapIfNeeded(view, 20);
                 _addLayerComboBox.currentIndex = -1;
                 _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
                 _addLayerComboBox.DrawButton(null, view);
@@ -541,6 +583,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (currentLayer.hasSlotNo)
                 {
+                    // 操作対象ラベルとメイドコンボはまとめて折り返す
+                    WrapIfNeeded(view, 60 + 150);
                     view.DrawLabel("操作対象", 60, 20);
 
                     _maidComboBox.currentIndex = currentLayer.slotNo;
@@ -560,27 +604,32 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineManager.Refresh();
                 });
 
+                WrapIfNeeded(view, 80);
                 view.DrawToggle("編集モード", studioHackManager.isPoseEditing, 80, 20, newValue =>
                 {
                     studioHackManager.isPoseEditing = newValue;
                 });
 
+                WrapIfNeeded(view, 80);
                 view.DrawToggle("自動登録", timelineConfig.isAutoKeyFrame, 80, 20, newValue =>
                 {
                     timelineConfig.isAutoKeyFrame = newValue;
                     timelineConfig.dirty = true;
                 });
 
+                WrapIfNeeded(view, 80);
                 view.DrawToggle("メイド表示", maidManager.maid.Visible, 80, 20, newValue =>
                 {
                     maidManager.maid.Visible = newValue;
                 });
 
+                WrapIfNeeded(view, 80);
                 view.DrawToggle("モデル表示", modelManager.Visible, 80, 20, newValue =>
                 {
                     modelManager.Visible = newValue;
                 });
 
+                WrapIfNeeded(view, 80);
                 view.DrawToggle("背景表示", timeline.isBackgroundVisible, 80, 20, newValue =>
                 {
                     timeline.isBackgroundVisible = newValue;
@@ -589,18 +638,21 @@ namespace COM3D2.SceneEditor.Plugin
                 if (timelineManager.hasCameraLayer)
                 {
                     var cameraUpdated = false;
+                    WrapIfNeeded(view, 80);
                     cameraUpdated |= view.DrawToggle("カメラ同期", timelineConfig.isCameraSync, 80, 20, !currentLayer.isCameraLayer, newValue =>
                     {
                         timelineConfig.isCameraSync = newValue;
                         timelineConfig.dirty = true;
                     });
 
+                    WrapIfNeeded(view, 80);
                     cameraUpdated |= view.DrawToggle("視野角固定", timelineConfig.isFixedFoV, 80, 20, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
                     {
                         timelineConfig.isFixedFoV = newValue;
                         timelineConfig.dirty = true;
                     });
 
+                    WrapIfNeeded(view, 100);
                     cameraUpdated |= view.DrawToggle("フォーカス固定", timelineConfig.isFixedFocus, 100, 20, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
                     {
                         timelineConfig.isFixedFocus = newValue;
@@ -619,6 +671,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (timelineManager.hasPostEffectLayer)
                 {
+                    WrapIfNeeded(view, 100);
                     view.DrawToggle("ポスプロ同期", timelineConfig.isPostEffectSync, 100, 20, !currentLayer.isPostEffectLayer, newValue =>
                     {
                         timelineConfig.isPostEffectSync = newValue;
