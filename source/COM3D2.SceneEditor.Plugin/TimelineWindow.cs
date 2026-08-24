@@ -87,7 +87,15 @@ namespace COM3D2.SceneEditor.Plugin
         private int _contentWidth = 640;
         private int _contentHeight = 480;
 
-        private int timelineViewHeight => _contentHeight - FRAME_LABEL_HEIGHT;
+        /// <summary>カーブエディタが占める高さ (閉じていてもトグルバー分は常に確保する)</summary>
+        private float curvePaneTotalHeight =>
+            TimelineCurveEditor.instance.isOpen
+                ? TimelineCurveEditor.instance.paneHeight + TimelineCurveEditor.TOGGLE_BAR_HEIGHT
+                : TimelineCurveEditor.TOGGLE_BAR_HEIGHT;
+
+        // ウィンドウが低い状態でペインを開いてもドープシートが潰れないようガードする
+        private int timelineViewHeight => Mathf.Max(
+            60, (int)(_contentHeight - FRAME_LABEL_HEIGHT - curvePaneTotalHeight));
 
         private TimelineWindow()
         {
@@ -827,6 +835,28 @@ namespace COM3D2.SceneEditor.Plugin
                 else if (frameNo % tc.frameNoInterval == 0)
                 {
                     view.DrawLabel(frameNo.ToString(), frameLabelWidth, 20, Color.white, gsFrameLabel);
+                }
+            }
+
+            // カーブエディタペイン (ドープシート下部)
+            var curveEditor = TimelineCurveEditor.instance;
+            var paneTop = FRAME_LABEL_HEIGHT + timelineViewHeight;
+            curveEditor.DrawToggleBar(
+                view,
+                new Rect(menuWidth, paneTop, viewWidth, TimelineCurveEditor.TOGGLE_BAR_HEIGHT));
+            if (curveEditor.isOpen)
+            {
+                // ウィンドウ下端をはみ出さないようにペイン高さをクランプする
+                var paneY = paneTop + TimelineCurveEditor.TOGGLE_BAR_HEIGHT;
+                var paneHeight = Mathf.Min(curveEditor.paneHeight, _contentHeight - paneY);
+                if (paneHeight > 0f)
+                {
+                    curveEditor.DrawPane(
+                        view,
+                        new Rect(menuWidth, paneY, viewWidth, paneHeight),
+                        scrollPosition.x,
+                        frameWidth,
+                        guiEnabled);
                 }
             }
 

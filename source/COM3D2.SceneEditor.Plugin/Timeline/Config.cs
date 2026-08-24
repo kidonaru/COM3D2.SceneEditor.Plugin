@@ -131,6 +131,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Color curveLineColor = new Color(101 / 255f, 154 / 255f, 210 / 255f);
         public Color curveLineSmoothColor = new Color(90 / 255f, 255 / 255f, 25 / 255f);
         public Color curveBgColor = new Color(0 / 255f, 0 / 255f, 0 / 255f, 0.3f);
+        // タイムライン下部カーブエディタの開閉状態とペイン高さ
+        public bool isCurveEditorOpen = false;
+        public int curveEditorHeight = 150;
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
         public Color gridColorInDisplay = new Color(1, 1, 1);
         public Color gridColorInWorld = new Color(1, 1, 1);
