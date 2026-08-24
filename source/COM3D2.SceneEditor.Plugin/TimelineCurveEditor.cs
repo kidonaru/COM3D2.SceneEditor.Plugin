@@ -85,25 +85,60 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ペイン高さのドラッグリサイズ状態 (menuWidth リサイザと同じ流儀)</summary>
         private readonly GUIView.DragInfo _resizeDragInfo = new GUIView.DragInfo();
 
+        /// <summary>コンボの表示値種別。「回転進行度」は TangentValueType に存在しないため
+        /// カーブエディタ専用の enum を持ち、データアクセス時に ToTangentValueType で変換する</summary>
+        private enum CurveValueFilter
+        {
+            すべて,
+            移動,
+            X移動, Y移動, Z移動,
+            回転,
+            回転進行度,
+            X回転, Y回転, Z回転,
+            拡縮,
+            X拡縮, Y拡縮, Z拡縮,
+        }
+
         /// <summary>表示するチャンネルの種別フィルタ</summary>
-        private MTEP.TangentValueType _valueTypeFilter = MTEP.TangentValueType.すべて;
+        private CurveValueFilter _valueTypeFilter = CurveValueFilter.すべて;
 
         /// <summary>選択中ボーンが実際に持つ値種別だけを候補にする (毎フレーム更新)</summary>
-        private readonly List<MTEP.TangentValueType> _availableValueTypes
-            = new List<MTEP.TangentValueType>();
+        private readonly List<CurveValueFilter> _availableValueTypes
+            = new List<CurveValueFilter>();
 
-        /// <summary>コンボに出すフィルタ候補。「回転」はクォータニオン格納なら進行度 + Euler 表示、
-        /// オイラー角格納なら軸別の実カーブ。X/Y/Z回転 はオイラー角格納では実カーブ、
-        /// クォータニオン格納では表示専用の Euler 変換カーブになる (CollectChannels)</summary>
-        private static readonly MTEP.TangentValueType[] FilterCandidates = {
-            MTEP.TangentValueType.すべて,
-            MTEP.TangentValueType.移動,
-            MTEP.TangentValueType.X移動, MTEP.TangentValueType.Y移動, MTEP.TangentValueType.Z移動,
-            MTEP.TangentValueType.回転,
-            MTEP.TangentValueType.X回転, MTEP.TangentValueType.Y回転, MTEP.TangentValueType.Z回転,
-            MTEP.TangentValueType.拡縮,
-            MTEP.TangentValueType.X拡縮, MTEP.TangentValueType.Y拡縮, MTEP.TangentValueType.Z拡縮,
-        };
+        /// <summary>コンボに出すフィルタ候補 (enum の定義順)。
+        /// クォータニオン格納ボーン: 回転 = Euler 表示 3 本 / 回転進行度 = 進行度 1 本 /
+        /// X/Y/Z回転 = 該当軸の Euler 表示。オイラー角格納ボーン: 回転・X/Y/Z回転 = 実カーブ、
+        /// 回転進行度は候補に出ない (CollectChannels)</summary>
+        private static readonly CurveValueFilter[] FilterCandidates
+            = (CurveValueFilter[])System.Enum.GetValues(typeof(CurveValueFilter));
+
+        /// <summary>データアクセス用の TangentValueType へ変換する。
+        /// 回転進行度はクォータニオン 4 成分を扱うため「回転」に写す</summary>
+        private static MTEP.TangentValueType ToTangentValueType(CurveValueFilter filter)
+        {
+            switch (filter)
+            {
+                case CurveValueFilter.すべて: return MTEP.TangentValueType.すべて;
+                case CurveValueFilter.移動: return MTEP.TangentValueType.移動;
+                case CurveValueFilter.X移動: return MTEP.TangentValueType.X移動;
+                case CurveValueFilter.Y移動: return MTEP.TangentValueType.Y移動;
+                case CurveValueFilter.Z移動: return MTEP.TangentValueType.Z移動;
+                case CurveValueFilter.回転: return MTEP.TangentValueType.回転;
+                case CurveValueFilter.回転進行度: return MTEP.TangentValueType.回転;
+                case CurveValueFilter.X回転: return MTEP.TangentValueType.X回転;
+                case CurveValueFilter.Y回転: return MTEP.TangentValueType.Y回転;
+                case CurveValueFilter.Z回転: return MTEP.TangentValueType.Z回転;
+                case CurveValueFilter.拡縮: return MTEP.TangentValueType.拡縮;
+                case CurveValueFilter.X拡縮: return MTEP.TangentValueType.X拡縮;
+                case CurveValueFilter.Y拡縮: return MTEP.TangentValueType.Y拡縮;
+                case CurveValueFilter.Z拡縮: return MTEP.TangentValueType.Z拡縮;
+                default:
+                    // enum へ項目を追加したのに case を書き忘れたときに気付けるようにする
+                    MTEUtils.LogError("ToTangentValueType: 未対応のフィルタです filter={0}", filter);
+                    return MTEP.TangentValueType.すべて;
+            }
+        }
 
         private static bool IsAxisRotationType(MTEP.TangentValueType valueType)
         {
@@ -112,12 +147,19 @@ namespace COM3D2.SceneEditor.Plugin
                 || valueType == MTEP.TangentValueType.Z回転;
         }
 
-        /// <summary>軸別回転型の軸インデックス (X=0, Y=1, Z=2)。
-        /// X/Y/Z回転 以外を渡さないこと (それ以外は Z 扱いになる)</summary>
-        private static int GetAxisIndex(MTEP.TangentValueType valueType)
+        private static bool IsAxisRotationFilter(CurveValueFilter filter)
         {
-            if (valueType == MTEP.TangentValueType.X回転) return 0;
-            if (valueType == MTEP.TangentValueType.Y回転) return 1;
+            return filter == CurveValueFilter.X回転
+                || filter == CurveValueFilter.Y回転
+                || filter == CurveValueFilter.Z回転;
+        }
+
+        /// <summary>軸別回転フィルタの軸インデックス (X=0, Y=1, Z=2)。
+        /// X/Y/Z回転 以外を渡さないこと (それ以外は Z 扱いになる)</summary>
+        private static int GetAxisIndex(CurveValueFilter filter)
+        {
+            if (filter == CurveValueFilter.X回転) return 0;
+            if (filter == CurveValueFilter.Y回転) return 1;
             return 2;
         }
 
@@ -132,8 +174,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private readonly GUIComboBox<MTEP.TangentValueType> _valueTypeComboBox
-            = new GUIComboBox<MTEP.TangentValueType>
+        private readonly GUIComboBox<CurveValueFilter> _valueTypeComboBox
+            = new GUIComboBox<CurveValueFilter>
         {
             getName = (type, index) => type.ToString(),
             buttonSize = new Vector2(60, 20),
@@ -380,25 +422,32 @@ namespace COM3D2.SceneEditor.Plugin
         private void UpdateValueTypeFilter()
         {
             _availableValueTypes.Clear();
-            _availableValueTypes.Add(MTEP.TangentValueType.すべて);
+            _availableValueTypes.Add(CurveValueFilter.すべて);
 
-            foreach (var valueType in FilterCandidates)
+            foreach (var filter in FilterCandidates)
             {
-                if (valueType != MTEP.TangentValueType.すべて && HasValueType(valueType))
+                if (filter != CurveValueFilter.すべて && HasValueType(filter))
                 {
-                    _availableValueTypes.Add(valueType);
+                    _availableValueTypes.Add(filter);
                 }
             }
 
             if (!_availableValueTypes.Contains(_valueTypeFilter))
             {
-                _valueTypeFilter = MTEP.TangentValueType.すべて;
+                _valueTypeFilter = CurveValueFilter.すべて;
             }
         }
 
-        /// <summary>選択中ボーンのいずれかが指定種別の値を持つか</summary>
-        private static bool HasValueType(MTEP.TangentValueType valueType)
+        /// <summary>選択中ボーンのいずれかが指定フィルタに対応する値を持つか</summary>
+        private static bool HasValueType(CurveValueFilter filter)
         {
+            // 進行度はクォータニオン格納の回転専用
+            if (filter == CurveValueFilter.回転進行度)
+            {
+                return HasQuaternionRotation();
+            }
+
+            var valueType = ToTangentValueType(filter);
             foreach (var bone in selectedBones)
             {
                 var transform = bone.transform;
@@ -407,6 +456,20 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
                 if (transform.GetValueDataList(valueType).Length > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>選択中ボーンのいずれかがクォータニオン格納の回転を持つか</summary>
+        private static bool HasQuaternionRotation()
+        {
+            foreach (var bone in selectedBones)
+            {
+                var transform = bone.transform;
+                if (transform != null && transform.hasRotation)
                 {
                     return true;
                 }
@@ -558,12 +621,23 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var bone in selectedBones)
             {
-                foreach (var tangent in bone.transform.GetOutTangentDataList(_valueTypeFilter))
+                var transform = bone.transform;
+
+                // 回転進行度はクォータニオン格納ボーン専用。混在選択時に、表示されていない
+                // オイラー角格納ボーンの実回転タンジェントを黙って書き換えないようスキップする
+                if (_valueTypeFilter == CurveValueFilter.回転進行度 && !transform.hasRotation)
+                {
+                    continue;
+                }
+
+                var valueType = ToTangentValueType(_valueTypeFilter);
+
+                foreach (var tangent in transform.GetOutTangentDataList(valueType))
                 {
                     callback(tangent, true);
                 }
 
-                foreach (var tangent in bone.transform.GetInTangentDataList(_valueTypeFilter))
+                foreach (var tangent in transform.GetInTangentDataList(valueType))
                 {
                     callback(tangent, false);
                 }
@@ -1030,7 +1104,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // カスタム値チャンネル (TangentValueType に含まれないためキー名で収集する)
-                if (_valueTypeFilter != MTEP.TangentValueType.すべて)
+                if (_valueTypeFilter != CurveValueFilter.すべて)
                 {
                     continue;
                 }
@@ -1080,9 +1154,14 @@ namespace COM3D2.SceneEditor.Plugin
             List<CurveChannel> channels, ref int totalChannelCount,
             string boneName, List<int> frameNos, List<MTEP.BoneData> bones)
         {
-            var isCompositeFilter = _valueTypeFilter == MTEP.TangentValueType.回転
-                || _valueTypeFilter == MTEP.TangentValueType.すべて;
-            if (!isCompositeFilter && !IsAxisRotationType(_valueTypeFilter))
+            // すべて → 進行度 + Euler 3 本 / 回転 → Euler 3 本 / 回転進行度 → 進行度 1 本 /
+            // X/Y/Z回転 → 該当軸の Euler 表示 1 本
+            var addProgress = _valueTypeFilter == CurveValueFilter.すべて
+                || _valueTypeFilter == CurveValueFilter.回転進行度;
+            var addAllEulers = _valueTypeFilter == CurveValueFilter.すべて
+                || _valueTypeFilter == CurveValueFilter.回転;
+            var isAxisFilter = IsAxisRotationFilter(_valueTypeFilter);
+            if (!addProgress && !addAllEulers && !isAxisFilter)
             {
                 return;
             }
@@ -1093,25 +1172,23 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (!isCompositeFilter)
-            {
-                totalChannelCount++;
-                if (channels.Count < MAX_CHANNELS)
-                {
-                    channels.Add(BuildEulerDisplayChannel(
-                        progressChannel, GetAxisIndex(_valueTypeFilter)));
-                }
-                return;
-            }
+            totalChannelCount += (addProgress ? 1 : 0) + (addAllEulers ? 3 : 0) + (isAxisFilter ? 1 : 0);
 
-            totalChannelCount += 4;
-            if (channels.Count < MAX_CHANNELS)
+            if (addProgress && channels.Count < MAX_CHANNELS)
             {
                 channels.Add(progressChannel);
             }
-            for (var axis = 0; axis < 3 && channels.Count < MAX_CHANNELS; axis++)
+            if (addAllEulers)
             {
-                channels.Add(BuildEulerDisplayChannel(progressChannel, axis));
+                for (var axis = 0; axis < 3 && channels.Count < MAX_CHANNELS; axis++)
+                {
+                    channels.Add(BuildEulerDisplayChannel(progressChannel, axis));
+                }
+            }
+            if (isAxisFilter && channels.Count < MAX_CHANNELS)
+            {
+                channels.Add(BuildEulerDisplayChannel(
+                    progressChannel, GetAxisIndex(_valueTypeFilter)));
             }
         }
 
@@ -1201,24 +1278,27 @@ namespace COM3D2.SceneEditor.Plugin
             return angle + 360f * Mathf.Round((reference - angle) / 360f);
         }
 
-        /// <summary>複合型フィルタを単チャンネル型へ展開する</summary>
-        private static List<MTEP.TangentValueType> ExpandValueTypes(MTEP.TangentValueType filter)
+        /// <summary>複合型フィルタを単チャンネル型へ展開する。
+        /// 回転進行度はクォータニオン専用 (AddQuaternionRotationChannels) のため空を返す</summary>
+        private static List<MTEP.TangentValueType> ExpandValueTypes(CurveValueFilter filter)
         {
             switch (filter)
             {
-                case MTEP.TangentValueType.すべて:
+                case CurveValueFilter.すべて:
                     return MoveChannelTypes
                         .Concat(RotationChannelTypes)
                         .Concat(ScaleChannelTypes)
                         .ToList();
-                case MTEP.TangentValueType.移動:
+                case CurveValueFilter.移動:
                     return MoveChannelTypes.ToList();
-                case MTEP.TangentValueType.回転:
+                case CurveValueFilter.回転:
                     return RotationChannelTypes.ToList();
-                case MTEP.TangentValueType.拡縮:
+                case CurveValueFilter.拡縮:
                     return ScaleChannelTypes.ToList();
+                case CurveValueFilter.回転進行度:
+                    return new List<MTEP.TangentValueType>();
                 default:
-                    return new List<MTEP.TangentValueType> { filter };
+                    return new List<MTEP.TangentValueType> { ToTangentValueType(filter) };
             }
         }
 
