@@ -152,11 +152,11 @@ namespace COM3D2.SceneEditor.Plugin
             MakePreset("EaseIn", 1f, 0f),
             MakePreset("EaseOut", 0f, 1f),
             MakePreset("線形", 1f, 1f),
-            MakePreset("弱InOut", 0.5f, 0.5f),
-            MakePreset("弱In", 1f, 0.5f),
-            MakePreset("弱Out", 0.5f, 1f),
-            MakePreset("オーバー", -0.5f, -0.5f),
         };
+
+        /// <summary>正規化タンジェント直接入力用のフィールドキャッシュ (In / Out)</summary>
+        private readonly FloatFieldCache _inTangentFieldCache = new FloatFieldCache();
+        private readonly FloatFieldCache _outTangentFieldCache = new FloatFieldCache();
 
         private static KeyValuePair<string, MTEP.TangentPair> MakePreset(
             string label, float outTangent, float inTangent)
@@ -477,6 +477,79 @@ namespace COM3D2.SceneEditor.Plugin
                     y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
                 }
             }
+
+            // 正規化タンジェント (線形勾配比、1=線形) の直接入力
+            DrawTangentField(view, x, ref y, width, "In", false, _inTangentFieldCache);
+            DrawTangentField(view, x, ref y, width, "Out", true, _outTangentFieldCache);
+        }
+
+        /// <summary>選択キーの片側タンジェントの正規化値を表示・編集するテキストフィールド。
+        /// 選択内で値が揃っていなければ空欄になる</summary>
+        private void DrawTangentField(
+            GUIView view, float x, ref float y, float width,
+            string label, bool isOut, FloatFieldCache fieldCache)
+        {
+            var current = GetUniformNormalizedTangent(isOut);
+            // NaN は NaN と不一致扱いになり毎フレーム text が空に戻って入力中の文字
+            // ("-" など未確定の文字列) を潰すため、双方 NaN のときは更新しない
+            if (!(float.IsNaN(current) && float.IsNaN(fieldCache.value)))
+            {
+                fieldCache.UpdateValue(current);
+            }
+
+            view.currentPos = new Vector2(x, y);
+            view.DrawFloatField(new GUIView.FloatFieldOption
+            {
+                label = label,
+                labelWidth = 26,
+                fieldCache = fieldCache,
+                width = width,
+                height = TOOL_ROW_HEIGHT,
+                onChanged = value => ApplyNormalizedTangent(isOut, value),
+            });
+            y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
+        }
+
+        /// <summary>選択キーの片側タンジェントが全て同値ならその正規化値、
+        /// 未選択または混在なら NaN (フィールドは空欄表示になる)</summary>
+        private float GetUniformNormalizedTangent(bool isOut)
+        {
+            var result = float.NaN;
+            var isMixed = false;
+            ForEachTangent((tangent, tangentIsOut) =>
+            {
+                if (tangentIsOut != isOut || isMixed)
+                {
+                    return;
+                }
+                if (float.IsNaN(result))
+                {
+                    result = tangent.normalizedValue;
+                }
+                else if (result != tangent.normalizedValue)
+                {
+                    isMixed = true;
+                }
+            });
+            return isMixed ? float.NaN : result;
+        }
+
+        /// <summary>選択キーの片側タンジェントへ正規化値を一括適用する</summary>
+        private void ApplyNormalizedTangent(bool isOut, float value)
+        {
+            ForEachTangent((tangent, tangentIsOut) =>
+            {
+                if (tangentIsOut != isOut)
+                {
+                    return;
+                }
+                tangent.normalizedValue = value;
+                tangent.isSmooth = false;
+            });
+
+            currentLayer.ApplyCurrentFrame(true);
+            MTEP.TimelineHistoryManager.instance.AddHistory(
+                timeline, "カーブ: タンジェント入力 " + (isOut ? "Out" : "In"));
         }
 
         /// <summary>選択キー自身の out/in Tangent を走査する
