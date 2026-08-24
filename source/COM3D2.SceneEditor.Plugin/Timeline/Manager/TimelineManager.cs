@@ -387,6 +387,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 _timeline = new TimelineData();
                 _timeline.FromXml(xml);
+
+                // 旧フォーマットの easing 補間を Tangent へ近似変換 (Tangent 統一)
+                TangentUnification.ConvertTimeline(_timeline);
+
                 _timeline.anmName = anmName;
                 _timeline.directoryName = directoryName;
                 _timeline.Initialize();
@@ -443,6 +447,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             _timeline = new TimelineData();
             _timeline.FromXml(xml);
+
+            // 旧フォーマットの easing 補間を Tangent へ近似変換 (Tangent 統一)
+            TangentUnification.ConvertTimeline(_timeline);
+
             _timeline.Initialize();
 
             _usingLayerInfoList = null;

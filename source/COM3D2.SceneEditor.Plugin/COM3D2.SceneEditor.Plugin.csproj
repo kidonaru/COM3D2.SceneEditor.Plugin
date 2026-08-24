@@ -388,6 +388,7 @@
     <Compile Include="Timeline\ModelMaterial.cs" />
     <Compile Include="Timeline\ModelMaterialController.cs" />
     <Compile Include="Timeline\TangentData.cs" />
+    <Compile Include="Timeline\TangentUnification.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
     <Compile Include="Timeline\UnityScripts\PostEffect\ColorParaffinEffectModel.cs" />
     <Compile Include="Timeline\UnityScripts\PostEffect\ColorParaffinEffectSettings.cs" />
