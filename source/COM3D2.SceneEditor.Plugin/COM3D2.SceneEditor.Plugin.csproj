@@ -329,6 +329,7 @@
     <Compile Include="Timeline\CurveViewMapping.cs" />
     <Compile Include="Timeline\DressUtils.cs" />
     <Compile Include="Timeline\EasingFunctions.cs" />
+    <Compile Include="Timeline\EasingToTangent.cs" />
     <Compile Include="Timeline\ExtendBoneCache.cs" />
     <Compile Include="Timeline\Extensions.cs" />
     <Compile Include="Timeline\FaceMorphUtils.cs" />
