@@ -100,8 +100,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             getName = (type, index) => type.ToString(),
             buttonSize = new Vector2(60, 20),
-            showArrow = false,
+            showArrow = true,
         };
+
+        /// <summary>コンボの &lt; &gt; ボタン 2 個分の幅 (GUIComboBox 側の固定値 20px × 2)</summary>
+        private const float COMBO_ARROW_WIDTH = 40f;
 
         /// <summary>プリセットボタンの表示名と対応する TangentType。
         /// 選択キー自身の in/out ハンドルへ適用するため、
@@ -308,7 +311,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.currentPos = new Vector2(x, y);
             _valueTypeComboBox.items = _availableValueTypes;
-            _valueTypeComboBox.buttonSize = new Vector2(width, TOOL_ROW_HEIGHT);
+            // buttonSize は矢印を含まないため、矢印の分を引いて 1 行に収める
+            _valueTypeComboBox.buttonSize = new Vector2(
+                Mathf.Max(20f, width - COMBO_ARROW_WIDTH), TOOL_ROW_HEIGHT);
             _valueTypeComboBox.currentIndex = Mathf.Max(0, _availableValueTypes.IndexOf(_valueTypeFilter));
             _valueTypeComboBox.onSelected = (type, index) => _valueTypeFilter = type;
             _valueTypeComboBox.DrawButton(view);
