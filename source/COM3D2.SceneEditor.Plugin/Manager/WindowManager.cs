@@ -65,6 +65,7 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(PresetWindow.instance);
             AddWindow(HistoryWindow.instance);
             AddWindow(TimelineWindow.instance);
+            AddWindow(TimelineControlWindow.instance);
             AddWindow(TimelineSettingWindow.instance);
             AddWindow(TimelineLoadWindow.instance);
             AddWindow(TimelineLayerWindow.instance);

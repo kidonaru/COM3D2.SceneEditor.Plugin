@@ -295,6 +295,7 @@
     <Compile Include="ProviderModelStat.cs" />
     <Compile Include="MaterialEditWindow.cs" />
     <Compile Include="TimelineLoadWindow.cs" />
+    <Compile Include="TimelineControlWindow.cs" />
     <Compile Include="TimelineSettingWindow.cs" />
     <Compile Include="TimelineWindow.cs" />
     <Compile Include="ToolbarIcons.cs" />
