@@ -97,6 +97,9 @@ namespace COM3D2.SceneEditor.Plugin
         private int timelineViewHeight => Mathf.Max(
             60, (int)(_contentHeight - FRAME_LABEL_HEIGHT - curvePaneTotalHeight));
 
+        /// <summary>ドープシート/ボーンメニューの下端 = カーブエディタ領域の上端</summary>
+        private int curvePaneTop => FRAME_LABEL_HEIGHT + timelineViewHeight;
+
         private TimelineWindow()
         {
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
@@ -694,6 +697,9 @@ namespace COM3D2.SceneEditor.Plugin
                                 frameDragBoneData = timelineManager.selectedBones
                                     .Where(bone => bone.frameNo == frameNo)
                                     .FirstOrDefault();
+
+                                // 消費しないと GUI.DragWindow が拾ってウィンドウごと動いてしまう
+                                Event.current.Use();
                             }
                         );
                     }
@@ -758,6 +764,9 @@ namespace COM3D2.SceneEditor.Plugin
                         {
                             timelineManager.UnselectAll();
                         }
+
+                        // 消費しないと GUI.DragWindow が拾って矩形選択にならない
+                        Event.current.Use();
                     }
                 );
             }
@@ -840,7 +849,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             // カーブエディタペイン (ドープシート下部)
             var curveEditor = TimelineCurveEditor.instance;
-            var paneTop = FRAME_LABEL_HEIGHT + timelineViewHeight;
+            var paneTop = curvePaneTop;
             curveEditor.DrawToggleBar(
                 view,
                 new Rect(menuWidth, paneTop, viewWidth, TimelineCurveEditor.TOGGLE_BAR_HEIGHT));
@@ -983,9 +992,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndScrollView();
 
-            // メニュー幅の変更ボタン
+            // メニュー幅の変更ボタン (下のカーブツールバーと重ならないようボーンメニュー下端に置く)
             view.currentPos.x = view.viewRect.width - 20;
-            view.currentPos.y = view.viewRect.height - 20;
+            view.currentPos.y = curvePaneTop - 20;
 
             var buttonRect = view.GetDrawRect(20, 20);
             if (buttonRect.Contains(Event.current.mousePosition) ||
@@ -1003,6 +1012,15 @@ namespace COM3D2.SceneEditor.Plugin
                     requestUpdateTexture = true;
                     tc.dirty = true;
                 });
+            }
+
+            // カーブエディタのツールバー (ボーンメニュー下の左カラム)
+            var curveEditor = TimelineCurveEditor.instance;
+            var toolbarTop = curvePaneTop;
+            var toolbarHeight = _contentHeight - toolbarTop;
+            if (toolbarHeight > 0)
+            {
+                curveEditor.DrawSideToolbar(view, new Rect(0, toolbarTop, menuWidth, toolbarHeight));
             }
 
             view.EndLayout();

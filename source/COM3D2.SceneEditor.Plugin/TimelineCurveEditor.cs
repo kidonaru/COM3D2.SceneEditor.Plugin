@@ -19,8 +19,10 @@ namespace COM3D2.SceneEditor.Plugin
         private const int MAX_PANE_HEIGHT = 400;
         private const float TOGGLE_BUTTON_WIDTH = 80f;
 
-        /// <summary>カーブ折れ線のサンプリング間隔 (px)。線分の太さも兼ねる</summary>
+        /// <summary>カーブ折れ線のサンプリング間隔 (px)</summary>
         private const float SAMPLE_STEP = 2f;
+        /// <summary>カーブ折れ線の太さ (px)</summary>
+        private const float CURVE_THICKNESS = 1f;
         /// <summary>全身ボーン選択時の draw call 急増を避けるための表示上限</summary>
         private const int MAX_CHANNELS = 12;
         // 以下はいずれも px。マーカーより当たり判定をひと回り広く取る
@@ -30,10 +32,19 @@ namespace COM3D2.SceneEditor.Plugin
         private const float KEY_HIT_RADIUS = 8f;
         private const float HANDLE_HIT_RADIUS = 6f;
 
-        // プリセットボタンはラベル長から幅を見積もる。和字は 1 文字が推定幅より広いが、
-        // 実ラベル ("線形") は短くパディングに収まるため計測 API は使わない
-        private const float PRESET_CHAR_WIDTH = 9f;
-        private const float PRESET_PADDING = 10f;
+        /// <summary>左ツールバーの行高・行間と内側余白 (px)</summary>
+        private const float TOOL_ROW_HEIGHT = 20f;
+        private const float TOOL_ROW_SPACING = 2f;
+        private const float TOOL_PADDING_X = 2f;
+        private const float TOOL_PADDING_Y = 1f;
+
+        /// <summary>縦軸の目盛りラベルの高さ (px)</summary>
+        private const float VALUE_LABEL_HEIGHT = 14f;
+
+        // 凡例 (チャンネル名) の 1 行の高さと項目間の余白 (px)
+        private const float LEGEND_ROW_HEIGHT = 16f;
+        private const float LEGEND_ITEM_MARGIN = 10f;
+        private const float LEGEND_PADDING = 4f;
 
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
@@ -77,23 +88,67 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>表示するチャンネルの種別フィルタ</summary>
         private MTEP.TangentValueType _valueTypeFilter = MTEP.TangentValueType.すべて;
 
+        /// <summary>選択中ボーンが実際に持つ値種別だけを候補にする (毎フレーム更新)</summary>
+        private readonly List<MTEP.TangentValueType> _availableValueTypes
+            = new List<MTEP.TangentValueType>();
+
+        private static readonly MTEP.TangentValueType[] AllValueTypes
+            = (MTEP.TangentValueType[])System.Enum.GetValues(typeof(MTEP.TangentValueType));
+
         private readonly GUIComboBox<MTEP.TangentValueType> _valueTypeComboBox
             = new GUIComboBox<MTEP.TangentValueType>
         {
-            items = System.Enum.GetValues(typeof(MTEP.TangentValueType))
-                .Cast<MTEP.TangentValueType>().ToList(),
             getName = (type, index) => type.ToString(),
             buttonSize = new Vector2(60, 20),
             showArrow = false,
         };
 
-        /// <summary>プリセットボタンの表示名と対応する TangentType</summary>
+        /// <summary>プリセットボタンの表示名と対応する TangentType。
+        /// 選択キー自身の in/out ハンドルへ適用するため、
+        /// EaseIn は in 側 (キーへ入る側)、EaseOut は out 側 (キーから出る側) が緩やかになる</summary>
         private static readonly KeyValuePair<string, MTEP.TangentType>[] TangentPresets = {
             new KeyValuePair<string, MTEP.TangentType>("EaseInOut", MTEP.TangentType.EaseInOut),
             new KeyValuePair<string, MTEP.TangentType>("EaseIn", MTEP.TangentType.EaseIn),
             new KeyValuePair<string, MTEP.TangentType>("EaseOut", MTEP.TangentType.EaseOut),
             new KeyValuePair<string, MTEP.TangentType>("線形", MTEP.TangentType.Linear),
         };
+
+        /// <summary>プリセットボタンのスタイル。組み込みスタイルの解決には GUI.skin が要るため
+        /// 静的初期化子ではなく OnGUI 内で遅延構築する (GUIView.InitStyles と同じ理由)</summary>
+        private static GUIStyle _gsPresetButton = null;
+
+        // 2 列に収めるためラベル幅に応じて縮める font size の範囲
+        private const int PRESET_FONT_SIZE_MAX = 12;
+        private const int PRESET_FONT_SIZE_MIN = 8;
+
+        /// <summary>ボタン幅に一番長いラベルが収まる font size を選ぶ
+        /// (menuWidth を詰めるとラベルが見切れるため)</summary>
+        private static GUIStyle GetPresetButtonStyle(float buttonWidth)
+        {
+            if (_gsPresetButton == null)
+            {
+                _gsPresetButton = new GUIStyle("button")
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                };
+            }
+
+            var longestLabel = TangentPresets
+                .Select(preset => preset.Key)
+                .OrderByDescending(label => label.Length)
+                .First();
+
+            for (var fontSize = PRESET_FONT_SIZE_MAX; fontSize > PRESET_FONT_SIZE_MIN; fontSize--)
+            {
+                _gsPresetButton.fontSize = fontSize;
+                if (GUIView.CalcWidth(_gsPresetButton, longestLabel) <= buttonWidth)
+                {
+                    break;
+                }
+            }
+
+            return _gsPresetButton;
+        }
 
         /// <summary>直近の描画で使ったマッピング。ヒットテストは描画済みの座標系に合わせる</summary>
         private MTEP.CurveViewMapping _mapping = null;
@@ -124,6 +179,8 @@ namespace COM3D2.SceneEditor.Plugin
             public MTEP.TangentValueType valueType;
             /// <summary>カスタム値チャンネルのキー名 (通常チャンネルは null)</summary>
             public string customKey;
+            /// <summary>凡例に出す値名</summary>
+            public string displayName;
             public Color color;
             /// <summary>フレーム番号順のキー列</summary>
             public List<int> frameNos = new List<int>();
@@ -170,10 +227,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var toolbarEndX = DrawToolbar(view, barRect, barRect.x + 5 + TOGGLE_BUTTON_WIDTH + 5);
+            UpdateValueTypeFilter();
 
-            // 開いている間はツールバー右のバー領域を上下ドラッグして高さを変更する
-            var resizeX = toolbarEndX;
+            // 開いている間はトグルボタン右のバー領域を上下ドラッグして高さを変更する
+            var resizeX = barRect.x + 5 + TOGGLE_BUTTON_WIDTH + 5;
             var resizeWidth = Mathf.Max(0f, barRect.xMax - resizeX);
             view.currentPos = new Vector2(resizeX, barRect.y);
             view.InvokeActionOnDragging(
@@ -191,61 +248,121 @@ namespace COM3D2.SceneEditor.Plugin
                 });
         }
 
-        /// <summary>種別フィルタ・プリセット・自動補間を横並びで描き、右端の X を返す</summary>
-        private float DrawToolbar(GUIView view, Rect barRect, float startX)
+        /// <summary>選択中ボーンが持つ値種別だけをフィルタ候補にし、
+        /// 候補から外れた種別が残っていたら「すべて」へ戻す。
+        /// (持っていない種別が residual で残るとカーブが 1 本も出ず、
+        ///  キーフレーム未選択と見分けが付かなくなるため)</summary>
+        private void UpdateValueTypeFilter()
         {
-            var x = startX;
+            _availableValueTypes.Clear();
+            _availableValueTypes.Add(MTEP.TangentValueType.すべて);
 
-            view.currentPos = new Vector2(x, barRect.y);
-            _valueTypeComboBox.currentIndex = (int)_valueTypeFilter;
+            foreach (var valueType in AllValueTypes)
+            {
+                if (valueType != MTEP.TangentValueType.すべて && HasValueType(valueType))
+                {
+                    _availableValueTypes.Add(valueType);
+                }
+            }
+
+            if (!_availableValueTypes.Contains(_valueTypeFilter))
+            {
+                _valueTypeFilter = MTEP.TangentValueType.すべて;
+            }
+        }
+
+        /// <summary>選択中ボーンのいずれかが指定種別の値を持つか</summary>
+        private static bool HasValueType(MTEP.TangentValueType valueType)
+        {
+            foreach (var bone in selectedBones)
+            {
+                var transform = bone.transform;
+                if (transform == null)
+                {
+                    continue;
+                }
+                if (transform.GetValueDataList(valueType).Length > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>ボーンメニュー下部に置く縦並びツールバー。
+        /// 表示値種別・Ease プリセット・自動補間をまとめる</summary>
+        public void DrawSideToolbar(GUIView view, Rect toolbarRect)
+        {
+            if (!isOpen)
+            {
+                return;
+            }
+
+            view.currentPos = new Vector2(toolbarRect.x, toolbarRect.y);
+            view.DrawTexture(GUIView.texWhite, toolbarRect.width, toolbarRect.height,
+                new Color(0.2f, 0.2f, 0.2f, 0.8f));
+
+            var x = toolbarRect.x + TOOL_PADDING_X;
+            var y = toolbarRect.y + TOOL_PADDING_Y;
+            var width = Mathf.Max(20f, toolbarRect.width - TOOL_PADDING_X * 2f);
+
+            view.currentPos = new Vector2(x, y);
+            _valueTypeComboBox.items = _availableValueTypes;
+            _valueTypeComboBox.buttonSize = new Vector2(width, TOOL_ROW_HEIGHT);
+            _valueTypeComboBox.currentIndex = Mathf.Max(0, _availableValueTypes.IndexOf(_valueTypeFilter));
             _valueTypeComboBox.onSelected = (type, index) => _valueTypeFilter = type;
             _valueTypeComboBox.DrawButton(view);
-            x += _valueTypeComboBox.buttonSize.x + 5;
+            y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
 
             if (selectedBones.Count == 0)
             {
-                return x;
+                return;
             }
-
-            foreach (var preset in TangentPresets)
-            {
-                var width = preset.Key.Length * PRESET_CHAR_WIDTH + PRESET_PADDING;
-                view.currentPos = new Vector2(x, barRect.y);
-                if (view.DrawButton(preset.Key, width, TOGGLE_BAR_HEIGHT))
-                {
-                    ApplyTangentPreset(preset.Value);
-                }
-                x += width + 2;
-            }
-            x += 5;
 
             var isSmooth = IsAllTangentSmooth();
-            view.currentPos = new Vector2(x, barRect.y);
-            view.DrawToggle("自動補間", isSmooth, 80, TOGGLE_BAR_HEIGHT, newIsSmooth =>
+            view.currentPos = new Vector2(x, y);
+            view.DrawToggle("自動補間", isSmooth, width, TOOL_ROW_HEIGHT, newIsSmooth =>
             {
                 ForEachTangent((tangent, isOut) => tangent.isSmooth = newIsSmooth);
                 currentLayer.ApplyCurrentFrame(true);
                 MTEP.TimelineHistoryManager.instance.AddHistory(timeline, "カーブ: 自動補間");
             });
-            x += 85;
+            y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
 
-            return x;
+            // プリセットは 2 列に並べて縦幅を節約する
+            var halfWidth = (width - TOOL_ROW_SPACING) * 0.5f;
+            var presetStyle = GetPresetButtonStyle(halfWidth);
+            for (var i = 0; i < TangentPresets.Length; i++)
+            {
+                var preset = TangentPresets[i];
+                var isRightColumn = (i % 2) == 1;
+
+                view.currentPos = new Vector2(
+                    x + (isRightColumn ? halfWidth + TOOL_ROW_SPACING : 0f), y);
+                if (view.DrawButton(preset.Key, halfWidth, TOOL_ROW_HEIGHT, true, null, presetStyle))
+                {
+                    ApplyTangentPreset(preset.Value);
+                }
+
+                // 行の最後を描いたら改行する (プリセットが奇数個でも行送りが止まらないように)
+                if (isRightColumn || i == TangentPresets.Length - 1)
+                {
+                    y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
+                }
+            }
         }
 
-        /// <summary>選択ボーンの out/in Tangent を走査する
-        /// (out は前キー側、in は選択キー側。KeyFrameInspector の適用範囲と同じ)</summary>
+        /// <summary>選択キー自身の out/in Tangent を走査する
+        /// (前キー側ではなく、選択している頂点の両ハンドルが対象)</summary>
         private void ForEachTangent(System.Action<MTEP.TangentData, bool> callback)
         {
-            foreach (var prevBone in currentLayer.GetPrevBones(selectedBones))
+            foreach (var bone in selectedBones)
             {
-                foreach (var tangent in prevBone.transform.GetOutTangentDataList(_valueTypeFilter))
+                foreach (var tangent in bone.transform.GetOutTangentDataList(_valueTypeFilter))
                 {
                     callback(tangent, true);
                 }
-            }
 
-            foreach (var bone in selectedBones)
-            {
                 foreach (var tangent in bone.transform.GetInTangentDataList(_valueTypeFilter))
                 {
                     callback(tangent, false);
@@ -293,7 +410,11 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _mapping = null;
                 view.currentPos = new Vector2(paneRect.x + 8, paneRect.y + 4);
-                view.DrawLabel("カーブ対象のキーフレームが選択されていません", 400, 20, Color.gray);
+                // 種別フィルタの絞り込みで 0 本になった場合を選択なしと取り違えないよう文言を分ける
+                var message = selectedBones.Count == 0
+                    ? "カーブ対象のキーフレームが選択されていません"
+                    : string.Format("選択中のボーンに「{0}」の値がありません", _valueTypeFilter);
+                view.DrawLabel(message, 400, 20, Color.gray);
                 return;
             }
 
@@ -305,7 +426,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (Event.current.type == EventType.Repaint)
             {
-                DrawValueScale(view, paneRect);
+                var legend = BuildLegend(paneRect);
+
+                DrawValueScale(view, paneRect, legend.height);
 
                 foreach (var channel in _channels)
                 {
@@ -317,6 +440,9 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawChannelKeys(view, channel, paneRect, scrollX);
                     DrawChannelHandles(view, channel, paneRect, scrollX);
                 }
+
+                // 凡例はカーブより手前に重ねる
+                DrawLegend(view, paneRect, legend);
 
                 if (totalChannelCount > _channels.Count)
                 {
@@ -436,6 +562,10 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
             }
+
+            // 何も掴まなかった押下も消費する。残すと GUI.DragWindow が拾って
+            // カーブ編集中にウィンドウごと動いてしまう
+            e.Use();
         }
 
         private void UpdateDrag(Vector2 mouse, float scrollX)
@@ -609,6 +739,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         boneName = boneName,
                         valueType = valueType,
+                        displayName = valueType.ToString(),
                         color = ChannelColors[i % ChannelColors.Length],
                     };
                     for (var k = 0; k < bones.Count; k++)
@@ -635,8 +766,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var customIndex = 0;
-                foreach (var customKey in firstTransform.GetCustomValueInfoMap().Keys)
+                foreach (var customValue in firstTransform.GetCustomValueInfoMap())
                 {
+                    var customKey = customValue.Key;
                     totalChannelCount++;
                     customIndex++;
                     if (channels.Count >= MAX_CHANNELS)
@@ -648,6 +780,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         boneName = boneName,
                         customKey = customKey,
+                        displayName = customValue.Value.name,
                         color = CustomChannelColors[(customIndex - 1) % CustomChannelColors.Length],
                     };
                     for (var k = 0; k < bones.Count; k++)
@@ -761,24 +894,122 @@ namespace COM3D2.SceneEditor.Plugin
                 a.outTangent.value, b.inTangent.value, t);
         }
 
-        /// <summary>縦軸の目盛りラベル (上端・中央・下端)</summary>
-        private void DrawValueScale(GUIView view, Rect paneRect)
+        /// <summary>凡例の折り返しレイアウト結果</summary>
+        private class LegendLayout
         {
-            var labels = new[]
+            /// <summary>行ごとのチャンネル番号</summary>
+            public readonly List<List<int>> rows = new List<List<int>>();
+            public readonly List<string> labels = new List<string>();
+            public float height;
+        }
+
+        /// <summary>凡例のラベルと折り返し位置を決める (描画はしない)</summary>
+        private LegendLayout BuildLegend(Rect paneRect)
+        {
+            var layout = new LegendLayout();
+
+            // ボーンが 1 つだけなら値名だけで十分なのでボーン名は省く
+            var isMultiBone = _channels.Select(channel => channel.boneName).Distinct().Count() > 1;
+            foreach (var channel in _channels)
+            {
+                var name = channel.displayName ?? channel.customKey ?? channel.valueType.ToString();
+                layout.labels.Add(isMultiBone ? channel.boneName + "." + name : name);
+            }
+
+            // 中央の目盛りラベル (ペイン中央) より下に収まる行数までに抑える。
+            // これを超えると下端の目盛りラベルが中央ラベルを追い越して重なる
+            var maxRowCount = Mathf.Max(
+                1, (int)((paneRect.height * 0.5f - VALUE_LABEL_HEIGHT) / LEGEND_ROW_HEIGHT));
+
+            var currentRow = new List<int>();
+            var currentWidth = LEGEND_PADDING;
+
+            for (var i = 0; i < layout.labels.Count; i++)
+            {
+                var itemWidth = GUIView.CalcWidth(GUIView.gsLabel, layout.labels[i]) + LEGEND_ITEM_MARGIN;
+                if (currentRow.Count > 0 && currentWidth + itemWidth > paneRect.width)
+                {
+                    layout.rows.Add(currentRow);
+                    if (layout.rows.Count >= maxRowCount)
+                    {
+                        currentRow = null;
+                        break;
+                    }
+                    currentRow = new List<int>();
+                    currentWidth = LEGEND_PADDING;
+                }
+
+                currentRow.Add(i);
+                currentWidth += itemWidth;
+            }
+
+            if (currentRow != null && currentRow.Count > 0)
+            {
+                layout.rows.Add(currentRow);
+            }
+
+            layout.height = layout.rows.Count * LEGEND_ROW_HEIGHT;
+            return layout;
+        }
+
+        /// <summary>ペイン下部に半透明黒の帯を敷き、チャンネル名をその色で並べる</summary>
+        private void DrawLegend(GUIView view, Rect paneRect, LegendLayout layout)
+        {
+            if (layout.rows.Count == 0)
+            {
+                return;
+            }
+
+            var top = paneRect.height - layout.height;
+
+            view.currentPos = new Vector2(paneRect.x, paneRect.y + top);
+            view.DrawTexture(GUIView.texWhite, paneRect.width, layout.height,
+                new Color(0f, 0f, 0f, 0.6f));
+
+            for (var r = 0; r < layout.rows.Count; r++)
+            {
+                var x = LEGEND_PADDING;
+                var y = top + r * LEGEND_ROW_HEIGHT;
+
+                foreach (var index in layout.rows[r])
+                {
+                    var label = layout.labels[index];
+                    var itemWidth = GUIView.CalcWidth(GUIView.gsLabel, label) + LEGEND_ITEM_MARGIN;
+
+                    view.currentPos = new Vector2(paneRect.x + x, paneRect.y + y);
+                    view.DrawLabel(label, itemWidth, LEGEND_ROW_HEIGHT, _channels[index].color);
+                    x += itemWidth;
+                }
+            }
+        }
+
+        /// <summary>縦軸の目盛りラベル (上端・中央・下端)。
+        /// 下端は凡例に隠れないよう legendHeight 分だけ持ち上げる</summary>
+        private void DrawValueScale(GUIView view, Rect paneRect, float legendHeight)
+        {
+            var centerY = paneRect.height * 0.5f;
+            var labels = new List<KeyValuePair<float, float>>
             {
                 new KeyValuePair<float, float>(0f, _mapping.valueMax),
-                new KeyValuePair<float, float>(paneRect.height * 0.5f, (_mapping.valueMin + _mapping.valueMax) * 0.5f),
-                new KeyValuePair<float, float>(paneRect.height - 14f, _mapping.valueMin),
+                new KeyValuePair<float, float>(centerY, (_mapping.valueMin + _mapping.valueMax) * 0.5f),
             };
+
+            // ペインが低いと凡例に押し上げられて中央ラベルと交差するため、その場合は下端を省く
+            var minLabelY = paneRect.height - VALUE_LABEL_HEIGHT - legendHeight;
+            if (minLabelY >= centerY + VALUE_LABEL_HEIGHT)
+            {
+                labels.Add(new KeyValuePair<float, float>(minLabelY, _mapping.valueMin));
+            }
 
             foreach (var label in labels)
             {
                 view.currentPos = new Vector2(paneRect.x + 2, paneRect.y + label.Key);
-                view.DrawLabel(label.Value.ToString("F2"), 60, 14, new Color(1f, 1f, 1f, 0.5f));
+                view.DrawLabel(label.Value.ToString("F2"), 60, VALUE_LABEL_HEIGHT,
+                    new Color(1f, 1f, 1f, 0.5f));
             }
         }
 
-        /// <summary>サンプル値を 2px 幅の矩形セグメントで折れ線描画する</summary>
+        /// <summary>サンプル値を SAMPLE_STEP 幅の矩形セグメントで折れ線描画する</summary>
         private void DrawChannelCurve(GUIView view, CurveChannel channel, Rect paneRect)
         {
             var samples = channel.samples;
@@ -804,11 +1035,11 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 view.currentPos = new Vector2(paneRect.x + x, paneRect.y + top);
-                // セグメント間の縦ギャップを埋めるため最低 SAMPLE_STEP の高さを与える
+                // 隣接セグメントとの縦ギャップを埋めるため線の太さ分だけ足す
                 view.DrawTexture(
                     GUIView.texWhite,
                     SAMPLE_STEP,
-                    Mathf.Min(bottom - top + SAMPLE_STEP, paneRect.height - top),
+                    Mathf.Min(bottom - top + CURVE_THICKNESS, paneRect.height - top),
                     channel.color);
             }
         }
