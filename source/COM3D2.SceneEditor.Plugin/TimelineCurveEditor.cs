@@ -13,7 +13,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class TimelineCurveEditor
     {
-        public const float TOGGLE_BAR_HEIGHT = 16f;
+        // コンボボックスとトグルを 1 行に並べるため 20px 確保する
+        public const float TOGGLE_BAR_HEIGHT = 20f;
         private const int MIN_PANE_HEIGHT = 80;
         private const int MAX_PANE_HEIGHT = 400;
         private const float TOGGLE_BUTTON_WIDTH = 80f;
@@ -69,6 +70,32 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>表示するチャンネルの種別フィルタ</summary>
         private MTEP.TangentValueType _valueTypeFilter = MTEP.TangentValueType.すべて;
+
+        private readonly GUIComboBox<MTEP.TangentValueType> _valueTypeComboBox
+            = new GUIComboBox<MTEP.TangentValueType>
+        {
+            items = System.Enum.GetValues(typeof(MTEP.TangentValueType))
+                .Cast<MTEP.TangentValueType>().ToList(),
+            getName = (type, index) => type.ToString(),
+            buttonSize = new Vector2(60, 20),
+            showArrow = false,
+        };
+
+        private readonly GUIComboBox<int> _easingComboBox = new GUIComboBox<int>
+        {
+            items = Enumerable.Range(0, (int)MTEP.MoveEasingType.Max).ToList(),
+            getName = (type, index) => ((MTEP.MoveEasingType)type).ToString(),
+            buttonSize = new Vector2(100, 20),
+            showArrow = false,
+        };
+
+        /// <summary>プリセットボタンの表示名と対応する TangentType</summary>
+        private static readonly KeyValuePair<string, MTEP.TangentType>[] TangentPresets = {
+            new KeyValuePair<string, MTEP.TangentType>("EaseInOut", MTEP.TangentType.EaseInOut),
+            new KeyValuePair<string, MTEP.TangentType>("EaseIn", MTEP.TangentType.EaseIn),
+            new KeyValuePair<string, MTEP.TangentType>("EaseOut", MTEP.TangentType.EaseOut),
+            new KeyValuePair<string, MTEP.TangentType>("線形", MTEP.TangentType.Linear),
+        };
 
         /// <summary>直近の描画で使ったマッピング。ヒットテストは描画済みの座標系に合わせる</summary>
         private MTEP.CurveViewMapping _mapping = null;
@@ -145,8 +172,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 開いている間はトグルボタン右のバー領域を上下ドラッグして高さを変更する
-            var resizeX = barRect.x + 5 + TOGGLE_BUTTON_WIDTH;
+            var toolbarEndX = DrawToolbar(view, barRect, barRect.x + 5 + TOGGLE_BUTTON_WIDTH + 5);
+
+            // 開いている間はツールバー右のバー領域を上下ドラッグして高さを変更する
+            var resizeX = toolbarEndX;
             var resizeWidth = Mathf.Max(0f, barRect.xMax - resizeX);
             view.currentPos = new Vector2(resizeX, barRect.y);
             view.InvokeActionOnDragging(
@@ -162,6 +191,147 @@ namespace COM3D2.SceneEditor.Plugin
                         (int)value.y, MIN_PANE_HEIGHT, MAX_PANE_HEIGHT);
                     config.dirty = true;
                 });
+        }
+
+        /// <summary>種別フィルタ・プリセット・自動補間・Easing を横並びで描き、右端の X を返す</summary>
+        private float DrawToolbar(GUIView view, Rect barRect, float startX)
+        {
+            var x = startX;
+
+            view.currentPos = new Vector2(x, barRect.y);
+            _valueTypeComboBox.currentIndex = (int)_valueTypeFilter;
+            _valueTypeComboBox.onSelected = (type, index) => _valueTypeFilter = type;
+            _valueTypeComboBox.DrawButton(view);
+            x += _valueTypeComboBox.buttonSize.x + 5;
+
+            if (selectedBones.Count == 0)
+            {
+                return x;
+            }
+
+            foreach (var preset in TangentPresets)
+            {
+                var width = preset.Key.Length * 9f + 10f;
+                view.currentPos = new Vector2(x, barRect.y);
+                if (view.DrawButton(preset.Key, width, TOGGLE_BAR_HEIGHT))
+                {
+                    ApplyTangentPreset(preset.Value);
+                }
+                x += width + 2;
+            }
+            x += 5;
+
+            var isSmooth = IsAllTangentSmooth();
+            view.currentPos = new Vector2(x, barRect.y);
+            view.DrawToggle("自動補間", isSmooth, 80, TOGGLE_BAR_HEIGHT, newIsSmooth =>
+            {
+                ForEachTangent((tangent, isOut) => tangent.isSmooth = newIsSmooth);
+                currentLayer.ApplyCurrentFrame(true);
+                MTEP.TimelineHistoryManager.instance.AddHistory(timeline, "カーブ: 自動補間");
+            });
+            x += 85;
+
+            // Phase A 暫定: easing レイヤーだけ従来の Easing 選択を残す
+            if (selectedBones.Any(bone => bone.transform.hasEasing))
+            {
+                view.currentPos = new Vector2(x, barRect.y);
+                _easingComboBox.currentIndex = GetCommonEasing();
+                _easingComboBox.onSelected = (easing, index) => ApplyEasing(easing);
+                _easingComboBox.DrawButton(view);
+                x += _easingComboBox.buttonSize.x + 5;
+            }
+
+            return x;
+        }
+
+        /// <summary>選択ボーンの out/in Tangent を走査する
+        /// (out は前キー側、in は選択キー側。KeyFrameInspector の適用範囲と同じ)</summary>
+        private void ForEachTangent(System.Action<MTEP.TangentData, bool> callback)
+        {
+            foreach (var prevBone in currentLayer.GetPrevBones(selectedBones))
+            {
+                foreach (var tangent in prevBone.transform.GetOutTangentDataList(_valueTypeFilter))
+                {
+                    callback(tangent, true);
+                }
+            }
+
+            foreach (var bone in selectedBones)
+            {
+                foreach (var tangent in bone.transform.GetInTangentDataList(_valueTypeFilter))
+                {
+                    callback(tangent, false);
+                }
+            }
+        }
+
+        private bool IsAllTangentSmooth()
+        {
+            var isSmooth = true;
+            var hasAny = false;
+            ForEachTangent((tangent, isOut) =>
+            {
+                hasAny = true;
+                if (!tangent.isSmooth) isSmooth = false;
+            });
+            return hasAny && isSmooth;
+        }
+
+        private void ApplyTangentPreset(MTEP.TangentType tangentType)
+        {
+            var tangentPair = MTEP.TangentPair.GetDefault(tangentType);
+
+            ForEachTangent((tangent, isOut) =>
+            {
+                tangent.normalizedValue = isOut ? tangentPair.outTangent : tangentPair.inTangent;
+                tangent.isSmooth = tangentPair.isSmooth;
+            });
+
+            currentLayer.ApplyCurrentFrame(true);
+            MTEP.TimelineHistoryManager.instance.AddHistory(
+                timeline, "カーブ: プリセット " + tangentType);
+        }
+
+        /// <summary>選択ボーンで共通の easing 値。混在時は -1</summary>
+        private int GetCommonEasing()
+        {
+            var easing = -1;
+            var initialized = false;
+
+            foreach (var bone in selectedBones)
+            {
+                if (!bone.transform.hasEasing)
+                {
+                    continue;
+                }
+                if (!initialized)
+                {
+                    easing = bone.transform.easing;
+                    initialized = true;
+                }
+                else if (easing != bone.transform.easing)
+                {
+                    return -1;
+                }
+            }
+            return easing;
+        }
+
+        private void ApplyEasing(int easing)
+        {
+            var max = (int)MTEP.MoveEasingType.Max;
+            easing = (easing + max) % max;
+
+            foreach (var bone in selectedBones)
+            {
+                if (bone.transform.hasEasing)
+                {
+                    bone.transform.easing = easing;
+                }
+            }
+
+            currentLayer.ApplyCurrentFrame(true);
+            MTEP.TimelineHistoryManager.instance.AddHistory(timeline, "カーブ: Easing 変更");
         }
 
         /// <summary>カーブ描画領域。paneRect はウィンドウローカル座標</summary>
