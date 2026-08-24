@@ -92,8 +92,39 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<MTEP.TangentValueType> _availableValueTypes
             = new List<MTEP.TangentValueType>();
 
-        private static readonly MTEP.TangentValueType[] AllValueTypes
-            = (MTEP.TangentValueType[])System.Enum.GetValues(typeof(MTEP.TangentValueType));
+        /// <summary>コンボに出すフィルタ候補。クォータニオン格納の回転は 4 成分が連動して
+        /// 1 つの回転を表すため、成分別の候補は出さず「回転」でまとめて扱う。
+        /// オイラー角格納のボーンでは軸が独立しているので成分別候補も出す (UpdateValueTypeFilter)</summary>
+        private static readonly MTEP.TangentValueType[] FilterCandidates = {
+            MTEP.TangentValueType.すべて,
+            MTEP.TangentValueType.移動,
+            MTEP.TangentValueType.X移動, MTEP.TangentValueType.Y移動, MTEP.TangentValueType.Z移動,
+            MTEP.TangentValueType.回転,
+            MTEP.TangentValueType.X回転, MTEP.TangentValueType.Y回転, MTEP.TangentValueType.Z回転,
+            MTEP.TangentValueType.拡縮,
+            MTEP.TangentValueType.X拡縮, MTEP.TangentValueType.Y拡縮, MTEP.TangentValueType.Z拡縮,
+        };
+
+        private static bool IsAxisRotationType(MTEP.TangentValueType valueType)
+        {
+            return valueType == MTEP.TangentValueType.X回転
+                || valueType == MTEP.TangentValueType.Y回転
+                || valueType == MTEP.TangentValueType.Z回転;
+        }
+
+        /// <summary>選択中ボーンのいずれかがオイラー角格納の回転を持つか</summary>
+        private static bool HasEulerRotation()
+        {
+            foreach (var bone in selectedBones)
+            {
+                var transform = bone.transform;
+                if (transform != null && transform.hasEulerAngles)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private readonly GUIComboBox<MTEP.TangentValueType> _valueTypeComboBox
             = new GUIComboBox<MTEP.TangentValueType>
@@ -106,15 +137,28 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>コンボの &lt; &gt; ボタン 2 個分の幅 (GUIComboBox 側の固定値 20px × 2)</summary>
         private const float COMBO_ARROW_WIDTH = 40f;
 
-        /// <summary>プリセットボタンの表示名と対応する TangentType。
+        /// <summary>プリセットボタンの表示名と適用する TangentPair。
         /// 選択キー自身の in/out ハンドルへ適用するため、
-        /// EaseIn は in 側 (キーへ入る側)、EaseOut は out 側 (キーから出る側) が緩やかになる</summary>
-        private static readonly KeyValuePair<string, MTEP.TangentType>[] TangentPresets = {
-            new KeyValuePair<string, MTEP.TangentType>("EaseInOut", MTEP.TangentType.EaseInOut),
-            new KeyValuePair<string, MTEP.TangentType>("EaseIn", MTEP.TangentType.EaseIn),
-            new KeyValuePair<string, MTEP.TangentType>("EaseOut", MTEP.TangentType.EaseOut),
-            new KeyValuePair<string, MTEP.TangentType>("線形", MTEP.TangentType.Linear),
+        /// EaseIn は in 側 (キーへ入る側)、EaseOut は out 側 (キーから出る側) が緩やかになる。
+        /// タンジェントは線形勾配比 (1=線形, 0=完全に緩やか, 負=オーバーシュート)</summary>
+        private static readonly KeyValuePair<string, MTEP.TangentPair>[] TangentPresets = {
+            MakePreset("EaseInOut", 0f, 0f),
+            MakePreset("EaseIn", 1f, 0f),
+            MakePreset("EaseOut", 0f, 1f),
+            MakePreset("線形", 1f, 1f),
+            MakePreset("弱InOut", 0.5f, 0.5f),
+            MakePreset("弱In", 1f, 0.5f),
+            MakePreset("弱Out", 0.5f, 1f),
+            MakePreset("オーバー", -0.5f, -0.5f),
         };
+
+        private static KeyValuePair<string, MTEP.TangentPair> MakePreset(
+            string label, float outTangent, float inTangent)
+        {
+            return new KeyValuePair<string, MTEP.TangentPair>(
+                label,
+                new MTEP.TangentPair { outTangent = outTangent, inTangent = inTangent });
+        }
 
         /// <summary>プリセットボタンのスタイル。組み込みスタイルの解決には GUI.skin が要るため
         /// 静的初期化子ではなく OnGUI 内で遅延構築する (GUIView.InitStyles と同じ理由)</summary>
@@ -193,17 +237,48 @@ namespace COM3D2.SceneEditor.Plugin
             public List<float> samples = new List<float>();
         }
 
-        private static readonly MTEP.TangentValueType[] SingleChannelTypes = {
+        // 描画チャンネルへの展開用 (ExpandValueTypes)。グループ別に分けてインデックス依存を避ける
+        private static readonly MTEP.TangentValueType[] MoveChannelTypes = {
             MTEP.TangentValueType.X移動, MTEP.TangentValueType.Y移動, MTEP.TangentValueType.Z移動,
+        };
+
+        /// <summary>クォータニオン格納時は W も持つ。Euler 格納では W の値リストが空になり 3 本に落ちる</summary>
+        private static readonly MTEP.TangentValueType[] RotationChannelTypes = {
             MTEP.TangentValueType.X回転, MTEP.TangentValueType.Y回転, MTEP.TangentValueType.Z回転,
+            MTEP.TangentValueType.W回転,
+        };
+
+        private static readonly MTEP.TangentValueType[] ScaleChannelTypes = {
             MTEP.TangentValueType.X拡縮, MTEP.TangentValueType.Y拡縮, MTEP.TangentValueType.Z拡縮,
         };
 
-        private static readonly Color[] ChannelColors = {
-            new Color(0.9f, 0.3f, 0.3f),  // X = 赤
-            new Color(0.3f, 0.9f, 0.3f),  // Y = 緑
-            new Color(0.4f, 0.6f, 1.0f),  // Z = 青
-        };
+        private static readonly Color ColorX = new Color(0.9f, 0.3f, 0.3f);   // 赤
+        private static readonly Color ColorY = new Color(0.3f, 0.9f, 0.3f);   // 緑
+        private static readonly Color ColorZ = new Color(0.4f, 0.6f, 1.0f);   // 青
+        private static readonly Color ColorW = new Color(0.85f, 0.85f, 0.85f); // 白
+
+        /// <summary>チャンネルの軸に対応する色</summary>
+        private static Color GetChannelColor(MTEP.TangentValueType valueType)
+        {
+            switch (valueType)
+            {
+                case MTEP.TangentValueType.X移動:
+                case MTEP.TangentValueType.X回転:
+                case MTEP.TangentValueType.X拡縮:
+                    return ColorX;
+                case MTEP.TangentValueType.Y移動:
+                case MTEP.TangentValueType.Y回転:
+                case MTEP.TangentValueType.Y拡縮:
+                    return ColorY;
+                case MTEP.TangentValueType.Z移動:
+                case MTEP.TangentValueType.Z回転:
+                case MTEP.TangentValueType.Z拡縮:
+                    return ColorZ;
+                case MTEP.TangentValueType.W回転:
+                default:
+                    return ColorW;
+            }
+        }
 
         /// <summary>カスタム値チャンネル用のパレット (XYZ と混同しない色味)</summary>
         private static readonly Color[] CustomChannelColors = {
@@ -260,9 +335,19 @@ namespace COM3D2.SceneEditor.Plugin
             _availableValueTypes.Clear();
             _availableValueTypes.Add(MTEP.TangentValueType.すべて);
 
-            foreach (var valueType in AllValueTypes)
+            var hasEuler = HasEulerRotation();
+            foreach (var valueType in FilterCandidates)
             {
-                if (valueType != MTEP.TangentValueType.すべて && HasValueType(valueType))
+                if (valueType == MTEP.TangentValueType.すべて)
+                {
+                    continue;
+                }
+                // 軸別回転候補の出し分け理由は FilterCandidates のコメントを参照
+                if (IsAxisRotationType(valueType) && !hasEuler)
+                {
+                    continue;
+                }
+                if (HasValueType(valueType))
                 {
                     _availableValueTypes.Add(valueType);
                 }
@@ -346,7 +431,7 @@ namespace COM3D2.SceneEditor.Plugin
                     x + (isRightColumn ? halfWidth + TOOL_ROW_SPACING : 0f), y);
                 if (view.DrawButton(preset.Key, halfWidth, TOOL_ROW_HEIGHT, true, null, presetStyle))
                 {
-                    ApplyTangentPreset(preset.Value);
+                    ApplyTangentPreset(preset.Key, preset.Value);
                 }
 
                 // 行の最後を描いたら改行する (プリセットが奇数個でも行送りが止まらないように)
@@ -387,10 +472,8 @@ namespace COM3D2.SceneEditor.Plugin
             return hasAny && isSmooth;
         }
 
-        private void ApplyTangentPreset(MTEP.TangentType tangentType)
+        private void ApplyTangentPreset(string presetName, MTEP.TangentPair tangentPair)
         {
-            var tangentPair = MTEP.TangentPair.GetDefault(tangentType);
-
             ForEachTangent((tangent, isOut) =>
             {
                 tangent.normalizedValue = isOut ? tangentPair.outTangent : tangentPair.inTangent;
@@ -399,7 +482,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             currentLayer.ApplyCurrentFrame(true);
             MTEP.TimelineHistoryManager.instance.AddHistory(
-                timeline, "カーブ: プリセット " + tangentType);
+                timeline, "カーブ: プリセット " + presetName);
         }
 
         /// <summary>カーブ描画領域。paneRect はウィンドウローカル座標</summary>
@@ -745,7 +828,7 @@ namespace COM3D2.SceneEditor.Plugin
                         boneName = boneName,
                         valueType = valueType,
                         displayName = valueType.ToString(),
-                        color = ChannelColors[i % ChannelColors.Length],
+                        color = GetChannelColor(valueType),
                     };
                     for (var k = 0; k < bones.Count; k++)
                     {
@@ -815,13 +898,16 @@ namespace COM3D2.SceneEditor.Plugin
             switch (filter)
             {
                 case MTEP.TangentValueType.すべて:
-                    return SingleChannelTypes.ToList();
+                    return MoveChannelTypes
+                        .Concat(RotationChannelTypes)
+                        .Concat(ScaleChannelTypes)
+                        .ToList();
                 case MTEP.TangentValueType.移動:
-                    return SingleChannelTypes.Take(3).ToList();
+                    return MoveChannelTypes.ToList();
                 case MTEP.TangentValueType.回転:
-                    return SingleChannelTypes.Skip(3).Take(3).ToList();
+                    return RotationChannelTypes.ToList();
                 case MTEP.TangentValueType.拡縮:
-                    return SingleChannelTypes.Skip(6).Take(3).ToList();
+                    return ScaleChannelTypes.ToList();
                 default:
                     return new List<MTEP.TangentValueType> { filter };
             }
