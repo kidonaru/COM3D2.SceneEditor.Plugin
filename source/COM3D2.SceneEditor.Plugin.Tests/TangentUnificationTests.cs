@@ -87,6 +87,37 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(0.25f, current[0].inTangent.normalizedValue, 2);
         }
 
+        [Theory]
+        [InlineData(TransformType.Camera)]
+        [InlineData(TransformType.SubCamera)]
+        [InlineData(TransformType.Move)]
+        [InlineData(TransformType.Light)]
+        [InlineData(TransformType.Model)]
+        [InlineData(TransformType.ModelBone)]
+        [InlineData(TransformType.ModelShapeKey)]
+        public void 旧Tangentモードのカテゴリは変換対象外(TransformType type)
+        {
+            // 旧フラグ true (Tangent モード運用) なら easing 変換をスキップして
+            // isSmooth の自動タンジェント計算を温存する
+            var timeline = new TimelineData();
+            Assert.True(TangentUnification.WasTangentMode(timeline, type));
+        }
+
+        [Fact]
+        public void 旧easingモードのカテゴリは変換対象()
+        {
+            var timeline = new TimelineData
+            {
+                isTangentCamera = false,
+                isTangentMove = false,
+            };
+
+            Assert.False(TangentUnification.WasTangentMode(timeline, TransformType.Camera));
+            Assert.False(TangentUnification.WasTangentMode(timeline, TransformType.Move));
+            // モードフラグを持たない型は常に easing 補間だったので変換する
+            Assert.False(TangentUnification.WasTangentMode(timeline, TransformType.BGModel));
+        }
+
         [Fact]
         public void 自動補間フラグは変換で解除される()
         {
