@@ -173,6 +173,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("IsEasingAfterFrame")]
         public bool isEasingAppliedToNextKeyframe = false;
 
+        // Tangent 統一変換を適用済みか。旧 XML には無いので既定 false = 未変換となり、
+        // ロード時に一度だけ easing→Tangent 変換が走る (Undo/Redo での再変換を防ぐ)
+        [XmlElement("IsTangentUnified")]
+        public bool isTangentUnified = false;
+
         [XmlElement("IsTangentCamera")]
         public bool isTangentCamera = false;
 

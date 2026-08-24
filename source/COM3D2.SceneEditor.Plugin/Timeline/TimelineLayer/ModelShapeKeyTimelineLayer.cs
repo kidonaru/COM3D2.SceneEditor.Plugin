@@ -161,7 +161,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var boneName = blendShape.name;
 
                 var trans = CreateTransformData<TransformDataModelShapeKey>(boneName);
-                trans.easing = GetEasing(frame.frameNo, boneName);
                 trans.weight = blendShape.weight;
 
                 var bone = frame.CreateBone(trans);

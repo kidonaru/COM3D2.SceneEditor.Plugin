@@ -147,21 +147,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual bool hasColor => false;
         public virtual bool hasSubColor => false;
         public virtual bool hasVisible => false;
-        // Tangent 統一により easing 補間は廃止。派生型の override も無い
-        public virtual bool hasEasing => false;
-
         /// <summary>easing 値のスロットを values 内に持つ型か
         /// (旧 easing 型の判定と、集約型レイヤーの補間形状キャリア取得に使う)</summary>
+        private bool? _hasEasingChannel = null;
         public bool hasEasingChannel
         {
             get
             {
-                var slot = easingValue;
-                foreach (var value in values)
+                // 型ごとに不変。再生中の CalcTangentValue から毎フレーム呼ばれるためキャッシュする
+                if (_hasEasingChannel == null)
                 {
-                    if (ReferenceEquals(value, slot)) return true;
+                    var slot = easingValue;
+                    _hasEasingChannel = false;
+                    foreach (var value in values)
+                    {
+                        if (ReferenceEquals(value, slot))
+                        {
+                            _hasEasingChannel = true;
+                            break;
+                        }
+                    }
                 }
-                return false;
+                return _hasEasingChannel.Value;
             }
         }
         public virtual bool hasTangent => false;

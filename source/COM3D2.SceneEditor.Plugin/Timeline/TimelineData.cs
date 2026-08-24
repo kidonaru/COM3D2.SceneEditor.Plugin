@@ -406,6 +406,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         // Tangent 統一により補間経路はこれらを参照しない。XML 互換のためフィールドのみ残す
         // (ロード時は XML の生値が入り、TangentUnification.ConvertTimeline が true へ倒す)
+        /// <summary>Tangent 統一変換を適用済みか (TangentUnification が立てる)</summary>
+        public bool isTangentUnified = false;
+
         public bool isTangentCamera = true;
         public bool isTangentLight = true;
         public bool isTangentMove = true;
@@ -866,6 +869,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             endFadeTime = xml.endFadeTime;
             singleFrameType = xml.singleFrameType;
             isEasingAppliedToNextKeyframe = xml.isEasingAppliedToNextKeyframe;
+            isTangentUnified = xml.isTangentUnified;
             isTangentCamera = xml.isTangentCamera;
             isTangentLight = xml.isTangentLight;
             isTangentMove = xml.isTangentMove;
@@ -1026,6 +1030,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.endFadeTime = endFadeTime;
             xml.singleFrameType = singleFrameType;
             xml.isEasingAppliedToNextKeyframe = isEasingAppliedToNextKeyframe;
+            xml.isTangentUnified = isTangentUnified;
             xml.isTangentCamera = isTangentCamera;
             xml.isTangentLight = isTangentLight;
             xml.isTangentMove = isTangentMove;

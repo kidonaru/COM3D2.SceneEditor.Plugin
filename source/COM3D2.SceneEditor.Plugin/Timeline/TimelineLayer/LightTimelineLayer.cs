@@ -258,7 +258,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.shadowStrength = light.shadowStrength;
                 trans.shadowBias = light.shadowBias;
                 trans.maidSlotNo = followLight.maidSlotNo;
-                trans.easing = GetEasing(frame.frameNo, lightName);
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);
@@ -309,7 +308,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため
             // view.DrawComboBox() は呼ばない
         }
-        
+
         public void DrawLightEdit(GUIView view)
         {
             var lights = lightManager.lights;

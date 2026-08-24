@@ -154,7 +154,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 start.fovValue,
                 end.fovValue,
                 t);
-            
+
 
             var startViewport = start.viewport;
             var endViewport = end.viewport;
@@ -185,7 +185,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var trans = CreateTransformData<TransformDataSubCamera>(cameraName);
                 trans.position = cameraData.position;
                 trans.eulerAngles = cameraData.rotation.eulerAngles;
-                trans.easing = GetEasing(frame.frameNo, cameraName);
                 trans.fov = cameraData.camera.fieldOfView;
                 trans.viewport = cameraData.viewportRect;
                 trans.maidSlotNo = cameraData.follow.maidSlotNo;

@@ -265,7 +265,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.Speed = info.speed;
                 trans.Loop = info.loop;
                 trans.OverrideTime = info.overrideTime;
-                trans.easing = GetEasing(frame.frameNo, boneName);
             }
         }
 

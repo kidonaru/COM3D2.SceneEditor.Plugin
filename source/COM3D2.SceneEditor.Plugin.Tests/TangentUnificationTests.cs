@@ -65,6 +65,29 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 再変換で編集済みタンジェントが上書きされない()
+        {
+            // Undo/Redo も ConvertTimeline を通るため、変換済みタイムラインでは
+            // 2 回目以降が no-op でなければユーザーの編集値が Linear (1, 1) で潰れる
+            var timeline = new TimelineData();
+            Assert.False(timeline.isTangentUnified);
+
+            TangentUnification.ConvertTimeline(timeline);
+            Assert.True(timeline.isTangentUnified);
+
+            // 変換済みフラグが立っていれば 2 回目は何もしない
+            var prev = NewValues(1);
+            var current = NewValues(1);
+            prev[0].outTangent.normalizedValue = 2.5f;
+            current[0].inTangent.normalizedValue = 0.25f;
+
+            TangentUnification.ConvertTimeline(timeline);
+
+            Assert.Equal(2.5f, prev[0].outTangent.normalizedValue, 2);
+            Assert.Equal(0.25f, current[0].inTangent.normalizedValue, 2);
+        }
+
+        [Fact]
         public void 自動補間フラグは変換で解除される()
         {
             var prev = NewValues(1);

@@ -136,8 +136,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         bool hasColor { get; }
         bool hasSubColor { get; }
         bool hasVisible { get; }
-        bool hasEasing { get; }
-
         /// <summary>easing 値のスロットを values 内に持つ型か (旧 easing 型の判定用)</summary>
         bool hasEasingChannel { get; }
         bool hasTangent { get; }

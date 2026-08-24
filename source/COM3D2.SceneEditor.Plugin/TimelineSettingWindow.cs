@@ -280,15 +280,6 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineManager.ApplyCurrentFrame(true);
             });
 
-            view.DrawToggle("イージングを次のキーフレームに適用", timeline.isEasingAppliedToNextKeyframe, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.isEasingAppliedToNextKeyframe = newValue;
-                timelineManager.ApplyCurrentFrame(true);
-            });
-
-            view.DrawHorizontalLine(Color.gray);
-
-
             view.DrawHorizontalLine(Color.gray);
 
             DrawPostEffectSection(view);
@@ -336,10 +327,6 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
-        /// <summary>
-        /// タンジェント補間トグル 1 行。
-        /// 切り替え時は対象レイヤーのタンジェントを作り直して現在フレームを再適用する
-        /// </summary>
         /// <summary>BGM の読み込みと BPM ライン表示 (MTE TimelineSettingUI から移植)</summary>
         private void DrawBGMSetting(GUIView view)
         {

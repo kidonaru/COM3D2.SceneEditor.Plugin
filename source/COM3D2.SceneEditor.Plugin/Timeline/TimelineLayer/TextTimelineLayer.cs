@@ -177,7 +177,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.eulerAngles = rect.localEulerAngles;
                 trans.scale = rect.localScale;
                 trans.color = text.color;
-                trans.easing = GetEasing(frame.frameNo, boneName);
                 trans.index = index;
                 trans.fontSize = text.fontSize;
                 trans.lineSpacing = (int)text.lineSpacing;

@@ -136,7 +136,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 var trans = frame.GetOrCreateTransformData<TransformDataModelMaterial>(materialName);
                 trans.Apply(sourceMaterial);
-                trans.easing = GetEasing(frame.frameNo, materialName);
             }
         }
 

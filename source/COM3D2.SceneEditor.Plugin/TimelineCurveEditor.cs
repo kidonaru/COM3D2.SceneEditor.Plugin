@@ -23,11 +23,17 @@ namespace COM3D2.SceneEditor.Plugin
         private const float SAMPLE_STEP = 2f;
         /// <summary>全身ボーン選択時の draw call 急増を避けるための表示上限</summary>
         private const int MAX_CHANNELS = 12;
+        // 以下はいずれも px。マーカーより当たり判定をひと回り広く取る
         private const float KEY_MARKER_SIZE = 6f;
         private const float HANDLE_LEN = 30f;
         private const float HANDLE_MARKER_SIZE = 6f;
         private const float KEY_HIT_RADIUS = 8f;
         private const float HANDLE_HIT_RADIUS = 6f;
+
+        // プリセットボタンはラベル長から幅を見積もる。和字は 1 文字が推定幅より広いが、
+        // 実ラベル ("線形") は短くパディングに収まるため計測 API は使わない
+        private const float PRESET_CHAR_WIDTH = 9f;
+        private const float PRESET_PADDING = 10f;
 
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
@@ -203,7 +209,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var preset in TangentPresets)
             {
-                var width = preset.Key.Length * 9f + 10f;
+                var width = preset.Key.Length * PRESET_CHAR_WIDTH + PRESET_PADDING;
                 view.currentPos = new Vector2(x, barRect.y);
                 if (view.DrawButton(preset.Key, width, TOGGLE_BAR_HEIGHT))
                 {
@@ -325,6 +331,12 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 HandleInput(view, paneRect, scrollX);
             }
+            else if (_dragMode != DragMode.None)
+            {
+                // 操作不能中は MouseUp を拾えない。次に有効化されたとき古い対象を
+                // 掴み続けないよう、ここでドラッグを打ち切る
+                EndDrag();
+            }
         }
 
         /// <summary>キー点とタンジェントハンドルのドラッグ処理</summary>
@@ -402,6 +414,12 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 for (var i = 0; i < channel.values.Count; i++)
                 {
+                    // 半透明表示の非選択キーを誤ってドラッグしないようハンドルと同じ条件で絞る
+                    if (!IsHandleVisible(channel, i))
+                    {
+                        continue;
+                    }
+
                     var keyPos = new Vector2(
                         _mapping.FrameToX(channel.frameNos[i]) - scrollX,
                         _mapping.ValueToY(channel.values[i].value));

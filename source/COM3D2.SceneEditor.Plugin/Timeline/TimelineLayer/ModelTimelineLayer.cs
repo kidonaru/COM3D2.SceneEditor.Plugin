@@ -173,7 +173,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.position = model.transform.localPosition;
                 trans.rotation = model.transform.localRotation;
                 trans.scale = model.transform.localScale;
-                trans.easing = GetEasing(frame.frameNo, modelName);
                 trans.visible = model.visible;
 
                 var bone = frame.CreateBone(trans);
@@ -216,7 +215,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
         }
-        
+
         public void DrawModelEdit(GUIView view)
         {
             var models = modelManager.models;

@@ -110,7 +110,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             distance = tempScale.x;
             viewAngle = tempScale.y;
-            
+
 
             if (config.isFixedFoV && !isCurrent && studioHackManager.isPoseEditing)
             {
@@ -157,7 +157,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var trans = CreateTransformData<TransformDataCamera>(CameraBoneName);
             trans.position = target.position;
             trans.eulerAngles = new Vector3(angle.y, angle.x, rotZ);
-            trans.easing = GetEasing(frame.frameNo, CameraBoneName);
             trans.scale = new Vector3(uoCamera.distance, camera.fieldOfView, 0);
 
             var bone = frame.CreateBone(trans);
@@ -217,7 +216,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     value = position.x,
                     onChanged = x => position.x = x,
                 });
-            
+
             updateTransform |= view.DrawSliderValue(
                 new GUIView.SliderOption
                 {

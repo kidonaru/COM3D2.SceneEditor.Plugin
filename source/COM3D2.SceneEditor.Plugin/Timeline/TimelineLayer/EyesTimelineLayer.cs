@@ -292,7 +292,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     var eyesValue = GetEyesValue(eyesType);
                     trans.horizon = eyesValue.x;
                     trans.vertical = eyesValue.y;
-                    trans.easing = GetEasing(frame.frameNo, eyesName);
 
                     var bone = frame.CreateBone(trans);
                     frame.UpdateBone(bone);

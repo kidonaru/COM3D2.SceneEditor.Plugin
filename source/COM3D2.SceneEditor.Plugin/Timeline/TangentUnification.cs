@@ -13,7 +13,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>タイムライン全体を Tangent 補間へ変換する</summary>
         public static void ConvertTimeline(TimelineData timeline)
         {
-            if (timeline == null)
+            // 変換済みタイムラインを再変換すると、カーブエディタで編集した Tangent が
+            // easing=0 (Linear) 由来の (1, 1) で潰れる。Undo/Redo も同じロード経路を
+            // 通るため、適用済みフラグで一度きりに制限する
+            if (timeline == null || timeline.isTangentUnified)
             {
                 return;
             }
@@ -31,6 +34,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             timeline.isTangentModel = true;
             timeline.isTangentModelBone = true;
             timeline.isTangentModelShapeKey = true;
+
+            timeline.isTangentUnified = true;
         }
 
         private static void ConvertLayer(ITimelineLayer layer)

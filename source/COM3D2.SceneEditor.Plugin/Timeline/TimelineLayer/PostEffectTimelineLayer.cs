@@ -160,7 +160,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         var trans = CreateTransformData<TransformDataDepthOfField>(effectName);
                         trans.depthOfField = postEffectManager.GetDepthOfFieldData();
-                        trans.easing = GetEasing(frame.frameNo, effectName);
 
                         var bone = frame.CreateBone(trans);
                         frame.UpdateBone(bone);
@@ -170,7 +169,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         var trans = CreateTransformData<TransformDataParaffin>(effectName);
                         trans.paraffin = postEffectManager.GetParaffinData(trans.index);
-                        trans.easing = GetEasing(frame.frameNo, effectName);
 
                         var bone = frame.CreateBone(trans);
                         frame.UpdateBone(bone);
@@ -180,7 +178,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         var trans = CreateTransformData<TransformDataDistanceFog>(effectName);
                         trans.distanceFog = postEffectManager.GetDistanceFogData(trans.index);
-                        trans.easing = GetEasing(frame.frameNo, effectName);
 
                         var bone = frame.CreateBone(trans);
                         frame.UpdateBone(bone);
@@ -190,7 +187,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         var trans = CreateTransformData<TransformDataRimlight>(effectName);
                         trans.rimlight = postEffectManager.GetRimlightData(trans.index);
-                        trans.easing = GetEasing(frame.frameNo, effectName);
 
                         var bone = frame.CreateBone(trans);
                         frame.UpdateBone(bone);
@@ -200,7 +196,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         var trans = CreateTransformData<TransformDataGTToneMap>(effectName);
                         trans.data = postEffectManager.GetGTToneMapData();
-                        trans.easing = GetEasing(frame.frameNo, effectName);
 
                         var bone = frame.CreateBone(trans);
                         frame.UpdateBone(bone);

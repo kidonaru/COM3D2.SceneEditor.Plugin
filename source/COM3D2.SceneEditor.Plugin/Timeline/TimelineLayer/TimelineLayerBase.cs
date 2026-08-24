@@ -466,11 +466,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return null;
         }
 
-        public float CalcEasingValue(float t, int easing)
-        {
-            return EasingFunctions.MoveEasing(t, (MoveEasingType) easing);
-        }
-
         /// <summary>区間の代表 Tangent から 0→1 の補間率を作る。
         /// フィールドごとの ValueData を個別に補間できない集約型 (Paraffin / Rimlight 等) 用。
         /// 形状キャリアには旧 easing スロットの Tangent を使う。全チャンネルが同一形状だった
@@ -893,7 +888,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var frame = GetOrCreateFrame(frameNo);
             frame.SetBones(bones);
         }
-        
+
         public void UpdateBone(int frameNo, BoneData bone)
         {
             var frame = GetOrCreateFrame(frameNo);
@@ -1186,7 +1181,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 return;
             }
-            
+
             bool removed = false;
 
             foreach (var frame in keyFrames)
@@ -1363,18 +1358,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     bone.transform.InitTangent();
                 }
             }
-        }
-
-        public int GetEasing(int frameNo, string boneName)
-        {
-            var bone = GetBone(frameNo, boneName);
-            if (bone != null)
-            {
-                return bone.transform.easing;
-            }
-
-            // Tangent 統一により easing 値は補間に使われない。既定は Linear (0)
-            return 0;
         }
 
         public void FromXml(TimelineLayerXml xml)

@@ -130,7 +130,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             trans.position = maid.transform.localPosition;
             trans.rotation = maid.transform.localRotation;
             trans.scale = maid.transform.localScale;
-            trans.easing = GetEasing(frame.frameNo, MoveBoneName);
 
             var bone = frame.CreateBone(trans);
             frame.UpdateBone(bone);
