@@ -81,14 +81,6 @@ namespace COM3D2.SceneEditor.Plugin
             showArrow = false,
         };
 
-        private readonly GUIComboBox<int> _easingComboBox = new GUIComboBox<int>
-        {
-            items = Enumerable.Range(0, (int)MTEP.MoveEasingType.Max).ToList(),
-            getName = (type, index) => ((MTEP.MoveEasingType)type).ToString(),
-            buttonSize = new Vector2(100, 20),
-            showArrow = false,
-        };
-
         /// <summary>プリセットボタンの表示名と対応する TangentType</summary>
         private static readonly KeyValuePair<string, MTEP.TangentType>[] TangentPresets = {
             new KeyValuePair<string, MTEP.TangentType>("EaseInOut", MTEP.TangentType.EaseInOut),
@@ -193,7 +185,7 @@ namespace COM3D2.SceneEditor.Plugin
                 });
         }
 
-        /// <summary>種別フィルタ・プリセット・自動補間・Easing を横並びで描き、右端の X を返す</summary>
+        /// <summary>種別フィルタ・プリセット・自動補間を横並びで描き、右端の X を返す</summary>
         private float DrawToolbar(GUIView view, Rect barRect, float startX)
         {
             var x = startX;
@@ -230,16 +222,6 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TimelineHistoryManager.instance.AddHistory(timeline, "カーブ: 自動補間");
             });
             x += 85;
-
-            // Phase A 暫定: easing レイヤーだけ従来の Easing 選択を残す
-            if (selectedBones.Any(bone => bone.transform.hasEasing))
-            {
-                view.currentPos = new Vector2(x, barRect.y);
-                _easingComboBox.currentIndex = GetCommonEasing();
-                _easingComboBox.onSelected = (easing, index) => ApplyEasing(easing);
-                _easingComboBox.DrawButton(view);
-                x += _easingComboBox.buttonSize.x + 5;
-            }
 
             return x;
         }
@@ -290,48 +272,6 @@ namespace COM3D2.SceneEditor.Plugin
             currentLayer.ApplyCurrentFrame(true);
             MTEP.TimelineHistoryManager.instance.AddHistory(
                 timeline, "カーブ: プリセット " + tangentType);
-        }
-
-        /// <summary>選択ボーンで共通の easing 値。混在時は -1</summary>
-        private int GetCommonEasing()
-        {
-            var easing = -1;
-            var initialized = false;
-
-            foreach (var bone in selectedBones)
-            {
-                if (!bone.transform.hasEasing)
-                {
-                    continue;
-                }
-                if (!initialized)
-                {
-                    easing = bone.transform.easing;
-                    initialized = true;
-                }
-                else if (easing != bone.transform.easing)
-                {
-                    return -1;
-                }
-            }
-            return easing;
-        }
-
-        private void ApplyEasing(int easing)
-        {
-            var max = (int)MTEP.MoveEasingType.Max;
-            easing = (easing + max) % max;
-
-            foreach (var bone in selectedBones)
-            {
-                if (bone.transform.hasEasing)
-                {
-                    bone.transform.easing = easing;
-                }
-            }
-
-            currentLayer.ApplyCurrentFrame(true);
-            MTEP.TimelineHistoryManager.instance.AddHistory(timeline, "カーブ: Easing 変更");
         }
 
         /// <summary>カーブ描画領域。paneRect はウィンドウローカル座標</summary>
@@ -539,11 +479,10 @@ namespace COM3D2.SceneEditor.Plugin
             _dragChanged = false;
         }
 
-        /// <summary>選択中キーのみハンドルを出す。easing レイヤーは Phase A では対象外</summary>
+        /// <summary>選択中キーのみハンドルを出す</summary>
         private bool IsHandleVisible(CurveChannel channel, int keyIndex)
         {
-            var bone = channel.keyBones[keyIndex];
-            return selectedBones.Contains(bone) && !bone.transform.hasEasing;
+            return selectedBones.Contains(channel.keyBones[keyIndex]);
         }
 
         /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)。
@@ -778,7 +717,6 @@ namespace COM3D2.SceneEditor.Plugin
                     return EvaluateSegment(
                         channel.frameNos[i], channel.values[i],
                         channel.frameNos[i + 1], channel.values[i + 1],
-                        channel.keyBones[i + 1],
                         frameNo);
                 }
             }
@@ -791,19 +729,11 @@ namespace COM3D2.SceneEditor.Plugin
         private static float EvaluateSegment(
             int frameA, MTEP.ValueData a,
             int frameB, MTEP.ValueData b,
-            MTEP.BoneData boneB,   // easing はキー B (区間終端) 側が持つ
             float f)
         {
             var dtFrames = frameB - frameA;
             if (dtFrames <= 0) return a.value;
             var t = (f - frameA) / dtFrames;
-
-            if (boneB.transform.hasEasing)
-            {
-                // Phase A 時点: easing レイヤーは easing 関数で描画する
-                var e = MTEP.EasingFunctions.MoveEasing(t, (MTEP.MoveEasingType)boneB.transform.easing);
-                return a.value + (b.value - a.value) * e;
-            }
 
             // 再生と同一形状にするため t0/t1 は秒単位で渡す (単位系の原則を参照)
             var frameDuration = timeline.frameDuration;

@@ -91,41 +91,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            view.DrawToggle("モデルのタンジェント補間を有効化", timeline.isTangentModel, -1, 20, newValue =>
-            {
-                timeline.isTangentModel = newValue;
 
-                var layer = timelineManager.GetLayer<ModelTimelineLayer>();
-                if (layer != null)
-                {
-                    layer.InitTangent();
-                    layer.ApplyCurrentFrame(true);
-                }
-            });
 
-            view.DrawToggle("モデルボーンのタンジェント補間を有効化", timeline.isTangentModelBone, -1, 20, newValue =>
-            {
-                timeline.isTangentModelBone = newValue;
-
-                var layer = timelineManager.GetLayer<ModelBoneTimelineLayer>();
-                if (layer != null)
-                {
-                    layer.InitTangent();
-                    layer.ApplyCurrentFrame(true);
-                }
-            });
-
-            view.DrawToggle("モデルシェイプのタンジェント補間を有効化", timeline.isTangentModelShapeKey, -1, 20, newValue =>
-            {
-                timeline.isTangentModelShapeKey = newValue;
-
-                var layer = timelineManager.GetLayer<ModelShapeKeyTimelineLayer>();
-                if (layer != null)
-                {
-                    layer.InitTangent();
-                    layer.ApplyCurrentFrame(true);
-                }
-            });
 
             view.EndScrollView();
         }

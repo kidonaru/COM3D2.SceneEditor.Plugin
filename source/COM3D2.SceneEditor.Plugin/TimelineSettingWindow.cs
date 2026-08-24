@@ -116,19 +116,6 @@ namespace COM3D2.SceneEditor.Plugin
             },
         };
 
-        private readonly GUIComboBox<MTEP.MoveEasingType> _defaultEasingTypeComboBox = new GUIComboBox<MTEP.MoveEasingType>
-        {
-            // Max は要素数を表す番兵で、選ぶとイージング関数の添字が範囲外になるため候補から外す
-            items = Enum.GetValues(typeof(MTEP.MoveEasingType)).Cast<MTEP.MoveEasingType>()
-                .Where(type => type != MTEP.MoveEasingType.Max).ToList(),
-            getName = (type, index) => type.ToString(),
-            onSelected = (type, index) =>
-            {
-                timelineConfig.defaultEasingType = type;
-                timelineConfig.dirty = true;
-            },
-        };
-
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
@@ -301,7 +288,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            DrawTangentSection(view);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -331,30 +317,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>レイヤー種別ごとのタンジェント補間の有効化</summary>
-        private void DrawTangentSection(GUIView view)
-        {
-            view.DrawLabel("タンジェント補間", -1, ROW_HEIGHT);
-
-            DrawTangentToggle(view, "カメラ", timeline.isTangentCamera,
-                newValue => timeline.isTangentCamera = newValue, typeof(MTEP.CameraTimelineLayer));
-
-            DrawTangentToggle(view, "ライト", timeline.isTangentLight,
-                newValue => timeline.isTangentLight = newValue, typeof(MTEP.LightTimelineLayer));
-
-            DrawTangentToggle(view, "メイド移動", timeline.isTangentMove,
-                newValue => timeline.isTangentMove = newValue, typeof(MTEP.MoveTimelineLayer));
-
-            DrawTangentToggle(view, "モデル", timeline.isTangentModel,
-                newValue => timeline.isTangentModel = newValue, typeof(MTEP.ModelTimelineLayer));
-
-            DrawTangentToggle(view, "モデルボーン", timeline.isTangentModelBone,
-                newValue => timeline.isTangentModelBone = newValue, typeof(MTEP.ModelBoneTimelineLayer));
-
-            DrawTangentToggle(view, "モデルシェイプ", timeline.isTangentModelShapeKey,
-                newValue => timeline.isTangentModelShapeKey = newValue, typeof(MTEP.ModelShapeKeyTimelineLayer));
-        }
-
         /// <summary>ポストエフェクトの拡張と地面色の連動</summary>
         private void DrawPostEffectSection(GUIView view)
         {
@@ -378,21 +340,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// タンジェント補間トグル 1 行。
         /// 切り替え時は対象レイヤーのタンジェントを作り直して現在フレームを再適用する
         /// </summary>
-        private void DrawTangentToggle(
-            GUIView view, string label, bool value, Action<bool> setValue, Type layerType)
-        {
-            view.DrawToggle(label, value, -1, ROW_HEIGHT, newValue =>
-            {
-                setValue(newValue);
-
-                foreach (var targetLayer in timelineManager.FindLayers(layerType))
-                {
-                    targetLayer.InitTangent();
-                    targetLayer.ApplyCurrentFrame(true);
-                }
-            });
-        }
-
         /// <summary>BGM の読み込みと BPM ライン表示 (MTE TimelineSettingUI から移植)</summary>
         private void DrawBGMSetting(GUIView view)
         {
@@ -846,9 +793,6 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _defaultTangentTypeComboBox.currentIndex = (int)timelineConfig.defaultTangentType;
             _defaultTangentTypeComboBox.DrawButton("初期補間曲線", view);
-
-            _defaultEasingTypeComboBox.currentIndex = (int)timelineConfig.defaultEasingType;
-            _defaultEasingTypeComboBox.DrawButton("初期イージング", view);
 
             view.DrawSliderValue(new GUIView.SliderOption
             {

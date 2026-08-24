@@ -1373,7 +1373,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return bone.transform.easing;
             }
 
-            return (int) config.defaultEasingType;
+            // Tangent 統一により easing 値は補間に使われない。既定は Linear (0)
+            return 0;
         }
 
         public void FromXml(TimelineLayerXml xml)

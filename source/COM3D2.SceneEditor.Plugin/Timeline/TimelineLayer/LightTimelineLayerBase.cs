@@ -38,12 +38,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            view.DrawToggle("ライトのタンジェント補間を有効化", timeline.isTangentLight, -1, 20, newValue =>
-            {
-                timeline.isTangentLight = newValue;
-                InitTangent();
-                ApplyCurrentFrame(true);
-            });
 
             view.DrawToggle("ライトで色補間を有効化", timeline.isLightColorEasing, -1, 20, newValue =>
             {
