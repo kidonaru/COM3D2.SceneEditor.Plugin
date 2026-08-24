@@ -23,6 +23,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>全身ボーン選択時の draw call 急増を避けるための表示上限</summary>
         private const int MAX_CHANNELS = 12;
         private const float KEY_MARKER_SIZE = 6f;
+        private const float HANDLE_LEN = 30f;
+        private const float HANDLE_MARKER_SIZE = 6f;
+        private const float KEY_HIT_RADIUS = 8f;
+        private const float HANDLE_HIT_RADIUS = 6f;
 
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
@@ -69,6 +73,23 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>直近の描画で使ったマッピング。ヒットテストは描画済みの座標系に合わせる</summary>
         private MTEP.CurveViewMapping _mapping = null;
         private List<CurveChannel> _channels = new List<CurveChannel>();
+
+        private enum DragMode
+        {
+            None,
+            KeyValue,
+            Tangent,
+        }
+
+        private DragMode _dragMode = DragMode.None;
+        /// <summary>ドラッグ対象のキー値。CurveChannel は毎フレーム作り直すため実体を直接保持する</summary>
+        private MTEP.ValueData _dragValue = null;
+        private MTEP.TangentData _dragTangent = null;
+        private bool _dragTangentIsOut = false;
+        /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)</summary>
+        private float _dragBaseSlopePerFrame = 0f;
+        private int _dragKeyFrameNo = 0;
+        private bool _dragChanged = false;
 
         /// <summary>1 本のカーブ = 1 ボーン × 1 値チャンネル</summary>
         private class CurveChannel
@@ -178,6 +199,7 @@ namespace COM3D2.SceneEditor.Plugin
                 foreach (var channel in _channels)
                 {
                     DrawChannelKeys(view, channel, paneRect, scrollX);
+                    DrawChannelHandles(view, channel, paneRect, scrollX);
                 }
 
                 if (totalChannelCount > _channels.Count)
@@ -188,6 +210,214 @@ namespace COM3D2.SceneEditor.Plugin
                         260, 18, Color.gray);
                 }
             }
+
+            if (guiEnabled)
+            {
+                HandleInput(view, paneRect, scrollX);
+            }
+        }
+
+        /// <summary>キー点とタンジェントハンドルのドラッグ処理</summary>
+        private void HandleInput(GUIView view, Rect paneRect, float scrollX)
+        {
+            // paneRect はビューローカル。イベント座標系へ合わせるため原点を変換する
+            var origin = view.GetDrawRect(paneRect.x, paneRect.y, 1f, 1f);
+            var mouse = Event.current.mousePosition - new Vector2(origin.x, origin.y);
+            var e = Event.current;
+
+            if (_dragMode != DragMode.None)
+            {
+                if (!Input.GetMouseButton(0))
+                {
+                    EndDrag();
+                }
+                else
+                {
+                    UpdateDrag(mouse, scrollX);
+                    if (e.type == EventType.MouseDrag)
+                    {
+                        e.Use();
+                    }
+                }
+                return;
+            }
+
+            if (e.type != EventType.MouseDown || e.button != 0)
+            {
+                return;
+            }
+            if (mouse.x < 0f || mouse.x > paneRect.width || mouse.y < 0f || mouse.y > paneRect.height)
+            {
+                return;
+            }
+
+            // ハンドルはキーの上に描かれるため先にヒットテストする
+            foreach (var channel in _channels)
+            {
+                for (var i = 0; i < channel.values.Count; i++)
+                {
+                    if (!IsHandleVisible(channel, i))
+                    {
+                        continue;
+                    }
+
+                    for (var side = 0; side < 2; side++)
+                    {
+                        var isOut = side == 0;
+                        if (!TryGetBaseSlopePerFrame(channel, i, isOut, out var baseSlope))
+                        {
+                            continue;
+                        }
+
+                        var handlePos = GetHandlePos(channel, i, isOut, scrollX);
+                        if (Vector2.Distance(handlePos, mouse) > HANDLE_HIT_RADIUS)
+                        {
+                            continue;
+                        }
+
+                        _dragMode = DragMode.Tangent;
+                        _dragValue = channel.values[i];
+                        _dragTangent = isOut ? _dragValue.outTangent : _dragValue.inTangent;
+                        _dragTangentIsOut = isOut;
+                        _dragBaseSlopePerFrame = baseSlope;
+                        _dragKeyFrameNo = channel.frameNos[i];
+                        _dragChanged = false;
+                        e.Use();
+                        return;
+                    }
+                }
+            }
+
+            foreach (var channel in _channels)
+            {
+                for (var i = 0; i < channel.values.Count; i++)
+                {
+                    var keyPos = new Vector2(
+                        _mapping.FrameToX(channel.frameNos[i]) - scrollX,
+                        _mapping.ValueToY(channel.values[i].value));
+                    if (Vector2.Distance(keyPos, mouse) > KEY_HIT_RADIUS)
+                    {
+                        continue;
+                    }
+
+                    _dragMode = DragMode.KeyValue;
+                    _dragValue = channel.values[i];
+                    _dragKeyFrameNo = channel.frameNos[i];
+                    _dragChanged = false;
+                    e.Use();
+                    return;
+                }
+            }
+        }
+
+        private void UpdateDrag(Vector2 mouse, float scrollX)
+        {
+            if (_dragMode == DragMode.KeyValue)
+            {
+                var newValue = _mapping.YToValue(mouse.y);
+                if (newValue == _dragValue.value)
+                {
+                    return;
+                }
+                _dragValue.value = newValue;
+                _dragChanged = true;
+                currentLayer.ApplyCurrentFrame(true);
+                return;
+            }
+
+            // タンジェント: キー点からマウスまでの画面勾配を「値/フレーム」へ戻して正規化する
+            var keyX = _mapping.FrameToX(_dragKeyFrameNo) - scrollX;
+            var keyY = _mapping.ValueToY(_dragValue.value);
+            var dx = mouse.x - keyX;
+            var dy = mouse.y - keyY;
+
+            // out は右側、in は左側のハンドル。逆方向へ回り込んだ入力は無視する
+            if (_dragTangentIsOut ? dx <= 0f : dx >= 0f)
+            {
+                return;
+            }
+
+            var valueSlope = _mapping.ScreenSlopeToValueSlope(dx, dy);
+            var normalized = valueSlope / _dragBaseSlopePerFrame;
+            if (float.IsNaN(normalized) || float.IsInfinity(normalized))
+            {
+                return;
+            }
+            if (normalized == _dragTangent.normalizedValue && !_dragTangent.isSmooth)
+            {
+                return;
+            }
+
+            _dragTangent.normalizedValue = normalized;
+            _dragTangent.isSmooth = false;
+            _dragChanged = true;
+            currentLayer.ApplyCurrentFrame(true);
+        }
+
+        private void EndDrag()
+        {
+            if (_dragChanged)
+            {
+                MTEP.TimelineHistoryManager.instance.AddHistory(
+                    timeline,
+                    _dragMode == DragMode.KeyValue ? "カーブ: 値変更" : "カーブ: タンジェント変更");
+            }
+
+            _dragMode = DragMode.None;
+            _dragValue = null;
+            _dragTangent = null;
+            _dragChanged = false;
+        }
+
+        /// <summary>選択中キーのみハンドルを出す。easing レイヤーは Phase A では対象外</summary>
+        private bool IsHandleVisible(CurveChannel channel, int keyIndex)
+        {
+            var bone = channel.keyBones[keyIndex];
+            return selectedBones.Contains(bone) && !bone.transform.hasEasing;
+        }
+
+        /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)。
+        /// UpdateTangent と同じく inTangent は流入区間、outTangent は流出区間を基準にする</summary>
+        private static bool TryGetBaseSlopePerFrame(
+            CurveChannel channel, int keyIndex, bool isOut, out float baseSlope)
+        {
+            baseSlope = 0f;
+
+            var otherIndex = isOut ? keyIndex + 1 : keyIndex - 1;
+            if (otherIndex < 0 || otherIndex >= channel.values.Count)
+            {
+                return false;
+            }
+
+            var dtFrames = channel.frameNos[otherIndex] - channel.frameNos[keyIndex];
+            if (dtFrames == 0)
+            {
+                return false;
+            }
+
+            baseSlope = (channel.values[otherIndex].value - channel.values[keyIndex].value) / dtFrames;
+            return baseSlope != 0f;
+        }
+
+        /// <summary>ハンドル先端のペイン内座標</summary>
+        private Vector2 GetHandlePos(CurveChannel channel, int keyIndex, bool isOut, float scrollX)
+        {
+            var keyX = _mapping.FrameToX(channel.frameNos[keyIndex]) - scrollX;
+            var keyY = _mapping.ValueToY(channel.values[keyIndex].value);
+
+            var tangent = isOut
+                ? channel.values[keyIndex].outTangent
+                : channel.values[keyIndex].inTangent;
+
+            // TangentData.value は値/秒なのでフレームあたり勾配へ換算してから画面勾配にする
+            var slopePerFrame = tangent.value * timeline.frameDuration;
+            var pxPerValue = _mapping.paneHeight / (_mapping.valueMax - _mapping.valueMin);
+
+            var dx = isOut ? _mapping.frameWidth : -_mapping.frameWidth;
+            var dy = -slopePerFrame * pxPerValue * (isOut ? 1f : -1f);
+
+            var dir = new Vector2(dx, dy).normalized;
+            return new Vector2(keyX, keyY) + dir * HANDLE_LEN;
         }
 
         /// <summary>選択ボーンから描画対象チャンネルを収集する</summary>
@@ -493,6 +723,63 @@ namespace COM3D2.SceneEditor.Plugin
                 view.currentPos = new Vector2(paneRect.x + x - half, paneRect.y + y - half);
                 view.DrawTexture(GUIView.texWhite, KEY_MARKER_SIZE, KEY_MARKER_SIZE, color);
             }
+        }
+
+        /// <summary>選択キーの in/out タンジェントハンドルを描画する</summary>
+        private void DrawChannelHandles(GUIView view, CurveChannel channel, Rect paneRect, float scrollX)
+        {
+            var handleColor = new Color(1f, 1f, 1f, 0.8f);
+            var half = HANDLE_MARKER_SIZE * 0.5f;
+
+            for (var i = 0; i < channel.values.Count; i++)
+            {
+                if (!IsHandleVisible(channel, i))
+                {
+                    continue;
+                }
+
+                var keyPos = new Vector2(
+                    _mapping.FrameToX(channel.frameNos[i]) - scrollX,
+                    _mapping.ValueToY(channel.values[i].value));
+
+                for (var side = 0; side < 2; side++)
+                {
+                    var isOut = side == 0;
+                    if (!TryGetBaseSlopePerFrame(channel, i, isOut, out _))
+                    {
+                        continue;
+                    }
+
+                    var handlePos = GetHandlePos(channel, i, isOut, scrollX);
+
+                    // 線分はカーブと同じく小さな矩形の連続で描く
+                    var steps = Mathf.CeilToInt(HANDLE_LEN / SAMPLE_STEP);
+                    for (var s = 1; s <= steps; s++)
+                    {
+                        var p = Vector2.Lerp(keyPos, handlePos, s / (float)steps);
+                        if (!IsInPane(p, paneRect, 1f))
+                        {
+                            continue;
+                        }
+                        view.currentPos = new Vector2(paneRect.x + p.x - 1f, paneRect.y + p.y - 1f);
+                        view.DrawTexture(GUIView.texWhite, SAMPLE_STEP, SAMPLE_STEP, handleColor);
+                    }
+
+                    if (IsInPane(handlePos, paneRect, half))
+                    {
+                        view.currentPos = new Vector2(
+                            paneRect.x + handlePos.x - half, paneRect.y + handlePos.y - half);
+                        view.DrawTexture(
+                            GUIView.texWhite, HANDLE_MARKER_SIZE, HANDLE_MARKER_SIZE, handleColor);
+                    }
+                }
+            }
+        }
+
+        private static bool IsInPane(Vector2 pos, Rect paneRect, float margin)
+        {
+            return pos.x >= margin && pos.x <= paneRect.width - margin
+                && pos.y >= margin && pos.y <= paneRect.height - margin;
         }
     }
 }
