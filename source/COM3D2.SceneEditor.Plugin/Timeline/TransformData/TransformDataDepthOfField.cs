@@ -22,7 +22,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override int valueCount => 7;
 
         public override bool hasVisible => true;
-        public override bool hasEasing => true;
+        // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換と
+        // 集約型レイヤーの補間形状キャリアとして残す)
+        public override bool hasTangent => true;
+        public override ValueData[] tangentValues => values;
 
         public override ValueData visibleValue => values[(int)Index.Visible];
 

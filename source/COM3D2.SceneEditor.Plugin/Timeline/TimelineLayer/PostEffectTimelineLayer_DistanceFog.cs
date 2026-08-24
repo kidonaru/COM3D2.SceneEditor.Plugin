@@ -12,8 +12,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataDistanceFog;
             var end = motion.end as TransformDataDistanceFog;
 
-            float easingTime = CalcEasingValue(t, motion.easing);
-            var distanceFog = DistanceFogData.Lerp(start.distanceFog, end.distanceFog, easingTime);
+            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
+            float lerpTime = CalcTangentValue(motion, t);
+            var distanceFog = DistanceFogData.Lerp(start.distanceFog, end.distanceFog, lerpTime);
 
             var index = start.index;
             postEffectManager.ApplyDistanceFog(index, distanceFog);

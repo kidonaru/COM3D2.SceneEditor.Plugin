@@ -32,8 +32,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool hasPosition => true;
         public override bool hasEulerAngles => true;
         public override bool hasVisible => true;
-        public override bool hasEasing => !timeline.isTangentCamera;
-        public override bool hasTangent => timeline.isTangentCamera;
+        // Tangent 統一により常に Tangent 補間 (isTangentCamera は XML 互換で残るのみ)
+        public override bool hasTangent => true;
 
         // カメラはキーフレームのEnableで明示的に有効化する
         public override bool initialVisible => true;

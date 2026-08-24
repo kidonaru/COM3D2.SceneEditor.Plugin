@@ -106,20 +106,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataModelShapeKey;
             var end = motion.end as TransformDataModelShapeKey;
 
-            if (timeline.isTangentModelShapeKey)
-            {
-                var t0 = motion.stFrame * timeline.frameDuration;
-                var t1 = motion.edFrame * timeline.frameDuration;
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
 
-                var weight = PluginUtils.HermiteValue(t0, t1, start.weightValue, end.weightValue, t);
-                blendShape.weight = weight;
-            }
-            else
-            {
-                float easingTime = CalcEasingValue(t, motion.easing);
-                var weight = Mathf.Lerp(start.weight, end.weight, easingTime);
-                blendShape.weight = weight; 
-            }
+            var weight = PluginUtils.HermiteValue(t0, t1, start.weightValue, end.weightValue, t);
+            blendShape.weight = weight;
         }
 
         public void OnModelAdded(StudioModelStat model)

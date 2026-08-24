@@ -86,14 +86,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 ApplyMotionInit(motion, t, model);
             }
 
-            if (timeline.isTangentModel)
-            {
-                ApplyMotionUpdateTangent(motion, t, model);
-            }
-            else
-            {
-                ApplyMotionUpdateEasing(motion, t, model);
-            }
+            ApplyMotionUpdateTangent(motion, t, model);
         }
 
         private void ApplyMotionInit(MotionData motion, float t, StudioModelStat model)
@@ -107,30 +100,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             modelManager.SetModelVisible(model, start.visible && modelManager.Visible);
             model.visible = start.visible;
-        }
-
-        private void ApplyMotionUpdateEasing(MotionData motion, float t, StudioModelStat model)
-        {
-            var transform = model.transform;
-            var start = motion.start;
-            var end = motion.end;
-
-            float easingTime = CalcEasingValue(t, motion.easing);
-
-            if (start.position != end.position)
-            {
-                transform.localPosition = Vector3.Lerp(start.position, end.position, easingTime);
-            }
-
-            if (start.rotation != end.rotation)
-            {
-                transform.localRotation = Quaternion.Lerp(start.rotation, end.rotation, easingTime);
-            }
-
-            if (start.scale != end.scale)
-            {
-                transform.localScale = Vector3.Lerp(start.scale, end.scale, easingTime);
-            }
         }
 
         private void ApplyMotionUpdateTangent(MotionData motion, float t, StudioModelStat model)

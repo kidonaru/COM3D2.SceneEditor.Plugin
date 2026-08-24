@@ -471,6 +471,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return EasingFunctions.MoveEasing(t, (MoveEasingType) easing);
         }
 
+        /// <summary>区間の代表 Tangent から 0→1 の補間率を作る。
+        /// フィールドごとの ValueData を個別に補間できない集約型 (Paraffin / Rimlight 等) 用。
+        /// 形状キャリアには旧 easing スロットの Tangent を使う。全チャンネルが同一形状だった
+        /// 旧 easing の意味論をそのまま引き継ぎ、カーブ編集で個別チャンネルを触っても
+        /// 集約型の補間形状が意図せず変わらないようにする</summary>
+        protected float CalcTangentValue(MotionData motion, float t)
+        {
+            var start = motion.start;
+            var end = motion.end;
+            if (start == null || end == null || !start.hasEasingChannel)
+            {
+                return t;
+            }
+
+            return PluginUtils.HermiteSimplified(
+                start.easingValue.outTangent.normalizedValue,
+                end.easingValue.inTangent.normalizedValue,
+                t);
+        }
+
         public virtual void ResetDraw(GUIView view)
         {
             // do nothing

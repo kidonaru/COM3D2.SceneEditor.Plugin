@@ -101,8 +101,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 material.Apply(start);
             }
 
-            float easingTime = CalcEasingValue(t, motion.easing);
-            material.Lerp(start, end, easingTime);
+            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
+            float lerpTime = CalcTangentValue(motion, t);
+            material.Lerp(start, end, lerpTime);
         }
 
         public void OnBGModelSetup()

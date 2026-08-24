@@ -84,43 +84,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start;
             var end = motion.end;
 
-            if (timeline.isTangentCamera)
-            {
-                var t0 = motion.stFrame * timeline.frameDuration;
-                var t1 = motion.edFrame * timeline.frameDuration;
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
 
-                position = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.positionValues,
-                    end.positionValues,
-                    t);
+            position = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.positionValues,
+                end.positionValues,
+                t);
 
-                eulerAngles = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.eulerAnglesValues,
-                    end.eulerAnglesValues,
-                    t);
+            eulerAngles = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.eulerAnglesValues,
+                end.eulerAnglesValues,
+                t);
 
-                var tempScale = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.scaleValues,
-                    end.scaleValues,
-                    t);
+            var tempScale = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.scaleValues,
+                end.scaleValues,
+                t);
 
-                distance = tempScale.x;
-                viewAngle = tempScale.y;
-            }
-            else
-            {
-                float easing = CalcEasingValue(t, motion.easing);
-                position = Vector3.Lerp(start.position, end.position, easing);
-                eulerAngles = Vector3.Lerp(start.eulerAngles, end.eulerAngles, easing);
-                distance = Mathf.Lerp(start.scale.x, end.scale.x, easing);
-                viewAngle = Mathf.Lerp(start.scale.y, end.scale.y, easing);
-            }
+            distance = tempScale.x;
+            viewAngle = tempScale.y;
+            
 
             if (config.isFixedFoV && !isCurrent && studioHackManager.isPoseEditing)
             {

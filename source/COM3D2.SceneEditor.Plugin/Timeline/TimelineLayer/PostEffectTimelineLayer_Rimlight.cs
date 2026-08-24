@@ -12,8 +12,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataRimlight;
             var end = motion.end as TransformDataRimlight;
 
-            float easingTime = CalcEasingValue(t, motion.easing);
-            var rimlight = RimlightData.Lerp(start.rimlight, end.rimlight, easingTime);
+            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
+            float lerpTime = CalcTangentValue(motion, t);
+            var rimlight = RimlightData.Lerp(start.rimlight, end.rimlight, lerpTime);
 
             var index = start.index;
             postEffectManager.ApplyRimlight(index, rimlight);

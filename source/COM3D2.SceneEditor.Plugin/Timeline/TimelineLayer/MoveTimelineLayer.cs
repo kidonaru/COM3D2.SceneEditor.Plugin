@@ -66,14 +66,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 ApplyMotionInit(motion, t);
             }
 
-            if (timeline.isTangentMove)
-            {
-                ApplyMotionUpdateTangent(motion, t);
-            }
-            else
-            {
-                ApplyMotionUpdateEasing(motion, t);
-            }
+            ApplyMotionUpdateTangent(motion, t);
         }
 
         private void ApplyMotionInit(MotionData motion, float t)
@@ -84,31 +77,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             transform.localPosition = start.position;
             transform.localRotation = Quaternion.Euler(start.eulerAngles);
             transform.localScale = start.scale;
-        }
-
-        private void ApplyMotionUpdateEasing(MotionData motion, float t)
-        {
-            var transform = maid.transform;
-
-            var start = motion.start;
-            var end = motion.end;
-
-            float easingTime = CalcEasingValue(t, motion.easing);
-
-            if (start.position != end.position)
-            {
-                transform.localPosition = Vector3.Lerp(start.position, end.position, easingTime);
-            }
-
-            if (start.rotation != end.rotation)
-            {
-                transform.localRotation = Quaternion.Lerp(start.rotation, end.rotation, easingTime);
-            }
-
-            if (start.scale != end.scale)
-            {
-                transform.localScale = Vector3.Lerp(start.scale, end.scale, easingTime);
-            }
         }
 
         private void ApplyMotionUpdateTangent(MotionData motion, float t)

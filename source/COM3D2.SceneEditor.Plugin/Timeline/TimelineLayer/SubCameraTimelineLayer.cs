@@ -131,40 +131,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Vector3 position, eulerAngles;
             float fov;
 
-            if (timeline.isTangentCamera)
-            {
-                var t0 = motion.stFrame * timeline.frameDuration;
-                var t1 = motion.edFrame * timeline.frameDuration;
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
 
-                position = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.positionValues,
-                    end.positionValues,
-                    t);
+            position = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.positionValues,
+                end.positionValues,
+                t);
 
-                eulerAngles = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.eulerAnglesValues,
-                    end.eulerAnglesValues,
-                    t);
+            eulerAngles = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.eulerAnglesValues,
+                end.eulerAnglesValues,
+                t);
 
-                fov = PluginUtils.HermiteValue(
-                    t0,
-                    t1,
-                    start.fovValue,
-                    end.fovValue,
-                    t);
-            }
-            else
-            {
-                float easing = CalcEasingValue(t, motion.easing);
-                position = Vector3.Lerp(start.position, end.position, easing);
-                eulerAngles = Vector3.Lerp(start.eulerAngles, end.eulerAngles, easing);
-                fov = Mathf.Lerp(start.fov, end.fov, easing);
-                t = easing;
-            }
+            fov = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.fovValue,
+                end.fovValue,
+                t);
+            
 
             var startViewport = start.viewport;
             var endViewport = end.viewport;

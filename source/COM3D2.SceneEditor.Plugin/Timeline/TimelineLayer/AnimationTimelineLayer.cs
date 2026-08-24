@@ -119,8 +119,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (start.Weight != end.Weight)
             {
-                float easingTime = CalcEasingValue(t, motion.easing);
-                var weight = Mathf.Lerp(start.Weight, end.Weight, easingTime);
+                var weight = PluginUtils.HermiteValue(
+                    motion.stFrame * timeline.frameDuration,
+                    motion.edFrame * timeline.frameDuration,
+                    start.WeightValue,
+                    end.WeightValue,
+                    t);
                 info.weight = weight;
             }
 

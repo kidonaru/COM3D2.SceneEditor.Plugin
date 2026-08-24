@@ -24,7 +24,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             // 変換後は easing モードが残らないよう、全カテゴリを Tangent モードへ倒す
-            // (hasEasing はこれらのフラグの否定で定義されているため、以後は常に false になる)
+            // (フラグ自体は XML 互換のため残すが、補間経路はもう参照しない)
             timeline.isTangentCamera = true;
             timeline.isTangentLight = true;
             timeline.isTangentMove = true;
@@ -76,8 +76,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // easing を持たない (元から Tangent 補間の) 型は触らない
-            if (!transforms[0].hasEasing)
+            // easing スロットを持たない (元から Tangent 補間の) 型は触らない
+            if (!transforms[0].hasEasingChannel)
             {
                 return;
             }

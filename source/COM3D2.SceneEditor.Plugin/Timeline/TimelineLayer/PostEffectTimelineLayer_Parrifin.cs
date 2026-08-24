@@ -12,8 +12,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataParaffin;
             var end = motion.end as TransformDataParaffin;
 
-            float easingTime = CalcEasingValue(t, motion.easing);
-            var paraffin = ColorParaffinData.Lerp(start.paraffin, end.paraffin, easingTime);
+            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
+            float lerpTime = CalcTangentValue(motion, t);
+            var paraffin = ColorParaffinData.Lerp(start.paraffin, end.paraffin, lerpTime);
 
             var index = start.index;
             postEffectManager.ApplyParaffin(index, paraffin);

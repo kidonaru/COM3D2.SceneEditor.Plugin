@@ -147,7 +147,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual bool hasColor => false;
         public virtual bool hasSubColor => false;
         public virtual bool hasVisible => false;
+        // Tangent 統一により easing 補間は廃止。派生型の override も無い
         public virtual bool hasEasing => false;
+
+        /// <summary>easing 値のスロットを values 内に持つ型か
+        /// (旧 easing 型の判定と、集約型レイヤーの補間形状キャリア取得に使う)</summary>
+        public bool hasEasingChannel
+        {
+            get
+            {
+                var slot = easingValue;
+                foreach (var value in values)
+                {
+                    if (ReferenceEquals(value, slot)) return true;
+                }
+                return false;
+            }
+        }
         public virtual bool hasTangent => false;
 
         public virtual bool isHidden => false;
@@ -448,25 +464,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 float v0 = dx0 * dt0_inv;
                 float v1 = dx1 * dt1_inv;
 
-                if (inTangent.isSmooth || outTangent.isSmooth)
+                // 値が変化しないチャンネル (v0 / v1 が 0) は自動補間の基準勾配を作れない。
+                // ここで normalizedValue を 0 で潰すと、集約型レイヤーの補間形状キャリアとして
+                // 使っている easing スロットまでフラットになるため、既存値を維持する
+                if ((inTangent.isSmooth || outTangent.isSmooth) && v0 != 0f && v1 != 0f)
                 {
                     var tan = (x2 - x0) * dt_inv;
-                    float tan0 = 0f;
-                    float tan1 = 0f;
-
-                    if (v0 != 0f && v1 != 0f)
-                    {
-                        tan0 = tan / v0;
-                        tan1 = tan / v1;
-                    }
 
                     if (inTangent.isSmooth)
                     {
-                        inTangent.normalizedValue = tan0;
+                        inTangent.normalizedValue = tan / v0;
                     }
                     if (outTangent.isSmooth)
                     {
-                        outTangent.normalizedValue = tan1;
+                        outTangent.normalizedValue = tan / v1;
                     }
                 }
 
@@ -509,10 +520,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
-            if (hasEasing)
-            {
-                easing = (int) config.defaultEasingType;
-            }
         }
 
         protected float[] _valuesForXml
@@ -1001,7 +1008,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 visible = initialVisible;
             }
-            if (hasEasing)
+            if (hasEasingChannel)
             {
                 easing = 0;
             }

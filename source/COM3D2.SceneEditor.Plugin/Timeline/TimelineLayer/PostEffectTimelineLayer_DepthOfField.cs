@@ -12,8 +12,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataDepthOfField;
             var end = motion.end as TransformDataDepthOfField;
 
-            float easingTime = CalcEasingValue(t, motion.easing);
-            var depthOfField = DepthOfFieldData.Lerp(start.depthOfField, end.depthOfField, easingTime);
+            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
+            float lerpTime = CalcTangentValue(motion, t);
+            var depthOfField = DepthOfFieldData.Lerp(start.depthOfField, end.depthOfField, lerpTime);
 
             postEffectManager.ApplyDepthOfField(depthOfField);
         }

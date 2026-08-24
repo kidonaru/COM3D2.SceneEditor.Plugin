@@ -404,12 +404,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public SingleFrameType singleFrameType = SingleFrameType.Delay;
         public bool isEasingAppliedToNextKeyframe = false;
 
-        public bool isTangentCamera = false;
-        public bool isTangentLight = false;
-        public bool isTangentMove = false;
-        public bool isTangentModel = false;
-        public bool isTangentModelBone = false;
-        public bool isTangentModelShapeKey = false;
+        // Tangent 統一により補間経路はこれらを参照しない。XML 互換のためフィールドのみ残す
+        // (ロード時は XML の生値が入り、TangentUnification.ConvertTimeline が true へ倒す)
+        public bool isTangentCamera = true;
+        public bool isTangentLight = true;
+        public bool isTangentMove = true;
+        public bool isTangentModel = true;
+        public bool isTangentModelBone = true;
+        public bool isTangentModelShapeKey = true;
 
         public bool isLightColorEasing = true;
         public bool isLightExtraEasing = false;

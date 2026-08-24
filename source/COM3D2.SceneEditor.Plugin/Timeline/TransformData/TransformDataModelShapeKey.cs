@@ -13,8 +13,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override TransformType type => TransformType.ModelShapeKey;
 
         public override int valueCount => 2;
-        public override bool hasEasing => !timeline.isTangentModelShapeKey;
-        public override bool hasTangent => timeline.isTangentModelShapeKey;
+        // Tangent 統一により常に Tangent 補間 (isTangentModelShapeKey は XML 互換で残るのみ)
+        public override bool hasTangent => true;
 
         public override ValueData easingValue => values[(int)Index.Easing];
         public override ValueData[] tangentValues => values;

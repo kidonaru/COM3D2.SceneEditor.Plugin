@@ -100,14 +100,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 ApplyMotionInit(motion, t, stat);
             }
 
-            if (timeline.isTangentLight)
-            {
-                ApplyMotionUpdateTangent(motion, t, stat);
-            }
-            else
-            {
-                ApplyMotionUpdateEasing(motion, t, stat);
-            }
+            ApplyMotionUpdateTangent(motion, t, stat);
         }
 
         private void ApplyMotionInit(MotionData motion, float t, StudioLightStat stat)
@@ -132,72 +125,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             light.shadowBias = start.shadowBias;
 
             lightManager.ApplyLight(stat);
-        }
-
-        private void ApplyMotionUpdateEasing(MotionData motion, float t, StudioLightStat stat)
-        {
-            var light = stat.light;
-
-            var start = motion.start as TransformDataLight;
-            var end = motion.end as TransformDataLight;
-
-            float easingTime = CalcEasingValue(t, motion.easing);
-            var updated = false;
-
-            if (start.position != end.position)
-            {
-                stat.position = Vector3.Lerp(start.position, end.position, easingTime);
-                updated = true;
-            }
-
-            if (start.rotation != end.rotation)
-            {
-                stat.rotation = Quaternion.Lerp(start.rotation, end.rotation, easingTime);
-                updated = true;
-            }
-
-            if (timeline.isLightColorEasing)
-            {
-                if (start.color != end.color)
-                {
-                    light.color = Color.Lerp(start.color, end.color, easingTime);
-                    updated = true;
-                }
-            }
-
-            if (timeline.isLightExtraEasing)
-            {
-                if (start.range != end.range)
-                {
-                    light.range = Mathf.Lerp(start.range, end.range, easingTime);
-                    updated = true;
-                }
-                if (start.intensity != end.intensity)
-                {
-                    light.intensity = Mathf.Lerp(start.intensity, end.intensity, easingTime);
-                    updated = true;
-                }
-                if (start.spotAngle != end.spotAngle)
-                {
-                    light.spotAngle = Mathf.Lerp(start.spotAngle, end.spotAngle, easingTime);
-                    updated = true;
-                }
-                if (start.shadowStrength != end.shadowStrength)
-                {
-                    light.shadowStrength = Mathf.Lerp(start.shadowStrength, end.shadowStrength, easingTime);
-                    updated = true;
-                }
-                if (start.shadowBias != end.shadowBias)
-                {
-                    light.shadowBias = Mathf.Lerp(start.shadowBias, end.shadowBias, easingTime);
-                    updated = true;
-                }
-            }
-
-            if (updated)
-            {
-                lightManager.ApplyLight(stat);
-            }
         }
 
         private void ApplyMotionUpdateTangent(MotionData motion, float t, StudioLightStat stat)

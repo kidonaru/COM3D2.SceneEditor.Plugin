@@ -87,8 +87,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataShapeKey;
             var end = motion.end as TransformDataShapeKey;
 
-            float easingTime = CalcEasingValue(t, motion.easing);
-            var weight = Mathf.Lerp(start.weight, end.weight, easingTime);
+            var weight = PluginUtils.HermiteValue(
+                motion.stFrame * timeline.frameDuration,
+                motion.edFrame * timeline.frameDuration,
+                start.weightValue,
+                end.weightValue,
+                t);
             maidCache.SetBlendShapeValue(motion.name, weight);
         }
 

@@ -13,8 +13,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool hasRotation => true;
         public override bool hasScale => true;
         public override bool hasVisible => true;
-        public override bool hasEasing => !timeline.isTangentModel;
-        public override bool hasTangent => timeline.isTangentModel;
+        // Tangent 統一により常に Tangent 補間 (isTangentModel は XML 互換で残るのみ)
+        public override bool hasTangent => true;
 
         public override ValueData[] positionValues
         {

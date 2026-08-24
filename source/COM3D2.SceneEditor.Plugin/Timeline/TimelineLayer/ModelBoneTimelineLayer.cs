@@ -101,39 +101,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start;
             var end = motion.end;
 
-            if (timeline.isTangentModelBone)
-            {
-                var t0 = motion.stFrame * timeline.frameDuration;
-                var t1 = motion.edFrame * timeline.frameDuration;
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
 
-                transform.localPosition = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.positionValues,
-                    end.positionValues,
-                    t);
+            transform.localPosition = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.positionValues,
+                end.positionValues,
+                t);
 
-                transform.localRotation = PluginUtils.HermiteQuaternion(
-                    t0,
-                    t1,
-                    start.rotationValues,
-                    end.rotationValues,
-                    t);
+            transform.localRotation = PluginUtils.HermiteQuaternion(
+                t0,
+                t1,
+                start.rotationValues,
+                end.rotationValues,
+                t);
 
-                transform.localScale = PluginUtils.HermiteVector3(
-                    t0,
-                    t1,
-                    start.scaleValues,
-                    end.scaleValues,
-                    t);
-            }
-            else
-            {
-                float easingTime = CalcEasingValue(t, motion.easing);
-                transform.localPosition = Vector3.Lerp(start.position, end.position, easingTime);
-                transform.localRotation = Quaternion.Lerp(start.rotation, end.rotation, easingTime);
-                transform.localScale = Vector3.Lerp(start.scale, end.scale, easingTime);
-            }
+            transform.localScale = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.scaleValues,
+                end.scaleValues,
+                t);
         }
 
         public void OnModelAdded(StudioModelStat model)
