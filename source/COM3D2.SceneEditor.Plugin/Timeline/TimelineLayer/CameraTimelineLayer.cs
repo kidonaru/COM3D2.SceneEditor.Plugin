@@ -204,83 +204,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // SE 版 GUIView には IsComboBoxFocused がないため focusedComboBox 判定に置き換え
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "X",
-                    labelWidth = 30,
-                    min = -config.positionRange,
-                    max = config.positionRange,
-                    step = 0.01f,
-                    defaultValue = initialPosition.x,
-                    value = position.x,
-                    onChanged = x => position.x = x,
-                });
+            updateTransform |= DrawTransformVector3(
+                view, "位置", PositionSensitivity, position, initialPosition,
+                value => position = value);
 
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "Y",
-                    labelWidth = 30,
-                    min = -config.positionRange,
-                    max = config.positionRange,
-                    step = 0.01f,
-                    defaultValue = initialPosition.y,
-                    value = position.y,
-                    onChanged = y => position.y = y,
-                });
-
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "Z",
-                    labelWidth = 30,
-                    min = -config.positionRange,
-                    max = config.positionRange,
-                    step = 0.01f,
-                    defaultValue = initialPosition.z,
-                    value = position.z,
-                    onChanged = z => position.z = z,
-                });
-
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "RX",
-                    labelWidth = 30,
-                    min = prevAngles.x - 180f,
-                    max = prevAngles.x + 180f,
-                    step = 1f,
-                    defaultValue = initialEulerAngles.x,
-                    value = angles.x,
-                    onChanged = x => angles.x = x,
-                });
-
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "RY",
-                    labelWidth = 30,
-                    min = prevAngles.y - 180f,
-                    max = prevAngles.y + 180f,
-                    step = 1f,
-                    defaultValue = initialEulerAngles.y,
-                    value = angles.y,
-                    onChanged = y => angles.y = y,
-                });
-
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "RZ",
-                    labelWidth = 30,
-                    min = prevAngles.z - 180f,
-                    max = prevAngles.z + 180f,
-                    step = 1f,
-                    defaultValue = initialEulerAngles.z,
-                    value = angles.z,
-                    onChanged = z => angles.z = z,
-                });
+            updateTransform |= DrawTransformVector3(
+                view, "回転", RotationSensitivity, angles, initialEulerAngles,
+                value => angles = value);
 
             updateTransform |= view.DrawSliderValue(
                 new GUIView.SliderOption

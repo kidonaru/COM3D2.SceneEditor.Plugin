@@ -7,6 +7,8 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using SE = SceneEditor.Plugin;
+
     public abstract partial class TimelineLayerBase : ITimelineLayer
     {
         public static readonly long TimelineAnmId = 26925014;
@@ -1407,15 +1409,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             移動,
             回転,
             拡縮,
-            X,
-            Y,
-            Z,
-            RX,
-            RY,
-            RZ,
-            SX,
-            SY,
-            SZ,
             なし,
         }
 
@@ -1440,21 +1433,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             switch (editType)
             {
                 case TransformEditType.移動:
-                case TransformEditType.X:
-                case TransformEditType.Y:
-                case TransformEditType.Z:
                     if (drawType != TransformDrawType.移動) return false;
                     break;
                 case TransformEditType.回転:
-                case TransformEditType.RX:
-                case TransformEditType.RY:
-                case TransformEditType.RZ:
                     if (drawType != TransformDrawType.回転) return false;
                     break;
                 case TransformEditType.拡縮:
-                case TransformEditType.SX:
-                case TransformEditType.SY:
-                case TransformEditType.SZ:
                     if (drawType != TransformDrawType.拡縮) return false;
                     break;
                 case TransformEditType.なし:
@@ -1506,7 +1490,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (IsDrawTransformType(TransformDrawType.拡縮, editType, drawMask))
             {
                 updateTransform |= DrawScale(view, transformCache, editType, initialScale);
-                updateTransform |= DrawSimpleScale(view, transformCache, editType, initialScale);
             }
 
             return updateTransform;
@@ -1536,10 +1519,79 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (IsDrawTransformType(TransformDrawType.拡縮, editType, drawMask))
             {
                 updateTransform |= DrawScale(view, transformCache, editType, initialScale);
-                updateTransform |= DrawSimpleScale(view, transformCache, editType, initialScale);
             }
 
             return updateTransform;
+        }
+
+        // Unity の Inspector に合わせた Transform 行の見た目 (SceneEditor の InspectorWindow と同値)
+        protected static readonly float TransformLabelWidth = 50f;
+        // 連動トグル付きの行は、ラベル + トグル (余白込み 25) で上の幅に収めて XYZ の列を揃える
+        protected static readonly float LinkedLabelWidth = 25f;
+        // 「オフセット」など既定幅に収まらないラベル用
+        protected static readonly float OffsetLabelWidth = 70f;
+        protected static readonly float TransformRowHeight = 20f;
+
+        // ドラッグラベルの 1px あたりの増減量
+        protected static readonly float PositionSensitivity = 0.01f;
+        protected static readonly float RotationSensitivity = 1f;
+        protected static readonly float ScaleSensitivity = 0.01f;
+        // ピクセル指定 (Rect 系) は 1px 単位で動かす
+        private static readonly float RectSensitivity = 1f;
+
+        /// <summary>
+        /// ラベル + XYZ (ドラッグラベル + 数値入力) + リセットボタンの 1 行。
+        /// リセットは連動の有無に依らず初期値で全軸を戻す。
+        /// linkable なら拡縮の連動トグルも出す
+        /// </summary>
+        protected static bool DrawTransformVector3(
+            GUIView view,
+            string label,
+            float dragSensitivity,
+            Vector3 value,
+            Vector3 initialValue,
+            Action<Vector3> onChanged,
+            FloatFieldType fieldType = FloatFieldType.Float,
+            bool linkable = false,
+            float labelWidth = 0f)
+        {
+            var updated = false;
+
+            view.DrawVector3Row(new GUIView.Vector3RowOption
+            {
+                label = label,
+                labelWidth = labelWidth > 0f ? labelWidth
+                    : (linkable ? LinkedLabelWidth : TransformLabelWidth),
+                height = TransformRowHeight,
+                dragSensitivity = dragSensitivity,
+                fieldType = fieldType,
+                value = value,
+                onChanged = newValue =>
+                {
+                    onChanged(newValue);
+                    updated = true;
+                },
+                onReset = () =>
+                {
+                    onChanged(initialValue);
+                    updated = true;
+                },
+                // ToolbarIcons は SceneEditor 側にしかないため、MTE 本体へ同期する際は要差し替え
+                // (linkIcon が null なら GUIView 側がテキストトグルへフォールバックする)
+                linkIcon = linkable
+                    ? SE.ToolbarIcons.GetTexture(SE.ToolbarIcons.Kind.Link) : null,
+                linked = linkable && config.scaleLinked,
+                onLinkChanged = linkable ? (Action<bool>) OnScaleLinkChanged : null,
+            });
+
+            return updated;
+        }
+
+        /// <summary>拡縮の連動状態。Inspector と同様に対象ごとに分けず全レイヤーで共有する</summary>
+        private static void OnScaleLinkChanged(bool on)
+        {
+            config.scaleLinked = on;
+            config.dirty = true;
         }
 
         protected bool DrawPosition(
@@ -1548,57 +1600,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TransformEditType editType,
             Vector3 initialPosition)
         {
+            if (!IsDrawTransformType(TransformDrawType.移動, editType, DrawMaskAll))
+            {
+                return false;
+            }
+
             var position = transform.position;
-            var updateTransform = false;
-            var isFull = editType == TransformEditType.全て || editType == TransformEditType.移動;
-
-            if (isFull || editType == TransformEditType.X)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "X",
-                        labelWidth = 30,
-                        min = -config.positionRange,
-                        max = config.positionRange,
-                        step = 0.01f,
-                        defaultValue = initialPosition.x,
-                        value = position.x,
-                        onChanged = x => position.x = x,
-                    });
-            }
-
-            if (isFull || editType == TransformEditType.Y)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "Y",
-                        labelWidth = 30,
-                        min = -config.positionRange,
-                        max = config.positionRange,
-                        step = 0.01f,
-                        defaultValue = initialPosition.y,
-                        value = position.y,
-                        onChanged = y => position.y = y,
-                    });
-            }
-
-            if (isFull || editType == TransformEditType.Z)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "Z",
-                        labelWidth = 30,
-                        min = -config.positionRange,
-                        max = config.positionRange,
-                        step = 0.01f,
-                        defaultValue = initialPosition.z,
-                        value = position.z,
-                        onChanged = z => position.z = z,
-                    });
-            }
+            var updateTransform = DrawTransformVector3(
+                view, "位置", PositionSensitivity, position, initialPosition,
+                value => position = value);
 
             if (updateTransform)
             {
@@ -1615,60 +1625,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TransformEditType editType,
             Vector3 initialPosition)
         {
+            if (!IsDrawTransformType(TransformDrawType.移動, editType, DrawMaskAll))
+            {
+                return false;
+            }
+
             var position = transform.position;
-            var updateTransform = false;
-            var isFull = editType == TransformEditType.全て || editType == TransformEditType.移動;
-
-            if (isFull || editType == TransformEditType.X)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "X",
-                        labelWidth = 30,
-                        fieldType = FloatFieldType.Int,
-                        min = -1000,
-                        max = 1000,
-                        step = 1,
-                        defaultValue = initialPosition.x,
-                        value = position.x,
-                        onChanged = x => position.x = x,
-                    });
-            }
-
-            if (isFull || editType == TransformEditType.Y)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "Y",
-                        labelWidth = 30,
-                        fieldType = FloatFieldType.Int,
-                        min = -1000,
-                        max = 1000,
-                        step = 1,
-                        defaultValue = initialPosition.y,
-                        value = position.y,
-                        onChanged = y => position.y = y,
-                    });
-            }
-
-            if (isFull || editType == TransformEditType.Z)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "Z",
-                        labelWidth = 30,
-                        fieldType = FloatFieldType.Int,
-                        min = -1000,
-                        max = 1000,
-                        step = 1,
-                        defaultValue = initialPosition.z,
-                        value = position.z,
-                        onChanged = z => position.z = z,
-                    });
-            }
+            var updateTransform = DrawTransformVector3(
+                view, "位置", RectSensitivity, position, initialPosition,
+                value => position = value,
+                fieldType: FloatFieldType.Int);
 
             if (updateTransform)
             {
@@ -1712,58 +1678,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Vector3 prevAngles,
             Vector3 initialEulerAngles)
         {
-            var angles = transform.eulerAngles;
-            angles = TransformDataBase.GetFixedEulerAngles(angles, prevAngles);
-            var updateTransform = false;
-            var isFull = editType == TransformEditType.全て || editType == TransformEditType.回転;
-
-            if (isFull || editType == TransformEditType.RX)
+            if (!IsDrawTransformType(TransformDrawType.回転, editType, DrawMaskAll))
             {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "RX",
-                        labelWidth = 30,
-                        min = prevAngles.x - 180f,
-                        max = prevAngles.x + 180f,
-                        step = 1f,
-                        defaultValue = initialEulerAngles.x,
-                        value = angles.x,
-                        onChanged = x => angles.x = x,
-                    });
+                return false;
             }
 
-            if (isFull || editType == TransformEditType.RY)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "RY",
-                        labelWidth = 30,
-                        min = prevAngles.y - 180f,
-                        max = prevAngles.y + 180f,
-                        step = 1f,
-                        defaultValue = initialEulerAngles.y,
-                        value = angles.y,
-                        onChanged = y => angles.y = y,
-                    });
-            }
-
-            if (isFull || editType == TransformEditType.RZ)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "RZ",
-                        labelWidth = 30,
-                        min = prevAngles.z - 180f,
-                        max = prevAngles.z + 180f,
-                        step = 1f,
-                        defaultValue = initialEulerAngles.z,
-                        value = angles.z,
-                        onChanged = z => angles.z = z,
-                    });
-            }
+            // 直前のキーフレームからの連続性を保った角度で表示・編集する
+            var angles = TransformDataBase.GetFixedEulerAngles(transform.eulerAngles, prevAngles);
+            var updateTransform = DrawTransformVector3(
+                view, "回転", RotationSensitivity, angles, initialEulerAngles,
+                value => angles = value);
 
             if (updateTransform)
             {
@@ -1781,94 +1705,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TransformEditType editType,
             Vector3 initialScale)
         {
+            if (!IsDrawTransformType(TransformDrawType.拡縮, editType, DrawMaskAll))
+            {
+                return false;
+            }
+
             var scale = transform.scale;
-            var updateTransform = false;
-            var isFull = editType == TransformEditType.全て || editType == TransformEditType.拡縮;
-
-            if (isFull || editType == TransformEditType.SX)
-            {
-                updateTransform |= view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = "SX",
-                    labelWidth = 30,
-                    min = 0,
-                    max = config.scaleRange,
-                    step = 0.01f,
-                    defaultValue = initialScale.x,
-                    value = scale.x,
-                    onChanged = x => scale.x = x,
-                });
-            }
-
-            if (isFull || editType == TransformEditType.SY)
-            {
-                updateTransform |= view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = "SY",
-                    labelWidth = 30,
-                    min = 0,
-                    max = config.scaleRange,
-                    step = 0.01f,
-                    defaultValue = initialScale.y,
-                    value = scale.y,
-                    onChanged = y => scale.y = y,
-                });
-            }
-
-            if (isFull || editType == TransformEditType.SZ)
-            {
-                updateTransform |= view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = "SZ",
-                    labelWidth = 30,
-                    min = 0,
-                    max = config.scaleRange,
-                    step = 0.01f,
-                    defaultValue = initialScale.z,
-                    value = scale.z,
-                    onChanged = z => scale.z = z,
-                });
-            }
-
-            if (updateTransform)
-            {
-                transform.scale = scale;
-                transform.Apply();
-            }
-
-            return updateTransform;
-        }
-
-        protected bool DrawSimpleScale(
-            GUIView view,
-            TransformCache transform,
-            TransformEditType editType,
-            Vector3 initialScale)
-        {
-            var scale = transform.scale;
-            var updateTransform = false;
-            var isFull = editType == TransformEditType.全て || editType == TransformEditType.拡縮;
-
-            if (isFull)
-            {
-                updateTransform |= view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "拡縮",
-                        labelWidth = 30,
-                        min = 0,
-                        max = config.scaleRange,
-                        step = 0.01f,
-                        defaultValue = initialScale.x,
-                        value = scale.x,
-                        onChanged = x =>
-                        {
-                            scale.x = x;
-                            scale.y = x;
-                            scale.z = x;
-                        },
-                    });
-            }
+            var updateTransform = DrawTransformVector3(
+                view, "拡縮", ScaleSensitivity, scale, initialScale,
+                value => scale = value,
+                linkable: true);
 
             if (updateTransform)
             {

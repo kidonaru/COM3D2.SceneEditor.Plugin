@@ -377,47 +377,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         initialPosition = new Vector3(0f, 0f, 0f);
                         position = followLight.offset;
 
-                        updateTransform |= view.DrawSliderValue(
-                            new GUIView.SliderOption
-                            {
-                                label = "X",
-                                labelWidth = 30,
-                                min = -config.positionRange,
-                                max = config.positionRange,
-                                step = 0.01f,
-                                defaultValue = initialPosition.x,
-                                value = position.x,
-                                onChanged = x => position.x = x,
-                            });
-
-                        updateTransform |= view.DrawSliderValue(
-                            new GUIView.SliderOption
-                            {
-                                label = "Y",
-                                labelWidth = 30,
-                                min = -config.positionRange,
-                                max = config.positionRange,
-                                step = 0.01f,
-                                defaultValue = initialPosition.y,
-                                value = position.y,
-                                onChanged = x => position.y = x,
-                            });
-
-                        updateTransform |= view.DrawSliderValue(
-                            new GUIView.SliderOption
-                            {
-                                label = "Z",
-                                labelWidth = 30,
-                                min = -config.positionRange,
-                                max = config.positionRange,
-                                step = 0.01f,
-                                defaultValue = initialPosition.z,
-                                value = position.z,
-                                onChanged = x => position.z = x,
-                            });
-
-                        if (updateTransform)
+                        if (DrawTransformVector3(
+                            view, "オフセット", PositionSensitivity, position, initialPosition,
+                            value => position = value, labelWidth: OffsetLabelWidth))
                         {
+                            updateTransform = true;
                             followLight.offset = position;
                         }
 

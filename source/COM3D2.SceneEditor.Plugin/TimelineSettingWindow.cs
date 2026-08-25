@@ -800,23 +800,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
-                label = "拡縮範囲",
-                labelWidth = 100,
-                width = -1,
-                min = 1f,
-                max = 10f,
-                step = 0.1f,
-                defaultValue = 5f,
-                value = timelineConfig.scaleRange,
-                onChanged = value =>
-                {
-                    timelineConfig.scaleRange = value;
-                    timelineConfig.dirty = true;
-                },
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
                 label = "ボイス最大秒数",
                 labelWidth = 100,
                 width = -1,

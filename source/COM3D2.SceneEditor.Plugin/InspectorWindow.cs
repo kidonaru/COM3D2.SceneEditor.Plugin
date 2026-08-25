@@ -15,7 +15,9 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static readonly int WINDOW_ID = 8903352;
 
-        private const float LabelWidth = 40f;
+        private const float LabelWidth = 50f;
+        // 連動トグル付きの拡縮行は、ラベル + トグル (余白込み 25) で LabelWidth に収めて XYZ の列を揃える
+        private const float ScaleLabelWidth = 25f;
         private const float RowHeight = 20f;
 
         // ヘッダー行のアクティブトグルとフォーカスボタンの幅 (どちらも正方形)
@@ -26,9 +28,6 @@ namespace COM3D2.SceneEditor.Plugin
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
         private const float ScaleSensitivity = 0.01f;
-
-        // 拡縮連動で比率の分母に使えない「実質 0」とみなす閾値 (丸め誤差の許容)
-        private const float ScaleZeroEpsilon = 1e-6f;
 
         // ボーンのフォーカス範囲の一辺 (Renderer を持たないため PluginUtils の既定と同じ大きさにする)
         private const float BoneFocusBoundsSize = 0.5f;
@@ -532,11 +531,10 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawSlotBoneScaleRow(Maid maid, Transform bone)
         {
             DrawScaleRow(boneEditManager.GetSelectedBoneScale(maid),
-                (value, index) =>
+                value =>
                 {
                     BeginSlotBoneEdit(maid, bone);
-                    boneEditManager.SetSelectedBoneScale(maid,
-                        LinkScale(boneEditManager.GetSelectedBoneScale(maid), value, index));
+                    boneEditManager.SetSelectedBoneScale(maid, value);
                 },
                 () =>
                 {
@@ -750,10 +748,10 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawObjectScaleRow(GameObject go, Transform t)
         {
             DrawScaleRow(t.localScale,
-                (value, index) =>
+                value =>
                 {
                     RecordObjectEdit(go);
-                    t.localScale = LinkScale(t.localScale, value, index);
+                    t.localScale = value;
                 },
                 () =>
                 {
@@ -764,57 +762,26 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 拡縮行の共通描画。連動トグルの状態は Object・ボーンで共有する
-        /// (連動の計算自体は LinkScale が担う)
+        /// (連動の計算は GUIView 側に集約済み)
         /// </summary>
         private void DrawScaleRow(
             Vector3 value,
-            System.Action<Vector3, int> onChangedAxis,
+            System.Action<Vector3> onChanged,
             System.Action onReset)
         {
             _view.DrawVector3Row(new GUIView.Vector3RowOption
             {
                 label = "拡縮",
-                labelWidth = LabelWidth,
+                labelWidth = ScaleLabelWidth,
                 height = RowHeight,
                 dragSensitivity = ScaleSensitivity,
                 value = value,
-                onChangedAxis = onChangedAxis,
+                onChanged = onChanged,
                 onReset = onReset,
                 linkIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Link),
                 linked = config.inspectorScaleLinked,
                 onLinkChanged = OnScaleLinkChanged,
             });
-        }
-
-        /// <summary>
-        /// 拡縮の連動計算。連動 OFF ならそのまま返す。
-        /// ON のときは編集した軸の変化比率を他軸へも掛けて XYZ を同時に拡縮する
-        /// (編集前の値が 0 の軸は比率が定まらないため全軸を同値にする)
-        /// </summary>
-        private static Vector3 LinkScale(Vector3 current, Vector3 value, int index)
-        {
-            if (!config.inspectorScaleLinked)
-            {
-                return value;
-            }
-
-            var oldValue = current[index];
-            var newValue = value[index];
-            if (Mathf.Abs(oldValue) <= ScaleZeroEpsilon)
-            {
-                return Vector3.one * newValue;
-            }
-
-            var linked = current * (newValue / oldValue);
-            linked[index] = newValue;
-            // 極小値からの編集で比率が発散した場合は連動を諦めて単軸だけ反映する
-            if (float.IsInfinity(linked.x) || float.IsNaN(linked.x) ||
-                float.IsInfinity(linked.y) || float.IsNaN(linked.y) ||
-                float.IsInfinity(linked.z) || float.IsNaN(linked.z))
-            {
-                return value;
-            }
-            return linked;
         }
 
         private static void OnScaleLinkChanged(bool on)

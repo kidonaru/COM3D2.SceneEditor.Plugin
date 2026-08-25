@@ -227,8 +227,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     var transformCache = view.GetTransformCache(null);
                     transformCache.position = bgGround.position;
 
-                    view.DrawLabel("位置", 200, 20);
-
                     updateTransform |= DrawPosition(
                         view,
                         transformCache,

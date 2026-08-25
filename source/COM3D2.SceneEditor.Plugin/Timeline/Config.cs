@@ -69,8 +69,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public MoveEasingType defaultEasingType = MoveEasingType.SineInOut;
         public int detailTransformCount = 16;
         public int detailTangentCount = 32;
+        // 移動系スライダーの値域。レイヤー編集の位置行は Unity 風の数値入力へ移行したため、
+        // 今は動画メッシュの位置と被写界深度のピント距離だけが参照する
         public float positionRange = 5.0f;
-        public float scaleRange = 5.0f;
         public float voiceMaxLength = 20.0f;
         public bool isAutoYureBone = true;
         public bool disablePoseHistory = true;
@@ -91,6 +92,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool autoResisterBackgroundCustom = true;
         public string backgroundCustomCategoryName = "MotionTimelineEditor";
         public bool alwaysShowIK = false;
+        // レイヤー編集の拡縮行の XYZ 連動 (1 軸の編集を比率で全軸へ反映)
+        public bool scaleLinked = false;
 
         // 表示設定
         public int frameWidth = 11;
