@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,6 +10,8 @@ using UnityEngine.SceneManagement;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     using AttachPoint = PhotoTransTargetObject.AttachPoint;
+    // SE 側 PluginUtils との衝突を避けるため別名で参照する
+    using SE = COM3D2.SceneEditor.Plugin;
 
     public class OfficialObjectInfo
     {
@@ -381,51 +383,83 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             MTEUtils.LogDebug("SetupModels: count={0}", modelDataList.Count);
 
-            var modelList = modelHackManager.modelList.ToList();
+            // プロバイダが無いとモデルの生成・削除が黙って no-op になる
+            // (ModelHackManager.GetOrDefault が studioHack へフォールバックするため)。
+            // 復元できない旨をここで明示して打ち切る
+            var providerId = SE.ModelPlacerProviderRegistry.current?.id;
+            if (providerId == null)
+            {
+                if (modelDataList.Count > 0)
+                {
+                    MTEUtils.LogWarning(
+                        "モデル配置プロバイダが無いためモデルを復元できません。ModItemExplorer を導入してください (対象 {0} 件)",
+                        modelDataList.Count);
+                }
+                return;
+            }
 
+            // 旧 XML は SE 自前配置時代の pluginName を持つ。現行のプロバイダ ID へ寄せる
             foreach (var modelData in modelDataList)
             {
-                var model = modelList.Find(m => m.name == modelData.name);
-                if (model == null)
-                {
-                    model = CreateModelStat(
-                        modelData.name,
-                        null,
-                        modelData.attachPoint,
-                        modelData.attachMaidSlotNo,
-                        null,
-                        modelData.pluginName,
-                        true);
-                    modelHackManager.CreateModel(model);
+                modelData.pluginName = SE.ModelPlacerProviderRegistry
+                    .MigratePluginName(modelData.pluginName, providerId);
+            }
 
-                    MTEUtils.Log("Create model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
-                        model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
-                }
-                else
-                {
-                    model.attachPoint = modelData.attachPoint;
-                    model.attachMaidSlotNo = modelData.attachMaidSlotNo;
+            var modelList = modelHackManager.modelList.ToList();
 
-                    if (model.pluginName != modelData.pluginName)
+            // 読込中の一括生成・削除でゲスト側の Undo 履歴が積み上がらないようにする
+            var externalHack = modelHackManager.GetOrDefault(providerId) as ExternalModelHack;
+            externalHack?.BeginBatch();
+            try
+            {
+                foreach (var modelData in modelDataList)
+                {
+                    var model = modelList.Find(m => m.name == modelData.name);
+                    if (model == null)
                     {
-                        modelHackManager.ChangePluginName(model, modelData.pluginName);
+                        model = CreateModelStat(
+                            modelData.name,
+                            null,
+                            modelData.attachPoint,
+                            modelData.attachMaidSlotNo,
+                            null,
+                            modelData.pluginName,
+                            true);
+                        modelHackManager.CreateModel(model);
+
+                        MTEUtils.Log("Create model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
+                            model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
                     }
                     else
                     {
-                        modelHackManager.UpdateAttachPoint(model);
+                        model.attachPoint = modelData.attachPoint;
+                        model.attachMaidSlotNo = modelData.attachMaidSlotNo;
+
+                        if (model.pluginName != modelData.pluginName)
+                        {
+                            modelHackManager.ChangePluginName(model, modelData.pluginName);
+                        }
+                        else
+                        {
+                            modelHackManager.UpdateAttachPoint(model);
+                        }
+                    }
+                }
+
+                foreach (var model in modelList)
+                {
+                    if (modelDataList.FindIndex(data => data.name == model.name) < 0)
+                    {
+                        modelHackManager.DeleteModel(model);
+
+                        MTEUtils.Log("Remove model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
+                            model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
                     }
                 }
             }
-
-            foreach (var model in modelList)
+            finally
             {
-                if (modelDataList.FindIndex(data => data.name == model.name) < 0)
-                {
-                    modelHackManager.DeleteModel(model);
-
-                    MTEUtils.Log("Remove model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
-                        model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
-                }
+                externalHack?.EndBatch();
             }
 
             LateUpdate(true);
