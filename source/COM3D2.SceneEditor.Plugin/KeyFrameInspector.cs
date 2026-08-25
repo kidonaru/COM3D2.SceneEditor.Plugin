@@ -27,18 +27,30 @@ namespace COM3D2.SceneEditor.Plugin
         private const float FoldMarkWidth = 16f;
         /// <summary>ブロックヘッダー右端のボタン幅</summary>
         private const float HeaderButtonWidth = 44f;
-        /// <summary>フロー要素 1 個ぶんの目安幅 (ラベル + 数値入力)</summary>
-        private const float FlowItemWidth = 130f;
+        /// <summary>一括開閉ボタンの幅 (「すべて折りたたみ」が収まる幅)</summary>
+        private const float FoldAllButtonWidth = 90f;
         /// <summary>フロー要素内のラベル幅</summary>
         private const float FlowLabelWidth = 70f;
+        /// <summary>フロー要素内の数値入力欄の幅 (リセットボタンは含まない)</summary>
+        private const float FlowFieldWidth = 60f;
         /// <summary>ブロック内容の左インデント</summary>
         private const float BlockIndent = 8f;
+        /// <summary>ヘッダーのボーン名を切り詰める下限 (これ以下だと名前が読めない)</summary>
+        private const float MinHeaderLabelWidth = 40f;
 
         // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
         private const float ScaleSensitivity = 0.01f;
         private const float ColorSensitivity = 0.01f;
+
+        /// <summary>一括開閉ボタンの要求</summary>
+        private enum FoldAllRequest
+        {
+            None,
+            Expand,
+            Collapse,
+        }
 
         /// <summary>
         /// 折りたたみ中のキーフレーム。既定は展開なので「畳んだもの」だけを覚える。
@@ -51,11 +63,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>描画順を安定させるための並べ替えバッファ (毎フレームの確保を避ける)</summary>
         private readonly List<MTEP.BoneData> _sortedBones = new List<MTEP.BoneData>();
 
-        /// <summary>
-        /// 削除は selectedBones を書き換えるため、描画ループ中には実行できない。
-        /// 描画後にまとめて処理する
-        /// </summary>
+        /// <summary>描画ループ終了後にまとめて削除するボーン</summary>
         private MTEP.BoneData _pendingDeleteBone = null;
+
+        /// <summary>描画ループ終了後に開閉を切り替えるボーン</summary>
+        private MTEP.BoneData _pendingToggleBone = null;
+
+        /// <summary>描画ループ終了後に反映する一括開閉の要求</summary>
+        private FoldAllRequest _pendingFoldAll = FoldAllRequest.None;
 
         private static KeyFrameInspector _instance = null;
         public static KeyFrameInspector instance
@@ -97,15 +112,15 @@ namespace COM3D2.SceneEditor.Plugin
             var maxCount = Mathf.Max(1, config.detailTransformCount);
             var totalCount = selectedBones.Count;
 
-            view.DrawLabel(
-                string.Format("キーフレーム詳細 ({0}個選択中)", totalCount), -1, RowHeight);
-
             // 選択順は HashSet で不定なので、フレーム番号 → 名前で毎回同じ並びにする
             _sortedBones.Clear();
             _sortedBones.AddRange(selectedBones);
             _sortedBones.Sort(CompareBone);
 
             var drawCount = Mathf.Min(totalCount, maxCount);
+
+            DrawTitleRow(view, totalCount, drawCount);
+
             for (var i = 0; i < drawCount; i++)
             {
                 DrawBoneBlock(view, _sortedBones[i]);
@@ -117,6 +132,8 @@ namespace COM3D2.SceneEditor.Plugin
                     string.Format("他 {0} 個は非表示", totalCount - drawCount), -1, RowHeight);
             }
 
+            // 一括開閉は表示中のブロックが対象なので、_sortedBones を捨てる前に反映する
+            ProcessPendingFold(drawCount);
             _sortedBones.Clear();
 
             ProcessPendingDelete();
@@ -130,6 +147,45 @@ namespace COM3D2.SceneEditor.Plugin
                 return result;
             }
             return string.CompareOrdinal(a.name, b.name);
+        }
+
+        /// <summary>選択数の表示と、表示中ブロックの一括開閉ボタンの 1 行</summary>
+        private void DrawTitleRow(GUIView view, int totalCount, int drawCount)
+        {
+            var allCollapsed = IsAllCollapsed(drawCount);
+
+            var available = view.viewRect.width - view.padding.x * 2;
+            var labelWidth = Mathf.Max(
+                available - FoldAllButtonWidth - view.margin * 2, MinHeaderLabelWidth);
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel(
+                    string.Format("キーフレーム詳細 ({0}個選択中)", totalCount),
+                    labelWidth, RowHeight);
+
+                // 全部畳んでいるときだけ「すべて展開」にして、押すたびに全開・全閉を往復させる
+                if (view.DrawButton(
+                        allCollapsed ? "すべて展開" : "すべて折りたたみ",
+                        FoldAllButtonWidth, RowHeight))
+                {
+                    _pendingFoldAll = allCollapsed
+                        ? FoldAllRequest.Expand : FoldAllRequest.Collapse;
+                }
+            }
+            view.EndLayout();
+        }
+
+        private bool IsAllCollapsed(int drawCount)
+        {
+            for (var i = 0; i < drawCount; i++)
+            {
+                if (!_collapsedBones.Contains(_sortedBones[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void DrawBoneBlock(GUIView view, MTEP.BoneData bone)
@@ -156,11 +212,11 @@ namespace COM3D2.SceneEditor.Plugin
             // 要素は 4 個 (マーク・名前・初期化・削除) なので margin を 4 個ぶん引く
             var labelWidth = available
                 - FoldMarkWidth - HeaderButtonWidth * 2 - view.margin * 4;
-            labelWidth = Mathf.Max(labelWidth, 40f);
+            labelWidth = Mathf.Max(labelWidth, MinHeaderLabelWidth);
 
             view.BeginHorizontal();
             {
-                Action toggle = () => ToggleCollapsed(bone);
+                Action toggle = () => _pendingToggleBone = bone;
 
                 view.DrawLabel(expanded ? "▼" : "▶", FoldMarkWidth, RowHeight,
                     onClickAction: toggle);
@@ -183,8 +239,36 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndLayout();
         }
 
-        private void ToggleCollapsed(MTEP.BoneData bone)
+        /// <summary>
+        /// 開閉の反映を描画ループの外へ遅延させる。
+        /// GUIView は FloatFieldCache を描画順のインデックスで採番するため、
+        /// 同じ Unity フレームの途中で描画要素数が変わるとキャッシュの対応がずれる
+        /// </summary>
+        private void ProcessPendingFold(int drawCount)
         {
+            if (_pendingFoldAll == FoldAllRequest.Collapse)
+            {
+                for (var i = 0; i < drawCount; i++)
+                {
+                    _collapsedBones.Add(_sortedBones[i]);
+                }
+            }
+            else if (_pendingFoldAll == FoldAllRequest.Expand)
+            {
+                for (var i = 0; i < drawCount; i++)
+                {
+                    _collapsedBones.Remove(_sortedBones[i]);
+                }
+            }
+            _pendingFoldAll = FoldAllRequest.None;
+
+            var bone = _pendingToggleBone;
+            if (bone == null)
+            {
+                return;
+            }
+            _pendingToggleBone = null;
+
             if (!_collapsedBones.Remove(bone))
             {
                 _collapsedBones.Add(bone);
@@ -285,63 +369,75 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// フロー要素 1 個が消費する幅 (末尾のマージンは含まない)。
+        /// DrawDragFloatField はラベル + マージン + 数値入力 + リセットボタンを描くので、
+        /// その内訳と同じ式にしないと折り返し位置がずれて右端をはみ出す
+        /// </summary>
+        private static float GetFlowItemWidth(GUIView view)
+        {
+            return FlowLabelWidth + view.margin + FlowFieldWidth + GUIView.ResetButtonWidth;
+        }
+
+        /// <summary>
         /// カスタム値・文字列値・表示トグルを、ウィンドウ幅に入るだけ横に並べて折り返す。
         /// 種類をまたいで詰めると型ごとの見分けがつかなくなるため、
         /// 「カスタム値 → 表示トグル」までを 1 つの流れとし、文字列値は 1 行ずつ別に描く
         /// </summary>
         private void DrawFlowValues(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
         {
-            var items = new List<Action>();
+            var itemWidth = GetFlowItemWidth(view);
+            // AddSpace(BlockIndent) 自体もマージンを消費するため 1 個ぶん差し引く
+            var available = view.viewRect.width - view.padding.x * 2
+                - BlockIndent - view.margin;
+            var columnCount = KeyFrameFlowLayout.GetColumnCount(available, itemWidth, view.margin);
+
+            // 現在の行に描いた要素数。0 なら行をまだ開いていない
+            var column = 0;
 
             foreach (var pair in transform.GetCustomValueInfoMap())
             {
-                var customKey = pair.Key;
-                var info = pair.Value;
-                if (!transform.HasCustomValue(customKey))
+                if (!transform.HasCustomValue(pair.Key))
                 {
                     continue;
                 }
 
-                items.Add(() => DrawCustomValueItem(view, bone, transform, customKey, info));
+                BeginFlowItem(view, columnCount, ref column);
+                DrawCustomValueItem(view, bone, transform, pair.Key, pair.Value, itemWidth);
             }
 
             if (transform.hasVisible)
             {
-                items.Add(() => DrawVisibleItem(view, bone, transform));
+                BeginFlowItem(view, columnCount, ref column);
+                DrawVisibleItem(view, bone, transform, itemWidth);
             }
 
-            DrawFlow(view, items);
+            if (column > 0)
+            {
+                view.EndLayout();
+            }
 
             DrawStrValues(view, bone, transform);
         }
 
-        /// <summary>要素を折り返しながら並べる。1 行ぶんずつ BeginHorizontal で囲む</summary>
-        private void DrawFlow(GUIView view, List<Action> items)
+        /// <summary>
+        /// 次のフロー要素を描く前の行制御。行頭なら行を開き、
+        /// 列を使い切っていたら行を閉じて次の行を開く
+        /// </summary>
+        private void BeginFlowItem(GUIView view, int columnCount, ref int column)
         {
-            if (items.Count == 0)
+            if (column >= columnCount)
             {
-                return;
+                view.EndLayout();
+                column = 0;
             }
 
-            var available = view.viewRect.width - view.padding.x * 2
-                - BlockIndent - view.margin;
-            var columnCount = KeyFrameFlowLayout.GetColumnCount(
-                available, FlowItemWidth, view.margin);
-
-            for (var i = 0; i < items.Count; i += columnCount)
+            if (column == 0)
             {
                 view.BeginHorizontal();
-                {
-                    view.AddSpace(BlockIndent);
-
-                    var end = Mathf.Min(i + columnCount, items.Count);
-                    for (var j = i; j < end; j++)
-                    {
-                        items[j]();
-                    }
-                }
-                view.EndLayout();
+                view.AddSpace(BlockIndent);
             }
+
+            column++;
         }
 
         /// <summary>
@@ -353,12 +449,11 @@ namespace COM3D2.SceneEditor.Plugin
             MTEP.BoneData bone,
             MTEP.ITransformData transform,
             string customKey,
-            MTEP.CustomValueInfo info)
+            MTEP.CustomValueInfo info,
+            float itemWidth)
         {
             var name = transform.GetCustomValueName(customKey);
             var valueData = transform.GetCustomValue(customKey);
-            // リセットボタン (20px) はドラッグ入力側が fieldWidth から内側に取る
-            var fieldWidth = FlowItemWidth - FlowLabelWidth - view.margin;
 
             Action reset = () =>
             {
@@ -368,7 +463,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (info.type == MTEP.CustomValueType.BoolValue)
             {
-                view.DrawToggle(name, valueData.value != 0f, FlowItemWidth, RowHeight,
+                // トグルには数値入力欄がないので、列を揃えるため要素幅ぶんを丸ごと使う
+                view.DrawToggle(name, valueData.value != 0f, itemWidth, RowHeight,
                     newValue =>
                     {
                         transform.GetCustomValue(customKey).value = newValue ? 1f : 0f;
@@ -386,7 +482,7 @@ namespace COM3D2.SceneEditor.Plugin
                     value = Mathf.RoundToInt(valueData.value),
                     minValue = Mathf.RoundToInt(info.min),
                     maxValue = Mathf.RoundToInt(info.max),
-                    fieldWidth = fieldWidth,
+                    fieldWidth = FlowFieldWidth,
                     height = RowHeight,
                     // dragSensitivity は既定 (DefaultIntDragSensitivity = 0.5) に任せる。
                     // 1.0 にすると 1px で 1 段変わって細かい調整ができない
@@ -407,7 +503,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = valueData.value,
                 minValue = info.min,
                 maxValue = info.max,
-                fieldWidth = fieldWidth,
+                fieldWidth = FlowFieldWidth,
                 height = RowHeight,
                 dragSensitivity = info.step > 0f ? info.step : GUIView.DefaultFloatDragSensitivity,
                 onChanged = newValue =>
@@ -419,9 +515,10 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
-        private void DrawVisibleItem(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        private void DrawVisibleItem(
+            GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform, float itemWidth)
         {
-            view.DrawToggle("表示", transform.visible, FlowItemWidth, RowHeight,
+            view.DrawToggle("表示", transform.visible, itemWidth, RowHeight,
                 newValue =>
                 {
                     transform.visible = newValue;
