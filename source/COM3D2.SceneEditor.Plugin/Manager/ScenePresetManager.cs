@@ -1023,14 +1023,19 @@ namespace COM3D2.SceneEditor.Plugin
             state.mabataki = MaidFaceMorphController.GetMabataki(maid);
             state.faceName = MaidFaceMorphController.GetFaceName(maid);
 
+            // チェック済み (=ユーザーが編集した) モーフだけ保存する。値 0 も明示編集なら保存する
+            var faceStore = FaceEditManager.instance.FindStore(maid);
             foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
             {
                 foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
                 {
-                    var value = MaidFaceMorphController.GetMorphValue(maid, def);
-                    if (value != 0f)
+                    if (faceStore != null && faceStore.IsModified(def.name))
                     {
-                        state.morphs.Add(new ScenePresetMorph { name = def.name, value = value });
+                        state.morphs.Add(new ScenePresetMorph
+                        {
+                            name = def.name,
+                            value = MaidFaceMorphController.GetMorphValue(maid, def),
+                        });
                     }
                 }
             }
@@ -2563,6 +2568,9 @@ namespace COM3D2.SceneEditor.Plugin
                     MaidFaceMorphController.SetMorphValue(maid, def, value);
                 }
             }
+
+            // 保存されているモーフ=保存時のチェック済み集合。ロード後すぐ編集を継続できるよう復元する
+            FaceEditManager.instance.GetStore(maid).SetNames(savedValues.Keys);
 
             MaidFaceMorphController.SetMabataki(maid, state.mabataki);
         }
