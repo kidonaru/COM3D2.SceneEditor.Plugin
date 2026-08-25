@@ -138,6 +138,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
             },
+            labelWidth = SHORT_LABEL_WIDTH,
             contentSize = new Vector2(150, 300),
         };
 
@@ -176,6 +177,19 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>外周の余白。既定値より詰めて 1 行に並ぶ要素数を稼ぐ</summary>
         private static readonly Vector2 CONTENT_PADDING = new Vector2(3, 3);
 
+        /// <summary>グループ見出しラベルの幅</summary>
+        private const float GROUP_LABEL_WIDTH = 80f;
+
+        /// <summary>文字数が少ない見出しの幅 (レイヤー / 範囲操作)</summary>
+        private const float SHORT_LABEL_WIDTH = 55f;
+
+        /// <summary>再生速度の既定値 (R ボタンで戻す)</summary>
+        private const float DEFAULT_ANM_SPEED = 1f;
+
+        /// <summary>S / E ドラッグラベルと入力欄の幅</summary>
+        private const float RANGE_LABEL_WIDTH = 15f;
+        private const float RANGE_FIELD_WIDTH = 50f;
+
         /// <summary>状態メッセージの最小幅 (これを確保できなければ折り返す) と最大幅</summary>
         private const float STATUS_MESSAGE_MIN_WIDTH = 200f;
         private const float STATUS_MESSAGE_MAX_WIDTH = 400f;
@@ -191,6 +205,16 @@ namespace COM3D2.SceneEditor.Plugin
                 view.EndLayout();
                 view.BeginHorizontal();
             }
+        }
+
+        /// <summary>
+        /// グループの見出しラベル。見出しだけが行末に取り残されないよう、
+        /// 直後の要素 (nextWidth) と一緒に折り返す
+        /// </summary>
+        private static void DrawGroupLabel(GUIView view, string label, float nextWidth, float labelWidth = GROUP_LABEL_WIDTH)
+        {
+            WrapIfNeeded(view, labelWidth + GUIView.defaultMargin + nextWidth);
+            view.DrawLabel(label, labelWidth, ROW_HEIGHT);
         }
 
         protected override void DrawContent()
@@ -274,26 +298,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 OnLoadClicked();
             }
-
-            // MTE のトラックボタンと同様、アクティブトラックありを緑で示す (SE はトラック UI が設定ウィンドウ内)
-            var trackColor = editEnabled && timeline.activeTrack != null ? Color.green : Color.white;
-            WrapIfNeeded(view, 50);
-            if (view.DrawButton("設定", 50, ROW_HEIGHT, true, trackColor))
-            {
-                WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
-            }
-
-            WrapIfNeeded(view, 50);
-            if (view.DrawButton("編集", 50, ROW_HEIGHT))
-            {
-                WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
-            }
-
-            WrapIfNeeded(view, 60);
-            if (view.DrawButton("テンプレ", 60, ROW_HEIGHT))
-            {
-                WindowManager.ToggleWindowVisible(TimelineTemplateWindow.instance);
-            }
         }
 
         /// <summary>
@@ -368,7 +372,7 @@ namespace COM3D2.SceneEditor.Plugin
             WrapIfNeeded(view, 260);
             view.DrawTextField("アニメ名", 60, anmName, 260, ROW_HEIGHT, newText => anmName = newText);
 
-            WrapIfNeeded(view, 75 + 60);
+            WrapIfNeeded(view, 75 + GUIView.defaultMargin + 60);
             view.DrawDragIntField(new GUIView.DragIntFieldOption
             {
                 label = "最終フレーム",
@@ -381,8 +385,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             var newFrameNo = timelineManager.currentFrameNo;
 
-            // シークボタン群 (|< .< < [num] > >. >|) は分断すると操作しにくいためまとめて折り返す
-            WrapIfNeeded(view, 25 * 6 + 50);
+            // シークボタン群 (|< .< < [num] > >. >|) は分断すると操作しにくいため見出しごとまとめて折り返す
+            DrawGroupLabel(view, "フレーム操作", 25 * 6 + 50);
             view.margin = 0;
             {
                 if (view.DrawButton("|<", 25, ROW_HEIGHT))
@@ -451,7 +455,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            WrapIfNeeded(view, 60 + 50);
+            WrapIfNeeded(view, 60 + GUIView.defaultMargin + 50 + GUIView.ResetButtonWidth);
             view.DrawDragFloatField(new GUIView.DragFloatFieldOption
             {
                 label = "再生速度",
@@ -462,12 +466,13 @@ namespace COM3D2.SceneEditor.Plugin
                 fieldWidth = 50,
                 height = ROW_HEIGHT,
                 onChanged = value => timelineManager.anmSpeed = value,
+                onReset = () => timelineManager.anmSpeed = DEFAULT_ANM_SPEED,
             });
         }
 
         private void DrawKeyFrameControls(GUIView view)
         {
-            WrapIfNeeded(view, 50);
+            DrawGroupLabel(view, "キーフレーム", 50);
             if (view.DrawButton("登録", 50, ROW_HEIGHT, studioHackManager.isPoseEditing))
             {
                 currentLayer.AddKeyFrameDiff();
@@ -518,22 +523,28 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawRangeControls(GUIView view)
         {
-            // 開始～終了の入力欄とリセットはまとめて折り返す (要素間 margin 3 つ分を含む)
-            WrapIfNeeded(view, 50 + 15 + 50 + 20 + GUIView.defaultMargin * 3);
-            view.DrawIntField(new GUIView.IntFieldOption
+            // 開始 (S) ～終了 (E) の入力欄とリセットは見出しごとまとめて折り返す (要素間 margin 4 つ分を含む)
+            var rangeFieldWidth = RANGE_LABEL_WIDTH + GUIView.defaultMargin + RANGE_FIELD_WIDTH;
+            DrawGroupLabel(view, "範囲操作",
+                rangeFieldWidth * 2 + 20 + GUIView.defaultMargin * 4, SHORT_LABEL_WIDTH);
+
+            // S / E はラベルドラッグでも増減できる
+            view.DrawDragIntField(new GUIView.DragIntFieldOption
             {
+                label = "S",
+                labelWidth = RANGE_LABEL_WIDTH,
                 value = selectStartFrameNo,
-                width = 50,
+                fieldWidth = RANGE_FIELD_WIDTH,
                 height = ROW_HEIGHT,
                 onChanged = value => selectStartFrameNo = value,
             });
 
-            view.DrawLabel("～", 15, ROW_HEIGHT);
-
-            view.DrawIntField(new GUIView.IntFieldOption
+            view.DrawDragIntField(new GUIView.DragIntFieldOption
             {
+                label = "E",
+                labelWidth = RANGE_LABEL_WIDTH,
                 value = selectEndFrameNo,
-                width = 50,
+                fieldWidth = RANGE_FIELD_WIDTH,
                 height = ROW_HEIGHT,
                 onChanged = value => selectEndFrameNo = value,
             });
@@ -582,7 +593,7 @@ namespace COM3D2.SceneEditor.Plugin
             var layerType = currentLayer.layerType;
 
             // レイヤーコンボと増減ボタンはまとめて折り返す
-            WrapIfNeeded(view, 100 + 150 + 20 + 20);
+            WrapIfNeeded(view, SHORT_LABEL_WIDTH + 150 + 20 + 20);
             _layerComboBox.currentItem = timelineManager.GetLayerInfo(layerType);
             _layerComboBox.items = timelineManager.usingLayerInfoList;
             _layerComboBox.DrawButton("レイヤー", view);
