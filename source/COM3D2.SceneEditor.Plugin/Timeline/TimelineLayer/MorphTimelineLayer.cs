@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -13,7 +15,76 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
-        public override List<string> allBoneNames => FaceMorphUtils.saveMorphNames;
+        private List<string> _cachedBoneNames;
+
+        public override List<string> allBoneNames
+            => _cachedBoneNames ?? (_cachedBoneNames = BuildBoneNames());
+
+        private FaceEditStore FindFaceStore()
+        {
+            var maid = this.maid;
+            return maid != null ? FaceEditManager.instance.FindStore(maid) : null;
+        }
+
+        /// <summary>
+        /// チェック済みモーフ ∪ 既存キーフレーム記載モーフ。表示順は saveMorphNames に揃える。
+        /// 既存キーフレーム分を含めるのは、チェックを外しても保存済みアニメの編集を可能なままにするため
+        /// </summary>
+        private List<string> BuildBoneNames()
+        {
+            var store = FindFaceStore();
+
+            var keyFrameNames = new HashSet<string>();
+            foreach (var frame in keyFrames)
+            {
+                foreach (var name in frame.boneNames)
+                {
+                    keyFrameNames.Add(name);
+                }
+            }
+
+            var result = new List<string>();
+            foreach (var name in FaceMorphUtils.saveMorphNames)
+            {
+                if ((store != null && store.IsModified(name)) || keyFrameNames.Contains(name))
+                {
+                    result.Add(name);
+                }
+            }
+            return result;
+        }
+
+        private int _lastStoreVersion = -1;
+        private FaceEditStore _lastStore;
+        private int _rebuildCheckFrameCount;
+
+        public override void Update()
+        {
+            base.Update();
+
+            // チェック変更 (store.version) は毎フレームの整数比較だけで検知する。
+            // キー削除など store 以外由来の集合変化は 30 フレームごとの間引き再計算で拾う
+            // (BuildBoneNames は keyFrames のフルコピーを伴うため毎フレームは回さない)
+            var store = FindFaceStore();
+            var version = store != null ? store.version : -1;
+            var storeChanged = store != _lastStore || version != _lastStoreVersion;
+
+            _rebuildCheckFrameCount++;
+            if (!storeChanged && _rebuildCheckFrameCount < 30)
+            {
+                return;
+            }
+            _rebuildCheckFrameCount = 0;
+            _lastStore = store;
+            _lastStoreVersion = version;
+
+            var newNames = BuildBoneNames();
+            if (_cachedBoneNames == null || !newNames.SequenceEqual(_cachedBoneNames))
+            {
+                _cachedBoneNames = newNames;
+                InitMenuItems();
+            }
+        }
 
         private static TimelineFaceManager faceManager => TimelineFaceManager.instance;
 
@@ -35,12 +106,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             allMenuItems.Clear();
 
+            var targetNames = new HashSet<string>(allBoneNames);
             var setMenuItemMap = new Dictionary<string, BoneSetMenuItem>(10);
 
             foreach (var pair in FaceMorphUtils.morphNameToSetNameMap)
             {
                 var morphName = pair.Key;
                 var morphSetName = pair.Value;
+
+                // 対象外 (未チェックかつキーフレーム未記載) のモーフは行を出さない
+                if (!targetNames.Contains(morphName))
+                {
+                    continue;
+                }
 
                 BoneSetMenuItem setMenuItem;
                 if (!setMenuItemMap.TryGetValue(morphSetName, out setMenuItem))
@@ -157,6 +235,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void SetMorphValue(string morphName, float value)
         {
+            // レイヤーウィンドウからの編集もユーザーの明示編集なのでチェックを付ける。
+            // 強制上書き (_isForceUpdate) のプレビュー書き込み中も、
+            // そのモーフを編集する意図は同じなのでマークする (仕様)
+            var maid = this.maid;
+            if (maid != null)
+            {
+                FaceEditManager.instance.GetStore(maid).Mark(morphName);
+            }
+
             if (_isForceUpdate)
             {
                 _applyMorphMap[morphName] = value;
