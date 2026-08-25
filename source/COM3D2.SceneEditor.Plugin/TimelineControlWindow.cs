@@ -171,13 +171,22 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
+        private const float ROW_HEIGHT = 20f;
+
+        /// <summary>外周の余白。既定値より詰めて 1 行に並ぶ要素数を稼ぐ</summary>
+        private static readonly Vector2 CONTENT_PADDING = new Vector2(3, 3);
+
+        /// <summary>状態メッセージの最小幅 (これを確保できなければ折り返す) と最大幅</summary>
+        private const float STATUS_MESSAGE_MIN_WIDTH = 200f;
+        private const float STATUS_MESSAGE_MAX_WIDTH = 400f;
+
         /// <summary>
         /// 次の要素が右端を超える場合に折り返す
         /// (TimelineTemplateWindow のテンプレボタンと同じ流儀)
         /// </summary>
         private static void WrapIfNeeded(GUIView view, float width)
         {
-            if (view.currentPos.x + width > view.viewRect.width)
+            if (view.currentPos.x + width > view.viewRect.width - view.padding.x * 2)
             {
                 view.EndLayout();
                 view.BeginHorizontal();
@@ -195,171 +204,192 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawBody()
         {
             var local = ToLocalRect(contentRect);
+            var view = _view;
+
+            view.Init(local);
+
+            // 要素数が多いウィンドウなので、旧レイアウトと同じく外周の余白を詰める
+            view.padding = CONTENT_PADDING;
 
             if (studioHack == null)
             {
-                _view.Init(local);
-                _view.DrawLabel("シーンが有効ではありません", -1, 20, Color.yellow);
+                view.DrawLabel("シーンが有効ではありません", -1, ROW_HEIGHT, Color.yellow);
                 return;
             }
 
+            view.SetEnabled(view.focusedComboBox == null);
+
+            view.BeginScrollView();
+            {
+                // 全要素を 1 つの横並びに流し込み、右端で折り返させる
+                view.BeginHorizontal();
+                {
+                    DrawControls(view);
+                }
+                view.EndLayout();
+            }
+            view.EndScrollView();
+        }
+
+        private void DrawControls(GUIView view)
+        {
             var isStudioHackValid = studioHack.IsValid();
             var isMaidValid = maidManager.IsValid();
 
-            bool editEnabled = isMaidValid
+            var editEnabled = isMaidValid
                             && isStudioHackValid
                             && timeline != null
                             && maidManager.maid != null;
 
-            bool guiEnabled = _view.focusedComboBox == null;
-
-            var view = _view;
-            view.Init(local);
-            view.SetEnabled(guiEnabled);
-
-            view.margin = 0;
-            view.padding = new Vector2(3, 3);
-
-            view.BeginHorizontal();
-            {
-                fileMenuComboBox.currentIndex = -1;
-                fileMenuComboBox.DrawButton(view);
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("セーブ", 60, 20, editEnabled))
-                {
-                    if (!studioHack.IsValid())
-                    {
-                        MTEUtils.ShowDialog(studioHack.errorMessage);
-                        return;
-                    }
-                    if (!timelineManager.IsValidData())
-                    {
-                        MTEUtils.ShowDialog(timelineManager.errorMessage);
-                        return;
-                    }
-                    timelineManager.SaveTimeline();
-
-                    // 保存したタイムラインをサムネ付きで一覧へ出す
-                    TimelineLoadManager.Reload();
-                }
-
-                // MTE のロードボタンと同様に開く動作のみ (他ボタンと違いトグルしない)
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("ロード", 60, 20))
-                {
-                    if (!studioHack.IsValid())
-                    {
-                        MTEUtils.ShowDialog(studioHack.errorMessage);
-                        return;
-                    }
-                    if (!TimelineLoadWindow.instance.isShowWnd)
-                    {
-                        WindowManager.ToggleWindowVisible(TimelineLoadWindow.instance);
-                    }
-                }
-
-                // MTE のトラックボタンと同様、アクティブトラックありを緑で示す (SE はトラック UI が設定ウィンドウ内)
-                var trackColor = editEnabled && timeline.activeTrack != null ? Color.green : Color.white;
-                WrapIfNeeded(view, 50);
-                if (view.DrawButton("設定", 50, 20, true, trackColor))
-                {
-                    WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
-                }
-
-                WrapIfNeeded(view, 50);
-                if (view.DrawButton("編集", 50, 20))
-                {
-                    WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("テンプレ", 60, 20))
-                {
-                    WindowManager.ToggleWindowVisible(TimelineTemplateWindow.instance);
-                }
-
-                view.AddSpace(20);
-
-                // 状態メッセージ
-                WrapIfNeeded(view, 400);
-                if (!isStudioHackValid)
-                {
-                    view.DrawLabel(studioHack.errorMessage, 400, 20, Color.yellow);
-                }
-                else if (!isMaidValid)
-                {
-                    view.DrawLabel(maidManager.errorMessage, 400, 20, Color.yellow);
-                }
-                else if (!timelineManager.IsValidData())
-                {
-                    view.DrawLabel(timelineManager.errorMessage, 400, 20, Color.yellow);
-                }
-                else if (studioHackManager.isPoseEditing)
-                {
-                    var keyName = timelineConfig.GetKeyName(MTEP.KeyBindType.AddKeyFrame);
-                    view.DrawLabel("[" + keyName + "]キーでキーフレームを登録します", 400, 20, Color.white);
-                }
-                else
-                {
-                    var keyName = timelineConfig.GetKeyName(MTEP.KeyBindType.EditMode);
-                    view.DrawLabel("[" + keyName + "]キーで編集モードに切り替えます", 400, 20, Color.white);
-                }
-            }
-            view.EndLayout();
-
-            view.margin = GUIView.defaultMargin;
-            view.padding = GUIView.defaultPadding;
+            DrawFileMenu(view, editEnabled);
+            DrawStatusMessage(view, isStudioHackValid, isMaidValid);
 
             if (!editEnabled)
             {
                 return;
             }
 
-            view.BeginHorizontal();
+            DrawFrameControls(view);
+            DrawKeyFrameControls(view);
+            DrawRangeControls(view);
+            DrawLayerControls(view);
+            DrawToggles(view);
+        }
+
+        private void DrawFileMenu(GUIView view, bool editEnabled)
+        {
+            WrapIfNeeded(view, 60);
+            fileMenuComboBox.currentIndex = -1;
+            fileMenuComboBox.DrawButton(view);
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("セーブ", 60, ROW_HEIGHT, editEnabled))
             {
-                view.DrawTextField("アニメ名", 0, anmName, 310, 20, newText => anmName = newText);
-
-                view.AddSpace(10);
-
-                // 最終フレームのラベル+数値入力はまとめて折り返す (DrawIntSelect の実描画幅は 220 固定)
-                WrapIfNeeded(view, 75 + 220);
-                view.DrawLabel("最終フレーム", 75, 20);
-
-                var newMaxFrameNo = timeline.maxFrameNo;
-
-                view.DrawIntSelect(
-                    "",
-                    1,
-                    10,
-                    null,
-                    newMaxFrameNo,
-                    value => newMaxFrameNo = value,
-                    diff => newMaxFrameNo += diff
-                );
-
-                if (newMaxFrameNo != timeline.maxFrameNo)
-                {
-                    timelineManager.SetMaxFrameNo(newMaxFrameNo);
-                }
+                OnSaveClicked();
             }
-            view.EndLayout();
 
-            view.BeginHorizontal();
+            // MTE のロードボタンと同様に開く動作のみ (他ボタンと違いトグルしない)
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("ロード", 60, ROW_HEIGHT))
             {
-                view.DrawLabel("フレーム操作", 100, 20);
+                OnLoadClicked();
+            }
 
-                var newFrameNo = timelineManager.currentFrameNo;
+            // MTE のトラックボタンと同様、アクティブトラックありを緑で示す (SE はトラック UI が設定ウィンドウ内)
+            var trackColor = editEnabled && timeline.activeTrack != null ? Color.green : Color.white;
+            WrapIfNeeded(view, 50);
+            if (view.DrawButton("設定", 50, ROW_HEIGHT, true, trackColor))
+            {
+                WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
+            }
 
-                // シークボタン群 (|< .< < [num] > >. >|) は分断すると操作しにくいためまとめて折り返す
-                WrapIfNeeded(view, 25 * 6 + 50);
-                view.margin = 0;
+            WrapIfNeeded(view, 50);
+            if (view.DrawButton("編集", 50, ROW_HEIGHT))
+            {
+                WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
+            }
 
-                if (view.DrawButton("|<", 25, 20))
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("テンプレ", 60, ROW_HEIGHT))
+            {
+                WindowManager.ToggleWindowVisible(TimelineTemplateWindow.instance);
+            }
+        }
+
+        /// <summary>
+        /// スクロールビューの EndScrollView を飛ばさないよう、
+        /// 中断する早期 return はハンドラ側に閉じ込める (ロードも同様)
+        /// </summary>
+        private void OnSaveClicked()
+        {
+            if (!studioHack.IsValid())
+            {
+                MTEUtils.ShowDialog(studioHack.errorMessage);
+                return;
+            }
+            if (!timelineManager.IsValidData())
+            {
+                MTEUtils.ShowDialog(timelineManager.errorMessage);
+                return;
+            }
+            timelineManager.SaveTimeline();
+
+            // 保存したタイムラインをサムネ付きで一覧へ出す
+            TimelineLoadManager.Reload();
+        }
+
+        private void OnLoadClicked()
+        {
+            if (!studioHack.IsValid())
+            {
+                MTEUtils.ShowDialog(studioHack.errorMessage);
+                return;
+            }
+            if (!TimelineLoadWindow.instance.isShowWnd)
+            {
+                WindowManager.ToggleWindowVisible(TimelineLoadWindow.instance);
+            }
+        }
+
+        /// <summary>状態メッセージ。狭いウィンドウでもはみ出さないよう残り幅に収める</summary>
+        private void DrawStatusMessage(GUIView view, bool isStudioHackValid, bool isMaidValid)
+        {
+            WrapIfNeeded(view, STATUS_MESSAGE_MIN_WIDTH);
+
+            var remainWidth = view.viewRect.width - view.currentPos.x - view.padding.x * 2;
+            var width = Mathf.Min(STATUS_MESSAGE_MAX_WIDTH, remainWidth);
+
+            if (!isStudioHackValid)
+            {
+                view.DrawLabel(studioHack.errorMessage, width, ROW_HEIGHT, Color.yellow);
+            }
+            else if (!isMaidValid)
+            {
+                view.DrawLabel(maidManager.errorMessage, width, ROW_HEIGHT, Color.yellow);
+            }
+            else if (!timelineManager.IsValidData())
+            {
+                view.DrawLabel(timelineManager.errorMessage, width, ROW_HEIGHT, Color.yellow);
+            }
+            else if (studioHackManager.isPoseEditing)
+            {
+                var keyName = timelineConfig.GetKeyName(MTEP.KeyBindType.AddKeyFrame);
+                view.DrawLabel("[" + keyName + "]キーでキーフレームを登録します", width, ROW_HEIGHT, Color.white);
+            }
+            else
+            {
+                var keyName = timelineConfig.GetKeyName(MTEP.KeyBindType.EditMode);
+                view.DrawLabel("[" + keyName + "]キーで編集モードに切り替えます", width, ROW_HEIGHT, Color.white);
+            }
+        }
+
+        private void DrawFrameControls(GUIView view)
+        {
+            WrapIfNeeded(view, 260);
+            view.DrawTextField("アニメ名", 60, anmName, 260, ROW_HEIGHT, newText => anmName = newText);
+
+            WrapIfNeeded(view, 75 + 60);
+            view.DrawDragIntField(new GUIView.DragIntFieldOption
+            {
+                label = "最終フレーム",
+                labelWidth = 75,
+                value = timeline.maxFrameNo,
+                fieldWidth = 60,
+                height = ROW_HEIGHT,
+                onChanged = value => timelineManager.SetMaxFrameNo(value),
+            });
+
+            var newFrameNo = timelineManager.currentFrameNo;
+
+            // シークボタン群 (|< .< < [num] > >. >|) は分断すると操作しにくいためまとめて折り返す
+            WrapIfNeeded(view, 25 * 6 + 50);
+            view.margin = 0;
+            {
+                if (view.DrawButton("|<", 25, ROW_HEIGHT))
                 {
                     newFrameNo = 0;
                 }
-                if (view.DrawRepeatButton(".<", 25, 20))
+                if (view.DrawRepeatButton(".<", 25, ROW_HEIGHT))
                 {
                     var prevFrame = timelineManager.GetPrevFrame(newFrameNo);
                     if (prevFrame != null)
@@ -367,7 +397,7 @@ namespace COM3D2.SceneEditor.Plugin
                         newFrameNo = prevFrame.frameNo;
                     }
                 }
-                if (view.DrawRepeatButton("<", 25, 20))
+                if (view.DrawRepeatButton("<", 25, ROW_HEIGHT))
                 {
                     newFrameNo--;
                 }
@@ -376,15 +406,15 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     value = newFrameNo,
                     width = 50,
-                    height = 20,
+                    height = ROW_HEIGHT,
                     onChanged = value => newFrameNo = value,
                 });
 
-                if (view.DrawRepeatButton(">", 25, 20))
+                if (view.DrawRepeatButton(">", 25, ROW_HEIGHT))
                 {
                     newFrameNo++;
                 }
-                if (view.DrawRepeatButton(">.", 25, 20))
+                if (view.DrawRepeatButton(">.", 25, ROW_HEIGHT))
                 {
                     var nextFrame = timelineManager.GetNextFrame(newFrameNo);
                     if (nextFrame != null)
@@ -392,294 +422,276 @@ namespace COM3D2.SceneEditor.Plugin
                         newFrameNo = nextFrame.frameNo;
                     }
                 }
-                if (view.DrawButton(">|", 25, 20))
+                if (view.DrawButton(">|", 25, ROW_HEIGHT))
                 {
                     newFrameNo = timeline.maxFrameNo;
                 }
-
-                view.margin = GUIView.defaultMargin;
-
-                if (newFrameNo != timelineManager.currentFrameNo)
-                {
-                    timelineManager.SeekCurrentFrame(newFrameNo);
-                    TimelineWindow.instance.FixScrollPosition();
-                }
-
-                view.AddSpace(10);
-
-                WrapIfNeeded(view, 20);
-                if (currentLayer.isAnmPlaying)
-                {
-                    if (view.DrawButton("■", 20, 20))
-                    {
-                        timelineManager.Pause();
-                    }
-                }
-                else
-                {
-                    if (view.DrawButton("▶", 20, 20))
-                    {
-                        timelineManager.Play();
-                    }
-                }
-
-                view.AddSpace(10);
-
-                WrapIfNeeded(view, 250);
-                view.DrawSliderValue(
-                    new GUIView.SliderOption
-                    {
-                        label = "再生速度",
-                        labelWidth = 50,
-                        min = 0f,
-                        max = 2f,
-                        step = 0.01f,
-                        defaultValue = 1f,
-                        value = timelineManager.anmSpeed,
-                        onChanged = value => timelineManager.anmSpeed = value,
-                    });
-            }
-            view.EndLayout();
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("キーフレーム", 100, 20);
-
-                WrapIfNeeded(view, 50);
-                if (view.DrawButton("登録", 50, 20, studioHackManager.isPoseEditing))
-                {
-                    currentLayer.AddKeyFrameDiff();
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("全登録", 60, 20))
-                {
-                    currentLayer.AddKeyFrameAll();
-                }
-
-                WrapIfNeeded(view, 50);
-                if (view.DrawButton("削除", 50, 20, timelineManager.HasSelected()))
-                {
-                    timelineManager.RemoveSelectedFrame();
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("コピー", 60, 20, timelineManager.HasSelected()))
-                {
-                    timelineManager.CopyFramesToClipboard();
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("ペースト", 60, 20))
-                {
-                    timelineManager.PasteFramesFromClipboard(false);
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("反転P", 60, 20))
-                {
-                    timelineManager.PasteFramesFromClipboard(true);
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("ポーズC", 60, 20))
-                {
-                    timelineManager.CopyPoseToClipboard();
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("ポーズP", 60, 20, studioHackManager.isPoseEditing))
-                {
-                    timelineManager.PastePoseFromClipboard();
-                }
-            }
-            view.EndLayout();
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("範囲操作", 100, 20);
-
-                // 開始～終了の入力欄とリセットはまとめて折り返す (要素間 margin 3 つ分を含む)
-                WrapIfNeeded(view, 50 + 15 + 50 + 20 + 5 * 3);
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = selectStartFrameNo,
-                    width = 50,
-                    height = 20,
-                    onChanged = value => selectStartFrameNo = value,
-                });
-
-                view.DrawLabel("～", 15, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = selectEndFrameNo,
-                    width = 50,
-                    height = 20,
-                    onChanged = value => selectEndFrameNo = value,
-                });
-
-                if (view.DrawButton("R", 20, 20))
-                {
-                    selectStartFrameNo = 0;
-                    selectEndFrameNo = 0;
-                }
-
-                var isValidRange = timelineManager.IsValidFrameRnage(selectStartFrameNo, selectEndFrameNo);
-
-                WrapIfNeeded(view, 65);
-                if (view.DrawButton("範囲選択", 65, 20))
-                {
-                    timelineManager.SelectFramesRange(selectStartFrameNo, selectEndFrameNo);
-                }
-
-                WrapIfNeeded(view, 65);
-                if (view.DrawButton("ﾌﾚｰﾑ挿入", 65, 20, isValidRange && selectStartFrameNo > 0))
-                {
-                    timelineManager.InsertFrames(selectStartFrameNo, selectEndFrameNo);
-                }
-
-                WrapIfNeeded(view, 65);
-                if (view.DrawButton("ﾌﾚｰﾑ削除", 65, 20, isValidRange && selectStartFrameNo > 0))
-                {
-                    timelineManager.DeleteFrames(selectStartFrameNo, selectEndFrameNo);
-                }
-
-                WrapIfNeeded(view, 65);
-                if (view.DrawButton("ﾌﾚｰﾑ複製", 65, 20, isValidRange))
-                {
-                    timelineManager.DuplicateFrames(selectStartFrameNo, selectEndFrameNo);
-                }
-
-                WrapIfNeeded(view, 60);
-                if (view.DrawButton("縦選択", 60, 20, !timelineConfig.isEasyEdit))
-                {
-                    timelineManager.SelectVerticalBones();
-                }
-            }
-            view.EndLayout();
-
-            view.BeginHorizontal();
-            view.margin = 0;
-            {
-                var layerType = currentLayer.layerType;
-                var layerInfo = timelineManager.GetLayerInfo(layerType);
-                _layerComboBox.currentItem = layerInfo;
-                _layerComboBox.items = timelineManager.usingLayerInfoList;
-                _layerComboBox.DrawButton("レイヤー", view);
-
-                WrapIfNeeded(view, 20);
-                if (view.DrawButton("-", 20, 20, layerType != typeof(MTEP.MotionTimelineLayer)))
-                {
-                    timelineManager.RemoveLayers(layerType);
-                }
-
-                WrapIfNeeded(view, 20);
-                _addLayerComboBox.currentIndex = -1;
-                _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
-                _addLayerComboBox.DrawButton(null, view);
-
-                view.AddSpace(10);
-
-                if (currentLayer.hasSlotNo)
-                {
-                    // 操作対象ラベルとメイドコンボはまとめて折り返す
-                    WrapIfNeeded(view, 60 + 150);
-                    view.DrawLabel("操作対象", 60, 20);
-
-                    _maidComboBox.currentIndex = currentLayer.slotNo;
-                    _maidComboBox.items = maidManager.maidCaches;
-                    _maidComboBox.DrawButton(view);
-                }
             }
             view.margin = GUIView.defaultMargin;
-            view.EndLayout();
 
-            view.BeginHorizontal();
+            if (newFrameNo != timelineManager.currentFrameNo)
             {
-                view.DrawToggle("簡易表示", timelineConfig.isEasyEdit, 80, 20, newValue =>
+                timelineManager.SeekCurrentFrame(newFrameNo);
+                TimelineWindow.instance.FixScrollPosition();
+            }
+
+            WrapIfNeeded(view, 20);
+            if (currentLayer.isAnmPlaying)
+            {
+                if (view.DrawButton("■", 20, ROW_HEIGHT))
                 {
-                    timelineConfig.isEasyEdit = newValue;
-                    timelineConfig.dirty = true;
-                    timelineManager.Refresh();
-                });
-
-                WrapIfNeeded(view, 80);
-                view.DrawToggle("編集モード", studioHackManager.isPoseEditing, 80, 20, newValue =>
-                {
-                    studioHackManager.isPoseEditing = newValue;
-                });
-
-                WrapIfNeeded(view, 80);
-                view.DrawToggle("自動登録", timelineConfig.isAutoKeyFrame, 80, 20, newValue =>
-                {
-                    timelineConfig.isAutoKeyFrame = newValue;
-                    timelineConfig.dirty = true;
-                });
-
-                WrapIfNeeded(view, 80);
-                view.DrawToggle("メイド表示", maidManager.maid.Visible, 80, 20, newValue =>
-                {
-                    maidManager.maid.Visible = newValue;
-                });
-
-                WrapIfNeeded(view, 80);
-                view.DrawToggle("モデル表示", modelManager.Visible, 80, 20, newValue =>
-                {
-                    modelManager.Visible = newValue;
-                });
-
-                WrapIfNeeded(view, 80);
-                view.DrawToggle("背景表示", timeline.isBackgroundVisible, 80, 20, newValue =>
-                {
-                    timeline.isBackgroundVisible = newValue;
-                });
-
-                if (timelineManager.hasCameraLayer)
-                {
-                    var cameraUpdated = false;
-                    WrapIfNeeded(view, 80);
-                    cameraUpdated |= view.DrawToggle("カメラ同期", timelineConfig.isCameraSync, 80, 20, !currentLayer.isCameraLayer, newValue =>
-                    {
-                        timelineConfig.isCameraSync = newValue;
-                        timelineConfig.dirty = true;
-                    });
-
-                    WrapIfNeeded(view, 80);
-                    cameraUpdated |= view.DrawToggle("視野角固定", timelineConfig.isFixedFoV, 80, 20, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
-                    {
-                        timelineConfig.isFixedFoV = newValue;
-                        timelineConfig.dirty = true;
-                    });
-
-                    WrapIfNeeded(view, 100);
-                    cameraUpdated |= view.DrawToggle("フォーカス固定", timelineConfig.isFixedFocus, 100, 20, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
-                    {
-                        timelineConfig.isFixedFocus = newValue;
-                        timelineConfig.dirty = true;
-                    });
-
-                    if (cameraUpdated)
-                    {
-                        var cameraLayer = timelineManager.GetLayer(typeof(MTEP.CameraTimelineLayer));
-                        if (cameraLayer != null)
-                        {
-                            cameraLayer.ApplyCurrentFrame(false);
-                        }
-                    }
-                }
-
-                if (timelineManager.hasPostEffectLayer)
-                {
-                    WrapIfNeeded(view, 100);
-                    view.DrawToggle("ポスプロ同期", timelineConfig.isPostEffectSync, 100, 20, !currentLayer.isPostEffectLayer, newValue =>
-                    {
-                        timelineConfig.isPostEffectSync = newValue;
-                        timelineConfig.dirty = true;
-                    });
+                    timelineManager.Pause();
                 }
             }
-            view.EndLayout();
+            else
+            {
+                if (view.DrawButton("▶", 20, ROW_HEIGHT))
+                {
+                    timelineManager.Play();
+                }
+            }
+
+            WrapIfNeeded(view, 60 + 50);
+            view.DrawDragFloatField(new GUIView.DragFloatFieldOption
+            {
+                label = "再生速度",
+                labelWidth = 60,
+                value = timelineManager.anmSpeed,
+                minValue = 0f,
+                maxValue = 2f,
+                fieldWidth = 50,
+                height = ROW_HEIGHT,
+                onChanged = value => timelineManager.anmSpeed = value,
+            });
+        }
+
+        private void DrawKeyFrameControls(GUIView view)
+        {
+            WrapIfNeeded(view, 50);
+            if (view.DrawButton("登録", 50, ROW_HEIGHT, studioHackManager.isPoseEditing))
+            {
+                currentLayer.AddKeyFrameDiff();
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("全登録", 60, ROW_HEIGHT))
+            {
+                currentLayer.AddKeyFrameAll();
+            }
+
+            WrapIfNeeded(view, 50);
+            if (view.DrawButton("削除", 50, ROW_HEIGHT, timelineManager.HasSelected()))
+            {
+                timelineManager.RemoveSelectedFrame();
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("コピー", 60, ROW_HEIGHT, timelineManager.HasSelected()))
+            {
+                timelineManager.CopyFramesToClipboard();
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("ペースト", 60, ROW_HEIGHT))
+            {
+                timelineManager.PasteFramesFromClipboard(false);
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("反転P", 60, ROW_HEIGHT))
+            {
+                timelineManager.PasteFramesFromClipboard(true);
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("ポーズC", 60, ROW_HEIGHT))
+            {
+                timelineManager.CopyPoseToClipboard();
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("ポーズP", 60, ROW_HEIGHT, studioHackManager.isPoseEditing))
+            {
+                timelineManager.PastePoseFromClipboard();
+            }
+        }
+
+        private void DrawRangeControls(GUIView view)
+        {
+            // 開始～終了の入力欄とリセットはまとめて折り返す (要素間 margin 3 つ分を含む)
+            WrapIfNeeded(view, 50 + 15 + 50 + 20 + GUIView.defaultMargin * 3);
+            view.DrawIntField(new GUIView.IntFieldOption
+            {
+                value = selectStartFrameNo,
+                width = 50,
+                height = ROW_HEIGHT,
+                onChanged = value => selectStartFrameNo = value,
+            });
+
+            view.DrawLabel("～", 15, ROW_HEIGHT);
+
+            view.DrawIntField(new GUIView.IntFieldOption
+            {
+                value = selectEndFrameNo,
+                width = 50,
+                height = ROW_HEIGHT,
+                onChanged = value => selectEndFrameNo = value,
+            });
+
+            if (view.DrawButton("R", 20, ROW_HEIGHT))
+            {
+                selectStartFrameNo = 0;
+                selectEndFrameNo = 0;
+            }
+
+            var isValidRange = timelineManager.IsValidFrameRnage(selectStartFrameNo, selectEndFrameNo);
+
+            WrapIfNeeded(view, 65);
+            if (view.DrawButton("範囲選択", 65, ROW_HEIGHT))
+            {
+                timelineManager.SelectFramesRange(selectStartFrameNo, selectEndFrameNo);
+            }
+
+            WrapIfNeeded(view, 65);
+            if (view.DrawButton("ﾌﾚｰﾑ挿入", 65, ROW_HEIGHT, isValidRange && selectStartFrameNo > 0))
+            {
+                timelineManager.InsertFrames(selectStartFrameNo, selectEndFrameNo);
+            }
+
+            WrapIfNeeded(view, 65);
+            if (view.DrawButton("ﾌﾚｰﾑ削除", 65, ROW_HEIGHT, isValidRange && selectStartFrameNo > 0))
+            {
+                timelineManager.DeleteFrames(selectStartFrameNo, selectEndFrameNo);
+            }
+
+            WrapIfNeeded(view, 65);
+            if (view.DrawButton("ﾌﾚｰﾑ複製", 65, ROW_HEIGHT, isValidRange))
+            {
+                timelineManager.DuplicateFrames(selectStartFrameNo, selectEndFrameNo);
+            }
+
+            WrapIfNeeded(view, 60);
+            if (view.DrawButton("縦選択", 60, ROW_HEIGHT, !timelineConfig.isEasyEdit))
+            {
+                timelineManager.SelectVerticalBones();
+            }
+        }
+
+        private void DrawLayerControls(GUIView view)
+        {
+            var layerType = currentLayer.layerType;
+
+            // レイヤーコンボと増減ボタンはまとめて折り返す
+            WrapIfNeeded(view, 100 + 150 + 20 + 20);
+            _layerComboBox.currentItem = timelineManager.GetLayerInfo(layerType);
+            _layerComboBox.items = timelineManager.usingLayerInfoList;
+            _layerComboBox.DrawButton("レイヤー", view);
+
+            if (view.DrawButton("-", 20, ROW_HEIGHT, layerType != typeof(MTEP.MotionTimelineLayer)))
+            {
+                timelineManager.RemoveLayers(layerType);
+            }
+
+            _addLayerComboBox.currentIndex = -1;
+            _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
+            _addLayerComboBox.DrawButton(null, view);
+
+            if (currentLayer.hasSlotNo)
+            {
+                // 操作対象ラベルとメイドコンボはまとめて折り返す
+                WrapIfNeeded(view, 60 + 150);
+                view.DrawLabel("操作対象", 60, ROW_HEIGHT);
+
+                _maidComboBox.currentIndex = currentLayer.slotNo;
+                _maidComboBox.items = maidManager.maidCaches;
+                _maidComboBox.DrawButton(view);
+            }
+        }
+
+        private void DrawToggles(GUIView view)
+        {
+            WrapIfNeeded(view, 80);
+            view.DrawToggle("簡易表示", timelineConfig.isEasyEdit, 80, ROW_HEIGHT, newValue =>
+            {
+                timelineConfig.isEasyEdit = newValue;
+                timelineConfig.dirty = true;
+                timelineManager.Refresh();
+            });
+
+            WrapIfNeeded(view, 80);
+            view.DrawToggle("編集モード", studioHackManager.isPoseEditing, 80, ROW_HEIGHT, newValue =>
+            {
+                studioHackManager.isPoseEditing = newValue;
+            });
+
+            WrapIfNeeded(view, 80);
+            view.DrawToggle("自動登録", timelineConfig.isAutoKeyFrame, 80, ROW_HEIGHT, newValue =>
+            {
+                timelineConfig.isAutoKeyFrame = newValue;
+                timelineConfig.dirty = true;
+            });
+
+            WrapIfNeeded(view, 80);
+            view.DrawToggle("メイド表示", maidManager.maid.Visible, 80, ROW_HEIGHT, newValue =>
+            {
+                maidManager.maid.Visible = newValue;
+            });
+
+            WrapIfNeeded(view, 80);
+            view.DrawToggle("モデル表示", modelManager.Visible, 80, ROW_HEIGHT, newValue =>
+            {
+                modelManager.Visible = newValue;
+            });
+
+            WrapIfNeeded(view, 80);
+            view.DrawToggle("背景表示", timeline.isBackgroundVisible, 80, ROW_HEIGHT, newValue =>
+            {
+                timeline.isBackgroundVisible = newValue;
+            });
+
+            if (timelineManager.hasCameraLayer)
+            {
+                var cameraUpdated = false;
+                WrapIfNeeded(view, 80);
+                cameraUpdated |= view.DrawToggle("カメラ同期", timelineConfig.isCameraSync, 80, ROW_HEIGHT, !currentLayer.isCameraLayer, newValue =>
+                {
+                    timelineConfig.isCameraSync = newValue;
+                    timelineConfig.dirty = true;
+                });
+
+                WrapIfNeeded(view, 80);
+                cameraUpdated |= view.DrawToggle("視野角固定", timelineConfig.isFixedFoV, 80, ROW_HEIGHT, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                {
+                    timelineConfig.isFixedFoV = newValue;
+                    timelineConfig.dirty = true;
+                });
+
+                WrapIfNeeded(view, 100);
+                cameraUpdated |= view.DrawToggle("フォーカス固定", timelineConfig.isFixedFocus, 100, ROW_HEIGHT, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                {
+                    timelineConfig.isFixedFocus = newValue;
+                    timelineConfig.dirty = true;
+                });
+
+                if (cameraUpdated)
+                {
+                    var cameraLayer = timelineManager.GetLayer(typeof(MTEP.CameraTimelineLayer));
+                    if (cameraLayer != null)
+                    {
+                        cameraLayer.ApplyCurrentFrame(false);
+                    }
+                }
+            }
+
+            if (timelineManager.hasPostEffectLayer)
+            {
+                WrapIfNeeded(view, 100);
+                view.DrawToggle("ポスプロ同期", timelineConfig.isPostEffectSync, 100, ROW_HEIGHT, !currentLayer.isPostEffectLayer, newValue =>
+                {
+                    timelineConfig.isPostEffectSync = newValue;
+                    timelineConfig.dirty = true;
+                });
+            }
         }
     }
 }
