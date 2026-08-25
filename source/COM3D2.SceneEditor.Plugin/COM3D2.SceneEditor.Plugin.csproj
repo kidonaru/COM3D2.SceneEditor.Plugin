@@ -208,6 +208,7 @@
     <Compile Include="Manager\GuiWindowTracker.cs" />
     <Compile Include="Manager\InputRemapper.cs" />
     <Compile Include="Manager\InspectorHost.cs" />
+    <Compile Include="Manager\ModelPlacerProviderRegistry.cs" />
     <Compile Include="Manager\ScenePresetAutoLoadPatch.cs" />
     <Compile Include="Manager\ScenePresetManager.cs" />
     <Compile Include="Manager\ScenePresetProviderRegistry.cs" />
