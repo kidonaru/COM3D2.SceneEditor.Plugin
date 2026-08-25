@@ -10,6 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
         private Maid _capturedMaid;
         private Dictionary<FaceMorphDef, float> _morphs;
         private bool _mabataki;
+        private List<string> _modifiedNames;
 
         public static FaceSnapshot Capture(Maid maid)
         {
@@ -27,6 +28,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             snapshot._mabataki = MaidFaceMorphController.GetMabataki(maid);
+            var store = FaceEditManager.instance.FindStore(maid);
+            snapshot._modifiedNames = store != null ? store.GetNames() : new List<string>();
             return snapshot;
         }
 
@@ -44,6 +47,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MaidFaceMorphController.SetMorphValue(maid, pair.Key, pair.Value);
             }
+            FaceEditManager.instance.GetStore(maid).SetNames(_modifiedNames);
         }
 
         public bool Approximately(IStateSnapshot other)
@@ -59,6 +63,19 @@ namespace COM3D2.SceneEditor.Plugin
                 float otherValue;
                 if (!o._morphs.TryGetValue(pair.Key, out otherValue)
                     || Mathf.Abs(pair.Value - otherValue) >= 0.001f)
+                {
+                    return false;
+                }
+            }
+
+            // チェック集合の差も履歴対象。集合だけ変えた操作 (手動チェック ON) も undo できるようにする
+            if (_modifiedNames.Count != o._modifiedNames.Count)
+            {
+                return false;
+            }
+            foreach (var name in _modifiedNames)
+            {
+                if (!o._modifiedNames.Contains(name))
                 {
                     return false;
                 }
