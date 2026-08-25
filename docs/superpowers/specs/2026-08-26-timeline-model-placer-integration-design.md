@@ -72,12 +72,11 @@ public static クラスに付与する。SE は起動時とシーン切り替え
 | `string ModelPlacerDisplayName` | UI 表示名 |
 | `List<GameObject> GetModels()` | 現在配置中のモデルのルート GameObject を列挙する。SE は保持せず毎回呼ぶ |
 | `string GetModelFileName(GameObject obj)` | そのモデルの生成元ファイル名（`.menu` 名 / アセットバンドル名 / `MYR_<id>`）。SE の `name` 生成と `OfficialObjectInfo` 逆引きに使う |
-| `int GetModelGroup(GameObject obj)` | プロバイダが実際に採番したグループ番号 |
 | `GameObject CreateModel(string type, string fileName, int myRoomId, long bgObjectId, int group, bool visible)` | モデルを生成して返す。失敗時は null。`type` は `StudioModelType` の enum 名文字列（`Mod` / `Prefab` / `Asset` / `MyRoom`）。`group` は希望値であり、プロバイダが別の値を採ってもよい |
 | `void DeleteModel(GameObject obj)` | 指定モデルを破棄する |
 | `void DeleteAllModels()` | このプロバイダが配置した分をすべて破棄する |
 | `void SetModelVisible(GameObject obj, bool visible)` | 表示 / 非表示を切り替える |
-| `void AttachModel(GameObject obj, Maid maid, string attachPointName)` | メイドのアタッチポイントへ追従させる。`attachPointName` は `PhotoTransTargetObject.AttachPoint` の enum 名。`maid == null` または `attachPointName == "Null"` で解除 |
+| `void AttachModel(GameObject obj, Maid maid, string boneName)` | メイドのボーンへ追従させる。`boneName` は SE 側が `PhotoTransTargetObject.AttachPoint` から `MaidCache.GetAttachPointTransform` でボーン Transform まで解決した結果の名前。ゲスト側に enum の対応表は不要。`maid == null` または空文字で解除 |
 
 ### 任意メンバ
 
@@ -89,9 +88,10 @@ public static クラスに付与する。SE は起動時とシーン切り替え
 ### 契約
 
 - やり取りする型は `GameObject` / `Maid` / プリミティブのみ。両プラグインの独自型は境界を越えない
-- SE は `CreateModel` の戻り値 GameObject に対して `GetModelFileName` / `GetModelGroup` を**読み直し**、
-  そこから `StudioModelStat.name`（`info.fileName + " (group)"`）を確定する。
-  希望した group と実際の group が食い違ってもタイムライン側の名前解決が壊れないようにするため
+- `CreateModel` に渡す `group` はゲスト側への**ヒント**でしかなく、ゲストが別の値で採番してよい。
+  タイムラインが使う group は既存の `ModelHackManager.FixGroup` が列挙順で振り直すため、
+  SE はゲストの採番を読み戻さない。`StudioModelStat.name`（`info.fileName + " (group)"`）は
+  この正規化後の group で確定する
 - SE 側はプロバイダのデリゲート呼び出しを try/catch で囲み、例外でタイムライン全体を巻き込まない
 - SE 側は重複排除しない。同一 GameObject を複数経路で提供しないのはプロバイダの責務
 
@@ -108,15 +108,19 @@ public static クラスに付与する。SE は起動時とシーン切り替え
     同一 GameObject に対する `StudioModelStat` の同一性を保つ（`ProviderModelStat` と同じ考え方）。
     Destroy 済みキーの掃除も同様に行う
   - `CreateModel` / `DeleteModel` / `DeleteAllModels` / `SetModelVisible` / `UpdateAttachPoint` を
-    プロバイダへ委譲する。`UpdateAttachPoint` は `attachMaidSlotNo` から `Maid` を引き、
-    `attachPoint` の enum 名とともに `AttachModel` を呼ぶ
+    プロバイダへ委譲する。`UpdateAttachPoint` は `attachMaidSlotNo` から `MaidCache` を引き、
+    `GetAttachPointTransform` で解決したボーン名を `AttachModel` へ渡す
+  - `StudioModelStat` のキャッシュ判定に group は使わない。group は `ModelHackManager.FixGroup` が
+    列挙順で振り直すため、ゲストの採番と突き合わせると毎回作り直しになる
 
 ### 変更
 
 - `Timeline/Hack/SceneEditorHack.cs`
-  - `IModelHack` 実装を外し、`_modelList` / `CreateModel` / `DeleteModel` / `DeleteAllModels` /
-    `UpdateAttachPoint` / `AttachItem` / `LoadGameModel` / `LoadMyRoomObject` / `LoadModObject` /
-    `GetModelParent` を削除する（MIE へ移設）
+  - `_modelList` / `CreateModel` / `DeleteModel` / `DeleteAllModels` / `UpdateAttachPoint` /
+    `AttachItem` / `LoadGameModel` / `LoadMyRoomObject` / `LoadModObject` / `GetModelParent` を
+    削除する（MIE へ移設）
+  - `modelList` の override と `IModelHack` 実装は**残す**。`StudioHackBase : IModelHack` で
+    `modelList` が abstract のため外せない。空リストを返す実装にする
   - `PhotoBGObjectData.Create()` の明示ロードは `StudioModelManager` の
     `OfficialObjectLabelMap` / `BGObjectIdMap` が依存しているため**残す**
 - `Timeline/TimelineIntegration.cs`（登録箇所）
@@ -135,8 +139,10 @@ public static クラスに付与する。SE は起動時とシーン切り替え
 - `ScenePresetManager` / `MaterialEditWindow` / `BoneEditWindow` / `ModelSelectHost` は
   `ModelProviderHost` 経由で MIE のモデルを見ている。MIE が両方の窓口（ProviderHost と
   ModelPlacerProvider）で同じ GameObject を出すため、**タイムラインのモデル一覧と
-  ボーン / マテリアル編集の一覧に同じモデルが並ぶ**のは期待どおり。
-  ただし `ScenePresetManager` のモデル復元と MIE の配置プリセットが二重に走らないかは要確認
+  ボーン / マテリアル編集の一覧に同じモデルが並ぶ**のは期待どおり
+- `TimelineIntegration.RegisterModelProvider()` はタイムラインのモデルを
+  `"SceneEditor.Timeline"` として `ModelProviderHost` へ提供している。移行後は同じ GameObject を
+  MIE 自身も提供するため二重に並ぶ。**この登録は削除する**
 
 ## MIE 側の変更
 
@@ -153,12 +159,15 @@ public static クラスに付与する。SE は起動時とシーン切り替え
     → `Resources.Load<GameObject>("BG/"+name)` → menu 経路フォールバック（SE の `LoadGameModel` を移植）
   - `CreateMyRoomObject(int myRoomId, int group, bool visible)`（SE の `LoadMyRoomObject` を移植）
   - いずれも既存 `RegisterCreatedModel` に合流させ、ラッパー GameObject / ギズモ / 履歴の扱いを揃える
-- `SelfModelPlacer` にアタッチ変換を追加
-  - SE の `PhotoTransTargetObject.AttachPoint` enum 名 → MIE の `AttachPoints`（boneName）対応表。
-    対応するボーンが無い場合は警告してアタッチしない
+- `SelfModelPlacer` にボーン名アタッチを追加
+  - `AttachByBoneName(model, maid, boneName)`。既存 `Attach` は `AttachPoints` に載っている
+    ポイントしか受け取れないため、一覧に無いボーンは臨時のアタッチポイントを作って委譲する
+  - `RestoreAttachState` も同様に臨時ポイントへフォールバックさせ、タイムライン経由で
+    アタッチしたモデルを配置プリセットから復元できるようにする
 - バッチ抑止
-  - `BeginBatch` / `EndBatch` の間は `history.RegisterCreate` と `selectedModel` の更新を行わない。
-    タイムライン読込のたびに MIE の Undo 履歴が大量に積まれるのを防ぐ
+  - `BeginBatch` / `EndBatch` の間は `history.RegisterCreate` / `history.RegisterAttach` と
+    `selectedModel` の更新を行わない。タイムライン読込のたびに MIE の Undo 履歴が
+    大量に積まれるのを防ぐ
 
 ### 変更
 
@@ -182,6 +191,7 @@ public static クラスに付与する。SE は起動時とシーン切り替え
 | リスク | 対処 |
 |---|---|
 | MIE のギズモ操作とタイムライン再生が同じ Transform を奪い合う | MIE はラッパー GameObject にギズモを付け、タイムラインも同じラッパーを動かす。再生中はタイムラインが毎フレーム上書きするため、ギズモ操作は再生停止時のみ有効という扱いにする（挙動を guest guide に明記） |
+| ゲストの group 採番と `ModelHackManager.FixGroup` の再採番が食い違い、`StudioModelStat` が作り直され続ける（= Bone/Material コントローラの再生成ループ） | `ExternalModelHack` のキャッシュ判定に group を使わず、`fileName` の変化だけで作り直す。group は `FixGroup` に委ねる |
 | 配置プリセット適用でモデルが総入れ替えされ、タイムラインの参照が切れる | `StudioModelManager.LateUpdate` の差分検出（`onModelAdded` / `onModelRemoved`）が既にあり、名前一致で再バインドされる。適用直後に `LateUpdate(true)` を強制する |
 | タイムライン読込のたびに MIE の Undo 履歴が汚れる | `BeginBatch` / `EndBatch` で履歴登録を抑止する |
 | プロバイダ発見の失敗（MIE の更新漏れ、規約メンバの欠落） | 束縛失敗時はどのメンバが欠けているかを警告ログに出す。`ScenePresetProviderRegistry` と同じ流儀 |
