@@ -606,7 +606,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
                     else
                     {
-                        bool isSecondColorBg = (y / frameHeight) % 2 == 1;
+                        // GUI 描画は上端 y=0 基準のため、Texture2D 側 (下端 y=0) の縞判定を反転して合わせる
+                        bool isSecondColorBg = ((height - 1 - y) / frameHeight) % 2 == 1;
                         pixels[y * width + x] = isSecondColorBg ? bgColor2 : bgColor1;
                     }
                 }

@@ -18,8 +18,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "タイムライン";
-        protected override int minWidth => 640;
-        protected override int minHeight => 240;
+        protected override int minWidth => 320;
+        protected override int minHeight => 160;
 
         private static readonly int MIN_MENU_WIDTH = 100;
         private static readonly int MAX_MENU_WIDTH = 300;
@@ -80,7 +80,9 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIStyle gsFrameLabel = new GUIStyle("label")
         {
             fontSize = 12,
-            alignment = TextAnchor.MiddleCenter
+            alignment = TextAnchor.MiddleCenter,
+            // スキン既定の文字色が暗くシークバー上で読めないため白を明示する
+            normal = { textColor = Color.white }
         };
 
         // 描画中の実効サイズ (contentRect から毎フレーム決定)
