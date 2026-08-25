@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -7,6 +7,14 @@ using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
+    /// <summary>
+    /// モデル生成の委譲先。(type, fileName, myRoomId, bgObjectId, group, visible) → 生成した GameObject。
+    /// COM3D2 (2.0) 向けビルドは .NET 3.5 で Func&lt;&gt; の入力が 4 個までのため、
+    /// 6 入力のこれは名前付きデリゲートとして定義する
+    /// </summary>
+    public delegate GameObject CreateModelHandler(
+        string type, string fileName, int myRoomId, long bgObjectId, int group, bool visible);
+
     /// <summary>
     /// 発見済みのモデル配置プロバイダ 1 件。メソッドはデリゲートで保持する。
     /// 任意メンバに対応するデリゲートは未実装なら null になる
@@ -19,8 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
         public Func<List<GameObject>> getModels;
         public Func<GameObject, string> getModelFileName;
 
-        /// <summary>(type, fileName, myRoomId, bgObjectId, group, visible) → 生成した GameObject</summary>
-        public Func<string, string, int, long, int, bool, GameObject> createModel;
+        public CreateModelHandler createModel;
 
         public Action<GameObject> deleteModel;
         public Action deleteAllModels;
@@ -97,8 +104,8 @@ namespace COM3D2.SceneEditor.Plugin
                 displayName = displayName,
                 getModels = (Func<List<GameObject>>)Delegate.CreateDelegate(typeof(Func<List<GameObject>>), getModels),
                 getModelFileName = (Func<GameObject, string>)Delegate.CreateDelegate(typeof(Func<GameObject, string>), getFileName),
-                createModel = (Func<string, string, int, long, int, bool, GameObject>)Delegate.CreateDelegate(
-                    typeof(Func<string, string, int, long, int, bool, GameObject>), createModel),
+                createModel = (CreateModelHandler)Delegate.CreateDelegate(
+                    typeof(CreateModelHandler), createModel),
                 deleteModel = (Action<GameObject>)Delegate.CreateDelegate(typeof(Action<GameObject>), deleteModel),
                 deleteAllModels = (Action)Delegate.CreateDelegate(typeof(Action), deleteAll),
                 setModelVisible = (Action<GameObject, bool>)Delegate.CreateDelegate(typeof(Action<GameObject, bool>), setVisible),
