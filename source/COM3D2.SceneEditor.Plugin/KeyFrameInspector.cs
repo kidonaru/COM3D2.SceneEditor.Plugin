@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -8,10 +7,11 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 選択中キーフレームの詳細表示・編集 (MTE の KeyFrameUI を Inspector 内へ移植したもの)。
-    /// 位置/回転/拡縮/色などの Transform 値とレイヤー固有のカスタム値を編集できる
-    /// (補間曲線の編集は TimelineCurveEditor が担当する)。
-    /// 編集は選択中の全キーフレームへ適用し、ApplyCurrentFrame で即時反映する
+    /// 選択中キーフレームの詳細表示・編集。
+    /// 選択キーフレームごとに折りたたみ可能なブロックを縦に並べ、
+    /// Transform は標準 Inspector と同じ横並び行、その他のパラメータは
+    /// ウィンドウ幅に合わせて折り返すドラッグ可能な数値入力で個別に編集する
+    /// (補間曲線の編集は TimelineCurveEditor が担当する)
     /// </summary>
     public class KeyFrameInspector
     {
@@ -19,6 +19,43 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.ITimelineLayer currentLayer => timelineManager.currentLayer;
         private static HashSet<MTEP.BoneData> selectedBones => timelineManager.selectedBones;
+
+        private const float RowHeight = 20f;
+        /// <summary>Transform 行のラベル幅 (InspectorWindow と揃える)</summary>
+        private const float TransformLabelWidth = 50f;
+        /// <summary>ブロックヘッダーの開閉マーク幅</summary>
+        private const float FoldMarkWidth = 16f;
+        /// <summary>ブロックヘッダー右端のボタン幅</summary>
+        private const float HeaderButtonWidth = 44f;
+        /// <summary>フロー要素 1 個ぶんの目安幅 (ラベル + 数値入力)</summary>
+        private const float FlowItemWidth = 130f;
+        /// <summary>フロー要素内のラベル幅</summary>
+        private const float FlowLabelWidth = 70f;
+        /// <summary>ブロック内容の左インデント</summary>
+        private const float BlockIndent = 8f;
+
+        // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
+        private const float PositionSensitivity = 0.01f;
+        private const float RotationSensitivity = 1f;
+        private const float ScaleSensitivity = 0.01f;
+        private const float ColorSensitivity = 0.01f;
+
+        /// <summary>
+        /// 折りたたみ中のキーフレーム。既定は展開なので「畳んだもの」だけを覚える。
+        /// Inspector 外 (タイムラインのショートカット等) からも削除されうるので、
+        /// 毎フレーム選択中のものだけへ絞り込んで古い BoneData 参照を残さない
+        /// (セッション中のみ有効。config へは永続化しない)
+        /// </summary>
+        private readonly HashSet<MTEP.BoneData> _collapsedBones = new HashSet<MTEP.BoneData>();
+
+        /// <summary>描画順を安定させるための並べ替えバッファ (毎フレームの確保を避ける)</summary>
+        private readonly List<MTEP.BoneData> _sortedBones = new List<MTEP.BoneData>();
+
+        /// <summary>
+        /// 削除は selectedBones を書き換えるため、描画ループ中には実行できない。
+        /// 描画後にまとめて処理する
+        /// </summary>
+        private MTEP.BoneData _pendingDeleteBone = null;
 
         private static KeyFrameInspector _instance = null;
         public static KeyFrameInspector instance
@@ -49,503 +86,390 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (!ShouldDraw())
             {
-                view.DrawLabel("キーフレームが選択されていません", -1, 20);
+                _collapsedBones.Clear();
+                view.DrawLabel("キーフレームが選択されていません", -1, RowHeight);
                 return;
             }
+
+            // Inspector 外の削除経路を通ると選択から外れた BoneData が残るため、ここで掃除する
+            _collapsedBones.RemoveWhere(bone => !selectedBones.Contains(bone));
+
+            var maxCount = Mathf.Max(1, config.detailTransformCount);
+            var totalCount = selectedBones.Count;
 
             view.DrawLabel(
-                string.Format("キーフレーム詳細 ({0}個選択中)", selectedBones.Count), -1, 20);
+                string.Format("キーフレーム詳細 ({0}個選択中)", totalCount), -1, RowHeight);
 
-            DrawTransform(view);
-            DrawCustomValues(view);
-            DrawStrValues(view);
+            // 選択順は HashSet で不定なので、フレーム番号 → 名前で毎回同じ並びにする
+            _sortedBones.Clear();
+            _sortedBones.AddRange(selectedBones);
+            _sortedBones.Sort(CompareBone);
 
-            if (view.DrawButton("初期化", 80, 20))
+            var drawCount = Mathf.Min(totalCount, maxCount);
+            for (var i = 0; i < drawCount; i++)
             {
-                foreach (var selectedBone in selectedBones)
+                DrawBoneBlock(view, _sortedBones[i]);
+            }
+
+            if (totalCount > drawCount)
+            {
+                view.DrawLabel(
+                    string.Format("他 {0} 個は非表示", totalCount - drawCount), -1, RowHeight);
+            }
+
+            _sortedBones.Clear();
+
+            ProcessPendingDelete();
+        }
+
+        private static int CompareBone(MTEP.BoneData a, MTEP.BoneData b)
+        {
+            var result = a.frameNo.CompareTo(b.frameNo);
+            if (result != 0)
+            {
+                return result;
+            }
+            return string.CompareOrdinal(a.name, b.name);
+        }
+
+        private void DrawBoneBlock(GUIView view, MTEP.BoneData bone)
+        {
+            view.DrawHorizontalLine(Color.gray);
+
+            var expanded = !_collapsedBones.Contains(bone);
+            DrawBlockHeader(view, bone, expanded);
+
+            if (!expanded)
+            {
+                return;
+            }
+
+            var transform = bone.transform;
+            DrawTransform(view, bone, transform);
+            DrawFlowValues(view, bone, transform);
+        }
+
+        /// <summary>開閉マーク + ボーン名(フレーム番号) + 初期化 / 削除ボタンの 1 行</summary>
+        private void DrawBlockHeader(GUIView view, MTEP.BoneData bone, bool expanded)
+        {
+            var available = view.viewRect.width - view.padding.x * 2;
+            // 要素は 4 個 (マーク・名前・初期化・削除) なので margin を 4 個ぶん引く
+            var labelWidth = available
+                - FoldMarkWidth - HeaderButtonWidth * 2 - view.margin * 4;
+            labelWidth = Mathf.Max(labelWidth, 40f);
+
+            view.BeginHorizontal();
+            {
+                Action toggle = () => ToggleCollapsed(bone);
+
+                view.DrawLabel(expanded ? "▼" : "▶", FoldMarkWidth, RowHeight,
+                    onClickAction: toggle);
+                view.DrawLabel(
+                    string.Format("{0} (F{1})", bone.name, bone.frameNo),
+                    labelWidth, RowHeight, onClickAction: toggle);
+
+                if (view.DrawButton("初期化", HeaderButtonWidth, RowHeight))
                 {
-                    selectedBone.transform.Reset();
+                    bone.transform.Reset();
+                    MTEUtils.LogDebug("キーフレームを初期化します：" + bone.name);
+                    currentLayer.ApplyCurrentFrame(true);
                 }
 
-                MTEUtils.LogDebug("初期化します");
-                currentLayer.ApplyCurrentFrame(true);
-            }
-        }
-
-        private void DrawTransform(GUIView view)
-        {
-            DrawVector3(
-                view,
-                new string[] { "X", "Y", "Z" },
-                0.01f,
-                0.1f,
-                transform => transform.initialPosition,
-                transform => transform.hasPosition,
-                transform => transform.position,
-                (transform, pos) => transform.position = pos
-            );
-            DrawVector3(
-                view,
-                new string[] { "RX", "RY", "RZ" },
-                1f,
-                10f,
-                transform => transform.initialEulerAngles,
-                transform => transform.hasRotation || transform.hasEulerAngles,
-                transform => transform.normalizedEulerAngles,
-                (transform, angle) => transform.eulerAngles = angle
-            );
-            DrawVector3(
-                view,
-                new string[] { "SX", "SY", "SZ" },
-                0.01f,
-                0.1f,
-                transform => transform.initialScale,
-                transform => transform.hasScale,
-                transform => transform.scale,
-                (transform, scale) => transform.scale = scale
-            );
-            DrawVector3(
-                view,
-                new string[] { "R", "G", "B" },
-                0.01f,
-                0.1f,
-                transform => transform.initialColor.ToVector3(),
-                transform => transform.hasColor,
-                transform => transform.color.ToVector3(),
-                (transform, color) => transform.color = color.ToColor()
-            );
-            DrawBoolValue(
-                view,
-                "表示",
-                transform => transform.hasVisible,
-                transform => transform.visible,
-                (transform, visible) => transform.visible = visible
-            );
-        }
-
-        private void DrawCustomValues(GUIView view)
-        {
-            var firstBone = selectedBones.First();
-            var customKeys = firstBone.transform.GetCustomValueInfoMap().Keys;
-
-            foreach (var customKey in customKeys)
-            {
-                DrawValue(
-                    view,
-                    firstBone.transform.GetCustomValueName(customKey),
-                    0.01f,
-                    0.1f,
-                    transform => transform.GetDefaultCustomValue(customKey),
-                    transform => transform.HasCustomValue(customKey),
-                    transform => transform.GetCustomValue(customKey).value,
-                    (transform, newValue) => transform.GetCustomValue(customKey).value = newValue
-                );
-            }
-        }
-
-        private void DrawStrValues(GUIView view)
-        {
-            var firstBone = selectedBones.First();
-            var customKeys = firstBone.transform.GetStrValueInfoMap().Keys;
-
-            foreach (var customKey in customKeys)
-            {
-                DrawStrValue(
-                    view,
-                    firstBone.transform.GetStrValueName(customKey),
-                    transform => transform.HasStrValue(customKey),
-                    transform => transform.GetStrValue(customKey),
-                    (transform, newValue) => transform.SetStrValue(customKey, newValue)
-                );
-            }
-        }
-
-        private void DrawVector3(
-            GUIView view,
-            string[] labels,
-            float addedValue1,
-            float addedValue2,
-            Func<MTEP.ITransformData, Vector3> getResetValue,
-            Func<MTEP.ITransformData, bool> hasValue,
-            Func<MTEP.ITransformData, Vector3> getValue,
-            Action<MTEP.ITransformData, Vector3> setValue)
-        {
-            var values = Vector3.zero;
-            var boneCount = 0;
-
-            foreach (var bone in selectedBones)
-            {
-                var transform = bone.transform;
-                int nanCount = 0;
-
-                if (hasValue(transform))
+                if (view.DrawButton("削除", HeaderButtonWidth, RowHeight))
                 {
-                    var pos = getValue(transform);
-                    if (boneCount == 0)
+                    _pendingDeleteBone = bone;
+                }
+            }
+            view.EndLayout();
+        }
+
+        private void ToggleCollapsed(MTEP.BoneData bone)
+        {
+            if (!_collapsedBones.Remove(bone))
+            {
+                _collapsedBones.Add(bone);
+            }
+        }
+
+        /// <summary>削除は selectedBones を変更するため、描画ループを抜けてから実行する</summary>
+        private void ProcessPendingDelete()
+        {
+            var bone = _pendingDeleteBone;
+            if (bone == null)
+            {
+                return;
+            }
+            _pendingDeleteBone = null;
+
+            var frame = bone.parentFrame;
+            if (frame != null)
+            {
+                frame.RemoveBone(bone);
+            }
+
+            selectedBones.Remove(bone);
+            _collapsedBones.Remove(bone);
+
+            currentLayer.CleanFrames();
+            currentLayer.ApplyCurrentFrame(true);
+
+            MTEUtils.LogDebug("キーフレームを削除します：" + bone.name);
+            timelineManager.RequestHistory("キーフレーム削除");
+        }
+
+        /// <summary>位置 / 回転 / 拡縮 / 色 を標準 Inspector と同じ横並び行で描く</summary>
+        private void DrawTransform(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        {
+            if (transform.hasPosition)
+            {
+                DrawVector3Row(view, bone, "位置", PositionSensitivity,
+                    transform.position,
+                    value => transform.position = value,
+                    () => transform.position = transform.initialPosition);
+            }
+
+            if (transform.hasRotation || transform.hasEulerAngles)
+            {
+                DrawVector3Row(view, bone, "回転", RotationSensitivity,
+                    transform.normalizedEulerAngles,
+                    value => transform.eulerAngles = value,
+                    () => transform.eulerAngles = transform.initialEulerAngles);
+            }
+
+            if (transform.hasScale)
+            {
+                DrawVector3Row(view, bone, "拡縮", ScaleSensitivity,
+                    transform.scale,
+                    value => transform.scale = value,
+                    () => transform.scale = transform.initialScale);
+            }
+
+            if (transform.hasColor)
+            {
+                DrawVector3Row(view, bone, "色", ColorSensitivity,
+                    transform.color.ToVector3(),
+                    value => transform.color = value.ToColor(),
+                    () => transform.color = transform.initialColor);
+            }
+        }
+
+        private void DrawVector3Row(
+            GUIView view,
+            MTEP.BoneData bone,
+            string label,
+            float sensitivity,
+            Vector3 value,
+            Action<Vector3> setValue,
+            Action resetValue)
+        {
+            // GUIView.DrawVector3Row は数値入力の幅を viewRect.width から算出するため、
+            // 外側を BeginHorizontal + AddSpace で包むと右端をはみ出す。インデントしないこと
+            view.DrawVector3Row(new GUIView.Vector3RowOption
+            {
+                label = label,
+                labelWidth = TransformLabelWidth,
+                height = RowHeight,
+                dragSensitivity = sensitivity,
+                value = value,
+                onChanged = newValue =>
+                {
+                    setValue(newValue);
+                    Apply(bone);
+                },
+                onReset = () =>
+                {
+                    resetValue();
+                    Apply(bone);
+                },
+            });
+        }
+
+        /// <summary>
+        /// カスタム値・文字列値・表示トグルを、ウィンドウ幅に入るだけ横に並べて折り返す。
+        /// 種類をまたいで詰めると型ごとの見分けがつかなくなるため、
+        /// 「カスタム値 → 表示トグル」までを 1 つの流れとし、文字列値は 1 行ずつ別に描く
+        /// </summary>
+        private void DrawFlowValues(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        {
+            var items = new List<Action>();
+
+            foreach (var pair in transform.GetCustomValueInfoMap())
+            {
+                var customKey = pair.Key;
+                var info = pair.Value;
+                if (!transform.HasCustomValue(customKey))
+                {
+                    continue;
+                }
+
+                items.Add(() => DrawCustomValueItem(view, bone, transform, customKey, info));
+            }
+
+            if (transform.hasVisible)
+            {
+                items.Add(() => DrawVisibleItem(view, bone, transform));
+            }
+
+            DrawFlow(view, items);
+
+            DrawStrValues(view, bone, transform);
+        }
+
+        /// <summary>要素を折り返しながら並べる。1 行ぶんずつ BeginHorizontal で囲む</summary>
+        private void DrawFlow(GUIView view, List<Action> items)
+        {
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            var available = view.viewRect.width - view.padding.x * 2
+                - BlockIndent - view.margin;
+            var columnCount = KeyFrameFlowLayout.GetColumnCount(
+                available, FlowItemWidth, view.margin);
+
+            for (var i = 0; i < items.Count; i += columnCount)
+            {
+                view.BeginHorizontal();
+                {
+                    view.AddSpace(BlockIndent);
+
+                    var end = Mathf.Min(i + columnCount, items.Count);
+                    for (var j = i; j < end; j++)
                     {
-                        values = pos;
+                        items[j]();
                     }
-                    else
+                }
+                view.EndLayout();
+            }
+        }
+
+        /// <summary>
+        /// カスタム値 1 個。bool 相当はトグル、整数相当は int 入力、
+        /// それ以外はドラッグ可能な float 入力にする
+        /// </summary>
+        private void DrawCustomValueItem(
+            GUIView view,
+            MTEP.BoneData bone,
+            MTEP.ITransformData transform,
+            string customKey,
+            MTEP.CustomValueInfo info)
+        {
+            var name = transform.GetCustomValueName(customKey);
+            var valueData = transform.GetCustomValue(customKey);
+            // リセットボタン (20px) はドラッグ入力側が fieldWidth から内側に取る
+            var fieldWidth = FlowItemWidth - FlowLabelWidth - view.margin;
+
+            Action reset = () =>
+            {
+                transform.GetCustomValue(customKey).value = transform.GetDefaultCustomValue(customKey);
+                Apply(bone);
+            };
+
+            if (info.type == MTEP.CustomValueType.BoolValue)
+            {
+                view.DrawToggle(name, valueData.value != 0f, FlowItemWidth, RowHeight,
+                    newValue =>
                     {
-                        for (var i = 0; i < 3; i++)
+                        transform.GetCustomValue(customKey).value = newValue ? 1f : 0f;
+                        Apply(bone);
+                    });
+                return;
+            }
+
+            if (info.type == MTEP.CustomValueType.IntValue)
+            {
+                view.DrawDragIntField(new GUIView.DragIntFieldOption
+                {
+                    label = name,
+                    labelWidth = FlowLabelWidth,
+                    value = Mathf.RoundToInt(valueData.value),
+                    minValue = Mathf.RoundToInt(info.min),
+                    maxValue = Mathf.RoundToInt(info.max),
+                    fieldWidth = fieldWidth,
+                    height = RowHeight,
+                    // dragSensitivity は既定 (DefaultIntDragSensitivity = 0.5) に任せる。
+                    // 1.0 にすると 1px で 1 段変わって細かい調整ができない
+                    onChanged = newValue =>
+                    {
+                        transform.GetCustomValue(customKey).value = newValue;
+                        Apply(bone);
+                    },
+                    onReset = reset,
+                });
+                return;
+            }
+
+            view.DrawDragFloatField(new GUIView.DragFloatFieldOption
+            {
+                label = name,
+                labelWidth = FlowLabelWidth,
+                value = valueData.value,
+                minValue = info.min,
+                maxValue = info.max,
+                fieldWidth = fieldWidth,
+                height = RowHeight,
+                dragSensitivity = info.step > 0f ? info.step : GUIView.DefaultFloatDragSensitivity,
+                onChanged = newValue =>
+                {
+                    transform.GetCustomValue(customKey).value = newValue;
+                    Apply(bone);
+                },
+                onReset = reset,
+            });
+        }
+
+        private void DrawVisibleItem(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        {
+            view.DrawToggle("表示", transform.visible, FlowItemWidth, RowHeight,
+                newValue =>
+                {
+                    transform.visible = newValue;
+                    Apply(bone);
+                });
+        }
+
+        /// <summary>文字列値は幅が読めないので 1 行ずつ全幅で描く</summary>
+        private void DrawStrValues(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        {
+            foreach (var pair in transform.GetStrValueInfoMap())
+            {
+                var strKey = pair.Key;
+                if (!transform.HasStrValue(strKey))
+                {
+                    continue;
+                }
+
+                var value = transform.GetStrValue(strKey);
+
+                view.BeginHorizontal();
+                {
+                    view.AddSpace(BlockIndent);
+                    view.DrawTextField(
+                        transform.GetStrValueName(strKey),
+                        FlowLabelWidth,
+                        value,
+                        -1,
+                        RowHeight,
+                        newValue =>
                         {
-                            if (pos[i] != values[i])
+                            if (newValue == value)
                             {
-                                values[i] = float.NaN;
-                                nanCount++;
+                                return;
                             }
-                        }
-                    }
-
-                    boneCount++;
-                    if (boneCount >= config.detailTransformCount || nanCount == 3)
-                    {
-                        break;
-                    }
+                            transform.SetStrValue(strKey, newValue);
+                            Apply(bone);
+                        });
                 }
-            }
-
-            if (boneCount == 0)
-            {
-                return;
-            }
-
-            var diffValues = Vector3.zero;
-            var newValues = values;
-            int resetIndex = -1;
-
-            for (var i = 0; i < 3; i++)
-            {
-                var index = i;
-                view.DrawFloatSelect(
-                    labels[i],
-                    addedValue1,
-                    addedValue2,
-                    () => resetIndex = index,
-                    values[i],
-                    newValue => newValues[index] = newValue,
-                    diffValue => diffValues[index] = diffValue
-                );
-            }
-
-            // リセット
-            if (resetIndex >= 0)
-            {
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        var pos = getValue(transform);
-                        pos[resetIndex] = getResetValue(transform)[resetIndex];
-                        setValue(transform, pos);
-                    }
-                }
-
-                MTEUtils.LogDebug("リセットします");
-                currentLayer.ApplyCurrentFrame(true);
-            }
-
-            // 差分の適用
-            for (var i = 0; i < 3; i++)
-            {
-                var diffValue = diffValues[i];
-                if (diffValue == 0f)
-                {
-                    continue;
-                }
-
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        var pos = getValue(transform);
-                        pos[i] += diffValue;
-                        setValue(transform, pos);
-                    }
-                }
-
-                MTEUtils.LogDebug("差分を適用します：" + diffValue);
-                currentLayer.ApplyCurrentFrame(true);
-            }
-
-            // 新値の適用
-            for (var i = 0; i < 3; i++)
-            {
-                var newValue = newValues[i];
-                if (float.IsNaN(newValue) || newValue == values[i])
-                {
-                    continue;
-                }
-
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        var pos = getValue(transform);
-                        pos[i] = newValue;
-                        setValue(transform, pos);
-                    }
-                }
-
-                MTEUtils.LogDebug("新値を適用します：" + newValue);
-                currentLayer.ApplyCurrentFrame(true);
+                view.EndLayout();
             }
         }
 
-        private void DrawValue(
-            GUIView view,
-            string label,
-            float addedValue1,
-            float addedValue2,
-            Func<MTEP.ITransformData, float> getResetValue,
-            Func<MTEP.ITransformData, bool> hasValue,
-            Func<MTEP.ITransformData, float> getValue,
-            Action<MTEP.ITransformData, float> setValue)
+        /// <summary>編集を即時反映する</summary>
+        private void Apply(MTEP.BoneData bone)
         {
-            var value = 0f;
-            var boneCount = 0;
-
-            foreach (var bone in selectedBones)
-            {
-                var transform = bone.transform;
-                var isNan = false;
-
-                if (hasValue(transform))
-                {
-                    var _value = getValue(transform);
-                    if (boneCount == 0)
-                    {
-                        value = _value;
-                    }
-                    else
-                    {
-                        if (_value != value)
-                        {
-                            value = float.NaN;
-                            isNan = true;
-                        }
-                    }
-
-                    boneCount++;
-                    if (boneCount >= config.detailTransformCount || isNan)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if (boneCount == 0)
-            {
-                return;
-            }
-
-            var diffValue = 0f;
-            var newValue = value;
-            bool isReset = false;
-
-            view.DrawFloatSelect(
-                label,
-                addedValue1,
-                addedValue2,
-                () => isReset = true,
-                value,
-                _newValue => newValue = _newValue,
-                _diffValue => diffValue = _diffValue
-            );
-
-            // リセット
-            if (isReset)
-            {
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        setValue(transform, getResetValue(transform));
-                    }
-                }
-
-                MTEUtils.LogDebug("リセットします");
-                currentLayer.ApplyCurrentFrame(true);
-            }
-
-            // 差分の適用
-            if (diffValue != 0f)
-            {
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        var _value = getValue(transform);
-                        _value += diffValue;
-                        setValue(transform, _value);
-                    }
-                }
-
-                MTEUtils.LogDebug("差分を適用します：" + diffValue);
-                currentLayer.ApplyCurrentFrame(true);
-            }
-
-            // 新値の適用
-            if (!float.IsNaN(newValue) && newValue != value)
-            {
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        setValue(transform, newValue);
-                    }
-                }
-
-                MTEUtils.LogDebug("新値を適用します：" + newValue);
-                currentLayer.ApplyCurrentFrame(true);
-            }
-        }
-
-        private void DrawBoolValue(
-            GUIView view,
-            string label,
-            Func<MTEP.ITransformData, bool> hasValue,
-            Func<MTEP.ITransformData, bool> getValue,
-            Action<MTEP.ITransformData, bool> setValue)
-        {
-            bool value = false;
-            var boneCount = 0;
-
-            foreach (var bone in selectedBones)
-            {
-                var transform = bone.transform;
-                var isMixed = false;
-
-                if (hasValue(transform))
-                {
-                    var _value = getValue(transform);
-                    if (boneCount == 0)
-                    {
-                        value = _value;
-                    }
-                    else
-                    {
-                        if (_value != value)
-                        {
-                            value = false;
-                            isMixed = true;
-                        }
-                    }
-
-                    boneCount++;
-                    if (boneCount >= config.detailTransformCount || isMixed)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if (boneCount == 0)
-            {
-                return;
-            }
-
-            var newValue = value;
-
-            view.DrawToggle(
-                label,
-                value,
-                100,
-                20,
-                _newValue => newValue = _newValue);
-
-            // 新値の適用
-            if (newValue != value)
-            {
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        setValue(transform, newValue);
-                    }
-                }
-
-                MTEUtils.LogDebug("新値を適用します：" + newValue);
-                currentLayer.ApplyCurrentFrame(true);
-            }
-        }
-
-        private void DrawStrValue(
-            GUIView view,
-            string label,
-            Func<MTEP.ITransformData, bool> hasValue,
-            Func<MTEP.ITransformData, string> getValue,
-            Action<MTEP.ITransformData, string> setValue)
-        {
-            var value = "";
-            var boneCount = 0;
-
-            foreach (var bone in selectedBones)
-            {
-                var transform = bone.transform;
-                var isMixed = false;
-
-                if (hasValue(transform))
-                {
-                    var _value = getValue(transform);
-                    if (boneCount == 0)
-                    {
-                        value = _value;
-                    }
-                    else
-                    {
-                        if (_value != value)
-                        {
-                            value = "";
-                            isMixed = true;
-                        }
-                    }
-
-                    boneCount++;
-                    if (boneCount >= config.detailTransformCount || isMixed)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if (boneCount == 0)
-            {
-                return;
-            }
-
-            var newValue = value;
-
-            view.DrawTextField(
-                label,
-                0,
-                value,
-                -1,
-                20,
-                 _newValue => newValue = _newValue);
-
-            // 新値の適用
-            if (newValue != value)
-            {
-                foreach (var selectedBone in selectedBones)
-                {
-                    var transform = selectedBone.transform;
-                    if (hasValue(transform))
-                    {
-                        setValue(transform, newValue);
-                    }
-                }
-
-                MTEUtils.LogDebug("新値を適用します：" + newValue);
-                currentLayer.ApplyCurrentFrame(true);
-            }
+            MTEUtils.LogDebug("キーフレームを更新します：" + bone.name);
+            currentLayer.ApplyCurrentFrame(true);
         }
     }
 }
