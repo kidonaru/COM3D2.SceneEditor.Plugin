@@ -61,6 +61,21 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void SetNamesは中身が同じならversionが増えない()
+        {
+            var store = new FaceEditStore();
+            store.SetNames(new[] { "eyeclose", "mayuup" });
+            var v1 = store.version;
+
+            // 順序違いの同一集合では増えない (同じ表情への undo/redo・プリセット再適用)
+            store.SetNames(new[] { "mayuup", "eyeclose" });
+            Assert.Equal(v1, store.version);
+
+            store.SetNames(new[] { "mayuup" });
+            Assert.True(store.version > v1);
+        }
+
+        [Fact]
         public void null名と空文字は無視される()
         {
             var store = new FaceEditStore();

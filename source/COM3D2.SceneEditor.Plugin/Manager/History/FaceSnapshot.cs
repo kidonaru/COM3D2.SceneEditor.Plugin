@@ -10,7 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
         private Maid _capturedMaid;
         private Dictionary<FaceMorphDef, float> _morphs;
         private bool _mabataki;
-        private List<string> _modifiedNames;
+        private List<string> _modifiedNames = new List<string>();
 
         public static FaceSnapshot Capture(Maid maid)
         {

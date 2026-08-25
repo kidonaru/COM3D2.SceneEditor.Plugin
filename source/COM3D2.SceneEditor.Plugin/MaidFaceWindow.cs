@@ -229,11 +229,14 @@ namespace COM3D2.SceneEditor.Plugin
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
+            // 表示判定用。まだ 1 つも編集していないメイドのストアを作らないよう FindStore を使う
+            // (編集操作側のコールバックは GetStore で遅延生成する)
+            var faceStore = FaceEditManager.instance.FindStore(target);
+
             foreach (var def in MaidFaceMorphController.GetAvailableMorphs(target, currentMorphCategory))
             {
                 var value = MaidFaceMorphController.GetMorphValue(target, def);
-                var store = FaceEditManager.instance.FindStore(target);
-                var isModified = store != null && store.IsModified(def.name);
+                var isModified = faceStore != null && faceStore.IsModified(def.name);
 
                 view.BeginHorizontal();
                 {

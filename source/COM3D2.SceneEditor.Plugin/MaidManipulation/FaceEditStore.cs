@@ -42,16 +42,29 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>集合を丸ごと置き換える。プリセット適用と履歴復元に使う</summary>
         public void SetNames(IEnumerable<string> names)
         {
-            _modifiedNames.Clear();
+            var newNames = new HashSet<string>();
             if (names != null)
             {
                 foreach (var name in names)
                 {
                     if (!string.IsNullOrEmpty(name))
                     {
-                        _modifiedNames.Add(name);
+                        newNames.Add(name);
                     }
                 }
+            }
+
+            // 同じ表情への undo/redo やプリセット再適用で version が無駄に進むと、
+            // タイムライン側が毎回メニューを再構築するため、中身が変わったときだけ進める
+            if (_modifiedNames.SetEquals(newNames))
+            {
+                return;
+            }
+
+            _modifiedNames.Clear();
+            foreach (var name in newNames)
+            {
+                _modifiedNames.Add(name);
             }
             version++;
         }
