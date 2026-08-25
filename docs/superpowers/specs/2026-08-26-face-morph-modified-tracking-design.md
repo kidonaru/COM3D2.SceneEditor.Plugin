@@ -27,17 +27,15 @@
 
 ### 1. FaceEditStore(新規)
 
-場所: `source/COM3D2.SceneEditor.Plugin/MaidManipulation/FaceEditStore.cs`
-`MaidManipulateManager` に他コントローラ(lookController 等)と同様に登録する。
+場所: `source/COM3D2.SceneEditor.Plugin/MaidManipulation/FaceEditStore.cs`(メイド 1 人分の純粋クラス)と
+`FaceEditManager.cs`(`ManagerBase` 準拠シングルトン。`BoneEditManager` と同様に managerRegistry へ登録し、Maid → Store の対応と死んだメイドの掃除を担当)。
 
-- 実体: `Dictionary<Maid, HashSet<string>>`(キーは生 morph 名)
-- API:
-  - `bool IsModified(Maid maid, string name)`
-  - `void MarkModified(Maid maid, string name)`
-  - `void Unmark(Maid maid, string name)`
-  - `void SetModifiedNames(Maid maid, IEnumerable<string> names)` — プリセットロード時の一括復元
-  - `IEnumerable<string> GetModifiedNames(Maid maid)`
-  - `void Clear(Maid maid)` / メイド消滅時のクリーンアップ
+- 実体: `FaceEditStore` = `HashSet<string>`(キーは生 morph 名)+ 変更検知用 `version` カウンタ
+- FaceEditStore API:
+  - `bool IsModified(string name)` / `void Mark(string name)` / `void Unmark(string name)`
+  - `void SetNames(IEnumerable<string> names)` — プリセットロード・履歴復元時の一括置換
+  - `List<string> GetNames()` / `void Clear()` / `int version` / `bool isEmpty`
+- FaceEditManager API: `GetStore(Maid)`(無ければ作成)/ `FindStore(Maid)`(無ければ null)
 - マークは **UI 操作(MaidFaceWindow の onChanged)とプリセット適用時のみ**行う。
   `MaidFaceMorphController.SetMorphValue` には仕込まない(タイムライン再生が毎フレーム全モーフを書き込むため)。
 - Undo/Redo: `FaceSnapshot` にチェック集合(morph 名集合)を追加し、`HistoryScope.Face` の履歴で復元する。
@@ -58,7 +56,8 @@
 - `ScenePresetMorph` / `FacePresetMorph` の構造は変更しない(保存されている = チェック済み、の対応で表現できるため)。
 - `ScenePresetData` のスキーマバージョンを上げ、バージョン履歴コメントに追記する。
   旧バージョンプリセットは記載モーフ(= 非 0 で保存されたもの)をチェック済みとして復元するため、後方互換は自然に成立する。
-- 適用(`ApplyFace` / `MaidFacePresetManager.Apply`): 既存の「未記載モーフを 0 にする」挙動は維持しつつ、適用後に `SetModifiedNames` で保存されていた morph 名集合を反映する。
+- 適用(`ApplyFace` / `MaidFacePresetManager.Apply`): 既存の「未記載モーフを 0 にする」挙動は維持しつつ、適用後に `SetNames` で保存されていた morph 名集合を反映する。
+- フォトモード内蔵プリセット(`ApplyPhotoFacePreset`)も表情の総入れ替えなので、適用後に非 0 モーフを `SetNames` でチェック済みへ置き換える(プリセット由来の表情がシーン保存で欠落するのを防ぐ)。
 
 ### 4. タイムライン(MorphTimelineLayer / ボーンメニュー)
 
@@ -71,6 +70,8 @@
   → 新規キーフレームはチェック済みモーフのみ保持し、未チェックモーフは補間対象外となる(仕様として合意済み)。
 - チェック 0 件かつ既存キーフレームなしの場合、ボーンメニューは空になる(許容、合意済み)。
 - 対象は `MorphTimelineLayer`(メイド表情)のみ。`EyesTimelineLayer` / `ShapeKeyTimelineLayer` 等は対象外。
+- 既知の制約: 編集側の `nosefook`(鼻フック)はタイムライン側テーブルに存在せず、チェックしてもタイムラインには現れない(従来からの制約。テーブル追加はデータ互換に関わるためスコープ外)。
+- タイムラインのレイヤーウィンドウからのスライダー編集(強制上書きプレビュー中含む)もチェックを付ける。
 
 ## テスト・ビルド
 
@@ -82,7 +83,9 @@
 | ファイル | 変更内容 |
 |---|---|
 | `MaidManipulation/FaceEditStore.cs` | 新規 |
-| `MaidManipulation/MaidManipulateManager.cs` | FaceEditStore 登録 |
+| `MaidManipulation/FaceEditManager.cs` | 新規(Maid → Store 管理) |
+| `MaidManipulation/MaidFaceMorphController.cs` | ApplyPhotoFacePreset でのチェック置き換え |
+| `COM3D2.SceneEditor.Plugin.cs` | FaceEditManager 登録 |
 | `MaidFaceWindow.cs` | チェックボックス列追加・マーク/解除処理 |
 | `Manager/History/FaceSnapshot.cs` | チェック集合の履歴対応 |
 | `Manager/ScenePresetManager.cs` | 保存フィルタ変更・適用時チェック復元 |
