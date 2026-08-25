@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 
@@ -228,6 +229,21 @@ namespace COM3D2.SceneEditor.Plugin
 
             morph.MulBlendValues(settingName, 1f);
             morph.FixBlendValues_Face();
+
+            // プリセット適用は表情の総入れ替え。非 0 のモーフをチェック済みへ置き換え、
+            // シーンプリセット保存 (チェック済みのみ保存) で表情が欠落しないようにする
+            var modifiedNames = new List<string>();
+            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
+            {
+                foreach (var def in GetAvailableMorphs(maid, category))
+                {
+                    if (GetMorphValue(maid, def) != 0f)
+                    {
+                        modifiedNames.Add(def.name);
+                    }
+                }
+            }
+            FaceEditManager.instance.GetStore(maid).SetNames(modifiedNames);
         }
 
         /// <summary>
