@@ -135,11 +135,65 @@ namespace COM3D2.SceneEditor.Plugin
 
             public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
             {
+                // SE より後にロードされたモデル配置プラグインをここで拾う。
+                // 登録済みなら何もしないので、シーン切り替えごとの負荷は無視できる
+                TryRegisterModelPlacer();
+
                 foreach (var manager in _managers)
                 {
                     manager.OnChangedSceneLevel(scene, sceneMode);
                 }
             }
+        }
+
+        /// <summary>モデル配置プロバイダを登録済みか。二重登録と警告の連発を防ぐ</summary>
+        private static bool _modelPlacerRegistered;
+
+        /// <summary>プロバイダ不在の警告を出したか。シーン切り替えのたびに出さないようにする</summary>
+        private static bool _warnedModelPlacerMissing;
+
+        /// <summary>
+        /// モデル配置プロバイダを探し、見つかれば ModelHack とモデル系レイヤーを登録する。
+        /// プラグインのロード順は保証されず、SE の初期化時点ではゲスト側が
+        /// まだロードされていないことがあるため、シーン切り替えごとに呼び直せるようにしてある
+        /// </summary>
+        private static void TryRegisterModelPlacer()
+        {
+            if (_modelPlacerRegistered)
+            {
+                return;
+            }
+
+            // 初回の走査は Refresh の中身に関わらず行われる。
+            // 2 回目以降はアセンブリが増えていなければ再走査されない
+            ModelPlacerProviderRegistry.Refresh();
+
+            var modelPlacer = ModelPlacerProviderRegistry.current;
+            if (modelPlacer == null)
+            {
+                if (!_warnedModelPlacerMissing)
+                {
+                    _warnedModelPlacerMissing = true;
+                    MTEUtils.LogWarning(
+                        "モデル配置プロバイダが見つかりません。ModItemExplorer を導入するとタイムラインのモデル機能が使えます");
+                }
+                return;
+            }
+
+            _modelPlacerRegistered = true;
+
+            MTEP.ModelHackManager.instance.Register(new MTEP.ExternalModelHack(modelPlacer));
+
+            // モデル系レイヤーは配置をプロバイダへ委譲するため、プロバイダが見つかってから登録する
+            var timelineManager = MTEP.TimelineManager.instance;
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelShapeKeyTimelineLayer), MTEP.ModelShapeKeyTimelineLayer.Create);
+            timelineManager.RegisterLayer(
+                typeof(MTEP.ModelMaterialTimelineLayer), MTEP.ModelMaterialTimelineLayer.Create);
         }
 
         public static void Initialize(ManagerRegistry managerRegistry)
@@ -148,16 +202,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             MTEP.StudioHackManager.instance.Register(new MTEP.SceneEditorHack());
 
-            var modelPlacer = ModelPlacerProviderRegistry.current;
-            if (modelPlacer != null)
-            {
-                MTEP.ModelHackManager.instance.Register(new MTEP.ExternalModelHack(modelPlacer));
-            }
-            else
-            {
-                MTEUtils.LogWarning(
-                    "モデル配置プロバイダが見つかりません。ModItemExplorer を導入するとタイムラインのモデル機能が使えます");
-            }
+            TryRegisterModelPlacer();
 
             timelineManager.RegisterLayer(
                 typeof(MTEP.MotionTimelineLayer), MTEP.MotionTimelineLayer.Create);
@@ -181,18 +226,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.PngPlacementTimelineLayer), MTEP.PngPlacementTimelineLayer.Create);
-            // モデル系レイヤーは配置をプロバイダへ委譲するため、プロバイダが無ければ登録しない
-            if (modelPlacer != null)
-            {
-                timelineManager.RegisterLayer(
-                    typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
-                timelineManager.RegisterLayer(
-                    typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
-                timelineManager.RegisterLayer(
-                    typeof(MTEP.ModelShapeKeyTimelineLayer), MTEP.ModelShapeKeyTimelineLayer.Create);
-                timelineManager.RegisterLayer(
-                    typeof(MTEP.ModelMaterialTimelineLayer), MTEP.ModelMaterialTimelineLayer.Create);
-            }
+            // モデル系レイヤーの登録は TryRegisterModelPlacer が担う
+            // （プロバイダが見つかったときだけ、後から登録されることもあるため）
             timelineManager.RegisterLayer(
                 typeof(MTEP.MoveTimelineLayer), MTEP.MoveTimelineLayer.Create);
             timelineManager.RegisterLayer(

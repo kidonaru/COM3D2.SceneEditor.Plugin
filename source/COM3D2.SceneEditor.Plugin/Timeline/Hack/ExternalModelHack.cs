@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
@@ -24,6 +24,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private readonly List<StudioModelStat> _modelList = new List<StudioModelStat>();
 
+        /// <summary>生存中 GameObject の集合。掃除のたびに作り直さないよう使い回す</summary>
+        private readonly HashSet<GameObject> _aliveObjects = new HashSet<GameObject>();
+
         public override string pluginName => _provider.id;
 
         public ExternalModelHack(ModelPlacerProvider provider)
@@ -38,7 +41,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _modelList.Clear();
 
                 var objects = SafeGetModels();
-                CleanupDestroyed(objects);
+
+                // 生存判定を毎フレーム線形探索しないよう、集合にしてから突き合わせる
+                _aliveObjects.Clear();
+                foreach (var obj in objects)
+                {
+                    _aliveObjects.Add(obj);
+                }
+                CleanupDestroyed(_aliveObjects);
 
                 foreach (var obj in objects)
                 {
@@ -69,7 +79,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// プロバイダの一覧から消えた GameObject のエントリを捨てる。
         /// Unity の null 判定が真でも Dictionary のキーとしては生きているため明示的に掃除する
         /// </summary>
-        private void CleanupDestroyed(List<GameObject> aliveObjects)
+        private void CleanupDestroyed(HashSet<GameObject> aliveObjects)
         {
             List<GameObject> deadKeys = null;
             foreach (var pair in _statMap)
@@ -145,102 +155,67 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void CreateModel(StudioModelStat model)
         {
-            try
+            var info = model.info;
+            var obj = _provider.createModel(
+                info.type.ToString(),
+                info.fileName,
+                info.myRoomId,
+                info.bgObjectId,
+                model.group,
+                model.visible);
+            if (obj == null)
             {
-                var info = model.info;
-                var obj = _provider.createModel(
-                    info.type.ToString(),
-                    info.fileName,
-                    info.myRoomId,
-                    info.bgObjectId,
-                    model.group,
-                    model.visible);
-                if (obj == null)
-                {
-                    MTEUtils.LogError("CreateModel: モデルの追加に失敗しました " + model.name);
-                    return;
-                }
-
-                model.transform = obj.transform;
-                model.obj = obj;
-                _statMap[obj] = model;
-
-                UpdateAttachPoint(model);
+                MTEUtils.LogError("CreateModel: モデルの追加に失敗しました " + model.name);
+                return;
             }
-            catch (System.Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
+
+            model.transform = obj.transform;
+            model.obj = obj;
+            _statMap[obj] = model;
+
+            UpdateAttachPoint(model);
         }
 
         public override void DeleteModel(StudioModelStat model)
         {
-            try
+            var obj = model.obj as GameObject;
+            if (obj != null)
             {
-                var obj = model.obj as GameObject;
-                if (obj != null)
-                {
-                    _statMap.Remove(obj);
-                    _provider.deleteModel(obj);
-                }
-                model.transform = null;
+                _statMap.Remove(obj);
+                _provider.deleteModel(obj);
             }
-            catch (System.Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
+            model.transform = null;
         }
 
         public override void DeleteAllModels()
         {
-            try
-            {
-                _statMap.Clear();
-                _provider.deleteAllModels();
-            }
-            catch (System.Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
+            _statMap.Clear();
+            _provider.deleteAllModels();
         }
 
         public override void SetModelVisible(StudioModelStat model, bool visible)
         {
-            try
+            var obj = model.obj as GameObject;
+            if (obj != null)
             {
-                var obj = model.obj as GameObject;
-                if (obj != null)
-                {
-                    _provider.setModelVisible(obj, visible);
-                }
-            }
-            catch (System.Exception e)
-            {
-                MTEUtils.LogException(e);
+                _provider.setModelVisible(obj, visible);
             }
         }
 
         public override void UpdateAttachPoint(StudioModelStat model)
         {
-            try
+            var obj = model.obj as GameObject;
+            if (obj == null)
             {
-                var obj = model.obj as GameObject;
-                if (obj == null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                // アタッチ先ボーンの解決は SE 側が行い、プロバイダへはボーン名だけ渡す。
-                // AttachPoint enum → IKManager.BoneType の対応表をゲスト側に持たせずに済む
-                var maidCache = maidManager.GetMaidCache(model.attachMaidSlotNo);
-                var boneTransform = maidCache?.GetAttachPointTransform(model.attachPoint);
-                var maid = boneTransform != null ? maidCache.maid : null;
-                _provider.attachModel(obj, maid, boneTransform != null ? boneTransform.name : "");
-            }
-            catch (System.Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
+            // アタッチ先ボーンの解決は SE 側が行い、プロバイダへはボーン名だけ渡す。
+            // AttachPoint enum → IKManager.BoneType の対応表をゲスト側に持たせずに済む
+            var maidCache = maidManager.GetMaidCache(model.attachMaidSlotNo);
+            var boneTransform = maidCache?.GetAttachPointTransform(model.attachPoint);
+            var maid = boneTransform != null ? maidCache.maid : null;
+            _provider.attachModel(obj, maid, boneTransform != null ? boneTransform.name : "");
         }
 
         /// <summary>タイムライン読込のような一括操作をプロバイダへ伝える（任意メンバ）</summary>
