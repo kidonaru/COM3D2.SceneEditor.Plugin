@@ -1,7 +1,4 @@
-using System.Collections.Generic;
-using System.Linq;
-using COM3D2.MotionTimelineEditor;
-using UnityEngine;
+﻿using COM3D2.MotionTimelineEditor;
 using UnityEngine.SceneManagement;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -151,6 +148,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             MTEP.StudioHackManager.instance.Register(new MTEP.SceneEditorHack());
 
+            var modelPlacer = ModelPlacerProviderRegistry.current;
+            if (modelPlacer != null)
+            {
+                MTEP.ModelHackManager.instance.Register(new MTEP.ExternalModelHack(modelPlacer));
+            }
+            else
+            {
+                MTEUtils.LogWarning(
+                    "モデル配置プロバイダが見つかりません。ModItemExplorer を導入するとタイムラインのモデル機能が使えます");
+            }
+
             timelineManager.RegisterLayer(
                 typeof(MTEP.MotionTimelineLayer), MTEP.MotionTimelineLayer.Create);
             timelineManager.RegisterLayer(
@@ -173,14 +181,18 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.PngPlacementTimelineLayer), MTEP.PngPlacementTimelineLayer.Create);
-            timelineManager.RegisterLayer(
-                typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
-            timelineManager.RegisterLayer(
-                typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
-            timelineManager.RegisterLayer(
-                typeof(MTEP.ModelShapeKeyTimelineLayer), MTEP.ModelShapeKeyTimelineLayer.Create);
-            timelineManager.RegisterLayer(
-                typeof(MTEP.ModelMaterialTimelineLayer), MTEP.ModelMaterialTimelineLayer.Create);
+            // モデル系レイヤーは配置をプロバイダへ委譲するため、プロバイダが無ければ登録しない
+            if (modelPlacer != null)
+            {
+                timelineManager.RegisterLayer(
+                    typeof(MTEP.ModelTimelineLayer), MTEP.ModelTimelineLayer.Create);
+                timelineManager.RegisterLayer(
+                    typeof(MTEP.ModelBoneTimelineLayer), MTEP.ModelBoneTimelineLayer.Create);
+                timelineManager.RegisterLayer(
+                    typeof(MTEP.ModelShapeKeyTimelineLayer), MTEP.ModelShapeKeyTimelineLayer.Create);
+                timelineManager.RegisterLayer(
+                    typeof(MTEP.ModelMaterialTimelineLayer), MTEP.ModelMaterialTimelineLayer.Create);
+            }
             timelineManager.RegisterLayer(
                 typeof(MTEP.MoveTimelineLayer), MTEP.MoveTimelineLayer.Create);
             timelineManager.RegisterLayer(
@@ -349,43 +361,6 @@ namespace COM3D2.SceneEditor.Plugin
             // タイムライン作成・読み込み時の mte.OnLoad も同じ複合マネージャへ集約し、
             // OnLoad の二重発火とガード漏れを防ぐ
             MTEP.MotionTimelineEditor.instance.RegisterManager(updateManager);
-
-            RegisterModelProvider();
-        }
-
-        /// <summary>
-        /// タイムラインの StudioModelManager が配置したモデルを ModelProviderHost へ提供し、
-        /// BoneEdit / ScenePreset から外部モデルと同じ経路で参照できるようにする。
-        /// プラグインと同寿命のため Unregister は行わない
-        /// </summary>
-        private static void RegisterModelProvider()
-        {
-            // ホスト側は getModels の直後に各 GameObject へ getDisplayName を呼ぶため、
-            // 列挙時に表示名の逆引きを作っておき、毎回の線形探索を避ける
-            var displayNameMap = new Dictionary<GameObject, string>();
-
-            ModelProviderHost.Register(
-                "SceneEditor.Timeline",
-                () =>
-                {
-                    displayNameMap.Clear();
-                    var result = new List<GameObject>();
-                    foreach (var model in ValidTimelineModels())
-                    {
-                        var go = model.transform.gameObject;
-                        result.Add(go);
-                        displayNameMap[go] = model.displayName;
-                    }
-                    return result;
-                },
-                go => displayNameMap.TryGetValue(go, out var name) ? name : null);
-        }
-
-        /// <summary>Transform を持つ有効な配置モデルだけを列挙する</summary>
-        private static IEnumerable<MTEP.StudioModelStat> ValidTimelineModels()
-        {
-            return MTEP.StudioModelManager.instance.models
-                .Where(model => model?.transform != null);
         }
     }
 }

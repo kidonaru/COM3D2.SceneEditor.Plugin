@@ -336,6 +336,7 @@
     <Compile Include="Timeline\FaceMorphUtils.cs" />
     <Compile Include="Timeline\FrameData.cs" />
     <Compile Include="Timeline\FrameXml.cs" />
+    <Compile Include="Timeline\Hack\ExternalModelHack.cs" />
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
     <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
     <Compile Include="Timeline\Hack\StudioHackBase.cs" />
