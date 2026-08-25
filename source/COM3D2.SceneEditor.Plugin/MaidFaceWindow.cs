@@ -202,6 +202,17 @@ namespace COM3D2.SceneEditor.Plugin
                         HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
                             "表情リセット: " + currentMorphCategory);
                         MaidFaceMorphController.ResetCategory(target, currentMorphCategory);
+
+                        // リセットは未編集状態へ戻す操作なので、カテゴリ内のチェックも外す
+                        var store = FaceEditManager.instance.FindStore(target);
+                        if (store != null)
+                        {
+                            foreach (var def in MaidFaceMorphController.GetAvailableMorphs(
+                                target, currentMorphCategory))
+                            {
+                                store.Unmark(def.name);
+                            }
+                        }
                     }
                 }
             }
@@ -221,40 +232,68 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var def in MaidFaceMorphController.GetAvailableMorphs(target, currentMorphCategory))
             {
                 var value = MaidFaceMorphController.GetMorphValue(target, def);
+                var store = FaceEditManager.instance.FindStore(target);
+                var isModified = store != null && store.IsModified(def.name);
 
-                if (def.isToggle)
+                view.BeginHorizontal();
                 {
-                    view.DrawToggle(def.displayName, value >= 0.5f, 150, ROW_HEIGHT, newValue =>
+                    // 変更追跡チェック。ON=プリセット保存とタイムライン表示の対象。
+                    // 手動 OFF は「未編集へ戻す」操作なので値も 0 に戻す
+                    view.DrawToggle(isModified, 20, ROW_HEIGHT, newChecked =>
                     {
-                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
-                            "表情: " + def.displayName);
-                        // まばたき中は編集値が毎フレーム上書きされるため、編集開始で自動的に止める
-                        MaidFaceMorphController.SetMabataki(target, false);
-                        MaidFaceMorphController.SetMorphValue(target, def, newValue ? 1f : 0f);
+                        if (newChecked)
+                        {
+                            HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
+                                "表情変更マーク: " + def.displayName);
+                            FaceEditManager.instance.GetStore(target).Mark(def.name);
+                        }
+                        else
+                        {
+                            HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
+                                "表情変更解除: " + def.displayName);
+                            MaidFaceMorphController.SetMabataki(target, false);
+                            MaidFaceMorphController.SetMorphValue(target, def, 0f);
+                            FaceEditManager.instance.GetStore(target).Unmark(def.name);
+                        }
                     });
-                }
-                else
-                {
-                    view.DrawSliderValue(new GUIView.SliderOption
+
+                    if (def.isToggle)
                     {
-                        label = def.displayName,
-                        labelWidth = LABEL_WIDTH,
-                        width = -1,
-                        min = 0f,
-                        max = 1f,
-                        step = 0.01f,
-                        defaultValue = 0f,
-                        value = value,
-                        onChanged = newValue =>
+                        view.DrawToggle(def.displayName, value >= 0.5f, 130, ROW_HEIGHT, newValue =>
                         {
                             HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
                                 "表情: " + def.displayName);
                             // まばたき中は編集値が毎フレーム上書きされるため、編集開始で自動的に止める
                             MaidFaceMorphController.SetMabataki(target, false);
-                            MaidFaceMorphController.SetMorphValue(target, def, newValue);
-                        },
-                    });
+                            MaidFaceMorphController.SetMorphValue(target, def, newValue ? 1f : 0f);
+                            FaceEditManager.instance.GetStore(target).Mark(def.name);
+                        });
+                    }
+                    else
+                    {
+                        view.DrawSliderValue(new GUIView.SliderOption
+                        {
+                            label = def.displayName,
+                            labelWidth = LABEL_WIDTH - 20,
+                            width = -1,
+                            min = 0f,
+                            max = 1f,
+                            step = 0.01f,
+                            defaultValue = 0f,
+                            value = value,
+                            onChanged = newValue =>
+                            {
+                                HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
+                                    "表情: " + def.displayName);
+                                // まばたき中は編集値が毎フレーム上書きされるため、編集開始で自動的に止める
+                                MaidFaceMorphController.SetMabataki(target, false);
+                                MaidFaceMorphController.SetMorphValue(target, def, newValue);
+                                FaceEditManager.instance.GetStore(target).Mark(def.name);
+                            },
+                        });
+                    }
                 }
+                view.EndLayout();
             }
 
             view.EndScrollView();
