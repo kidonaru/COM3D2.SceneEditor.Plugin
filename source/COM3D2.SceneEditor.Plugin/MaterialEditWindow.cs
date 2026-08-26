@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -54,6 +55,24 @@ namespace COM3D2.SceneEditor.Plugin
         {
             getName = (material, _) => material.displayName,
         };
+
+        /// <summary>
+        /// チェック行の描画に必要な、対象ごとの引き当て。
+        /// 背景タブは対象のタイムラインレイヤーと対象集合が食い違うため既定値 (追跡なし) を渡す
+        /// </summary>
+        private struct MaterialTrackTarget
+        {
+            /// <summary>表示判定用。まだ 1 つもチェックしていない対象のストアを作らないため FindStore を使う</summary>
+            public Func<EditTargetStore> findStore;
+
+            /// <summary>操作時のストア。遅延生成する</summary>
+            public Func<EditTargetStore> getStore;
+
+            /// <summary>記録する生名。メイドは ModelMaterial.name、モデルは displayName</summary>
+            public Func<MTEP.ModelMaterial, string> getKey;
+
+            public bool isEnabled => findStore != null && getStore != null && getKey != null;
+        }
 
         private static MaterialEditWindow _instance = null;
         public static MaterialEditWindow instance
@@ -168,7 +187,13 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawMaterialSelector(slot.materials);
+            DrawMaterialSelector(slot.materials, new MaterialTrackTarget
+            {
+                findStore = () => MaidMaterialEditManager.instance.FindStore(target),
+                getStore = () => MaidMaterialEditManager.instance.GetStore(target),
+                // タイムライン側の候補名 (MaidCache.materialNames) と同じ文字列
+                getKey = material => material.name,
+            });
         }
 
         /// <summary>
@@ -206,7 +231,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawMaterialSelector(model.materials);
+            var modelObject = model.transform.gameObject;
+            DrawMaterialSelector(model.materials, new MaterialTrackTarget
+            {
+                findStore = () => ModelMaterialEditManager.instance.FindStore(modelObject),
+                getStore = () => ModelMaterialEditManager.instance.GetStore(modelObject),
+                // 修飾名は group 振り直しで変わるため、記録は Unity マテリアル名で持つ
+                getKey = material => material.displayName,
+            });
         }
 
         /// <summary>
@@ -250,10 +282,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawMaterialSelector(model.materials);
+            // 背景タブは BGModelMaterialTimelineLayer と対象集合が違うため追跡チェックを出さない
+            // (レイヤーは BGModelManager の配置モデル、こちらは現在の背景の Renderer)
+            DrawMaterialSelector(model.materials, new MaterialTrackTarget());
         }
 
-        private void DrawMaterialSelector(List<MTEP.ModelMaterial> materials)
+        private void DrawMaterialSelector(List<MTEP.ModelMaterial> materials, MaterialTrackTarget track)
         {
             if (materials == null || materials.Count == 0)
             {
@@ -271,14 +305,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawMaterialProperties(material);
+            DrawMaterialProperties(material, track);
         }
 
         /// <summary>
         /// マテリアル 1 件の色 / 数値プロパティを並べる。
         /// 対象種別によらず中身は同じなので 3 系統で共用する
         /// </summary>
-        private void DrawMaterialProperties(MTEP.ModelMaterial material)
+        private void DrawMaterialProperties(MTEP.ModelMaterial material, MaterialTrackTarget track)
         {
             var defaultTrans = MTEP.TransformDataModelMaterial.defaultTrans;
 
@@ -287,11 +321,50 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
+            var trackKey = track.isEnabled ? track.getKey(material) : null;
+
+            // 編集されたマテリアルは自動で追跡対象にする
+            Action markTracked = () =>
+            {
+                if (trackKey != null)
+                {
+                    track.getStore().Mark(trackKey);
+                }
+            };
+
             view.BeginScrollView();
             {
+                if (trackKey != null)
+                {
+                    var store = track.findStore();
+                    var isModified = store != null && store.IsModified(trackKey);
+
+                    // 変更追跡チェック。ON=タイムラインの表示とキー書き込みの対象。
+                    // 手動 OFF は「未編集へ戻す」操作なので値も初期値へ戻す
+                    Action<bool> onCheckChanged = newChecked =>
+                    {
+                        if (newChecked)
+                        {
+                            track.getStore().Mark(trackKey);
+                        }
+                        else
+                        {
+                            material.Reset();
+                            track.getStore().Unmark(trackKey);
+                        }
+                    };
+
+                    view.DrawTrackedLabel(isModified, onCheckChanged, material.displayName, -1, ROW_HEIGHT);
+                }
+
                 if (view.DrawButton("初期化", 80, ROW_HEIGHT))
                 {
                     material.Reset();
+                    // 初期値へ戻したのだから追跡からも外す (チェック OFF と同じ意味)
+                    if (trackKey != null)
+                    {
+                        track.getStore().Unmark(trackKey);
+                    }
                 }
 
                 foreach (var propertyType in MTEP.ModelMaterial.ColorPropertyTypes)
@@ -310,7 +383,11 @@ namespace COM3D2.SceneEditor.Plugin
                     var cache = view.GetColorFieldCache(propertyType.ToString(), true);
 
                     view.DrawColor(cache, color, initialColor,
-                        newColor => material.SetColor(propertyType, newColor));
+                        newColor =>
+                        {
+                            material.SetColor(propertyType, newColor);
+                            markTracked();
+                        });
                 }
 
                 foreach (var propertyType in MTEP.ModelMaterial.ValuePropertyTypes)
@@ -339,7 +416,11 @@ namespace COM3D2.SceneEditor.Plugin
                         step = info.step,
                         defaultValue = initialValue,
                         value = value,
-                        onChanged = newValue => material.SetValue(propertyType, newValue),
+                        onChanged = newValue =>
+                        {
+                            material.SetValue(propertyType, newValue);
+                            markTracked();
+                        },
                     });
                 }
             }
