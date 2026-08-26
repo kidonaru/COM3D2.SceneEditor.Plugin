@@ -845,8 +845,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             編集,
             追加,
-            手指,
-            足指,
+            指,
         }
 
         private static TabType _tabType = TabType.編集;
@@ -871,7 +870,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 case TabType.追加:
                     DrawExtendBone(view);
                     break;
-                case TabType.手指:
+                case TabType.指:
                     view.DrawHorizontalLine(Color.gray);
 
                     view.DrawToggle("ブレンド有効", timeline.fingerBlendEnabled, -1, 20, newValue =>
@@ -879,35 +878,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         timeline.fingerBlendEnabled = newValue;
                     });
 
-                    DrawFingerBlend(
-                        view,
-                        FingerSlotNames,
-                        WindowPartsFingerBlend.Type.RightArm,
-                        WindowPartsFingerBlend.Type.LeftArm);
-                    DrawFingerBlend(
-                        view,
-                        FingerSlotNames,
-                        WindowPartsFingerBlend.Type.LeftArm,
-                        WindowPartsFingerBlend.Type.RightArm);
-                    break;
-                case TabType.足指:
-                    view.DrawHorizontalLine(Color.gray);
-
-                    view.DrawToggle("ブレンド有効", timeline.fingerBlendEnabled, -1, 20, newValue =>
-                    {
-                        timeline.fingerBlendEnabled = newValue;
-                    });
-
-                    DrawFingerBlend(
-                        view,
-                        LegSlotNames,
-                        WindowPartsFingerBlend.Type.RightLeg,
-                        WindowPartsFingerBlend.Type.LeftLeg);
-                    DrawFingerBlend(
-                        view,
-                        LegSlotNames,
-                        WindowPartsFingerBlend.Type.LeftLeg,
-                        WindowPartsFingerBlend.Type.RightLeg);
+                    // 指ブレンドの編集 UI は SE の指ウィンドウに委譲する (レイヤー UI 非接続方針)
+                    view.DrawLabel("指の編集は指ウィンドウで行ってください", -1, 20);
                     break;
             }
 
@@ -1078,22 +1050,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             "左足",
         };
 
-        private static readonly string[] FingerSlotNames = new string[]
-        {
-            "親",
-            "人",
-            "中",
-            "薬",
-            "小",
-        };
-
-        private static readonly string[] LegSlotNames = new string[]
-        {
-            "親",
-            "中",
-            "小",
-        };
-
         private static WindowPartsFingerBlend.Type ConvertToFingerBlendType(string boneName)
         {
             WindowPartsFingerBlend.Type type;
@@ -1148,102 +1104,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private FingerBlend.LegFinger GetLegFinger(WindowPartsFingerBlend.Type type)
         {
             return GetBaseFinger(type) as FingerBlend.LegFinger;
-        }
-
-        public void DrawFingerBlend(
-            GUIView view,
-            string[] slotNames,
-            WindowPartsFingerBlend.Type blendType,
-            WindowPartsFingerBlend.Type otherBlendType)
-        {
-            var baseFinger = GetBaseFinger(blendType);
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing && timeline.fingerBlendEnabled);
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel(FingerBrendNames[(int)blendType], 40, 20);
-
-                if (view.DrawButton("更新", 50, 20))
-                {
-                    baseFinger.Apply();
-                }
-            }
-            view.EndLayout();
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("ロック", 40, 20);
-
-                bool isAllLock = true;
-                for (int i = 0; i < slotNames.Length; i++)
-                {
-                    var isLock = baseFinger.IsLock(i);
-                    isAllLock &= isLock;
-                    if (view.DrawButton(slotNames[i], 25, 20, true, isLock ? Color.green : Color.white))
-                    {
-                        baseFinger.LockSingleItem(!isLock, i);
-                        baseFinger.Apply();
-                    }
-                }
-
-                if (view.DrawButton("全", 25, 20, true, isAllLock ? Color.green : Color.white))
-                {
-                    baseFinger.LockAllItems(!isAllLock);
-                    baseFinger.Apply();
-                }
-
-                if (view.DrawButton("反", 25, 20))
-                {
-                    baseFinger.LockReverse();
-                    baseFinger.Apply();
-                }
-            }
-            view.EndLayout();
-
-            view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "開き具合",
-                    labelWidth = 60,
-                    min = 0f,
-                    max = 1f,
-                    step = 0f,
-                    defaultValue = 0f,
-                    value = baseFinger.value_open,
-                    onChanged = value =>
-                    {
-                        baseFinger.value_open = value;
-                        baseFinger.Apply();
-                    },
-                });
-
-            view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "閉じ具合",
-                    labelWidth = 60,
-                    min = 0f,
-                    max = 1f,
-                    step = 0f,
-                    defaultValue = 0f,
-                    value = baseFinger.value_fist,
-                    onChanged = value =>
-                    {
-                        baseFinger.value_fist = value;
-                        baseFinger.Apply();
-                    },
-                });
-
-            var otherName = FingerBrendNames[(int)otherBlendType];
-            if (view.DrawButton(otherName + "にコピー", 100, 20))
-            {
-                var otherBaseFinger = GetBaseFinger(otherBlendType);
-                otherBaseFinger.CopyFrom(baseFinger);
-                baseFinger.Apply();
-            }
-
-            view.DrawHorizontalLine(Color.gray);
         }
 
         private bool _isExtendBoneAllEnabled = true;
