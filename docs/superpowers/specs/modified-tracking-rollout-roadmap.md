@@ -50,7 +50,7 @@
 
 ## 4. ロードマップ
 
-### Phase M0: 共通基盤の汎用化
+### Phase M0: 共通基盤の汎用化 ✅ 完了 (2026-08-26)
 
 表情実装から汎用部分を抽出し、以降の Phase の定型コストを下げる。
 
@@ -60,6 +60,13 @@
 - テストを `EditTargetStoreTests` へ一般化
 
 完了条件: 表情の既存挙動が全て維持され(テスト + 実機確認)、新規領域が「ストア生成 + ウィンドウにチェック行 + レイヤーに trackedStore 指定 + プリセット 2 箇所」だけで載る状態。
+
+実装の要点:
+
+- `EditTargetStore`(旧 `FaceEditStore`)— API・実装は無変更。テストは `EditTargetStoreTests` へ
+- `GUIView.DrawTrackedSliderValue` / `DrawTrackedToggle` / `TrackedCheckWidth`(20f)— チェック 20px + 行本体を 1 呼び出しで描く(submodule MTEUtils)
+- `Timeline/TimelineLayer/TimelineLayerBaseTracking.cs` — `trackedStore` / `trackedCandidateNames` / `trackedHistoryPrefix` の 3 つを override するだけで、メニュー絞り込み・0F 自動キー・解除時キー削除が有効になる。`TimelineLayerBase.Update()` の既定実装が opt-in 時のみ `UpdateTrackedBoneFilter()` を呼ぶ
+- 既存ヘルパー `AddFirstBones` / `RemoveAllBones` との統合は**見送り**(履歴文言・`CleanFrames`/`ApplyCurrentFrame` の有無・`_dummyLastFrame` の扱いが異なり、統合すると振る舞いが変わるため)
 
 ### Phase M1: モデルボーン(構造的に最も安い)
 
