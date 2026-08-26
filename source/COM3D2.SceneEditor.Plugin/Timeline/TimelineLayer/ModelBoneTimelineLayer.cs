@@ -220,27 +220,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private GUIComboBox<StudioModelStat> _modelComboBox = new GUIComboBox<StudioModelStat>
-        {
-            getName = (model, index) => model.displayName,
-            buttonSize = new Vector2(200, 20),
-            contentSize = new Vector2(200, 300),
-        };
-
-        private GUIComboBox<TransformEditType> _transComboBox = new GUIComboBox<TransformEditType>
-        {
-            items = Enum.GetValues(typeof(TransformEditType)).Cast<TransformEditType>().ToList(),
-            getName = (type, index) => type.ToString(),
-        };
-
-        private enum TabType
-        {
-            操作,
-            管理,
-        }
-
-        private static TabType _tabType = TabType.操作;
-
         // DCM 連携は未移植のため出力しない
         public override void OutputDCM(XElement songElement)
         {
@@ -249,80 +228,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void DrawWindow(GUIView view)
         {
             // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            _tabType = view.DrawTabs(_tabType, 50, 20);
-
-            switch (_tabType)
-            {
-                case TabType.操作:
-                    DrawBone(view);
-                    break;
-                case TabType.管理:
-                    DrawModelManage(view);
-                    break;
-            }
-
-        }
-
-        public void DrawBone(GUIView view)
-        {
-            _modelComboBox.items = modelManager.models;
-
-            if (modelManager.models.Count == 0)
-            {
-                view.DrawLabel("モデルが存在しません", 200, 20);
-                return;
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-
-            view.DrawLabel("モデル選択", 200, 20);
-            _modelComboBox.DrawButton(view);
-
-            var model = _modelComboBox.currentItem;
-            if (model == null || model.transform == null)
-            {
-                view.DrawLabel("モデルが見つかりません", 200, 20);
-                return;
-            }
-
-            var bones = model.bones;
-            if (bones.Count == 0)
-            {
-                view.DrawLabel("ボーンが存在しません", 200, 20);
-                return;
-            }
-
-            _transComboBox.DrawButton("操作種類", view);
-
-            var editType = _transComboBox.currentItem;
-
+            // ボーンの編集・追跡選別は SE のボーン編集ウィンドウに委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("ボーンの編集はボーンウィンドウで行ってください", -1, 20);
             view.DrawHorizontalLine(Color.gray);
-
-            view.AddSpace(5);
-
-            view.BeginScrollView();
-            {
-                view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-                foreach (var bone in bones)
-                {
-                    view.DrawLabel(bone.transform.name, 200, 20);
-
-                    DrawTransform(
-                        view,
-                        bone.transform,
-                        editType,
-                        DrawMaskAll,
-                        bone.name,
-                        bone.initialPosition,
-                        bone.initialEulerAngles,
-                        bone.initialScale);
-
-                    view.DrawHorizontalLine(Color.gray);
-                }
-            }
-            view.SetEnabled(view.focusedComboBox == null);
-            view.EndScrollView();
+            DrawModelManage(view);
         }
 
         public override TransformType GetTransformType(string name)
