@@ -33,9 +33,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private Dictionary<string, float> _applyMorphMap = new Dictionary<string, float>();
 
-        // ON にするとタイムラインの値を編集中も強制的に維持する (スライダー操作が反映される)
-        private bool _isForceUpdate = false;
-
         private MorphTimelineLayer(int slotNo) : base(slotNo)
         {
         }
@@ -146,16 +143,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private float GetMorphValue(string morphName)
         {
-            if (_isForceUpdate)
-            {
-                float forcedValue;
-                if (_applyMorphMap.TryGetValue(morphName, out forcedValue))
-                {
-                    return forcedValue;
-                }
-                return 0f;
-            }
-
             var morphValue = faceManager.GetMorphValue(maid, morphName);
 
             // ゲーム側が m_fEyeCloseRate で掛けた目閉じ補正を打ち消し、素の値へ戻す
@@ -204,13 +191,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 view.DrawLabel("メイドを配置してください", -1, 20);
                 return;
             }
-
-            view.DrawToggle("強制上書き", _isForceUpdate, 150, 20, newValue =>
-            {
-                _isForceUpdate = newValue;
-            });
-
-            view.DrawHorizontalLine(Color.gray);
 
             // 表情モーフの編集・追跡チェックは SE の表情ウィンドウに委譲する (レイヤー UI 非接続方針)
             view.DrawLabel("表情の編集は表情ウィンドウで行ってください", -1, 20);

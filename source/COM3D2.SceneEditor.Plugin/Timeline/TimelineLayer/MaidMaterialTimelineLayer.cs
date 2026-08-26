@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
-using static COM3D2.MotionTimelineEditor.Plugin.ModelMaterial;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -177,7 +175,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void DrawWindow(GUIView view)
         {
-            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
             // マテリアルの編集・追跡チェックは SE のマテリアル編集ウィンドウに委譲する (レイヤー UI 非接続方針)
             view.DrawLabel("マテリアルの編集はマテリアルウィンドウで行ってください", -1, 20);
         }

@@ -228,7 +228,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void DrawWindow(GUIView view)
         {
             // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            // ボーンの編集・追跡選別は SE のボーン編集ウィンドウに委譲する (レイヤー UI 非接続方針)
+            // ボーンの編集・追跡チェックは SE のボーン編集ウィンドウに委譲する (レイヤー UI 非接続方針)
             view.DrawLabel("ボーンの編集はボーンウィンドウで行ってください", -1, 20);
             view.DrawHorizontalLine(Color.gray);
             DrawModelManage(view);

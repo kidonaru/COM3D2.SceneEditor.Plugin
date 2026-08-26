@@ -213,7 +213,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void DrawWindow(GUIView view)
         {
             // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            // ブレンドシェイプの編集・キー対象選別は SE のシェイプキー編集ウィンドウに委譲する (レイヤー UI 非接続方針)
+            // ブレンドシェイプの編集・追跡チェックは SE のシェイプキー編集ウィンドウに委譲する (レイヤー UI 非接続方針)
             view.DrawLabel("シェイプキーの編集はシェイプキーウィンドウで行ってください", -1, 20);
             view.DrawHorizontalLine(Color.gray);
             DrawModelManage(view);

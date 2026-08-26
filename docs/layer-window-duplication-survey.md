@@ -29,7 +29,7 @@
 | ShapeKeyTimelineLayer「メイドシェイプ」 | シェイプキー追加/重みスライダ | ShapeKeyEditWindow `DrawMaidShapeKeys`（:153） | 同機能。個別側のチェック集合がタイムライン opt-in のソース・オブ・トゥルース | 対応済み（委譲ラベル化） |
 | ModelShapeKeyTimelineLayer「モデルシェイプ」操作タブ | ブレンドシェイプ weight スライダ | ShapeKeyEditWindow `DrawModelContent`（:292） | 同機能・追跡連携あり | 対応済み（委譲ラベル化。管理 UI は常時表示へ） |
 | ModelBoneTimelineLayer「モデルボーン」操作タブ | モデル選択・ボーンごとの Transform 編集 | BoneEditWindow `DrawModelContent`（:304）＋ InspectorWindow ボーン編集 | 同機能。個別側はボーン追跡トグル連携あり | 対応済み（委譲ラベル化。管理 UI は常時表示へ） |
-| MorphTimelineLayer「メイド表情」 | 表情モーフのスライダ/トグル | MaidFaceWindow `DrawMorphList`（:224） | 同機能。個別側は追跡チェック・プリセット連携あり | 対応済み（委譲ラベル化。強制上書きトグルは残置） |
+| MorphTimelineLayer「メイド表情」 | 表情モーフのスライダ/トグル | MaidFaceWindow `DrawMorphList`（:224） | 同機能。個別側は追跡チェック・プリセット連携あり | 対応済み（委譲ラベル化。強制上書きは編集経路の消失に伴い廃止） |
 | MotionTimelineLayer「メイドアニメ」の手指/足指タブ | フィンガーブレンド編集 | MaidFingerWindow `DrawFingerBlend`（:190） | 同機能（プリセットは個別側のみ） | 対応済み（手指/足指タブを「指」タブへ統合し委譲ラベル化。ブレンド有効トグルは残置） |
 | UndressTimelineLayer「メイド脱衣」 | スロット表示トグル | MaidUndressWindow `DrawCategoryList`（:96） | 同機能（一括ボタン・衣装変更は個別側のみ） | 対応済み（委譲ラベル化） |
 

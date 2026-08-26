@@ -6,7 +6,6 @@ using System.Text;
 using System.Xml.Linq;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
-using static COM3D2.MotionTimelineEditor.Plugin.ModelMaterial;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
