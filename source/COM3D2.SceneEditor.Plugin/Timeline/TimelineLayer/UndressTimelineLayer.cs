@@ -105,84 +105,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        private enum TabType
-        {
-            衣装,
-            頭部,
-            アクセ,
-            めくれ,
-        }
-
-        private static TabType _tabType = TabType.衣装;
-
         public override void DrawWindow(GUIView view)
         {
-            if (maidCache == null)
-            {
-                return;
-            }
-
-            _tabType = view.DrawTabs(_tabType, 50, 20);
-
-            view.DrawHorizontalLine(Color.gray);
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            DrawUndress(view);
-        }
-
-        private void DrawUndress(GUIView view)
-        {
-            view.DrawLabel(_tabType.ToString(), 80, 20);
-
-            switch (_tabType)
-            {
-                case TabType.衣装:
-                    DrawUndressByCategory(view, DressUtils.ClothingSlotIds);
-                    break;
-                case TabType.頭部:
-                    DrawUndressByCategory(view, DressUtils.HeadwearSlotIds);
-                    break;
-                case TabType.アクセ:
-                    DrawUndressByCategory(view, DressUtils.AccessorySlotIds);
-                    break;
-                case TabType.めくれ:
-                    DrawUndressByCategory(view, DressUtils.MekureSlotIds);
-                    break;
-            }
-        }
-
-        private void DrawUndressByCategory(GUIView view, List<DressSlotID> slotIds)
-        {
-            for (var i = 0; i < slotIds.Count; i++)
-            {
-                if (i % 2 == 0)
-                {
-                    view.BeginHorizontal();
-                }
-
-                var slotId = slotIds[i];
-                //var isLoaded = maidCache.IsSlotLoaded(slotId);
-                var isVisible = maidCache.IsSlotVisible(slotId);
-
-                DrawUndressToggle(view, slotId, isVisible);
-
-                if (i % 2 == 1)
-                {
-                    view.EndLayout();
-                }
-            }
-            view.EndLayout();
-        }
-
-        private void DrawUndressToggle(GUIView view, DressSlotID slotId, bool isVisible)
-        {
-            var displayName = DressUtils.GetDressSlotJpName(slotId);
-
-            view.DrawToggle(displayName, isVisible, 100, 20, newIsVisible =>
-            {
-                maidCache.SetSlotVisible(slotId, newIsVisible);
-            });
+            // 脱衣の編集 UI は SE の脱衣ウィンドウに委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("脱衣の編集は脱衣ウィンドウで行ってください", -1, 20);
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
