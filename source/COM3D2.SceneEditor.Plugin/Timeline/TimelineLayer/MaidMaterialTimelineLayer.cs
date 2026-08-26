@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 using static COM3D2.MotionTimelineEditor.Plugin.ModelMaterial;
 
@@ -13,10 +14,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(MaidMaterialTimelineLayer);
         public override string layerName => nameof(MaidMaterialTimelineLayer);
 
+        // SE では変更追跡チェック済みのマテリアルだけへ絞り込む
+        public override List<string> allBoneNames => trackedBoneNames;
+
+        protected override EditTargetStore trackedStore
+            => MaidMaterialEditManager.instance.FindStore(maid);
+
         // MTE 原本は三項演算子の条件が反転しており (null 時に参照 / 非 null 時に空リスト)、
         // マテリアル一覧が常に空になるため SE 側で修正している
-        public override List<string> allBoneNames =>
-            maidCache == null ? new List<string>() : maidCache.materialNames;
+        protected override List<string> trackedCandidateNames
+            => maidCache == null ? new List<string>() : maidCache.materialNames;
+
+        protected override string trackedHistoryPrefix => "メイドマテリアル";
 
         private MaidMaterialTimelineLayer(int slotNo) : base(slotNo)
         {
@@ -42,6 +51,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            var targetNames = new HashSet<string>(allBoneNames);
+
             foreach (var stat in maidCache.slotStats)
             {
                 if (stat == null || stat.materials.Count == 0)
@@ -49,11 +60,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var setMenuItem = new BoneSetMenuItem(stat.name, stat.displayName);
-                allMenuItems.Add(setMenuItem);
+                // 子が 1 つも残らないスロットは見出しごと出さない
+                BoneSetMenuItem setMenuItem = null;
 
                 foreach (var material in stat.materials)
                 {
+                    if (!targetNames.Contains(material.name))
+                    {
+                        continue;
+                    }
+
+                    if (setMenuItem == null)
+                    {
+                        setMenuItem = new BoneSetMenuItem(stat.name, stat.displayName);
+                        allMenuItems.Add(setMenuItem);
+                    }
+
                     var menuItem = new BoneMenuItem(material.name, material.displayName);
                     setMenuItem.AddChild(menuItem);
                 }
@@ -121,18 +143,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             maidCache.UpdateMaterials();
 
+            // 候補一覧が入れ替わったので追跡集合を作り直させる
+            InvalidateTrackedBoneNames();
+
             InitMenuItems();
 
-            var materialNames = maidCache.materialNames;
-            AddFirstBones(materialNames);
+            // 0F 目の自動キーは絞り込み後の対象だけへ打つ。
+            // 全マテリアルへ打つと「既存キーフレーム記載」経由で全部がメニューへ復活して絞り込みが効かなくなる
+            AddFirstBones(allBoneNames);
             ApplyCurrentFrame(true);
         }
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
-            foreach (var sourceMaterial in maidCache.materialMap.Values)
+            // materialMap を直接回すと絞り込みを素通りするため、対象集合を回して引き当てる
+            foreach (var materialName in allBoneNames)
             {
-                var materialName = sourceMaterial.name;
+                var sourceMaterial = maidCache.GetMaterial(materialName);
+                if (sourceMaterial == null)
+                {
+                    continue;
+                }
 
                 var trans = frame.GetOrCreateTransformData<TransformDataModelMaterial>(materialName);
                 trans.Apply(sourceMaterial);
