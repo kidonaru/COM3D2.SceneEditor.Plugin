@@ -221,8 +221,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _modelComboBox.items = models;
-            DrawLabeledComboBox("対象", _modelComboBox);
+            DrawModelComboBox("対象", _modelComboBox, models, m => m.transform);
 
             var model = _modelComboBox.currentItem;
             if (model == null || model.transform == null)
@@ -411,6 +410,7 @@ namespace COM3D2.SceneEditor.Plugin
                     view.DrawSliderValue(new GUIView.SliderOption
                     {
                         fieldType = fieldType,
+                        width = -1,
                         min = info.min,
                         max = info.max,
                         step = info.step,

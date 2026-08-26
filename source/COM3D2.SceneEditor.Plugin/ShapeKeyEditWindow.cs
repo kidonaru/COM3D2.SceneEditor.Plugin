@@ -46,6 +46,9 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (model, _) => model.displayName,
         };
 
+        /// <summary>シェイプキー名の絞り込み。メイド / モデルタブで共用する</summary>
+        private string _searchText = "";
+
         // スロット/タグ一覧のキャッシュ。全スロットの morph 走査と GetTags() はどちらも
         // 毎フレーム回すには重いため、対象が変わったときだけ作り直す。
         // 着替えではスロット構成が変わっても検知できないので「更新」ボタンで捨てられるようにする
@@ -179,6 +182,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             UpdateTags(target, slotName);
 
+            DrawSearchField();
+
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
@@ -188,15 +193,24 @@ namespace COM3D2.SceneEditor.Plugin
             // (操作側のコールバックは GetStore で遅延生成する)
             var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(target);
 
+            var matchedCount = 0;
+
             view.BeginScrollView();
             {
                 foreach (var tag in _tags)
                 {
+                    if (!IsSearchMatched(tag))
+                    {
+                        continue;
+                    }
+
                     var blendShape = maidCache.GetBlendShape(tag);
                     if (blendShape == null || blendShape.entities.Count == 0)
                     {
                         continue;
                     }
+
+                    matchedCount++;
 
                     var weight = blendShape.weight;
                     // クロージャがループ変数を掴まないよう写しておく
@@ -223,6 +237,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
                     {
+                        width = -1,
                         min = 0f,
                         max = 2f,
                         step = 0.01f,
@@ -239,8 +254,31 @@ namespace COM3D2.SceneEditor.Plugin
                         MaidShapeKeyEditManager.instance.GetStore(target).Mark(tagName);
                     }
                 }
+
+                if (matchedCount == 0)
+                {
+                    view.DrawLabel("該当するシェイプキーがありません", -1, ROW_HEIGHT);
+                }
             }
             view.EndScrollView();
+        }
+
+        /// <summary>シェイプキー名の検索欄。スロット / 対象の行と列を揃える</summary>
+        private void DrawSearchField()
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("検索", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
+                view.DrawTextField(_searchText, -1, ROW_HEIGHT, value => _searchText = value);
+            }
+            view.EndLayout();
+        }
+
+        /// <summary>検索欄の絞り込み判定。未入力なら素通し</summary>
+        private bool IsSearchMatched(string name)
+        {
+            return string.IsNullOrEmpty(_searchText)
+                || name.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>スロット/タグ一覧のキャッシュを捨てる。「更新」ボタンから呼ぶ</summary>
@@ -298,8 +336,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _modelComboBox.items = models;
-            DrawLabeledComboBox("対象", _modelComboBox);
+            DrawModelComboBox("対象", _modelComboBox, models, m => m.transform);
 
             var model = _modelComboBox.currentItem;
             if (model == null || model.transform == null)
@@ -315,6 +352,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            DrawSearchField();
+
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
@@ -325,12 +364,21 @@ namespace COM3D2.SceneEditor.Plugin
             // (操作側のコールバックは GetStore で遅延生成する)
             var shapeKeyStore = ModelShapeKeyEditManager.instance.FindStore(modelObject);
 
+            var matchedCount = 0;
+
             view.BeginScrollView();
             {
                 foreach (var blendShape in blendShapes)
                 {
-                    var weight = blendShape.weight;
                     var shapeKeyName = blendShape.shapeKeyName;
+                    if (!IsSearchMatched(shapeKeyName))
+                    {
+                        continue;
+                    }
+
+                    matchedCount++;
+
+                    var weight = blendShape.weight;
                     var isModified = shapeKeyStore != null && shapeKeyStore.IsModified(shapeKeyName);
 
                     // 変更追跡チェック。ON=プリセット保存とタイムライン表示の対象。
@@ -353,6 +401,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
                     {
+                        width = -1,
                         min = -1f,
                         max = 2f,
                         step = 0.01f,
@@ -369,6 +418,11 @@ namespace COM3D2.SceneEditor.Plugin
                         // 編集したシェイプキーは自動で追跡対象にする
                         ModelShapeKeyEditManager.instance.GetStore(modelObject).Mark(shapeKeyName);
                     }
+                }
+
+                if (matchedCount == 0)
+                {
+                    view.DrawLabel("該当するシェイプキーがありません", -1, ROW_HEIGHT);
                 }
             }
             view.EndScrollView();
