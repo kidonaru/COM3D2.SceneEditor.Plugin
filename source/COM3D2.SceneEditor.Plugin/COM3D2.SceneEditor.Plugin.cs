@@ -372,6 +372,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // 操作対象メイドが確定してからボーンツリーを解決するため MaidManipulateManager より後に登録する
                 managerRegistry.RegisterManager(BoneEditManager.instance);
                 managerRegistry.RegisterManager(FaceEditManager.instance);
+                managerRegistry.RegisterManager(ModelShapeKeyEditManager.instance);
                 // 各操作の BeforeEdit を受けてマウス解放で確定するだけなので登録順は問わない
                 managerRegistry.RegisterManager(HistoryManager.instance);
                 // 各ウィンドウの状態更新後にドラッグ判定を行うため WindowManager より後に登録する
