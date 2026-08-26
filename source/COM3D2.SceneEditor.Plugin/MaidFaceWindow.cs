@@ -238,31 +238,30 @@ namespace COM3D2.SceneEditor.Plugin
                 var value = MaidFaceMorphController.GetMorphValue(target, def);
                 var isModified = faceStore != null && faceStore.IsModified(def.name);
 
-                view.BeginHorizontal();
+                // 変更追跡チェック。ON=プリセット保存とタイムライン表示の対象。
+                // 手動 OFF は「未編集へ戻す」操作なので値も 0 に戻す
+                Action<bool> onCheckChanged = newChecked =>
                 {
-                    // 変更追跡チェック。ON=プリセット保存とタイムライン表示の対象。
-                    // 手動 OFF は「未編集へ戻す」操作なので値も 0 に戻す
-                    view.DrawToggle(isModified, 20, ROW_HEIGHT, newChecked =>
+                    if (newChecked)
                     {
-                        if (newChecked)
-                        {
-                            HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
-                                "表情変更マーク: " + def.displayName);
-                            FaceEditManager.instance.GetStore(target).Mark(def.name);
-                        }
-                        else
-                        {
-                            HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
-                                "表情変更解除: " + def.displayName);
-                            MaidFaceMorphController.SetMabataki(target, false);
-                            MaidFaceMorphController.SetMorphValue(target, def, 0f);
-                            FaceEditManager.instance.GetStore(target).Unmark(def.name);
-                        }
-                    });
+                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
+                            "表情変更マーク: " + def.displayName);
+                        FaceEditManager.instance.GetStore(target).Mark(def.name);
+                    }
+                    else
+                    {
+                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
+                            "表情変更解除: " + def.displayName);
+                        MaidFaceMorphController.SetMabataki(target, false);
+                        MaidFaceMorphController.SetMorphValue(target, def, 0f);
+                        FaceEditManager.instance.GetStore(target).Unmark(def.name);
+                    }
+                };
 
-                    if (def.isToggle)
-                    {
-                        view.DrawToggle(def.displayName, value >= 0.5f, 130, ROW_HEIGHT, newValue =>
+                if (def.isToggle)
+                {
+                    view.DrawTrackedToggle(isModified, onCheckChanged,
+                        def.displayName, value >= 0.5f, 130, ROW_HEIGHT, newValue =>
                         {
                             HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
                                 "表情: " + def.displayName);
@@ -271,13 +270,14 @@ namespace COM3D2.SceneEditor.Plugin
                             MaidFaceMorphController.SetMorphValue(target, def, newValue ? 1f : 0f);
                             FaceEditManager.instance.GetStore(target).Mark(def.name);
                         });
-                    }
-                    else
-                    {
-                        view.DrawSliderValue(new GUIView.SliderOption
+                }
+                else
+                {
+                    view.DrawTrackedSliderValue(isModified, onCheckChanged, ROW_HEIGHT,
+                        new GUIView.SliderOption
                         {
                             label = def.displayName,
-                            labelWidth = LABEL_WIDTH - 20,
+                            labelWidth = LABEL_WIDTH - GUIView.TrackedCheckWidth,
                             width = -1,
                             min = 0f,
                             max = 1f,
@@ -294,9 +294,7 @@ namespace COM3D2.SceneEditor.Plugin
                                 FaceEditManager.instance.GetStore(target).Mark(def.name);
                             },
                         });
-                    }
                 }
-                view.EndLayout();
             }
 
             view.EndScrollView();
