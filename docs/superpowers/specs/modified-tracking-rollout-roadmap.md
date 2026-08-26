@@ -86,7 +86,7 @@
 - シーンプリセット `modelShapeKeys` の保存をチェック済みフィルタへ
 - 前提タスク: モデルシェイプキー編集の HistoryManager 対応(チェック集合を履歴へ含めるため。対応コストが高ければ「履歴はチェック集合を含めない」と明記して先送り可)
 
-### Phase M3: メイドシェイプキー(最大ペイオフ・最難関)
+### Phase M3: メイドシェイプキー ✅ 完了 (2026-08-27)
 
 - **設計確定を最初に行う**(このフェーズ最大の作業): per-Maid `EditTargetStore` を唯一のソースとし、`timeline.AddMaidShapeKey/RemoveMaidShapeKey` へ片方向同期する(方針 2)。タイムラインロード時は maidShapeKeysMap → ストアへ初期反映。`timeline-remaining-work.md` §3 の「タグ登録はレイヤー編集ウィンドウの責務」という過去決定の更新を含む
 - ShapeKeyEditWindow メイドタブへチェック行。着替えで消えたタグの扱いは方針 3(保持 + 表示は現物リスト準拠)
@@ -94,6 +94,17 @@
 - シーンプリセット `shapeKeys` の保存をチェック済みフィルタへ。**適用側の非対称に注意**: 現状は未保存タグをゼロ化しない(表情と違い「保存集合 = チェック集合」の等式が崩れる)。適用時にゼロ化まで揃えるかはこのフェーズで仕様決定する
 - 前提タスク: シェイプキー編集の HistoryManager 対応(M2 と共通化)
 - 関連する既知問題: ShapeKey/Eyes レイヤーと MaidFaceWindow の相互排他(`timeline-remaining-work.md` §4)はこのフェーズで解決しない(スコープ外と明記)
+
+実装の要点:
+
+- **タイムライン側は既に完全な opt-in 機構を持っていた**(`ShapeKeyTimelineLayer.allBoneNames` = `timeline.GetMaidShapeKeys(slotNo)`、`OnShapeKeyAdded` が 0F 自動キー、`OnShapeKeyRemoved` がキー削除)。そのため **M0 の追跡部品は接続していない**。やったのはタグ登録の主導権の移動だけ
+- ソース・オブ・トゥルースは per-Maid `EditTargetStore`(`MaidShapeKeyEditManager`)。タイムラインへは毎フレーム差分同期し、`ShapeKeySyncDiff` が実際に変わったタグだけを出す(`Add/RemoveMaidShapeKey` は 0F キーとキー削除を伴う重い操作のため)
+- **取り込み契機は `OnLoad` ではなく「タイムラインの参照が変わったこと」**。SE の `ManagerRegistry.OnLoad()` は UI の有効化でしか走らず、タイムラインのロードでは呼ばれない(`TimelineManager` が呼ぶ `mte.OnLoad()` は `MotionTimelineEditor` の別リストを回す)
+- 取り込みは**タグを持つスロットだけ**反映し、空ならストアを保持する。こうしないとタイムラインの新規作成でチェックが全部消える
+- レイヤー編集ウィンドウのタグトグルもストア経由へ変えた。`Add/RemoveMaidShapeKey` を直接叩く経路は `MaidShapeKeyEditManager` の 1 箇所だけになった
+- シーンプリセットは v24。保存はチェック済みのみ(表情モーフは従来どおり除外)、**適用は積み増しで未保存タグのゼロ化はしない**(表情の v22 の `SetNames` とは非対称。ゼロ化しないのにチェックだけ消すと値が残ったまま追跡から外れるため)
+- チェック集合は履歴に含めない(M2 と同じ縮退判断)。**M4 でも同じ判断を引き継ぐか要検討**
+- `TrackedDirtyGate` — 「世代 + version 合計」で前回からの変化を見る門番。M1/M2 の `ModelTrackedNameStore` と共有する
 
 ### Phase M4: マテリアル系
 
