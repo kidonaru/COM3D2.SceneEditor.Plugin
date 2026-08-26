@@ -27,13 +27,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly List<Maid> _deadMaids = new List<Maid>();
 
-        // 同期の作り直し判定。ストア集合の世代と version 合計、タイムラインの同一性を見る。
-        // 世代を別に持つのは、メイド破棄による version 合計の減少と
-        // 他メイドの増分が偶然釣り合ったときに見逃さないため
-        private int _generation;
-        private int _lastGeneration = -1;
-        private int _lastVersionSum = -1;
+        // 同期の作り直し判定。ストア集合の変化は門番が、タイムラインの差し替えは参照比較が見る
+        private readonly TrackedDirtyGate _gate = new TrackedDirtyGate();
         private MTEP.TimelineData _lastTimeline;
+
+        /// <summary>スロットを解決できないメイドを取りに行く間隔 (フレーム)</summary>
+        private const int UnresolvedRetryInterval = 30;
+
+        // 前回の同期でスロットを解決できなかったメイドが残っていたか
+        private bool _hasUnresolvedMaid;
+        private int _unresolvedFrameCount;
 
         // 差分計算の結果。使い回してゴミを出さない
         private readonly List<string> _toAdd = new List<string>();
@@ -56,7 +59,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 store = new EditTargetStore();
                 _stores[maid] = store;
-                _generation++;
+                _gate.Invalidate();
 
                 var timelineData = currentTimeline;
                 var slotNo = GetMaidSlotNo(maid);
@@ -95,7 +98,7 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var maid in _deadMaids)
             {
                 _stores.Remove(maid);
-                _generation++;
+                _gate.Invalidate();
             }
         }
 
@@ -111,8 +114,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // タイムライン未ロード。次にロードされたときへ判定を持ち越す
                 _lastTimeline = null;
-                _lastGeneration = -1;
-                _lastVersionSum = -1;
+                _gate.Reset();
+                _hasUnresolvedMaid = false;
                 return;
             }
 
@@ -129,22 +132,30 @@ namespace COM3D2.SceneEditor.Plugin
                 versionSum += pair.Value.version;
             }
 
-            if (timelineData == _lastTimeline
-                && _generation == _lastGeneration
-                && versionSum == _lastVersionSum)
+            // スロットを解決できなかったメイドは、解決しても version が動かないので
+            // ここから定期的に取りに行く (放っておくとそのメイドのタグが二度と流れない)
+            _unresolvedFrameCount++;
+            if (_hasUnresolvedMaid && _unresolvedFrameCount >= UnresolvedRetryInterval)
+            {
+                _unresolvedFrameCount = 0;
+                _gate.Invalidate();
+            }
+
+            if (timelineData == _lastTimeline && !_gate.IsChanged(versionSum))
             {
                 return;
             }
             _lastTimeline = timelineData;
-            _lastGeneration = _generation;
-            _lastVersionSum = versionSum;
+            _gate.MarkSynced(versionSum);
 
+            _hasUnresolvedMaid = false;
             foreach (var pair in _stores)
             {
                 var slotNo = GetMaidSlotNo(pair.Key);
                 if (slotNo < 0)
                 {
-                    // タイムラインの管理外のメイド。次のフレームで解決するかもしれないので記録は残す
+                    // タイムラインの管理外のメイド。記録は残し、上の再試行で拾い直す
+                    _hasUnresolvedMaid = true;
                     continue;
                 }
 
@@ -210,10 +221,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             // シーン遷移で全メイドが入れ替わるため記録を丸ごと捨てる (FaceEditManager と同じ方式)
             _stores.Clear();
-            _generation++;
             _lastTimeline = null;
-            _lastGeneration = -1;
-            _lastVersionSum = -1;
+            _gate.Reset();
+            _hasUnresolvedMaid = false;
         }
     }
 }

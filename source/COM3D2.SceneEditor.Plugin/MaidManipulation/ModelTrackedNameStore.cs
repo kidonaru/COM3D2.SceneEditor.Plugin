@@ -20,12 +20,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>集約結果。タイムラインレイヤーの trackedStore として渡す</summary>
         public EditTargetStore store => _store;
 
-        // 作り直し判定。世代は「対象集合そのものが入れ替わった」ことを表し、
-        // version 合計は「各モデルの記録が変わった」ことを表す。
-        // 世代が同じなら各 version は単調増加なので、合計の一致で変化なしと判定できる
-        private int _generation;
-        private int _lastGeneration = -1;
-        private int _lastVersionSum = -1;
+        private readonly TrackedDirtyGate _gate = new TrackedDirtyGate();
 
         // 名前を解決できなかったモデルが前回の集約に残っていたか
         private bool _hasUnresolved;
@@ -41,16 +36,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public void Invalidate()
         {
-            _generation++;
+            _gate.Invalidate();
         }
 
         /// <summary>集約を空にして判定状態も初期化する (シーン遷移用)</summary>
         public void Clear()
         {
             _store.Clear();
-            _generation++;
-            _lastGeneration = -1;
-            _lastVersionSum = -1;
+            _gate.Reset();
             _hasUnresolved = false;
         }
 
@@ -70,7 +63,7 @@ namespace COM3D2.SceneEditor.Plugin
                 versionSum += getVersion(keys[i]);
             }
 
-            var changed = _generation != _lastGeneration || versionSum != _lastVersionSum;
+            var changed = _gate.IsChanged(versionSum);
 
             _frameCount++;
             if (!changed && !(_hasUnresolved && _frameCount >= RetryInterval))
@@ -78,8 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             _frameCount = 0;
-            _lastGeneration = _generation;
-            _lastVersionSum = versionSum;
+            _gate.MarkSynced(versionSum);
 
             _hasUnresolved = false;
             _names.Clear();
