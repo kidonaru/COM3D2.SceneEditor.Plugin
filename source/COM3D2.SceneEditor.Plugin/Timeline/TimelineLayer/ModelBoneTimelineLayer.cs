@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using UnityEngine;
+using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -14,7 +15,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(ModelBoneTimelineLayer);
         public override string layerName => nameof(ModelBoneTimelineLayer);
 
-        public override List<string> allBoneNames => modelManager.boneNames;
+        public override List<string> allBoneNames => trackedBoneNames;
+
+        protected override EditTargetStore trackedStore
+            => BoneEditManager.instance.modelBoneTrackedStore;
+
+        protected override List<string> trackedCandidateNames => modelManager.boneNames;
+
+        protected override string trackedHistoryPrefix => "モデルボーン";
+
+        // モデルレイヤーは maid を持たない。モデルが 1 体でもあれば 0F 自動キーを打てる
+        protected override bool isTrackedTargetReady => modelManager.models.Count > 0;
 
         private ModelBoneTimelineLayer(int slotNo) : base(slotNo)
         {
@@ -37,6 +48,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             allMenuItems.Clear();
 
+            // 追跡対象だけをメニューへ出す。全ボーンを出すとモデル 1 体で数百行になる
+            var targetNames = new HashSet<string>(allBoneNames);
+
             foreach (var model in modelManager.models)
             {
                 if (model.bones.Count == 0)
@@ -44,13 +58,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var setMenuItem = new BoneSetMenuItem(model.name, model.displayName);
-                allMenuItems.Add(setMenuItem);
+                BoneSetMenuItem setMenuItem = null;
 
                 foreach (var bone in model.bones)
                 {
-                    var menuItem = new ModelBoneMenuItem(bone.name, bone.transform.name);
-                    setMenuItem.AddChild(menuItem);
+                    if (!targetNames.Contains(bone.name))
+                    {
+                        continue;
+                    }
+
+                    // 対象ボーンが 1 本も無いモデルは見出しごと出さない
+                    if (setMenuItem == null)
+                    {
+                        setMenuItem = new BoneSetMenuItem(model.name, model.displayName);
+                        allMenuItems.Add(setMenuItem);
+                    }
+
+                    setMenuItem.AddChild(new ModelBoneMenuItem(bone.name, bone.transform.name));
                 }
             }
         }
@@ -128,15 +152,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OnModelAdded(StudioModelStat model)
         {
-            InitMenuItems();
+            // 候補名リストが入れ替わるため、メニューを組む前にキャッシュを捨てる
+            InvalidateTrackedBoneNames();
 
-            var boneNames = model.bones.Select(x => x.name).ToList();
-            AddFirstBones(boneNames);
+            // 追加直後のモデルは未編集なので追跡対象が無い。
+            // 0F キーはボーンをチェックした時点で追跡部品が打つ
+            InitMenuItems();
             ApplyCurrentFrame(true);
         }
 
         public void OnModelRemoved(StudioModelStat model)
         {
+            InvalidateTrackedBoneNames();
+
             InitMenuItems();
 
             var boneNames = model.bones.Select(x => x.name).ToList();
@@ -169,9 +197,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
-            foreach (var sourceBone in modelManager.boneMap.Values)
+            // 追跡対象だけキーを書く。allBoneNames を回すのがキー書き込み絞り込みの実体
+            foreach (var boneName in allBoneNames)
             {
-                var boneName = sourceBone.name;
+                var sourceBone = modelManager.GetBone(boneName);
+                if (sourceBone == null || sourceBone.transform == null)
+                {
+                    // 既存キーにだけ残っているボーン (モデル差し替え等) は書けないので飛ばす
+                    continue;
+                }
 
                 var trans = CreateTransformData<TransformDataModelBone>(boneName);
                 trans.position = sourceBone.transform.localPosition;
