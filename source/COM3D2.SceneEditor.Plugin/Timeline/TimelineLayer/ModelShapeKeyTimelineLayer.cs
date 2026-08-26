@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using UnityEngine;
+using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -14,7 +15,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(ModelShapeKeyTimelineLayer);
         public override string layerName => nameof(ModelShapeKeyTimelineLayer);
 
-        public override List<string> allBoneNames => modelManager.blendShapeNames;
+        public override List<string> allBoneNames => trackedBoneNames;
+
+        protected override EditTargetStore trackedStore
+            => ModelShapeKeyEditManager.instance.trackedStore;
+
+        protected override List<string> trackedCandidateNames => modelManager.blendShapeNames;
+
+        protected override string trackedHistoryPrefix => "モデルシェイプ";
+
+        // モデルレイヤーは maid を持たない。モデルが 1 体でもあれば 0F 自動キーを打てる
+        protected override bool isTrackedTargetReady => modelManager.models.Count > 0;
 
         private ModelShapeKeyTimelineLayer(int slotNo) : base(slotNo)
         {
@@ -37,6 +48,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             allMenuItems.Clear();
 
+            // 追跡対象だけをメニューへ出す。全シェイプキーを出すとモデル 1 体で数百行になる
+            var targetNames = new HashSet<string>(allBoneNames);
+
             foreach (var model in modelManager.models)
             {
                 if (model.blendShapes.Count == 0)
@@ -44,13 +58,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var setMenuItem = new BoneSetMenuItem(model.name, model.displayName);
-                allMenuItems.Add(setMenuItem);
+                BoneSetMenuItem setMenuItem = null;
 
                 foreach (var blendShape in model.blendShapes)
                 {
-                    var menuItem = new BoneMenuItem(blendShape.name, blendShape.shapeKeyName);
-                    setMenuItem.AddChild(menuItem);
+                    if (!targetNames.Contains(blendShape.name))
+                    {
+                        continue;
+                    }
+
+                    // 対象が 1 件も無いモデルは見出しごと出さない
+                    if (setMenuItem == null)
+                    {
+                        setMenuItem = new BoneSetMenuItem(model.name, model.displayName);
+                        allMenuItems.Add(setMenuItem);
+                    }
+
+                    setMenuItem.AddChild(new BoneMenuItem(blendShape.name, blendShape.shapeKeyName));
                 }
             }
         }
@@ -115,15 +139,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OnModelAdded(StudioModelStat model)
         {
-            InitMenuItems();
+            // 候補名リストが入れ替わるため、メニューを組む前にキャッシュを捨てる
+            InvalidateTrackedBoneNames();
 
-            var boneNames = model.blendShapes.Select(x => x.name).ToList();
-            AddFirstBones(boneNames);
+            // 追加直後のモデルは未編集なので追跡対象が無い。
+            // 0F キーはシェイプキーをチェックした時点で追跡部品が打つ
+            InitMenuItems();
             ApplyCurrentFrame(true);
         }
 
         public void OnModelRemoved(StudioModelStat model)
         {
+            InvalidateTrackedBoneNames();
+
             InitMenuItems();
 
             var boneNames = model.blendShapes.Select(x => x.name).ToList();
@@ -152,13 +180,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     newBone.transform.FromTransformData(sourceBone.transform);
                 }
             }
+
+            // 複製先のキーを追跡集合へ即座に反映する (待つと間引きぶん遅れる)
+            InvalidateTrackedBoneNames();
         }
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
-            foreach (var blendShape in modelManager.blendShapeMap.Values)
+            // 追跡対象だけキーを書く。allBoneNames を回すのがキー書き込み絞り込みの実体
+            foreach (var boneName in allBoneNames)
             {
-                var boneName = blendShape.name;
+                var blendShape = modelManager.GetBlendShape(boneName);
+                if (blendShape == null)
+                {
+                    // 既存キーにだけ残っているシェイプキー (モデル差し替え等) は書けないので飛ばす
+                    continue;
+                }
 
                 var trans = CreateTransformData<TransformDataModelShapeKey>(boneName);
                 trans.weight = blendShape.weight;
