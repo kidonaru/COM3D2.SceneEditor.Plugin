@@ -195,6 +195,7 @@
     <Compile Include="MaidManipulation\MaidUndressController.cs" />
     <Compile Include="MaidManipulation\ModelQualifiedNames.cs" />
     <Compile Include="MaidManipulation\ModelTrackedNameStore.cs" />
+    <Compile Include="MaidManipulation\ShapeKeySyncDiff.cs" />
     <Compile Include="MaidManipulation\ModelShapeKeyEditManager.cs" />
     <Compile Include="MaidManipulation\ModelGizmoRender.cs" />
     <Compile Include="MaidManipulation\SlotBoneManager.cs" />
