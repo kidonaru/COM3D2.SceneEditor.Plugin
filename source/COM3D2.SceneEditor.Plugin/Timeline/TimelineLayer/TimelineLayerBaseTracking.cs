@@ -21,6 +21,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>自動キー登録/削除の履歴表示に使う接頭辞 (例: "表情")</summary>
         protected virtual string trackedHistoryPrefix => "";
 
+        /// <summary>
+        /// 0F 自動キーを打てる状態か。既定はメイド対象レイヤー向け。
+        /// モデル対象レイヤーは maid を持たないため override して差し替える
+        /// </summary>
+        protected virtual bool isTrackedTargetReady => maid != null;
+
         protected bool hasTrackedBoneFilter => trackedCandidateNames != null;
 
         private List<string> _trackedBoneNames;
@@ -81,6 +87,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
+        /// <summary>
+        /// 追跡集合のキャッシュを捨てる。
+        /// 候補名リスト (trackedCandidateNames) がレイヤー都合で入れ替わったとき
+        /// (モデルの追加・削除など) に呼ぶ。次の参照で作り直され、
+        /// 間引きも解除するため UpdateTrackedBoneFilter が次フレームで必ず走る
+        /// </summary>
+        protected void InvalidateTrackedBoneNames()
+        {
+            _trackedBoneNames = null;
+            _trackedRebuildFrameCount = 30;
+        }
+
         /// <summary>Update から毎フレーム呼ぶ。opt-in レイヤー以外では呼ばれない</summary>
         protected void UpdateTrackedBoneFilter()
         {
@@ -138,7 +156,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private void AddTrackedFirstFrameKeys(List<string> boneNames)
         {
-            if (boneNames.Count == 0 || maid == null)
+            if (boneNames.Count == 0 || !isTrackedTargetReady)
             {
                 return;
             }
