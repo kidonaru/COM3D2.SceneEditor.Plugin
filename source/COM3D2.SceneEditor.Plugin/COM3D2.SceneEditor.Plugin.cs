@@ -374,6 +374,7 @@ namespace COM3D2.SceneEditor.Plugin
                 managerRegistry.RegisterManager(FaceEditManager.instance);
                 managerRegistry.RegisterManager(ModelShapeKeyEditManager.instance);
                 managerRegistry.RegisterManager(MaidShapeKeyEditManager.instance);
+                managerRegistry.RegisterManager(MaidMaterialEditManager.instance);
                 // 各操作の BeforeEdit を受けてマウス解放で確定するだけなので登録順は問わない
                 managerRegistry.RegisterManager(HistoryManager.instance);
                 // 各ウィンドウの状態更新後にドラッグ判定を行うため WindowManager より後に登録する
