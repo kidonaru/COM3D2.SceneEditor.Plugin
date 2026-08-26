@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Xunit;
-using SE = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
@@ -16,7 +15,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             Assert.Equal(
                 "test_furniture.menu/Bone_01",
-                SE.ModelBoneTrackedNames.Qualify("test_furniture.menu", "Bone_01"));
+                ModelBoneTrackedNames.Qualify("test_furniture.menu", "Bone_01"));
         }
 
         [Fact]
@@ -24,7 +23,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             Assert.Equal(
                 "test_furniture.menu_2/Bone_01",
-                SE.ModelBoneTrackedNames.Qualify("test_furniture.menu_2", "Bone_01"));
+                ModelBoneTrackedNames.Qualify("test_furniture.menu_2", "Bone_01"));
         }
 
         [Theory]
@@ -34,20 +33,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData("model", "")]
         public void どちらかが空ならnullを返す(string modelName, string boneName)
         {
-            Assert.Null(SE.ModelBoneTrackedNames.Qualify(modelName, boneName));
+            Assert.Null(ModelBoneTrackedNames.Qualify(modelName, boneName));
         }
 
         [Fact]
         public void Collectはエントリを修飾して追加する()
         {
-            var entries = new List<SE.BoneEditEntry>
+            var entries = new List<BoneEditEntry>
             {
-                new SE.BoneEditEntry { boneName = "Bone_01" },
-                new SE.BoneEditEntry { boneName = "Bone_02" },
+                new BoneEditEntry { boneName = "Bone_01" },
+                new BoneEditEntry { boneName = "Bone_02" },
             };
             var result = new List<string> { "既存" };
 
-            SE.ModelBoneTrackedNames.Collect("model.menu", entries, result);
+            ModelBoneTrackedNames.Collect("model.menu", entries, result);
 
             Assert.Equal(
                 new[] { "既存", "model.menu/Bone_01", "model.menu/Bone_02" },
@@ -57,13 +56,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void Collectはモデル名が空なら何も追加しない()
         {
-            var entries = new List<SE.BoneEditEntry>
+            var entries = new List<BoneEditEntry>
             {
-                new SE.BoneEditEntry { boneName = "Bone_01" },
+                new BoneEditEntry { boneName = "Bone_01" },
             };
             var result = new List<string>();
 
-            SE.ModelBoneTrackedNames.Collect("", entries, result);
+            ModelBoneTrackedNames.Collect("", entries, result);
 
             Assert.Empty(result);
         }

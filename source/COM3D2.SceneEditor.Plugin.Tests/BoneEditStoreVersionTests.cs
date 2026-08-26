@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Xunit;
-using SE = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
@@ -12,9 +11,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     /// </summary>
     public class BoneEditStoreVersionTests
     {
-        private static SE.BoneEditEntry CreateEntry(string slotName, string boneName)
+        private static BoneEditEntry CreateEntry(string slotName, string boneName)
         {
-            return new SE.BoneEditEntry
+            return new BoneEditEntry
             {
                 slotName = slotName,
                 itemFileName = "test.menu",
@@ -25,22 +24,22 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 初期状態のversionは0()
         {
-            var store = new SE.BoneEditStore();
+            var store = new BoneEditStore();
             Assert.Equal(0, store.version);
         }
 
         [Fact]
         public void RestoreEntriesでversionが進む()
         {
-            var store = new SE.BoneEditStore();
-            store.RestoreEntries(new List<SE.BoneEditEntry> { CreateEntry("body", "Bip01") });
+            var store = new BoneEditStore();
+            store.RestoreEntries(new List<BoneEditEntry> { CreateEntry("body", "Bip01") });
             Assert.True(store.version > 0);
         }
 
         [Fact]
         public void 空のClearではversionが進まない()
         {
-            var store = new SE.BoneEditStore();
+            var store = new BoneEditStore();
             var before = store.version;
             store.Clear();
             Assert.Equal(before, store.version);
@@ -49,8 +48,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 中身のあるClearでversionが進む()
         {
-            var store = new SE.BoneEditStore();
-            store.RestoreEntries(new List<SE.BoneEditEntry> { CreateEntry("body", "Bip01") });
+            var store = new BoneEditStore();
+            store.RestoreEntries(new List<BoneEditEntry> { CreateEntry("body", "Bip01") });
             var before = store.version;
             store.Clear();
             Assert.True(store.version > before);
@@ -59,8 +58,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void アイテム変更でスロットを捨てるとversionが進む()
         {
-            var store = new SE.BoneEditStore();
-            store.RestoreEntries(new List<SE.BoneEditEntry> { CreateEntry("body", "Bip01") });
+            var store = new BoneEditStore();
+            store.RestoreEntries(new List<BoneEditEntry> { CreateEntry("body", "Bip01") });
             var before = store.version;
             store.DiscardSlotIfItemChanged("body", "other.menu");
             Assert.True(store.version > before);
@@ -70,8 +69,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void アイテムが同じならDiscardでversionが進まない()
         {
-            var store = new SE.BoneEditStore();
-            store.RestoreEntries(new List<SE.BoneEditEntry> { CreateEntry("body", "Bip01") });
+            var store = new BoneEditStore();
+            store.RestoreEntries(new List<BoneEditEntry> { CreateEntry("body", "Bip01") });
             var before = store.version;
             store.DiscardSlotIfItemChanged("body", "test.menu");
             Assert.Equal(before, store.version);

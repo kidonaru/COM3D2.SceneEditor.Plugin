@@ -29,6 +29,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected bool hasTrackedBoneFilter => trackedCandidateNames != null;
 
+        /// <summary>store 以外由来の集合変化を拾うための再計算間隔 (フレーム)</summary>
+        private const int TrackedRebuildInterval = 30;
+
         private List<string> _trackedBoneNames;
         private int _lastTrackedStoreVersion = -1;
         private EditTargetStore _lastTrackedStore;
@@ -96,7 +99,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected void InvalidateTrackedBoneNames()
         {
             _trackedBoneNames = null;
-            _trackedRebuildFrameCount = 30;
+            _trackedRebuildFrameCount = TrackedRebuildInterval;
         }
 
         /// <summary>Update から毎フレーム呼ぶ。opt-in レイヤー以外では呼ばれない</summary>
@@ -110,7 +113,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var storeChanged = store != _lastTrackedStore || version != _lastTrackedStoreVersion;
 
             _trackedRebuildFrameCount++;
-            if (!storeChanged && _trackedRebuildFrameCount < 30)
+            if (!storeChanged && _trackedRebuildFrameCount < TrackedRebuildInterval)
             {
                 return;
             }

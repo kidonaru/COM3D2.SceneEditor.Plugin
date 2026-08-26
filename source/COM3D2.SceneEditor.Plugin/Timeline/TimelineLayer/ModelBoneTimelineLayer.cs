@@ -193,6 +193,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     newBone.transform.FromTransformData(sourceBone.transform);
                 }
             }
+
+            // 複製先のキーを追跡集合へ即座に反映する (待つと間引きぶん遅れる)
+            InvalidateTrackedBoneNames();
         }
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)

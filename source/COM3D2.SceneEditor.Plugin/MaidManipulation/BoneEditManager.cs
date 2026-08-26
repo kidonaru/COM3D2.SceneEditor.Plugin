@@ -116,7 +116,9 @@ namespace COM3D2.SceneEditor.Plugin
         // (タイムラインのロードで後から解決されるため、残っている間は再試行する)
         private bool _hasUnresolvedModel;
 
-        // 未解決モデルの再試行の間引き。毎フレーム GetComponent を回さないため
+        /// <summary>未解決モデルを取りに行く間隔 (フレーム)。毎フレーム GetComponent を回さないための間引き</summary>
+        private const int ModelBoneSyncRetryInterval = 30;
+
         private int _modelBoneSyncFrameCount;
 
         // 毎フレームの同期でリストを作り直さないよう使い回す
@@ -290,7 +292,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>対象種別に応じた差分ストアへ編集を記録する</summary>
-        private void NotifyEdited(Maid maid, Transform bone)
+        public void NotifyEdited(Maid maid, Transform bone)
         {
             if (isModelMode)
             {
@@ -620,7 +622,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 未解決モデルはタイムラインのロードで後から名前が付く。
             // その瞬間はストア側に何の変化も起きないため、こちらから定期的に取りに行く
             _modelBoneSyncFrameCount++;
-            if (!changed && !(_hasUnresolvedModel && _modelBoneSyncFrameCount >= 30))
+            if (!changed && !(_hasUnresolvedModel && _modelBoneSyncFrameCount >= ModelBoneSyncRetryInterval))
             {
                 return;
             }

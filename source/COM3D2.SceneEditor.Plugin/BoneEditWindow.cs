@@ -169,14 +169,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (isChecked)
                 {
                     // 値は変えず、現在値を編集値として記録して追跡対象に載せる
-                    if (boneEditManager.isModelMode)
-                    {
-                        boneEditManager.NotifyModelBoneEdited(bone);
-                    }
-                    else
-                    {
-                        boneEditManager.NotifyBoneEdited(_drawingTarget, bone);
-                    }
+                    boneEditManager.NotifyEdited(_drawingTarget, bone);
                 }
                 else
                 {
