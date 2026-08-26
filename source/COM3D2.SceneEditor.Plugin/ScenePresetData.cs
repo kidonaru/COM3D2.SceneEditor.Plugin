@@ -664,7 +664,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式はいずれも null で読め、適用時に触らない
         // v22: 表情モーフの保存対象を「値が非 0」から「チェック済み (EditTargetStore)」へ変更。
         //      構造変更なし。旧データは記載モーフ (=非 0 保存分) を適用時にチェック済みへ復元する
-        public static readonly int CurrentVersion = 22;
+        // v23: モデルシェイプキーの保存対象を「重みが非 0」から「チェック済み (EditTargetStore)」へ変更。
+        //      構造変更なし。旧データは記載シェイプキー (=非 0 保存分) を適用時にチェック済みへ復元する
+        public static readonly int CurrentVersion = 23;
 
         [XmlAttribute]
         public int version = CurrentVersion;
@@ -705,7 +707,7 @@ namespace COM3D2.SceneEditor.Plugin
         public List<ScenePresetModelBoneEdit> modelBoneEdits;
 
         /// <summary>
-        /// モデルのシェイプキー (v21)。非ゼロ値のみ。外部プロバイダ保存時のみ入る。
+        /// モデルのシェイプキー (v21)。v23 以降はチェック済みのみ。外部プロバイダ保存時のみ入る。
         /// 旧プリセット（要素なし）は null になり、適用時に触らない
         /// </summary>
         [XmlElement("modelShapeKey")]

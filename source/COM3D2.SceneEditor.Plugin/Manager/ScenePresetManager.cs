@@ -904,9 +904,18 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
+                // チェック集合はモデルの GameObject で引く (修飾名は group 振り直しで変わるため使わない)
+                var shapeKeyStore = ModelShapeKeyEditManager.instance
+                    .FindStore(model.transform.gameObject);
+                if (shapeKeyStore == null)
+                {
+                    continue;
+                }
+
                 foreach (var blendShape in model.blendShapes)
                 {
-                    if (Mathf.Approximately(blendShape.weight, 0f))
+                    // 保存対象はチェック済みのみ。重み 0 でもユーザーが意図して選んだものは残す
+                    if (!shapeKeyStore.IsModified(blendShape.shapeKeyName))
                     {
                         continue;
                     }
@@ -2426,6 +2435,12 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
                 blendShape.weight = shapeKeyState.value;
+                // 保存されていた = ユーザーがチェックしていた。旧バージョンのプリセットでも
+                // 「記載分 = チェック済み」で辻褄が合う (表情の v22 と同じ扱い)。
+                // 表情のような SetNames ではなく Mark の積み増しにするのは、
+                // 部分適用で見つからなかったモデルのチェックを巻き添えで消さないため
+                ModelShapeKeyEditManager.instance
+                    .GetStore(model.transform.gameObject).Mark(shapeKeyState.name);
                 touchedModels.Add(model);
             }
             // FixBlendValues は頂点全走査で重いためモデルごとに 1 回
