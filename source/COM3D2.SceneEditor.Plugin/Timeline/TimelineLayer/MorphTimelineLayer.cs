@@ -28,7 +28,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// チェック済みモーフ ∪ 既存キーフレーム記載モーフ。表示順は saveMorphNames に揃える。
-        /// 既存キーフレーム分を含めるのは、チェックを外しても保存済みアニメの編集を可能なままにするため
+        /// 既存キーフレーム分を含めるのは、読み込んだアニメのモーフを未チェックでも編集できるようにするため。
+        /// チェックを外したモーフは RemoveAllKeys でキーごと消えるため、ここには残らない
         /// </summary>
         private List<string> BuildBoneNames()
         {
@@ -57,6 +58,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private int _lastStoreVersion = -1;
         private FaceEditStore _lastStore;
         private int _rebuildCheckFrameCount;
+        private HashSet<string> _lastCheckedNames = new HashSet<string>();
+
+        /// <summary>タイムライン側テーブルに存在するチェック済みモーフ</summary>
+        private HashSet<string> BuildCheckedNames(FaceEditStore store)
+        {
+            var result = new HashSet<string>();
+            if (store == null)
+            {
+                return result;
+            }
+
+            foreach (var name in FaceMorphUtils.saveMorphNames)
+            {
+                if (store.IsModified(name))
+                {
+                    result.Add(name);
+                }
+            }
+            return result;
+        }
 
         public override void Update()
         {
@@ -75,8 +96,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
             _rebuildCheckFrameCount = 0;
+
+            // 対象メイドが入れ替わったときは前回のチェック集合を引き継がない
+            // (別メイドのチェック解除とみなしてキーを消さないようにするため)
+            var maidChanged = store != _lastStore;
             _lastStore = store;
             _lastStoreVersion = version;
+
+            var checkedNames = BuildCheckedNames(store);
+            if (!maidChanged)
+            {
+                // チェックを外したモーフはキーごと消す。0F 目の自動登録と対称にしないと、
+                // 自動登録されたキーが残り続けてボーンメニューから消えなくなる
+                RemoveAllKeys(_lastCheckedNames.Where(name => !checkedNames.Contains(name)).ToList());
+            }
+            _lastCheckedNames = checkedNames;
 
             var newNames = BuildBoneNames();
             if (_cachedBoneNames == null || !newNames.SequenceEqual(_cachedBoneNames))
@@ -121,6 +155,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ApplyCurrentFrame(true);
 
             timelineManager.RequestHistory("表情キーフレーム自動登録");
+        }
+
+        /// <summary>チェックを外したモーフのキーを全フレームから消す</summary>
+        private void RemoveAllKeys(List<string> boneNames)
+        {
+            if (boneNames.Count == 0)
+            {
+                return;
+            }
+
+            var removed = false;
+            foreach (var frame in _keyFrames)
+            {
+                var bones = frame.GetFilterBones(boneNames);
+                if (bones.Count > 0)
+                {
+                    frame.RemoveBones(bones);
+                    removed = true;
+                }
+            }
+
+            if (!removed)
+            {
+                return;
+            }
+
+            CleanFrames();
+            ApplyCurrentFrame(true);
+
+            timelineManager.RequestHistory("表情キーフレーム自動削除");
         }
 
         private static TimelineFaceManager faceManager => TimelineFaceManager.instance;
