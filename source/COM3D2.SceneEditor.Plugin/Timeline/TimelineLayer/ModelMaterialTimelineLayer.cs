@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 using static COM3D2.MotionTimelineEditor.Plugin.ModelMaterial;
 
@@ -15,7 +16,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(ModelMaterialTimelineLayer);
         public override string layerName => nameof(ModelMaterialTimelineLayer);
 
-        public override List<string> allBoneNames => modelManager.materialNames;
+        // 変更追跡チェック済みのマテリアルだけへ絞り込む
+        public override List<string> allBoneNames => trackedBoneNames;
+
+        protected override EditTargetStore trackedStore
+            => ModelMaterialEditManager.instance.trackedStore;
+
+        protected override List<string> trackedCandidateNames => modelManager.materialNames;
+
+        protected override string trackedHistoryPrefix => "モデルマテリアル";
+
+        // モデルレイヤーは maid を持たないため、モデルが 1 体でもあれば 0F 自動キーを打てる
+        protected override bool isTrackedTargetReady => modelManager.models.Count > 0;
 
         private ModelMaterialTimelineLayer(int slotNo) : base(slotNo)
         {
@@ -29,6 +41,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void Init()
         {
             base.Init();
+            // 0F 目の自動キーは絞り込み後の対象だけへ打つ
             AddFirstBones(allBoneNames);
 
             StudioModelManager.onModelAdded += OnModelAdded;
@@ -39,6 +52,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             allMenuItems.Clear();
 
+            var targetNames = new HashSet<string>(allBoneNames);
+
             foreach (var model in modelManager.models)
             {
                 if (model.materials.Count == 0)
@@ -46,11 +61,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var setMenuItem = new BoneSetMenuItem(model.name, model.displayName);
-                allMenuItems.Add(setMenuItem);
+                // 子が 1 つも残らないモデルは見出しごと出さない
+                BoneSetMenuItem setMenuItem = null;
 
                 foreach (var material in model.materials)
                 {
+                    if (!targetNames.Contains(material.name))
+                    {
+                        continue;
+                    }
+
+                    if (setMenuItem == null)
+                    {
+                        setMenuItem = new BoneSetMenuItem(model.name, model.displayName);
+                        allMenuItems.Add(setMenuItem);
+                    }
+
                     var menuItem = new BoneMenuItem(material.name, material.displayName);
                     setMenuItem.AddChild(menuItem);
                 }
@@ -110,15 +136,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OnModelAdded(StudioModelStat model)
         {
+            // 候補一覧が入れ替わったので追跡集合を作り直させる
+            InvalidateTrackedBoneNames();
+
             InitMenuItems();
 
-            var materialNames = model.materials.Select(x => x.name).ToList();
-            AddFirstBones(materialNames);
+            AddFirstBones(allBoneNames);
             ApplyCurrentFrame(true);
         }
 
         public void OnModelRemoved(StudioModelStat model)
         {
+            InvalidateTrackedBoneNames();
+
             InitMenuItems();
 
             var materialNames = model.materials.Select(x => x.name).ToList();
@@ -151,9 +181,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
-            foreach (var sourceMaterial in modelManager.materialMap.Values)
+            // materialMap を直接回すと絞り込みを素通りするため、対象集合を回して引き当てる
+            foreach (var materialName in allBoneNames)
             {
-                var materialName = sourceMaterial.name;
+                var sourceMaterial = modelManager.GetMaterial(materialName);
+                if (sourceMaterial == null)
+                {
+                    continue;
+                }
 
                 var trans = frame.GetOrCreateTransformData<TransformDataModelMaterial>(materialName);
                 trans.Apply(sourceMaterial);
