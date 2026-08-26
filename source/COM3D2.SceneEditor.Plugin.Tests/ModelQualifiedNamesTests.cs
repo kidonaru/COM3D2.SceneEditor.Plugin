@@ -4,18 +4,18 @@ using Xunit;
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
     /// <summary>
-    /// モデルボーンの修飾名生成を固定する。
-    /// タイムライン側の候補名 (StudioModelManager.boneNames = ModelBone.name) と
+    /// モデル修飾名の生成を固定する。
+    /// タイムライン側の候補名 (ModelBone.name / ModelBlendShape.name) と
     /// 同じ規則でなければ追跡集合が一切マッチしなくなる
     /// </summary>
-    public class ModelBoneTrackedNamesTests
+    public class ModelQualifiedNamesTests
     {
         [Fact]
         public void モデル名とボーン名をスラッシュで連結する()
         {
             Assert.Equal(
                 "test_furniture.menu/Bone_01",
-                ModelBoneTrackedNames.Qualify("test_furniture.menu", "Bone_01"));
+                ModelQualifiedNames.Qualify("test_furniture.menu", "Bone_01"));
         }
 
         [Fact]
@@ -23,7 +23,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             Assert.Equal(
                 "test_furniture.menu_2/Bone_01",
-                ModelBoneTrackedNames.Qualify("test_furniture.menu_2", "Bone_01"));
+                ModelQualifiedNames.Qualify("test_furniture.menu_2", "Bone_01"));
         }
 
         [Theory]
@@ -33,7 +33,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData("model", "")]
         public void どちらかが空ならnullを返す(string modelName, string boneName)
         {
-            Assert.Null(ModelBoneTrackedNames.Qualify(modelName, boneName));
+            Assert.Null(ModelQualifiedNames.Qualify(modelName, boneName));
         }
 
         [Fact]
@@ -46,7 +46,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             };
             var result = new List<string> { "既存" };
 
-            ModelBoneTrackedNames.Collect("model.menu", entries, result);
+            ModelQualifiedNames.Collect("model.menu", entries, result);
 
             Assert.Equal(
                 new[] { "既存", "model.menu/Bone_01", "model.menu/Bone_02" },
@@ -62,7 +62,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             };
             var result = new List<string>();
 
-            ModelBoneTrackedNames.Collect("", entries, result);
+            ModelQualifiedNames.Collect("", entries, result);
 
             Assert.Empty(result);
         }

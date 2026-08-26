@@ -137,15 +137,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             // モデルの増減で group が振り直され、モデル修飾名が変わる
             // (ModelHackManager.FixGroup)。記録側の version は動かないため、
-            // 一覧が変わった契機で集約を作り直させる
+            // 一覧が変わった契機で集約を作り直させる。
+            // Init はプラグイン起動時の 1 回だけ、OnPluginDisable は UI をトグルするたびに
+            // 呼ばれるため、ここで解除すると UI を一度閉じただけで購読が復活しなくなる。
+            // マネージャはプロセス終了まで生きるシングルトンなので購読しっぱなしにする
+            // (UI 非表示中は Update が回らないので Invalidate されても無害)
             MotionTimelineEditor.Plugin.StudioModelManager.onModelAdded += OnTimelineModelChanged;
             MotionTimelineEditor.Plugin.StudioModelManager.onModelRemoved += OnTimelineModelChanged;
-        }
-
-        public override void OnPluginDisable()
-        {
-            MotionTimelineEditor.Plugin.StudioModelManager.onModelAdded -= OnTimelineModelChanged;
-            MotionTimelineEditor.Plugin.StudioModelManager.onModelRemoved -= OnTimelineModelChanged;
         }
 
         private void OnTimelineModelChanged(MotionTimelineEditor.Plugin.StudioModelStat model)
@@ -618,7 +616,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         return false;
                     }
-                    ModelBoneTrackedNames.Collect(
+                    ModelQualifiedNames.Collect(
                         modelName, _modelStores[model].GetEntries(ModelSlotKey), result);
                     return true;
                 });

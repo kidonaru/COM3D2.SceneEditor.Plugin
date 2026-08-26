@@ -3,12 +3,13 @@ using System.Collections.Generic;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// モデルボーンの名前変換。
-    /// 編集側 (BoneEditStore) は Transform 名そのまま、タイムライン側 (StudioModelManager.boneNames) は
-    /// モデル名で修飾した名前を使うため、その橋渡しをここ 1 箇所に閉じ込める。
-    /// 修飾規則は ModelBone.name (Timeline/ModelBoneController.cs) と必ず一致させること
+    /// モデル修飾名 ("{model.name}/{生名}") の組み立て。
+    /// 編集側は生名 (Transform 名・シェイプキー名) そのまま、タイムライン側はモデル名で修飾した名前を
+    /// 使うため、その橋渡しをここ 1 箇所に閉じ込める。ボーンとシェイプキーで共有する。
+    /// 修飾規則は ModelBone.name (Timeline/ModelBoneController.cs) および
+    /// ModelBlendShape.name (Timeline/BlendShapeController.cs) と必ず一致させること
     /// </summary>
-    public static class ModelBoneTrackedNames
+    public static class ModelQualifiedNames
     {
         /// <summary>タイムライン側のモデル修飾名を作る。名前が欠けていれば null</summary>
         public static string Qualify(string modelName, string boneName)
@@ -20,7 +21,7 @@ namespace COM3D2.SceneEditor.Plugin
             return modelName + "/" + boneName;
         }
 
-        /// <summary>編集済みエントリを修飾名にして result へ積む (result はクリアしない)</summary>
+        /// <summary>ボーン編集済みエントリを修飾名にして result へ積む (result はクリアしない)</summary>
         public static void Collect(string modelName, List<BoneEditEntry> entries, List<string> result)
         {
             if (entries == null || result == null)
