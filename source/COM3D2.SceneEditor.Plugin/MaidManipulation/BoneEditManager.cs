@@ -96,33 +96,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// ModelBoneTimelineLayer の追跡ストアとして使う。
         /// ソース・オブ・トゥルースはあくまで _modelStores 側で、ここへ直接 Mark/Unmark してはならない
         /// </summary>
-        private readonly EditTargetStore _modelBoneTrackedStore = new EditTargetStore();
+        private readonly ModelTrackedNameStore<GameObject> _modelBoneTracked
+            = new ModelTrackedNameStore<GameObject>();
 
-        public EditTargetStore modelBoneTrackedStore => _modelBoneTrackedStore;
+        public EditTargetStore modelBoneTrackedStore => _modelBoneTracked.store;
 
-        /// <summary>
-        /// モデルストア集合の世代。ストアの生成・破棄で進める。
-        /// version 合計だけだと生成と破棄が同フレームで釣り合ったときに変化を見逃すため、
-        /// 集合の入れ替わりはこちらで別に検知する
-        /// (世代が同じ = ストア集合が同じなら、各 version は単調増加なので合計の一致で判定できる)
-        /// </summary>
-        private int _modelStoreGeneration;
-
-        // 集約の作り直し判定
-        private int _lastModelStoreGeneration = -1;
-        private int _lastModelStoreVersionSum = -1;
-
-        // モデル名を解決できなかったモデルが前回の同期に残っていたか
-        // (タイムラインのロードで後から解決されるため、残っている間は再試行する)
-        private bool _hasUnresolvedModel;
-
-        /// <summary>未解決モデルを取りに行く間隔 (フレーム)。毎フレーム GetComponent を回さないための間引き</summary>
-        private const int ModelBoneSyncRetryInterval = 30;
-
-        private int _modelBoneSyncFrameCount;
-
-        // 毎フレームの同期でリストを作り直さないよう使い回す
-        private readonly List<string> _modelBoneTrackedNames = new List<string>();
+        // Sync へ毎フレーム渡すキー列。使い回してゴミを出さない
+        private readonly List<GameObject> _modelStoreKeys = new List<GameObject>();
 
         /// <summary>ロード完了エッジ検出用。前フレームのロード中フラグ</summary>
         private readonly Dictionary<Maid, bool> _wasLoading = new Dictionary<Maid, bool>();
@@ -154,6 +134,23 @@ namespace COM3D2.SceneEditor.Plugin
             GizmoRenderer.externalTargetProvider = () =>
                 editMode && selectedBone != null && !selectionManager.hasBoneSelection
                     ? selectedBone.gameObject : null;
+
+            // モデルの増減で group が振り直され、モデル修飾名が変わる
+            // (ModelHackManager.FixGroup)。記録側の version は動かないため、
+            // 一覧が変わった契機で集約を作り直させる
+            MotionTimelineEditor.Plugin.StudioModelManager.onModelAdded += OnTimelineModelChanged;
+            MotionTimelineEditor.Plugin.StudioModelManager.onModelRemoved += OnTimelineModelChanged;
+        }
+
+        public override void OnPluginDisable()
+        {
+            MotionTimelineEditor.Plugin.StudioModelManager.onModelAdded -= OnTimelineModelChanged;
+            MotionTimelineEditor.Plugin.StudioModelManager.onModelRemoved -= OnTimelineModelChanged;
+        }
+
+        private void OnTimelineModelChanged(MotionTimelineEditor.Plugin.StudioModelStat model)
+        {
+            _modelBoneTracked.Invalidate();
         }
 
         /// <summary>
@@ -454,7 +451,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 store = new BoneEditStore();
                 _modelStores[model] = store;
-                _modelStoreGeneration++;
+                _modelBoneTracked.Invalidate();
             }
             return store;
         }
@@ -585,7 +582,7 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var model in _deadModels)
             {
                 _modelStores.Remove(model);
-                _modelStoreGeneration++;
+                _modelBoneTracked.Invalidate();
             }
 
             // 対象モデルが削除されたら参照を実 null に落とし、ボーン選択も外す。
@@ -602,51 +599,29 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// モデルの編集済みボーンを集約ストアへ片方向同期する。
-        /// 毎フレーム呼ばれるため、ストア集合の世代と version 合計が変わっていなければ何もしない。
-        /// EditTargetStore.SetNames は中身が変わったときだけ version を進めるため、
-        /// 再構築が走ってもタイムライン側のメニュー組み直しまでは連鎖しない
-        /// </summary>
+        /// <summary>モデルの編集済みボーンを集約ストアへ片方向同期する</summary>
         private void SyncModelBoneTrackedStore()
         {
-            var versionSum = 0;
+            _modelStoreKeys.Clear();
             foreach (var pair in _modelStores)
             {
-                versionSum += pair.Value.version;
+                _modelStoreKeys.Add(pair.Key);
             }
 
-            var changed = _modelStoreGeneration != _lastModelStoreGeneration
-                || versionSum != _lastModelStoreVersionSum;
-
-            // 未解決モデルはタイムラインのロードで後から名前が付く。
-            // その瞬間はストア側に何の変化も起きないため、こちらから定期的に取りに行く
-            _modelBoneSyncFrameCount++;
-            if (!changed && !(_hasUnresolvedModel && _modelBoneSyncFrameCount >= ModelBoneSyncRetryInterval))
-            {
-                return;
-            }
-            _modelBoneSyncFrameCount = 0;
-            _lastModelStoreGeneration = _modelStoreGeneration;
-            _lastModelStoreVersionSum = versionSum;
-
-            _hasUnresolvedModel = false;
-            _modelBoneTrackedNames.Clear();
-            foreach (var pair in _modelStores)
-            {
-                var modelName = GetModelName(pair.Key);
-                if (modelName == null)
+            _modelBoneTracked.Sync(
+                _modelStoreKeys,
+                model => _modelStores[model].version,
+                (model, result) =>
                 {
-                    // タイムライン側の名前が作れないモデルは集約に載せない。
-                    // ストア側の記録は残すので、タイムラインがロードされれば次の再試行で復帰する
-                    _hasUnresolvedModel = true;
-                    continue;
-                }
-                ModelBoneTrackedNames.Collect(
-                    modelName, pair.Value.GetEntries(ModelSlotKey), _modelBoneTrackedNames);
-            }
-
-            _modelBoneTrackedStore.SetNames(_modelBoneTrackedNames);
+                    var modelName = GetModelName(model);
+                    if (modelName == null)
+                    {
+                        return false;
+                    }
+                    ModelBoneTrackedNames.Collect(
+                        modelName, _modelStores[model].GetEntries(ModelSlotKey), result);
+                    return true;
+                });
         }
 
         /// <summary>モデルルートからタイムライン側のモデル名を引く。取れなければ null</summary>
@@ -837,11 +812,7 @@ namespace COM3D2.SceneEditor.Plugin
             _stores.Clear();
             _wasLoading.Clear();
             _modelStores.Clear();
-            _modelBoneTrackedStore.Clear();
-            _modelStoreGeneration++;
-            _lastModelStoreGeneration = -1;
-            _lastModelStoreVersionSum = -1;
-            _hasUnresolvedModel = false;
+            _modelBoneTracked.Clear();
             // シーン遷移では SelectionManager 側が選択を解除するため setter は通さない
             ClearTargetModelSilently();
             _boneTree.Clear();
