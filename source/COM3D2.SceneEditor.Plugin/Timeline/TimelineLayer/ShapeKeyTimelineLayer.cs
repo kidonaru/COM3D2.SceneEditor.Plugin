@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
+using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -178,7 +179,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void DrawBlendShapesAdd(GUIView view)
         {
             var maid = maidManager.maid;
-            var maidSlotNo = maidManager.maidSlotNo;
 
             if (maid != _maid)
             {
@@ -216,19 +216,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             view.BeginScrollView();
 
+            // タグ登録のソース・オブ・トゥルースは変更追跡ストア。
+            // ここから timeline.Add/RemoveMaidShapeKey を直接叩くと二重管理になるため、
+            // ストアだけを変え、タイムラインへは MaidShapeKeyEditManager が片方向に流す。
+            // シェイプキー編集ウィンドウのチェック解除と違い、ここでは値をゼロ化しない
+            // (このタブはキーフレーム対象の選別 UI であって値の編集 UI ではないため)
+            var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(maid);
+
             foreach (string tag in tags)
             {
-                var enable = timeline.HasMaidShapeKey(maidSlotNo, tag);
+                var tagName = tag;
+                var enable = shapeKeyStore != null && shapeKeyStore.IsModified(tagName);
 
-                view.DrawToggle(tag, enable, -1, 20, newValue =>
+                view.DrawToggle(tagName, enable, -1, 20, newValue =>
                 {
+                    var store = MaidShapeKeyEditManager.instance.GetStore(maid);
                     if (newValue)
                     {
-                        timeline.AddMaidShapeKey(maidSlotNo, tag);
+                        store.Mark(tagName);
                     }
                     else
                     {
-                        timeline.RemoveMaidShapeKey(maidSlotNo, tag);
+                        store.Unmark(tagName);
                     }
                 });
             }
