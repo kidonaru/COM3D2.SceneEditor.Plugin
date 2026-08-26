@@ -3,14 +3,14 @@ using Xunit;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
-    // FaceEditStore はプリセット保存とタイムライン絞り込みの共通ソース。
+    // EditTargetStore はプリセット保存とタイムライン絞り込みの共通ソース。
     // version はタイムライン側の再構築検知に使うため「実際に集合が変わったときだけ」増える
-    public class FaceEditStoreTests
+    public class EditTargetStoreTests
     {
         [Fact]
         public void Markでチェック済みになる()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.Mark("eyeclose");
             Assert.True(store.IsModified("eyeclose"));
             Assert.False(store.IsModified("eyeclose2"));
@@ -20,7 +20,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void Unmarkで解除される()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.Mark("eyeclose");
             store.Unmark("eyeclose");
             Assert.False(store.IsModified("eyeclose"));
@@ -30,7 +30,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void SetNamesで丸ごと置き換わる()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.Mark("eyeclose");
             store.SetNames(new[] { "mayuup", "mouthup" });
             Assert.False(store.IsModified("eyeclose"));
@@ -41,7 +41,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 集合が変わったときだけversionが増える()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             var v0 = store.version;
 
             store.Mark("eyeclose");
@@ -63,7 +63,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void SetNamesは中身が同じならversionが増えない()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.SetNames(new[] { "eyeclose", "mayuup" });
             var v1 = store.version;
 
@@ -78,7 +78,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void null名と空文字は無視される()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.Mark(null);
             store.Mark("");
             Assert.True(store.isEmpty);
@@ -90,7 +90,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void GetNamesはコピーを返す()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.Mark("eyeclose");
             var names = store.GetNames();
             names.Clear();
@@ -100,7 +100,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void Clearで空になる()
         {
-            var store = new FaceEditStore();
+            var store = new EditTargetStore();
             store.Mark("eyeclose");
             var v1 = store.version;
             store.Clear();

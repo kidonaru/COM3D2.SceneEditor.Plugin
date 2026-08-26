@@ -196,7 +196,7 @@
     <Compile Include="MaidManipulation\ModelGizmoRender.cs" />
     <Compile Include="MaidManipulation\SlotBoneManager.cs" />
     <Compile Include="MaidManipulation\BoneEditStore.cs" />
-    <Compile Include="MaidManipulation\FaceEditStore.cs" />
+    <Compile Include="MaidManipulation\EditTargetStore.cs" />
     <Compile Include="MaidManipulation\FaceEditManager.cs" />
     <Compile Include="MaidManipulation\PartsEditPresetIO.cs" />
     <Compile Include="MaidManipulation\BoneEditManager.cs" />

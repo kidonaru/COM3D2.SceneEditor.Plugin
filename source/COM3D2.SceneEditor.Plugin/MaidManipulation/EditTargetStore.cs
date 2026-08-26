@@ -4,12 +4,12 @@ using System.Linq;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイド 1 人分の表情モーフ変更追跡。ユーザーが明示的に編集した (=チェック済みの) モーフ生名を持つ。
+    /// 編集対象 1 つ分(メイド 1 人・モデル 1 体など)の変更追跡。
+    /// ユーザーが明示的に編集した (=チェック済みの) 項目名を持つ。
     /// プリセット保存の対象選別とタイムラインのボーンメニュー絞り込みの共通ソース。
-    /// 編集側 (FaceMorphDef) とタイムライン側 (FaceMorphUtils) でモーフ名テーブルが別物のため、
-    /// 両者が共通に扱える生名文字列をキーにする
+    /// 編集側とタイムライン側で名前テーブルが分かれても共通に扱えるよう、生名文字列をキーにする
     /// </summary>
-    public class FaceEditStore
+    public class EditTargetStore
     {
         private readonly HashSet<string> _modifiedNames = new HashSet<string>();
 
@@ -54,7 +54,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            // 同じ表情への undo/redo やプリセット再適用で version が無駄に進むと、
+            // 同じ集合への undo/redo やプリセット再適用で version が無駄に進むと、
             // タイムライン側が毎回メニューを再構築するため、中身が変わったときだけ進める
             if (_modifiedNames.SetEquals(newNames))
             {

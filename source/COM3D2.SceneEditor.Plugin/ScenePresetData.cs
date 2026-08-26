@@ -662,7 +662,7 @@ namespace COM3D2.SceneEditor.Plugin
         // v21: maid に shapeKeys（任意シェイプキー）と materials（スロットマテリアル差分）、
         //      ルートに modelShapeKeys / modelMaterials / bgMaterials を追加。
         //      旧形式はいずれも null で読め、適用時に触らない
-        // v22: 表情モーフの保存対象を「値が非 0」から「チェック済み (FaceEditStore)」へ変更。
+        // v22: 表情モーフの保存対象を「値が非 0」から「チェック済み (EditTargetStore)」へ変更。
         //      構造変更なし。旧データは記載モーフ (=非 0 保存分) を適用時にチェック済みへ復元する
         public static readonly int CurrentVersion = 22;
 

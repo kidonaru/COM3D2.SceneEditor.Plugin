@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.SceneEditor.Plugin
 {
-    /// <summary>メイドごとの FaceEditStore を管理する。消えたメイドの記録は毎フレームの掃除で捨てる</summary>
+    /// <summary>メイドごとの EditTargetStore を管理する。消えたメイドの記録は毎フレームの掃除で捨てる</summary>
     public class FaceEditManager : ManagerBase
     {
         private static FaceEditManager _instance;
@@ -13,23 +13,23 @@ namespace COM3D2.SceneEditor.Plugin
         {
         }
 
-        private readonly Dictionary<Maid, FaceEditStore> _stores = new Dictionary<Maid, FaceEditStore>();
+        private readonly Dictionary<Maid, EditTargetStore> _stores = new Dictionary<Maid, EditTargetStore>();
         private readonly List<Maid> _deadMaids = new List<Maid>();
 
-        public FaceEditStore GetStore(Maid maid)
+        public EditTargetStore GetStore(Maid maid)
         {
-            FaceEditStore store;
+            EditTargetStore store;
             if (!_stores.TryGetValue(maid, out store))
             {
-                store = new FaceEditStore();
+                store = new EditTargetStore();
                 _stores[maid] = store;
             }
             return store;
         }
 
-        public FaceEditStore FindStore(Maid maid)
+        public EditTargetStore FindStore(Maid maid)
         {
-            FaceEditStore store;
+            EditTargetStore store;
             return maid != null && _stores.TryGetValue(maid, out store) ? store : null;
         }
 

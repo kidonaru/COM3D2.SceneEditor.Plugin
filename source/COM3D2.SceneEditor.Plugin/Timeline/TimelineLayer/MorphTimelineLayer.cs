@@ -20,7 +20,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override List<string> allBoneNames
             => _cachedBoneNames ?? (_cachedBoneNames = BuildBoneNames());
 
-        private FaceEditStore FindFaceStore()
+        private EditTargetStore FindFaceStore()
         {
             var maid = this.maid;
             return maid != null ? FaceEditManager.instance.FindStore(maid) : null;
@@ -56,12 +56,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private int _lastStoreVersion = -1;
-        private FaceEditStore _lastStore;
+        private EditTargetStore _lastStore;
         private int _rebuildCheckFrameCount;
         private HashSet<string> _lastCheckedNames = new HashSet<string>();
 
         /// <summary>タイムライン側テーブルに存在するチェック済みモーフ</summary>
-        private HashSet<string> BuildCheckedNames(FaceEditStore store)
+        private HashSet<string> BuildCheckedNames(EditTargetStore store)
         {
             var result = new HashSet<string>();
             if (store == null)
