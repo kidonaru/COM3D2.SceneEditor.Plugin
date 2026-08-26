@@ -9,9 +9,9 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// シェイプキー編集ウィンドウ。
     /// メイドの全シェイプキーと配置モデルのシェイプキー重みをタイムラインとは独立に直接編集する。
-    /// メイドのシェイプキーについてはキーフレーム対象タグの登録はレイヤー編集ウィンドウ
-    /// (ShapeKey レイヤー) の責務で、ここでは扱わない。
-    /// モデルのシェイプキーは行頭のチェックが変更追跡 (プリセット保存とタイムライン表示の対象) を兼ねる。
+    /// 行頭のチェックが変更追跡 (プリセット保存とタイムラインのキーフレーム対象) を兼ねる。
+    /// メイド側はチェック集合がソース・オブ・トゥルースで、タイムラインの opt-in
+    /// (TimelineData.maidShapeKeysMap) へは MaidShapeKeyEditManager が片方向に流す。
     /// チェック集合は HistoryManager 未対応のため undo で戻らない
     /// </summary>
     public class ShapeKeyEditWindow : MaidWindowBase
@@ -184,6 +184,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
+            // 表示判定用。まだ 1 つもチェックしていないメイドのストアを作らないよう FindStore を使う
+            // (操作側のコールバックは GetStore で遅延生成する)
+            var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(target);
+
             view.BeginScrollView();
             {
                 foreach (var tag in _tags)
@@ -195,8 +199,27 @@ namespace COM3D2.SceneEditor.Plugin
                     }
 
                     var weight = blendShape.weight;
+                    // クロージャがループ変数を掴まないよう写しておく
+                    var tagName = tag;
+                    var isModified = shapeKeyStore != null && shapeKeyStore.IsModified(tagName);
 
-                    view.DrawLabel(tag, -1, ROW_HEIGHT);
+                    // 変更追跡チェック。ON=プリセット保存とタイムラインのキーフレーム対象。
+                    // 手動 OFF は「未編集へ戻す」操作なので値も 0 に戻す
+                    Action<bool> onCheckChanged = newChecked =>
+                    {
+                        if (newChecked)
+                        {
+                            MaidShapeKeyEditManager.instance.GetStore(target).Mark(tagName);
+                        }
+                        else
+                        {
+                            blendShape.weight = 0f;
+                            maidCache.FixBlendValues(new string[] { tagName });
+                            MaidShapeKeyEditManager.instance.GetStore(target).Unmark(tagName);
+                        }
+                    };
+
+                    view.DrawTrackedLabel(isModified, onCheckChanged, tagName, -1, ROW_HEIGHT);
 
                     var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
                     {
@@ -211,7 +234,9 @@ namespace COM3D2.SceneEditor.Plugin
                     if (updateTransform)
                     {
                         blendShape.weight = weight;
-                        maidCache.FixBlendValues(new string[] { tag });
+                        maidCache.FixBlendValues(new string[] { tagName });
+                        // 編集したシェイプキーは自動で追跡対象にする
+                        MaidShapeKeyEditManager.instance.GetStore(target).Mark(tagName);
                     }
                 }
             }
