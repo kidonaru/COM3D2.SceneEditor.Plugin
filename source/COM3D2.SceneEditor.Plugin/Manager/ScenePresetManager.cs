@@ -1981,28 +1981,39 @@ namespace COM3D2.SceneEditor.Plugin
             maidCache.ClearBlendShapeCache();
 
             state.shapeKeys = new List<ScenePresetMorph>();
-            var seenTags = new HashSet<string>();
-            // COM3D2.5 の goSlot は直接列挙できないため、インデックス走査で両バージョンに対応する
-            var slotCount = Mathf.Min((int) TBody.SlotID.end, maid.body0.goSlot.Count);
-            for (var i = 0; i < slotCount; i++)
+            // 保存対象はチェック済みのみ。チェックが 1 つも無ければ走査自体を省く
+            // (この後のスロットマテリアル取得は続けるので早期 return はしない)
+            var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(maid);
+            if (shapeKeyStore != null && !shapeKeyStore.isEmpty)
             {
-                var slot = maid.body0.GetSlot(i);
-                if (slot == null || slot.morph == null || slot.morph.hash.Count == 0)
+                var seenTags = new HashSet<string>();
+                // COM3D2.5 の goSlot は直接列挙できないため、インデックス走査で両バージョンに対応する
+                var slotCount = Mathf.Min((int) TBody.SlotID.end, maid.body0.goSlot.Count);
+                for (var i = 0; i < slotCount; i++)
                 {
-                    continue;
-                }
-                foreach (var tag in slot.morph.GetTags())
-                {
-                    if (faceMorphNames.Contains(tag) || !seenTags.Add(tag))
+                    var slot = maid.body0.GetSlot(i);
+                    if (slot == null || slot.morph == null || slot.morph.hash.Count == 0)
                     {
                         continue;
                     }
-                    var value = maidCache.GetBlendShapeValue(tag);
-                    if (Mathf.Approximately(value, 0f))
+                    foreach (var tag in slot.morph.GetTags())
                     {
-                        continue;
+                        // 表情モーフは同じ TMorph を共有していて適用順で競合するため従来どおり除外する
+                        if (faceMorphNames.Contains(tag) || !seenTags.Add(tag))
+                        {
+                            continue;
+                        }
+                        // 値 0 でもユーザーが意図してチェックしたものは残す
+                        if (!shapeKeyStore.IsModified(tag))
+                        {
+                            continue;
+                        }
+                        state.shapeKeys.Add(new ScenePresetMorph
+                        {
+                            name = tag,
+                            value = maidCache.GetBlendShapeValue(tag),
+                        });
                     }
-                    state.shapeKeys.Add(new ScenePresetMorph { name = tag, value = value });
                 }
             }
 
@@ -2025,7 +2036,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 保存された任意シェイプキーを適用する (v21)。未保存タグのゼロ化は行わない
-        /// (表情モーフと同じ TMorph を共有するため、ApplyFace の結果を踏まないようにする)
+        /// (表情モーフと同じ TMorph を共有するため、ApplyFace の結果を踏まないようにする)。
+        /// チェック集合は記載分を積み増しで復元する (v24)
         /// </summary>
         private static void ApplyShapeKeys(Maid maid, ScenePresetMaid state)
         {
@@ -2051,6 +2063,17 @@ namespace COM3D2.SceneEditor.Plugin
             }
             // FixBlendValues は対象 TMorph を集約するため 1 回でまとめて呼ぶ
             maidCache.FixBlendValues(appliedTags);
+
+            // 保存されていた = ユーザーがチェックしていた。旧バージョンのプリセットでも
+            // 「記載分 = チェック済み」で辻褄が合う。
+            // 表情の v22 と違い SetNames ではなく Mark の積み増しにするのは、
+            // 未保存タグをゼロ化しない適用側の仕様と揃えるため
+            // (ゼロ化しないのにチェックだけ消すと、値が残ったまま追跡から外れる)
+            var shapeKeyStore = MaidShapeKeyEditManager.instance.GetStore(maid);
+            foreach (var tag in appliedTags)
+            {
+                shapeKeyStore.Mark(tag);
+            }
         }
 
         /// <summary>

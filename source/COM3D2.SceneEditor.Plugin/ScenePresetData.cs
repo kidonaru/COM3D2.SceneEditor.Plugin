@@ -542,7 +542,7 @@ namespace COM3D2.SceneEditor.Plugin
         public List<ScenePresetMorph> morphs = new List<ScenePresetMorph>();
 
         /// <summary>
-        /// 任意シェイプキー (v21)。公式表情モーフを除く非ゼロ値のみ持つ。
+        /// 任意シェイプキー (v21)。公式表情モーフを除く。v24 以降はチェック済みのみ。
         /// 表情モーフと同じ TMorph を共有するため、適用時は保存タグだけ設定し未記録タグのゼロ化はしない。
         /// 旧プリセットは null になり、適用時に触らない
         /// </summary>
@@ -666,7 +666,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      構造変更なし。旧データは記載モーフ (=非 0 保存分) を適用時にチェック済みへ復元する
         // v23: モデルシェイプキーの保存対象を「重みが非 0」から「チェック済み (EditTargetStore)」へ変更。
         //      構造変更なし。旧データは記載シェイプキー (=非 0 保存分) を適用時にチェック済みへ復元する
-        public static readonly int CurrentVersion = 23;
+        // v24: メイドの任意シェイプキーの保存対象を「値が非 0」から「チェック済み (EditTargetStore)」へ変更。
+        //      構造変更なし。旧データは記載タグ (=非 0 保存分) を適用時にチェック済みへ復元する
+        public static readonly int CurrentVersion = 24;
 
         [XmlAttribute]
         public int version = CurrentVersion;
