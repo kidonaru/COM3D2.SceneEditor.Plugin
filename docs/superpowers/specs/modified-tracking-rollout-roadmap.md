@@ -68,7 +68,7 @@
 - `Timeline/TimelineLayer/TimelineLayerBaseTracking.cs` — `trackedStore` / `trackedCandidateNames` / `trackedHistoryPrefix` の 3 つを override するだけで、メニュー絞り込み・0F 自動キー・解除時キー削除が有効になる。`TimelineLayerBase.Update()` の既定実装が opt-in 時のみ `UpdateTrackedBoneFilter()` を呼ぶ
 - 既存ヘルパー `AddFirstBones` / `RemoveAllBones` との統合は**見送り**(履歴文言・`CleanFrames`/`ApplyCurrentFrame` の有無・`_dummyLastFrame` の扱いが異なり、統合すると振る舞いが変わるため)
 
-### Phase M1: モデルボーン(構造的に最も安い)
+### Phase M1: モデルボーン ✅ 完了 (2026-08-26)
 
 `BoneEditStore` が既に「編集済みボーン集合」を持つため、ストア新設が不要。
 
@@ -78,13 +78,29 @@
 - BoneEditWindow のボーンツリーへチェック表示(既存の編集で自動チェック相当は RecordEdit が担う。チェック解除 = ResetBone)
 - シーンプリセットのモデルボーン保存は既に BoneEditStore 由来(2026-08-20 実装)のため変更不要のはず — 差分が無いことの確認のみ
 
-### Phase M2: モデルシェイプキー
+実装の要点:
+
+- `BoneEditStore` へエントリ集合の version を追加(記録の増減でのみ進む)。値の更新では進めない — タイムラインのメニュー再構築は集合の変化だけを見ればよいため
+- `ModelQualifiedNames` — 編集側の生名 (`transform.name`) とタイムライン側のモデル修飾名 (`"{model.name}/{生名}"`) の橋渡しを 1 箇所に閉じ込めた。M2 と共有する
+- `ModelTrackedNameStore<TKey>` — モデルごとの記録を修飾名の集合へ集約する読み取り専用ビュー。**修飾名を記録に使わない**のが要点で、`ModelHackManager.FixGroup` の group 振り直しで修飾名は変わるため、生名を正として毎回組み直す。モデルの増減は記録側の version を動かさないので `Invalidate()` で明示的に作り直させる
+- `BoneEditWindow` のボーンツリーへチェック列を追加(submodule MTEUtils の `GUITreeView` 対応が必要だった)
+- シーンプリセットのモデルボーン保存は既に `BoneEditStore` 由来のため変更なし(想定どおり)
+
+### Phase M2: モデルシェイプキー ✅ 完了 (2026-08-26)
 
 - モデル用 `EditTargetStore` レジストリ(キーは `GameObject` または `StudioModelStat`。`BoneEditManager.GetModelStore` と同型)
 - ShapeKeyEditWindow モデルタブへチェック行(スライダー操作で自動チェック、解除で 0 + キー削除)
 - `ModelShapeKeyTimelineLayer` へ M0 部品接続。`StudioModelManager` のリスト全消し再構築(`boneNames`/`blendShapeNames` clear)に耐えるよう、モデルリスト側の世代カウンタも再構築トリガーに含める
 - シーンプリセット `modelShapeKeys` の保存をチェック済みフィルタへ
 - 前提タスク: モデルシェイプキー編集の HistoryManager 対応(チェック集合を履歴へ含めるため。対応コストが高ければ「履歴はチェック集合を含めない」と明記して先送り可)
+
+実装の要点:
+
+- `ModelShapeKeyEditManager` — キーは `GameObject`。M1 の `ModelTrackedNameStore` をそのまま再利用し、集約だけを差し替えた
+- **`StudioModelManager.onModelAdded/onModelRemoved` の購読は解除しない**。`Init` はプラグイン起動時の 1 回だけだが `OnPluginDisable` は UI をトグルするたび呼ばれるため、そこで解除すると UI を一度閉じただけで購読が復活しなくなる
+- モデル名の解決は `BlendShapeController.model.name`。コントローラはタイムラインのロード時にしか付かないため、未ロードのうちは解決できず `ModelTrackedNameStore` の再試行 (30F ごと) に任せる
+- シーンプリセット `modelShapeKeys` の保存はチェック済みのみ(重み 0 でも意図して選んだものは残す)
+- チェック集合は履歴に含めない(モデルシェイプキー編集は SE の HistoryManager 未対応。対応コストに見合わないと判断した縮退)
 
 ### Phase M3: メイドシェイプキー ✅ 完了 (2026-08-27)
 
