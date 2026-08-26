@@ -457,6 +457,7 @@
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_Parrifin.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_Rimlight.cs" />
     <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\TimelineLayerBaseTracking.cs" />
     <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />

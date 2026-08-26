@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
@@ -15,177 +14,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
-        private List<string> _cachedBoneNames;
+        public override List<string> allBoneNames => trackedBoneNames;
 
-        public override List<string> allBoneNames
-            => _cachedBoneNames ?? (_cachedBoneNames = BuildBoneNames());
-
-        private EditTargetStore FindFaceStore()
+        protected override EditTargetStore trackedStore
         {
-            var maid = this.maid;
-            return maid != null ? FaceEditManager.instance.FindStore(maid) : null;
-        }
-
-        /// <summary>
-        /// チェック済みモーフ ∪ 既存キーフレーム記載モーフ。表示順は saveMorphNames に揃える。
-        /// 既存キーフレーム分を含めるのは、読み込んだアニメのモーフを未チェックでも編集できるようにするため。
-        /// チェックを外したモーフは RemoveAllKeys でキーごと消えるため、ここには残らない
-        /// </summary>
-        private List<string> BuildBoneNames()
-        {
-            var store = FindFaceStore();
-
-            var keyFrameNames = new HashSet<string>();
-            foreach (var frame in keyFrames)
+            get
             {
-                foreach (var name in frame.boneNames)
-                {
-                    keyFrameNames.Add(name);
-                }
-            }
-
-            var result = new List<string>();
-            foreach (var name in FaceMorphUtils.saveMorphNames)
-            {
-                if ((store != null && store.IsModified(name)) || keyFrameNames.Contains(name))
-                {
-                    result.Add(name);
-                }
-            }
-            return result;
-        }
-
-        private int _lastStoreVersion = -1;
-        private EditTargetStore _lastStore;
-        private int _rebuildCheckFrameCount;
-        private HashSet<string> _lastCheckedNames = new HashSet<string>();
-
-        /// <summary>タイムライン側テーブルに存在するチェック済みモーフ</summary>
-        private HashSet<string> BuildCheckedNames(EditTargetStore store)
-        {
-            var result = new HashSet<string>();
-            if (store == null)
-            {
-                return result;
-            }
-
-            foreach (var name in FaceMorphUtils.saveMorphNames)
-            {
-                if (store.IsModified(name))
-                {
-                    result.Add(name);
-                }
-            }
-            return result;
-        }
-
-        public override void Update()
-        {
-            base.Update();
-
-            // チェック変更 (store.version) は毎フレームの整数比較だけで検知する。
-            // キー削除など store 以外由来の集合変化は 30 フレームごとの間引き再計算で拾う
-            // (BuildBoneNames は keyFrames のフルコピーを伴うため毎フレームは回さない)
-            var store = FindFaceStore();
-            var version = store != null ? store.version : -1;
-            var storeChanged = store != _lastStore || version != _lastStoreVersion;
-
-            _rebuildCheckFrameCount++;
-            if (!storeChanged && _rebuildCheckFrameCount < 30)
-            {
-                return;
-            }
-            _rebuildCheckFrameCount = 0;
-
-            // 対象メイドが入れ替わったときは前回のチェック集合を引き継がない
-            // (別メイドのチェック解除とみなしてキーを消さないようにするため)
-            var maidChanged = store != _lastStore;
-            _lastStore = store;
-            _lastStoreVersion = version;
-
-            var checkedNames = BuildCheckedNames(store);
-            if (!maidChanged)
-            {
-                // チェックを外したモーフはキーごと消す。0F 目の自動登録と対称にしないと、
-                // 自動登録されたキーが残り続けてボーンメニューから消えなくなる
-                RemoveAllKeys(_lastCheckedNames.Where(name => !checkedNames.Contains(name)).ToList());
-            }
-            _lastCheckedNames = checkedNames;
-
-            var newNames = BuildBoneNames();
-            if (_cachedBoneNames == null || !newNames.SequenceEqual(_cachedBoneNames))
-            {
-                // 初回構築 (_cachedBoneNames == null) は既存の対象を並べ直すだけなので追加扱いにしない
-                var addedNames = _cachedBoneNames != null
-                    ? newNames.Except(_cachedBoneNames).ToList()
-                    : new List<string>();
-
-                // UpdateFrame は allBoneNames を回すため、キー登録より先にキャッシュを差し替える
-                _cachedBoneNames = newNames;
-                InitMenuItems();
-
-                AddFirstFrameKeys(addedNames);
+                var maid = this.maid;
+                return maid != null ? FaceEditManager.instance.FindStore(maid) : null;
             }
         }
 
-        /// <summary>
-        /// 新たに対象へ入ったモーフに 0F 目のキーを打つ。
-        /// このレイヤーの Update はタイムライン読み込み中しか回らないため、
-        /// 読み込み済みのときにチェックを入れた場合だけ発火する。
-        /// 0F 目にキーが無いとそのモーフはアニメの起点を持てないので、
-        /// チェックした時点の現在値を基準値として登録する
-        /// </summary>
-        private void AddFirstFrameKeys(List<string> boneNames)
-        {
-            if (boneNames.Count == 0 || maid == null)
-            {
-                return;
-            }
+        protected override List<string> trackedCandidateNames => FaceMorphUtils.saveMorphNames;
 
-            var tmpFrame = CreateFrame(0);
-            UpdateFrame(tmpFrame, initialEdit: false, force: true);
-
-            var bones = tmpFrame.GetFilterBones(boneNames);
-            if (bones.Count == 0)
-            {
-                return;
-            }
-
-            UpdateBones(0, bones);
-            ApplyCurrentFrame(true);
-
-            timelineManager.RequestHistory("表情キーフレーム自動登録");
-        }
-
-        /// <summary>チェックを外したモーフのキーを全フレームから消す</summary>
-        private void RemoveAllKeys(List<string> boneNames)
-        {
-            if (boneNames.Count == 0)
-            {
-                return;
-            }
-
-            var removed = false;
-            foreach (var frame in _keyFrames)
-            {
-                var bones = frame.GetFilterBones(boneNames);
-                if (bones.Count > 0)
-                {
-                    frame.RemoveBones(bones);
-                    removed = true;
-                }
-            }
-
-            if (!removed)
-            {
-                return;
-            }
-
-            CleanFrames();
-            ApplyCurrentFrame(true);
-
-            timelineManager.RequestHistory("表情キーフレーム自動削除");
-        }
+        protected override string trackedHistoryPrefix => "表情";
 
         private static TimelineFaceManager faceManager => TimelineFaceManager.instance;
 
