@@ -71,7 +71,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
-        /// <summary>候補テーブルに存在するチェック済み項目</summary>
+        /// <summary>
+        /// 候補テーブルに存在するチェック済み項目。表示対象の算出に使う。
+        /// チェック解除の判定には使わない (候補テーブルが縮んだだけの項目を解除と誤認するため)
+        /// </summary>
         private HashSet<string> BuildTrackedCheckedNames(EditTargetStore store)
         {
             var result = new HashSet<string>();
@@ -129,8 +132,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (!targetChanged)
             {
                 // チェックを外した項目はキーごと消す。0F 目の自動登録と対称にしないと、
-                // 自動登録されたキーが残り続けてボーンメニューから消えなくなる
-                RemoveTrackedKeys(_lastTrackedCheckedNames.Where(name => !checkedNames.Contains(name)).ToList());
+                // 自動登録されたキーが残り続けてボーンメニューから消えなくなる。
+                //
+                // 判定は候補テーブル由来の checkedNames ではなくストアへ直接問い合わせる。
+                // 候補テーブルはメイドの着替えなどで縮むことがあり、そこから落ちただけの項目まで
+                // 「チェック解除」とみなすと、ユーザーが作ったキーフレームが黙って消える
+                RemoveTrackedKeys(
+                    _lastTrackedCheckedNames.Where(name => store == null || !store.IsModified(name)).ToList());
             }
             _lastTrackedCheckedNames = checkedNames;
 
