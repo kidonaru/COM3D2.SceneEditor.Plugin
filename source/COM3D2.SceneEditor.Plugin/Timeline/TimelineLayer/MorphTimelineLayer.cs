@@ -176,26 +176,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return morphValue;
         }
 
-        private void SetMorphValue(string morphName, float value)
-        {
-            // レイヤーウィンドウからの編集もユーザーの明示編集なのでチェックを付ける。
-            // 強制上書き (_isForceUpdate) のプレビュー書き込み中も、
-            // そのモーフを編集する意図は同じなのでマークする (仕様)
-            var maid = this.maid;
-            if (maid != null)
-            {
-                FaceEditManager.instance.GetStore(maid).Mark(morphName);
-            }
-
-            if (_isForceUpdate)
-            {
-                _applyMorphMap[morphName] = value;
-                return;
-            }
-
-            faceManager.SetMorphValue(maid, new Dictionary<string, float> { { morphName, value } });
-        }
-
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
             var maid = this.maid;
@@ -217,16 +197,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        private enum TabType
-        {
-            目,
-            眉,
-            口,
-            他,
-        }
-
-        private static TabType _tabType = TabType.目;
-
         public override void DrawWindow(GUIView view)
         {
             if (maid == null)
@@ -235,8 +205,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            _tabType = view.DrawTabs(_tabType, 50, 20);
-
             view.DrawToggle("強制上書き", _isForceUpdate, 150, 20, newValue =>
             {
                 _isForceUpdate = newValue;
@@ -244,75 +212,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            // SE 版 GUIView には IsComboBoxFocused がないため focusedComboBox 判定に置き換え
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            DrawMorph(view);
-        }
-
-        private void DrawMorph(GUIView view)
-        {
-            view.DrawLabel(_tabType.ToString(), 80, 20);
-
-            switch (_tabType)
-            {
-                case TabType.目:
-                    foreach (var morphName in FaceMorphUtils.eyeMorphJp.Keys)
-                    {
-                        DrawMorphSlider(view, morphName);
-                    }
-                    break;
-                case TabType.眉:
-                    foreach (var morphName in FaceMorphUtils.mayuMorphJp.Keys)
-                    {
-                        DrawMorphSlider(view, morphName);
-                    }
-                    break;
-                case TabType.口:
-                    foreach (var morphName in FaceMorphUtils.mouthMorphJp.Keys)
-                    {
-                        DrawMorphSlider(view, morphName);
-                    }
-                    break;
-                case TabType.他:
-                    foreach (var morphName in FaceMorphUtils.faceOptionMorphJp.Keys)
-                    {
-                        DrawMorphToggle(view, morphName);
-                    }
-                    break;
-            }
-
-            if (studioHackManager.isPoseEditing && _isForceUpdate)
-            {
-                faceManager.SetMorphValue(maid, _applyMorphMap);
-            }
-        }
-
-        private void DrawMorphSlider(GUIView view, string morphName)
-        {
-            view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = FaceMorphUtils.GetMorphJpName(morphName),
-                    labelWidth = 80,
-                    min = 0f,
-                    max = 1f,
-                    step = 0f,
-                    defaultValue = 0f,
-                    value = GetMorphValue(morphName),
-                    onChanged = newValue => SetMorphValue(morphName, newValue),
-                });
-        }
-
-        private void DrawMorphToggle(GUIView view, string morphName)
-        {
-            var displayName = FaceMorphUtils.GetMorphJpName(morphName);
-            var isOn = GetMorphValue(morphName) >= 1f;
-
-            view.DrawToggle(displayName, isOn, 150, 20, newValue =>
-            {
-                SetMorphValue(morphName, newValue ? 1f : 0f);
-            });
+            // 表情モーフの編集・追跡チェックは SE の表情ウィンドウに委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("表情の編集は表情ウィンドウで行ってください", -1, 20);
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
