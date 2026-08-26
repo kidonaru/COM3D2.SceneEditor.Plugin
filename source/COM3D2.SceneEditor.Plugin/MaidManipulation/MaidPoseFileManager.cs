@@ -51,6 +51,54 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 指定サブディレクトリ以下のポーズ名一覧を再帰的に返す ("" はルート)。
+        /// 名前は subDir からの相対パス ("sub\ポーズ名") で、同名ポーズを区別できるようにしている。
+        /// フォルダ数に比例して重くなるため、呼び出し元は結果をキャッシュすること。
+        /// GetPoseFileNames と同じく、列挙に失敗しても例外を投げず空リストを返す
+        /// </summary>
+        public static List<string> GetPoseFileNamesRecursive(string subDir = "")
+        {
+            try
+            {
+                var folder = Path.Combine(poseFolderPath, subDir);
+                if (!Directory.Exists(folder))
+                {
+                    return new List<string>();
+                }
+
+                var baseFolder = folder.TrimEnd(Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar);
+                return Directory.GetFiles(folder, "*.anm", SearchOption.AllDirectories)
+                    .Select(path => ToRelativePoseName(path, baseFolder))
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToList();
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+                return new List<string>();
+            }
+        }
+
+        /// <summary>
+        /// 列挙した絶対パスを baseFolder からの相対パス (拡張子なし) へ直す。
+        /// 拡張子は長さ決め打ちではなく GetFileNameWithoutExtension で剥がす。
+        /// GetFiles の "*.anm" は NTFS の 8.3 短縮名にも照合するため、
+        /// 実際には 4 文字を超える拡張子のファイルが混じりうる
+        /// </summary>
+        private static string ToRelativePoseName(string path, string baseFolder)
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            var dir = Path.GetDirectoryName(path);
+            if (dir.Length <= baseFolder.Length)
+            {
+                return name;
+            }
+            // baseFolder に続く区切り文字ぶんも落とす
+            return Path.Combine(dir.Substring(baseFolder.Length + 1), name);
+        }
+
         /// <summary>指定サブディレクトリ直下のフォルダ名一覧 ("" はルート)。失敗時は空リスト</summary>
         public static List<string> GetSubDirectoryNames(string subDir = "")
         {

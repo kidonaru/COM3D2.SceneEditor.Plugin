@@ -23,7 +23,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 一覧の絞り込み語。表示上のフィルタなので、前後送り (&lt; &gt;) の対象一覧には効かせない。
-        /// マイポーズでは表示中フォルダ直下だけが対象で、サブフォルダの中までは辿らない
+        /// マイポーズでは表示中フォルダ以下を再帰的に探し、結果をフラットに並べる
         /// </summary>
         private string _searchText = "";
 
@@ -50,6 +50,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>表示中サブディレクトリ直下のフォルダ一覧。_poseFileNames と同時に更新する</summary>
         private List<string> _poseDirNames = null;
+
+        /// <summary>
+        /// 検索用の再帰列挙結果 (表示中サブディレクトリからの相対パス)。
+        /// 全階層を走査するため、検索欄に入力があるときだけ作って _poseFileNames と同時に捨てる
+        /// </summary>
+        private List<string> _posePathsRecursive = null;
 
         /// <summary>マイポーズの表示中サブディレクトリ (ルートは "")</summary>
         private string _myPoseDir = "";
@@ -122,8 +128,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (visible)
             {
-                _poseFileNames = null;
-                _poseDirNames = null;
+                InvalidateMyPoseLists();
                 InvalidateNavEntries();
             }
         }
@@ -564,19 +569,36 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawMyPoseButtons(GUIView view, Maid maid)
         {
-            if (_poseFileNames == null || _poseDirNames == null)
+            // 一覧の解決はボタンを 1 つも描く前に済ませる。フォルダ移動ボタンのクリックで
+            // NavigateMyPoseDir が _myPoseDir を書き換えてキャッシュを捨てるため、後から
+            // 解決すると移動前フォルダの内容をキャッシュへ書き戻してしまう。
+            // このフレームは移動前の一覧をローカルに控えて描き切る (次フレームで再列挙される)
+            var myPoseDir = _myPoseDir;
+            var searching = !string.IsNullOrEmpty(_searchText);
+
+            List<string> poseFileNames = null;
+            List<string> poseDirNames = null;
+            if (searching)
             {
-                _poseFileNames = MaidPoseFileManager.GetPoseFileNames(_myPoseDir);
-                _poseDirNames = MaidPoseFileManager.GetSubDirectoryNames(_myPoseDir);
+                if (_posePathsRecursive == null)
+                {
+                    _posePathsRecursive = MaidPoseFileManager.GetPoseFileNamesRecursive(myPoseDir);
+                }
+                poseFileNames = _posePathsRecursive;
+            }
+            else
+            {
+                if (_poseFileNames == null || _poseDirNames == null)
+                {
+                    _poseFileNames = MaidPoseFileManager.GetPoseFileNames(myPoseDir);
+                    _poseDirNames = MaidPoseFileManager.GetSubDirectoryNames(myPoseDir);
+                }
+                poseFileNames = _poseFileNames;
+                poseDirNames = _poseDirNames;
             }
 
-            // ボタンクリックの NavigateMyPoseDir がフィールドを null に戻すため、
-            // このフレームは移動前の一覧をローカルに控えて描き切る (次フレームで再列挙される)
-            var poseFileNames = _poseFileNames;
-            var poseDirNames = _poseDirNames;
-            var myPoseDir = _myPoseDir;
-
-            // サブディレクトリ内では親へ戻るボタンを先頭に出す
+            // サブディレクトリ内では親へ戻るボタンを先頭に出す。
+            // 検索中も出しておくと、一致が無いときに探す範囲を広げられる
             if (myPoseDir.Length > 0)
             {
                 if (view.DrawButton("← " + myPoseDir, -1, ROW_HEIGHT))
@@ -585,27 +607,41 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            if (searching)
+            {
+                // 検索中はサブフォルダの中身も結果に展開済みなので、フォルダボタンは出さない
+                if (DrawMyPoseEntries(view, maid, myPoseDir, poseFileNames) == 0)
+                {
+                    view.DrawLabel("検索に一致するポーズはありません", -1, ROW_HEIGHT);
+                }
+                return;
+            }
+
             if (poseFileNames.Count == 0 && poseDirNames.Count == 0)
             {
                 view.DrawLabel("保存されたポーズはありません", -1, ROW_HEIGHT);
                 return;
             }
 
-            var matched = 0;
             foreach (var dirName in poseDirNames)
             {
-                if (!MatchesSearch(dirName))
-                {
-                    continue;
-                }
-                matched++;
-
                 if (view.DrawButton(dirName + "/", -1, ROW_HEIGHT))
                 {
                     NavigateMyPoseDir(Path.Combine(myPoseDir, dirName));
                 }
             }
 
+            DrawMyPoseEntries(view, maid, myPoseDir, poseFileNames);
+        }
+
+        /// <summary>
+        /// ポーズをボタンで並べ、描いた件数を返す。
+        /// poseNames は myPoseDir からの相対パス (直下なら名前そのもの)。
+        /// 検索していないときは MatchesSearch が全件を通すため、絞り込みの有無は呼び分けない
+        /// </summary>
+        private int DrawMyPoseEntries(GUIView view, Maid maid, string myPoseDir,
+            List<string> poseNames)
+        {
             // クリップ名は "ポーズ名.anm" 形式なので拡張子を除いて突き合わせる (フォールバック用)
             var appliedMotion = MaidMotionState.GetAppliedMotion(maid);
             var currentClipName = MaidMotionState.GetCurrentClipName(maid);
@@ -613,13 +649,14 @@ namespace COM3D2.SceneEditor.Plugin
                 ? Path.GetFileNameWithoutExtension(currentClipName)
                 : null;
 
-            foreach (var poseName in poseFileNames)
+            var drawn = 0;
+            foreach (var poseName in poseNames)
             {
                 if (!MatchesSearch(poseName))
                 {
                     continue;
                 }
-                matched++;
+                drawn++;
 
                 var isCurrent = IsCurrentPoseEntry(appliedMotion, currentPoseName, myPoseDir, poseName);
                 if (view.DrawButton(poseName, -1, ROW_HEIGHT,
@@ -628,11 +665,7 @@ namespace COM3D2.SceneEditor.Plugin
                     LoadMyPoseEntry(maid, myPoseDir, poseName);
                 }
             }
-
-            if (matched == 0)
-            {
-                view.DrawLabel("検索に一致するポーズはありません", -1, ROW_HEIGHT);
-            }
+            return drawn;
         }
 
         /// <summary>
@@ -648,7 +681,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return string.Equals(appliedMotion.myPosePath, Path.Combine(myPoseDir, poseName),
                     System.StringComparison.OrdinalIgnoreCase);
             }
-            return string.Equals(poseName, currentPoseName,
+            // poseName は相対パスのこともあるため、クリップ名と比べる側はファイル名だけにする
+            return string.Equals(Path.GetFileName(poseName), currentPoseName,
                 System.StringComparison.OrdinalIgnoreCase);
         }
 
@@ -660,12 +694,19 @@ namespace COM3D2.SceneEditor.Plugin
             MaidPoseFileManager.LoadPose(maid, Path.Combine(myPoseDir, poseName));
         }
 
+        /// <summary>マイポーズ一覧のキャッシュを捨て、次の描画で取り直させる</summary>
+        private void InvalidateMyPoseLists()
+        {
+            _poseFileNames = null;
+            _poseDirNames = null;
+            _posePathsRecursive = null;
+        }
+
         /// <summary>マイポーズの表示ディレクトリを移動し、一覧を取り直させる</summary>
         private void NavigateMyPoseDir(string subDir)
         {
             _myPoseDir = subDir ?? "";
-            _poseFileNames = null;
-            _poseDirNames = null;
+            InvalidateMyPoseLists();
         }
 
         /// <summary>
@@ -682,8 +723,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             MaidPoseFileManager.SavePose(maid, Path.Combine(subDir, poseName));
-            _poseFileNames = null;
-            _poseDirNames = null;
+            InvalidateMyPoseLists();
             InvalidateNavEntries();
         }
 
