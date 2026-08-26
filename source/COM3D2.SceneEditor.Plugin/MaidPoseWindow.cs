@@ -21,6 +21,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>選択中カテゴリ。マイポーズだけ読込経路が異なる</summary>
         private string _category = MaidPoseFileManager.MY_POSE_CATEGORY;
 
+        /// <summary>
+        /// 一覧の絞り込み語。表示上のフィルタなので、前後送り (&lt; &gt;) の対象一覧には効かせない。
+        /// マイポーズでは表示中フォルダ直下だけが対象で、サブフォルダの中までは辿らない
+        /// </summary>
+        private string _searchText = "";
+
         private readonly GUIComboBox<string> _categoryComboBox = new GUIComboBox<string>
         {
             getName = (name, _) => name,
@@ -140,6 +146,8 @@ namespace COM3D2.SceneEditor.Plugin
             DrawPlaybackRows(view, target);
             view.DrawHorizontalLine();
             DrawCategoryRow(view, target);
+            view.DrawTextField("検索", LABEL_WIDTH, _searchText, -1, ROW_HEIGHT,
+                value => _searchText = value);
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -488,8 +496,15 @@ namespace COM3D2.SceneEditor.Plugin
             var appliedMotion = MaidMotionState.GetAppliedMotion(maid);
             var currentClipName = MaidMotionState.GetCurrentClipName(maid);
 
+            var matched = 0;
             foreach (var data in _motions)
             {
+                if (!MatchesSearch(data.name))
+                {
+                    continue;
+                }
+                matched++;
+
                 var isCurrent = IsCurrentMotionEntry(appliedMotion, currentClipName, data);
                 if (view.DrawButton(data.name, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
@@ -498,6 +513,17 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            if (matched == 0)
+            {
+                view.DrawLabel("検索に一致するモーションはありません", -1, ROW_HEIGHT);
+            }
+        }
+
+        /// <summary>検索語に部分一致するか。空欄なら全件を通す</summary>
+        private bool MatchesSearch(string name)
+        {
+            return string.IsNullOrEmpty(_searchText) || name.IndexOf(_searchText,
+                System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -559,18 +585,25 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            foreach (var dirName in poseDirNames)
-            {
-                if (view.DrawButton(dirName + "/", -1, ROW_HEIGHT))
-                {
-                    NavigateMyPoseDir(Path.Combine(myPoseDir, dirName));
-                }
-            }
-
             if (poseFileNames.Count == 0 && poseDirNames.Count == 0)
             {
                 view.DrawLabel("保存されたポーズはありません", -1, ROW_HEIGHT);
                 return;
+            }
+
+            var matched = 0;
+            foreach (var dirName in poseDirNames)
+            {
+                if (!MatchesSearch(dirName))
+                {
+                    continue;
+                }
+                matched++;
+
+                if (view.DrawButton(dirName + "/", -1, ROW_HEIGHT))
+                {
+                    NavigateMyPoseDir(Path.Combine(myPoseDir, dirName));
+                }
             }
 
             // クリップ名は "ポーズ名.anm" 形式なので拡張子を除いて突き合わせる (フォールバック用)
@@ -582,12 +615,23 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var poseName in poseFileNames)
             {
+                if (!MatchesSearch(poseName))
+                {
+                    continue;
+                }
+                matched++;
+
                 var isCurrent = IsCurrentPoseEntry(appliedMotion, currentPoseName, myPoseDir, poseName);
                 if (view.DrawButton(poseName, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
                     LoadMyPoseEntry(maid, myPoseDir, poseName);
                 }
+            }
+
+            if (matched == 0)
+            {
+                view.DrawLabel("検索に一致するポーズはありません", -1, ROW_HEIGHT);
             }
         }
 
