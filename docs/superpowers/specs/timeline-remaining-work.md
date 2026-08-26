@@ -63,6 +63,9 @@ DrawWindow 接続（`TimelineLayerWindow`）により全 28 レイヤーの編�
 | モデルのシェイプキー編集はタイムライン経由で配置したモデルのみ（BlendShapeController が StudioModelStat 依存で、ModelProviderHost の素の GameObject には構築できない） | 2026-08-23 shapekey-material-rework 計画の設計判断 |
 | タイムライン再生中はレイヤーの毎フレーム適用とシェイプキー/マテリアルスライダー編集が取り合いになる（isPoseEditing ガードを外し常時編集可を選択） | 2026-08-23 shapekey-material-rework 計画の設計判断 |
 | シーンプリセットのシェイプキー適用は保存タグのみ設定（未保存タグはゼロ化しない。プリセットに無い編集値は適用後も残る） | 2026-08-23 shapekey-material-rework 計画の設計判断。Phase M3 でも維持 |
+| 背景モデルマテリアルは変更追跡（チェック）非対応。編集ウィンドウの背景タブ（`BgMgr.BgObject` 配下の Renderer）と `BGModelMaterialTimelineLayer`（`BGModelManager` の配置モデル）で対象集合が違うため、載せるには編集ウィンドウへ配置モデル用タブを足す必要がある | Phase M4 の設計判断 D1-a |
+| タイムライン管理外のモデル（`ModelProviderHost` 経由の外部プラグイン提供モデル）は変更追跡が効かない。`StudioModelManager.models` に載らないためチェックを ON にしてもタイムラインへ反映されないが、UI 上は押せてしまい無効であることが伝わらない | Phase M2 / M4 共通の制約 |
+| `ModelMaterialController.model` が最終書き込み勝ち。`GetOrCreate` が呼ばれるたび上書きするため、`MaterialEditWindow` のモデルタブを開くと `ModelMaterial.name` が `ProviderModelStat` 由来（group 無し）へ化け、`StudioModelManager.materialMap` のキーと食い違いうる。M4 の追跡側は `controller.model` に依存しない設計なので影響を受けないが、マテリアルキーフレーム経路には残っている | Phase M4 の設計判断 D3 |
 
 ## 5. 実装済みだが検証・整理が残っているもの
 

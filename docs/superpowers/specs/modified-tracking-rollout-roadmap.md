@@ -24,7 +24,7 @@
 
 1. **書き込み絞り込みの適用基準**: 行ごとの値が独立な領域(モーフ・シェイプキー・マテリアル)のみキー書き込みも絞る。**ポーズ系(MotionTimelineLayer のコアボーン)は表示絞り込みのみ**。ボーンは連動して動くため、キーからの間引きは補間の意味を変えてしまう。
 2. **ソース・オブ・トゥルースは編集側ストア 1 つ**。タイムライン側に既存の opt-in 機構(`TimelineData.maidShapeKeysMap` / `extendBoneNames`、TimelineXml へ永続化・イベント駆動)がある領域では、**ストア → タイムライン opt-in への片方向同期**とし、二重管理を作らない(逆方向はタイムラインロード時の初期化のみ)。
-3. **動的名前空間の扱い**: シェイプキー・モデルボーン・マテリアルは衣装/モデル依存の動的リスト。固定テーブル順ではなく現物リスト順で表示し、**現物に無いチェック名は捨てずに保持**する(`BoneEditStore.ReapplySlot` の「構成違いは記録を残したまま飛ばす」方式)。着替え検出には `BoneEditStore.itemFileName` / `DiscardSlotIfItemChanged` のパターンを流用する。
+3. **動的名前空間の扱い**: シェイプキー・モデルボーン・マテリアルは衣装/モデル依存の動的リスト。固定テーブル順ではなく現物リスト順で表示し、**現物に無いチェック名は捨てずに保持**する(`BoneEditStore.ReapplySlot` の「構成違いは記録を残したまま飛ばす」方式)。着替え検出には `BoneEditStore.itemFileName` / `DiscardSlotIfItemChanged` のパターンを流用する。**チェック名を保持するだけでは足りず、タイムライン側のキーフレームも守る必要がある** — 候補一覧が縮んだだけの項目をチェック解除と誤認しないこと(M4 で顕在化)。
 4. **ポーリングからイベント通知へ**: 表情の 30F 間引きポーリングは候補数が少ないから成立している。候補が数百になる領域(モデルシェイプキー等)では `OnShapeKeyAdded/Removed` 流のコールバック再構築を優先する。
 5. **Undo 前提の確認**: シェイプキー/マテリアル編集ウィンドウは SE HistoryManager 未対応(`timeline-remaining-work.md` §4)。チェック集合を履歴に含める場合は、先にその領域の History スコープ整備が必要(各 Phase に前提タスクとして明記)。
 
@@ -122,12 +122,24 @@
 - チェック集合は履歴に含めない(M2 と同じ縮退判断)。**M4 でも同じ判断を引き継ぐか要検討**
 - `TrackedDirtyGate` — 「世代 + version 合計」で前回からの変化を見る門番。M1/M2 の `ModelTrackedNameStore` と共有する
 
-### Phase M4: マテリアル系
+### Phase M4: マテリアル系 ✅ 完了 (2026-08-27)
 
 - マテリアル用ストア(キー: メイドは Maid、モデルは M2 と同じモデルキー)
 - MaterialEditWindow へチェック行、`MaidMaterialTimelineLayer` / `ModelMaterialTimelineLayer` / `BGModelMaterialTimelineLayer` へ M0 部品接続
 - シーンプリセットのマテリアル保存(`slotMaterials` / `modelMaterials` / `bgMaterials`)をチェック済みフィルタへ
 - 前提タスク: マテリアル編集の HistoryManager 対応
+
+実装の要点:
+
+- 対象はメイドスロットと配置モデルの 2 系統。**背景モデルマテリアルは対象外**。編集ウィンドウの背景タブは `BgMgr.BgObject` 配下の Renderer を見ており、`BGModelMaterialTimelineLayer` は `BGModelManager` の配置モデルを見ている。対象集合が違うのでチェックを橋渡しできない。載せるには編集ウィンドウへ配置モデル用タブを足す別の機能追加が要る
+- **シーンプリセットの保存フィルタは変更していない**。`ScenePresetManager.CaptureMaterial` が初期値との差分で既に絞っており、チェック集合を重ねるとストアが空のとき(シーン遷移後など)に編集済みマテリアルが保存から落ちる退行になる。逆に「チェック済みだが初期値のまま」を足しても `data.isEmpty` で捨てられるため保存内容は増えない。シェイプキーでチェック方式を採ったのは初期値差分の土台が無かったからで、マテリアルには `GetInitialColor` / `GetInitialValue` がある
+- メイドは編集側の生名 (`ModelMaterial.name` = `"{スロット名}/{Unity マテリアル名}"`) がタイムラインの候補名と同じ文字列になるため、修飾の橋渡しが要らない。モデルは M2 と同じ `ModelTrackedNameStore` 集約
+- モデル名の解決に `ModelMaterialController.model` を使わない。`GetOrCreate` が呼ばれるたびこれを上書きするため、編集ウィンドウがモデルタブを開くと `ProviderModelStat` へ差し替わって名前が化ける。`StudioModelManager.models` から GameObject 一致で引く
+- マテリアルレイヤーの `UpdateFrame` は `materialMap.Values` を回していて `allBoneNames` を見ていなかったため、**書き込み絞り込みは手で `allBoneNames` 走査へ変えた**(他フェーズのように自動では付かない)
+- 既存の `AddFirstBones(全マテリアル)` を `AddFirstBones(allBoneNames)` へ変えないと、全マテリアルに 0F キーが入って「既存キーフレーム記載」経由で絞り込みが無効化される
+- チェック集合は履歴に含めない(M2 / M3 と同じ縮退判断)
+- タイムライン管理外のモデル(`ModelProviderHost` 経由の外部プラグイン提供モデル)はチェックしても効かない(M2 と同じ既知の制約)
+- **M0 部品の修正を伴った**: メイドスロットは「同じ対象のまま候補一覧だけが伸縮する」M0 以来はじめてのケース(着替え)だった。`UpdateTrackedBoneFilter` のチェック解除判定を候補テーブル由来の集合との差分からストア (`EditTargetStore.IsModified`) への直接問い合わせへ変えないと、着替えのたびにチェック済みマテリアルのキーが全フレームから消えていた。M1 / M2 / 表情にも効く修正
 
 ### Phase M5(任意・需要判断): メイドモーションのメニュー表示絞り込み
 
