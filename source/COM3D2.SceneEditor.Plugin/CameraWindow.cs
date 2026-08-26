@@ -373,9 +373,22 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawHorizontalLine();
             DrawDistanceFovSliders(mainCamera, camera);
             _view.DrawHorizontalLine();
-            DrawResetRow(mainCamera, camera);
+            DrawResetAndMatchSceneViewRow(mainCamera, camera);
 
             _view.EndScrollView();
+        }
+
+        /// <summary>
+        /// SceneView カメラを編集できる状態か。
+        /// cameraController は破棄済み Transform を掴んだままになりうるため、
+        /// null チェックだけでなく isActive も併せて見る (SceneViewWindow の注意書きに従う)
+        /// </summary>
+        private static bool TryGetSceneViewCamera(out Camera camera,
+            out SceneViewCameraController controller)
+        {
+            camera = SceneViewManager.instance.sceneCamera;
+            controller = SceneViewWindow.instance.cameraController;
+            return camera != null && controller != null && SceneViewManager.instance.isActive;
         }
 
         /// <summary>
@@ -384,13 +397,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawSceneViewCameraContent()
         {
-            var camera = SceneViewManager.instance.sceneCamera;
-            var controller = SceneViewWindow.instance.cameraController;
+            Camera camera;
+            SceneViewCameraController controller;
+            var available = TryGetSceneViewCamera(out camera, out controller);
 
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
 
-            if (camera == null || controller == null || !SceneViewManager.instance.isActive)
+            if (!available)
             {
                 _view.DrawLabel("SceneView が開かれていません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
@@ -554,25 +568,51 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// エディット画面相当の初期構図へ戻す。
+        /// リセットと SceneView 追従の行。
+        /// リセットはエディット画面相当の初期構図へ戻す。
         /// CameraMain.Reset はフェードやマスクの再初期化まで走って画面が暗転するため使わず、
         /// 構図に関わる値だけを書き戻す
         /// </summary>
-        private void DrawResetRow(CameraMain mainCamera, Camera camera)
+        private void DrawResetAndMatchSceneViewRow(CameraMain mainCamera, Camera camera)
         {
-            if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
+            _view.BeginHorizontal();
             {
-                RecordCameraEdit("リセット");
-                mainCamera.SetTargetPos(DefaultTargetPos);
-                mainCamera.SetDistance(DefaultDistance);
-                mainCamera.SetAroundAngle(DefaultAroundAngle);
+                if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
+                {
+                    RecordCameraEdit("リセット");
+                    mainCamera.SetTargetPos(DefaultTargetPos);
+                    mainCamera.SetDistance(DefaultDistance);
+                    mainCamera.SetAroundAngle(DefaultAroundAngle);
 
-                var eulerAngles = camera.transform.eulerAngles;
-                eulerAngles.z = 0f;
-                camera.transform.eulerAngles = eulerAngles;
+                    var eulerAngles = camera.transform.eulerAngles;
+                    eulerAngles.z = 0f;
+                    camera.transform.eulerAngles = eulerAngles;
 
-                camera.fieldOfView = DefaultFov;
+                    camera.fieldOfView = DefaultFov;
+                }
+
+                // SceneView が開かれていないと参照する構図が無いため押せない
+                Camera sceneCamera;
+                SceneViewCameraController controller;
+                var canMatchSceneView = TryGetSceneViewCamera(out sceneCamera, out controller);
+
+                if (_view.DrawButton("SceneViewカメラへ合わせる", 190, ROW_HEIGHT,
+                    enabled: canMatchSceneView))
+                {
+                    RecordCameraEdit("SceneViewへ合わせる");
+                    mainCamera.SetTargetPos(controller.targetPos);
+                    mainCamera.SetDistance(controller.distance);
+                    mainCamera.SetAroundAngle(controller.aroundAngle);
+
+                    // SceneView カメラはロールを持たないため、傾いたままだと構図が一致しない
+                    var eulerAngles = camera.transform.eulerAngles;
+                    eulerAngles.z = 0f;
+                    camera.transform.eulerAngles = eulerAngles;
+
+                    camera.fieldOfView = sceneCamera.fieldOfView;
+                }
             }
+            _view.EndLayout();
         }
 
         /// <summary>共通書式のスライダー 1 行</summary>
