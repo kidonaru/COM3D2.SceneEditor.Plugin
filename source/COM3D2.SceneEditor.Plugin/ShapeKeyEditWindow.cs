@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -8,7 +9,10 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// シェイプキー編集ウィンドウ。
     /// メイドの全シェイプキーと配置モデルのシェイプキー重みをタイムラインとは独立に直接編集する。
-    /// キーフレーム対象タグの登録はレイヤー編集ウィンドウ (ShapeKey レイヤー) の責務で、ここでは扱わない
+    /// メイドのシェイプキーについてはキーフレーム対象タグの登録はレイヤー編集ウィンドウ
+    /// (ShapeKey レイヤー) の責務で、ここでは扱わない。
+    /// モデルのシェイプキーは行頭のチェックが変更追跡 (プリセット保存とタイムライン表示の対象) を兼ねる。
+    /// チェック集合は HistoryManager 未対応のため undo で戻らない
     /// </summary>
     public class ShapeKeyEditWindow : MaidWindowBase
     {
@@ -291,13 +295,36 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
+            var modelObject = model.transform.gameObject;
+            // 表示判定用。まだ 1 つもチェックしていないモデルのストアを作らないよう FindStore を使う
+            // (操作側のコールバックは GetStore で遅延生成する)
+            var shapeKeyStore = ModelShapeKeyEditManager.instance.FindStore(modelObject);
+
             view.BeginScrollView();
             {
                 foreach (var blendShape in blendShapes)
                 {
                     var weight = blendShape.weight;
+                    var shapeKeyName = blendShape.shapeKeyName;
+                    var isModified = shapeKeyStore != null && shapeKeyStore.IsModified(shapeKeyName);
 
-                    view.DrawLabel(blendShape.shapeKeyName, -1, ROW_HEIGHT);
+                    // 変更追跡チェック。ON=プリセット保存とタイムライン表示の対象。
+                    // 手動 OFF は「未編集へ戻す」操作なので重みも 0 に戻す
+                    Action<bool> onCheckChanged = newChecked =>
+                    {
+                        if (newChecked)
+                        {
+                            ModelShapeKeyEditManager.instance.GetStore(modelObject).Mark(shapeKeyName);
+                        }
+                        else
+                        {
+                            blendShape.weight = 0f;
+                            model.FixBlendValues();
+                            ModelShapeKeyEditManager.instance.GetStore(modelObject).Unmark(shapeKeyName);
+                        }
+                    };
+
+                    view.DrawTrackedLabel(isModified, onCheckChanged, shapeKeyName, -1, ROW_HEIGHT);
 
                     var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
                     {
@@ -314,6 +341,8 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         blendShape.weight = weight;
                         model.FixBlendValues();
+                        // 編集したシェイプキーは自動で追跡対象にする
+                        ModelShapeKeyEditManager.instance.GetStore(modelObject).Mark(shapeKeyName);
                     }
                 }
             }
