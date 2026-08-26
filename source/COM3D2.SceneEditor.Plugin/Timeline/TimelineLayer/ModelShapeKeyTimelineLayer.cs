@@ -205,21 +205,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private GUIComboBox<StudioModelStat> _modelComboBox = new GUIComboBox<StudioModelStat>
-        {
-            getName = (model, index) => model.displayName,
-            buttonSize = new Vector2(200, 20),
-            contentSize = new Vector2(200, 300),
-        };
-
-        private enum TabType
-        {
-            操作,
-            管理,
-        }
-
-        private static TabType _tabType = TabType.操作;
-
         // DCM 連携は未移植のため出力しない
         public override void OutputDCM(XElement songElement)
         {
@@ -228,85 +213,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void DrawWindow(GUIView view)
         {
             // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            _tabType = view.DrawTabs(_tabType, 50, 20);
-
-            switch (_tabType)
-            {
-                case TabType.操作:
-                    DrawBlendShapes(view);
-                    break;
-                case TabType.管理:
-                    DrawModelManage(view);
-                    break;
-            }
-
-        }
-
-        public void DrawBlendShapes(GUIView view)
-        {
-            _modelComboBox.items = modelManager.models;
-
-            if (modelManager.models.Count == 0)
-            {
-                view.DrawLabel("モデルが存在しません", 200, 20);
-                return;
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-
-            view.DrawLabel("モデル選択", 200, 20);
-            _modelComboBox.DrawButton(view);
-
-            var model = _modelComboBox.currentItem;
-            if (model == null || model.transform == null)
-            {
-                view.DrawLabel("モデルが見つかりません", 200, 20);
-                return;
-            }
-
-            var blendShapes = model.blendShapes;
-            if (blendShapes.Count == 0)
-            {
-                view.DrawLabel("シェイプキーが存在しません", 200, 20);
-                return;
-            }
-
+            // ブレンドシェイプの編集・キー対象選別は SE のシェイプキー編集ウィンドウに委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("シェイプキーの編集はシェイプキーウィンドウで行ってください", -1, 20);
             view.DrawHorizontalLine(Color.gray);
-
-            view.AddSpace(5);
-
-            view.BeginScrollView();
-            {
-                view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-                for (var i = 0; i < blendShapes.Count; i++)
-                {
-                    var blendShape = blendShapes[i];
-                    var weight = blendShape.weight;
-                    var updateTransform = false;
-
-                    view.DrawLabel(blendShape.shapeKeyName, -1, 20);
-
-                    updateTransform |= view.DrawSliderValue(
-                        new GUIView.SliderOption
-                        {
-                            min = -1f,
-                            max = 2f,
-                            step = 0.01f,
-                            defaultValue = 0f,
-                            value = weight,
-                            onChanged = x => weight = x,
-                        });
-
-                    if (updateTransform)
-                    {
-                        blendShape.weight = weight;
-                        model.FixBlendValues();
-                    }
-                }
-            }
-            view.SetEnabled(view.focusedComboBox == null);
-            view.EndScrollView();
+            DrawModelManage(view);
         }
 
         public override TransformType GetTransformType(string name)
