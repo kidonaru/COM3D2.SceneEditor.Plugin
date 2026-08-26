@@ -81,9 +81,46 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var newNames = BuildBoneNames();
             if (_cachedBoneNames == null || !newNames.SequenceEqual(_cachedBoneNames))
             {
+                // 初回構築 (_cachedBoneNames == null) は既存の対象を並べ直すだけなので追加扱いにしない
+                var addedNames = _cachedBoneNames != null
+                    ? newNames.Except(_cachedBoneNames).ToList()
+                    : new List<string>();
+
+                // UpdateFrame は allBoneNames を回すため、キー登録より先にキャッシュを差し替える
                 _cachedBoneNames = newNames;
                 InitMenuItems();
+
+                AddFirstFrameKeys(addedNames);
             }
+        }
+
+        /// <summary>
+        /// 新たに対象へ入ったモーフに 0F 目のキーを打つ。
+        /// このレイヤーの Update はタイムライン読み込み中しか回らないため、
+        /// 読み込み済みのときにチェックを入れた場合だけ発火する。
+        /// 0F 目にキーが無いとそのモーフはアニメの起点を持てないので、
+        /// チェックした時点の現在値を基準値として登録する
+        /// </summary>
+        private void AddFirstFrameKeys(List<string> boneNames)
+        {
+            if (boneNames.Count == 0 || maid == null)
+            {
+                return;
+            }
+
+            var tmpFrame = CreateFrame(0);
+            UpdateFrame(tmpFrame, initialEdit: false, force: true);
+
+            var bones = tmpFrame.GetFilterBones(boneNames);
+            if (bones.Count == 0)
+            {
+                return;
+            }
+
+            UpdateBones(0, bones);
+            ApplyCurrentFrame(true);
+
+            timelineManager.RequestHistory("表情キーフレーム自動登録");
         }
 
         private static TimelineFaceManager faceManager => TimelineFaceManager.instance;
