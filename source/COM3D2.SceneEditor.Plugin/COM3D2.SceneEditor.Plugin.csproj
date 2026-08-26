@@ -200,6 +200,7 @@
     <Compile Include="MaidManipulation\MaidShapeKeyEditManager.cs" />
     <Compile Include="MaidManipulation\MaidMaterialEditManager.cs" />
     <Compile Include="MaidManipulation\ModelShapeKeyEditManager.cs" />
+    <Compile Include="MaidManipulation\ModelMaterialEditManager.cs" />
     <Compile Include="MaidManipulation\ModelGizmoRender.cs" />
     <Compile Include="MaidManipulation\SlotBoneManager.cs" />
     <Compile Include="MaidManipulation\BoneEditStore.cs" />
