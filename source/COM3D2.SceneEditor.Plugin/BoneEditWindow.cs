@@ -132,12 +132,8 @@ namespace COM3D2.SceneEditor.Plugin
             _treeView.getChildCount = node => node.children.Count;
             _treeView.getChild = (node, i) => node.children[i];
 
-            _treeView.getLabel = node =>
-            {
-                var isEdited = _drawingStore != null &&
-                    _drawingStore.GetEntry(activeSlotKey, node.name) != null;
-                return isEdited ? node.name + " *" : node.name;
-            };
+            // 編集済みかは行頭のチェックで示すため、ラベルには印を付けない
+            _treeView.getLabel = node => node.name;
             _treeView.getLabelColor = node =>
                 node.transform == boneEditManager.selectedBone ? Color.cyan : Color.white;
             _treeView.isSelected = node => node.transform == boneEditManager.selectedBone;
@@ -153,6 +149,40 @@ namespace COM3D2.SceneEditor.Plugin
                     boneEditManager.SelectBone(_drawingTarget, node.transform);
                 }
                 _lastSelectedBone = node.transform;
+            };
+
+            _treeView.getChecked = node =>
+                _drawingStore != null && _drawingStore.GetEntry(activeSlotKey, node.name) != null;
+
+            _treeView.onCheckChanged = (node, isChecked) =>
+            {
+                var bone = node.transform;
+                if (bone == null)
+                {
+                    return;
+                }
+
+                boneEditManager.BeginEditHistory(_drawingTarget,
+                    (isChecked ? "ボーンを追跡: " : "ボーンの追跡を解除: ") + node.name,
+                    new[] { bone });
+
+                if (isChecked)
+                {
+                    // 値は変えず、現在値を編集値として記録して追跡対象に載せる
+                    if (boneEditManager.isModelMode)
+                    {
+                        boneEditManager.NotifyModelBoneEdited(bone);
+                    }
+                    else
+                    {
+                        boneEditManager.NotifyBoneEdited(_drawingTarget, bone);
+                    }
+                }
+                else
+                {
+                    // 解除は元値へ戻して記録を消す (リセットボタンと同じ意味)
+                    _drawingStore.ResetBone(activeSlotKey, bone);
+                }
             };
         }
 
