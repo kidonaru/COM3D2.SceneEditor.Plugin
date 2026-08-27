@@ -4,11 +4,9 @@ using UnityEngine.SceneManagement;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
-    /// 地面オブジェクト (BGGround) の所有者。
-    /// 元は BGColorTimelineLayer が生成・破棄していたが、背景ウィンドウからも
-    /// レイヤーに依存せず編集できるようマネージャへ持ち上げた。
-    /// BGColorTimelineLayer.Create は常にスロット 0 の 1 インスタンスのため、
-    /// シングルトンで持っても挙動は変わらない
+    /// 地面オブジェクト (BGGround) の所有者。背景ウィンドウとタイムラインの背景色レイヤーの
+    /// 双方から参照されるため、レイヤーに依存しないマネージャで一元管理する。
+    /// 地面は常に単一インスタンスのみ存在する想定
     /// </summary>
     public class BGGroundManager : ManagerBase
     {

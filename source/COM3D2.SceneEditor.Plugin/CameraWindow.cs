@@ -78,7 +78,6 @@ namespace COM3D2.SceneEditor.Plugin
             };
 
         // メイドの部位へ注視点を移すフォーカス行のコンボ
-        // (CameraTimelineLayer の「対象設定」から移植)
         private readonly GUIComboBox<MTEP.MaidCache> _focusMaidComboBox =
             new GUIComboBox<MTEP.MaidCache>
             {
@@ -642,10 +641,7 @@ namespace COM3D2.SceneEditor.Plugin
             _view.EndLayout();
         }
 
-        /// <summary>
-        /// 選んだメイドの部位へ注視点を移すフォーカス行。
-        /// タイムラインのカメラレイヤーが持っていた「対象設定」と同じ操作
-        /// </summary>
+        /// <summary>選んだメイドの部位へ注視点を移すフォーカス行</summary>
         private void DrawFocusRow(CameraMain mainCamera)
         {
             _view.BeginHorizontal();

@@ -47,7 +47,7 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIView _rootView = new GUIView();
         private readonly GUIView _view = new GUIView();
 
-        /// <summary>追従先メイドのコンボ（LightTimelineLayer の「追従メイド」から移植）</summary>
+        /// <summary>追従先メイドのコンボ</summary>
         private readonly GUIComboBox<MTEP.MaidCache> _followMaidComboBox =
             new GUIComboBox<MTEP.MaidCache>
             {

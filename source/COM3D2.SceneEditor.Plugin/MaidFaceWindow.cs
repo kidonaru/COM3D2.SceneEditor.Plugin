@@ -53,6 +53,9 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 100),
         };
 
+        /// <summary>瞳回転スライダー (-1〜1) の両端に対応する回転角</summary>
+        private const float EYE_ROTATION_MAX_ANGLE = 90f;
+
         /// <summary>タイムライン視線の注視先コンボ。書き込み先は MaidCache</summary>
         private readonly GUIComboBox<MTEP.LookAtTargetType> _lookAtTargetTypeComboBox =
             new GUIComboBox<MTEP.LookAtTargetType>
@@ -475,12 +478,12 @@ namespace COM3D2.SceneEditor.Plugin
             view.SetEnabled(maidCache.lookAtTargetType == MTEP.LookAtTargetType.None);
 
             var eyeEulerAngle = maidCache.eyeEulerAngle;
-            DrawTimelineLookSlider(view, "瞳回転左右", eyeEulerAngle.x / 90f,
+            DrawTimelineLookSlider(view, "瞳回転左右", eyeEulerAngle.x / EYE_ROTATION_MAX_ANGLE,
                 value => maidCache.eyeEulerAngle =
-                    new Vector3(value * 90f, 0f, eyeEulerAngle.z));
-            DrawTimelineLookSlider(view, "瞳回転上下", eyeEulerAngle.z / 90f,
+                    new Vector3(value * EYE_ROTATION_MAX_ANGLE, 0f, eyeEulerAngle.z));
+            DrawTimelineLookSlider(view, "瞳回転上下", eyeEulerAngle.z / EYE_ROTATION_MAX_ANGLE,
                 value => maidCache.eyeEulerAngle =
-                    new Vector3(eyeEulerAngle.x, 0f, value * 90f));
+                    new Vector3(eyeEulerAngle.x, 0f, value * EYE_ROTATION_MAX_ANGLE));
 
             view.SetEnabled(true);
 
