@@ -644,7 +644,11 @@ namespace COM3D2.SceneEditor.Plugin
                 });
         }
 
-        /// <summary>メイドの編集済みボーンを集約ストアへ片方向同期する</summary>
+        /// <summary>
+        /// メイドの編集済みボーンを集約ストアへ片方向同期する。
+        /// モデル側と違いストアはメイドごとに分けるため、Sync へ渡すキーは常に 1 つ。
+        /// 名前解決も失敗しない (Collect は常に成功) ので、Sync の再試行パスは通らない
+        /// </summary>
         private void SyncMaidBoneTrackedStores()
         {
             foreach (var pair in _stores)

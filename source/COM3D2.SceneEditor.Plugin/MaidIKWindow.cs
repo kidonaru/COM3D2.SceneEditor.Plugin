@@ -90,10 +90,12 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("IK固定", 60, ROW_HEIGHT);
 
-                // IK 固定はボーン編集（編集モード）中しか効かないため、モード外なら注意を出す
+                // 固定が効くのはボーン編集（編集モード）中か、「アニメ」指定の箇所だけ。
+                // モード外ならその条件を出す
                 if (!MaidManipulateManager.instance.isEditMode)
                 {
-                    view.DrawLabel("※編集モードで有効", -1, ROW_HEIGHT, textColor: Color.yellow);
+                    view.DrawLabel("※編集モード外は「アニメ」指定の箇所のみ有効", -1, ROW_HEIGHT,
+                        textColor: Color.yellow);
                 }
             }
             view.EndLayout();

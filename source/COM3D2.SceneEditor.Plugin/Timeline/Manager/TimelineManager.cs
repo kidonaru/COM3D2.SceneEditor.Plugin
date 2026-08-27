@@ -39,7 +39,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public static event UnityAction onStop;
         public static event UnityAction onPause;
         public static event UnityAction onRefresh;
-        public static event UnityAction onPoseEditUpdated;
         public static event UnityAction onAnmSpeedChanged;
         public static event UnityAction onSeekCurrentFrame;
 
@@ -1673,8 +1672,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 //MTEUtils.LogDebug("Save Maid Position name={0} initialEditPosition={1} initialEditRotation={2}",
                 //    maid.name, initialEditPosition, initialEditRotation);
             }
-
-            onPoseEditUpdated?.Invoke();
         }
 
         private void OnPoseEditStart()

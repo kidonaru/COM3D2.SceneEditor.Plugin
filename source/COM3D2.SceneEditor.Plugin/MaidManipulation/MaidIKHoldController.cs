@@ -36,7 +36,7 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// IK 固定（MTE の IKHoldEntity 相当）。ゲーム側 IKManager には依存せず、
+    /// IK 固定。ゲーム側 IKManager には依存せず、
     /// 固定用に自前の MaidIKChain を持って毎フレーム解く。
     /// ドラッグ用チェーン（MaidDragPointController 所有）とは別インスタンスだが、
     /// ドラッグ中の箇所は解かず target の追従記録だけ行うため競合しない

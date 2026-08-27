@@ -51,7 +51,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private readonly List<string> _trackedCandidateNames = new List<string>();
 
-        /// <summary>拡張ボーンの候補。MTE の ExtendBoneCache が拾えたボーンだけが対象になる</summary>
+        /// <summary>
+        /// 拡張ボーンの候補。MTE の ExtendBoneCache が拾えたボーンだけが対象になる。
+        /// 返り値は次回呼び出しで書き換わる使い捨てビューなので保持しないこと
+        /// </summary>
         protected override List<string> trackedCandidateNames
         {
             get
@@ -70,6 +73,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private readonly List<string> _allBoneNamesCache = new List<string>();
 
+        /// <summary>
+        /// 体ボーン・拡張ボーン・IK・接地・指ブレンドの全対象名。
+        /// 返り値は次回呼び出しで書き換わる使い捨てビューなので保持しないこと
+        /// </summary>
         public override List<string> allBoneNames
         {
             get
