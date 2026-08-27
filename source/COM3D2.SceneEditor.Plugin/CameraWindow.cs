@@ -1,7 +1,10 @@
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -72,6 +75,28 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (action, _) => GetPresetMenuLabel(action),
                 buttonSize = new Vector2(PresetButtonWidth, ROW_HEIGHT),
                 contentSize = PresetMenuContentSize,
+            };
+
+        // メイドの部位へ注視点を移すフォーカス行のコンボ
+        // (CameraTimelineLayer の「対象設定」から移植)
+        private readonly GUIComboBox<MTEP.MaidCache> _focusMaidComboBox =
+            new GUIComboBox<MTEP.MaidCache>
+            {
+                getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
+                buttonSize = new Vector2(120, ROW_HEIGHT),
+                contentSize = new Vector2(150, 300),
+                showArrow = false,
+            };
+
+        private readonly GUIComboBox<MTEP.MaidPointType> _focusPointComboBox =
+            new GUIComboBox<MTEP.MaidPointType>
+            {
+                items = Enum.GetValues(typeof(MTEP.MaidPointType))
+                    .Cast<MTEP.MaidPointType>().ToList(),
+                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
+                buttonSize = new Vector2(60, ROW_HEIGHT),
+                contentSize = new Vector2(80, 300),
+                showArrow = false,
             };
 
         private static CameraWindow _instance = null;
@@ -374,6 +399,8 @@ namespace COM3D2.SceneEditor.Plugin
             DrawDistanceFovSliders(mainCamera, camera);
             _view.DrawHorizontalLine();
             DrawResetAndMatchSceneViewRow(mainCamera, camera);
+            _view.DrawHorizontalLine();
+            DrawFocusRow(mainCamera);
 
             _view.EndScrollView();
         }
@@ -610,6 +637,34 @@ namespace COM3D2.SceneEditor.Plugin
                     camera.transform.eulerAngles = eulerAngles;
 
                     camera.fieldOfView = sceneCamera.fieldOfView;
+                }
+            }
+            _view.EndLayout();
+        }
+
+        /// <summary>
+        /// 選んだメイドの部位へ注視点を移すフォーカス行。
+        /// タイムラインのカメラレイヤーが持っていた「対象設定」と同じ操作
+        /// </summary>
+        private void DrawFocusRow(CameraMain mainCamera)
+        {
+            _view.BeginHorizontal();
+            {
+                _view.DrawLabel("フォーカス", LABEL_WIDTH, ROW_HEIGHT);
+
+                _focusMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
+                _focusMaidComboBox.DrawButton(_view);
+                _focusPointComboBox.DrawButton(_view);
+
+                var maidCache = _focusMaidComboBox.currentItem;
+                if (_view.DrawButton("移動", 60, ROW_HEIGHT, enabled: maidCache != null))
+                {
+                    var point = maidCache.GetPointTransform(_focusPointComboBox.currentItem);
+                    if (point != null)
+                    {
+                        RecordCameraEdit("フォーカス");
+                        mainCamera.SetTargetPos(point.position);
+                    }
                 }
             }
             _view.EndLayout();
