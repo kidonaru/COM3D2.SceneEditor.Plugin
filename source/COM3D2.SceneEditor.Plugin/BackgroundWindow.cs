@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -141,6 +142,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             DrawCurrentBgRow(bgMgr);
+
+            // 背景色と地面は背景の有無に関わらず編集できる
+            DrawBgColorRow();
+            DrawGroundRows();
+
             _view.DrawHorizontalLine();
             DrawFilterRows();
             DrawBgList(bgMgr);
@@ -156,7 +162,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _view.DrawLabel("背景が表示されていません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
-                DrawBgColorRow();
                 return;
             }
 
@@ -202,19 +207,19 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawHorizontalLine();
             _view.DrawLabel("背景Transform (ローカル)", -1, ROW_HEIGHT);
 
-            DrawBgVector3Row("位置", transform.localPosition,
+            DrawObjectVector3Row("位置", "背景Transform: 位置", transform.localPosition,
                 value => transform.localPosition = value,
                 () => transform.localPosition = DefaultBgPosition, transform);
-            DrawBgVector3Row("回転", transform.localEulerAngles,
+            DrawObjectVector3Row("回転", "背景Transform: 回転", transform.localEulerAngles,
                 value => transform.localEulerAngles = value,
                 () => transform.localEulerAngles = DefaultBgEulerAngles, transform);
-            DrawBgVector3Row("拡縮", transform.localScale,
+            DrawObjectVector3Row("拡縮", "背景Transform: 拡縮", transform.localScale,
                 value => transform.localScale = value,
                 () => transform.localScale = DefaultBgScale, transform);
 
             if (_view.DrawButton("Transformリセット", 140, ROW_HEIGHT))
             {
-                RecordBgTransformEdit("リセット", transform);
+                RecordObjectEdit("背景Transform: リセット", transform);
                 transform.localPosition = DefaultBgPosition;
                 transform.localEulerAngles = DefaultBgEulerAngles;
                 transform.localScale = DefaultBgScale;
@@ -222,9 +227,9 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>ラベル + XYZ（ドラッグラベル + 数値入力）+ リセットボタンの 1 行</summary>
-        private void DrawBgVector3Row(
-            string label, Vector3 value, Action<Vector3> onChanged, Action onReset,
-            Transform target)
+        private void DrawObjectVector3Row(
+            string label, string historyLabel, Vector3 value,
+            Action<Vector3> onChanged, Action onReset, Transform target)
         {
             _view.DrawVector3Row(new GUIView.Vector3RowOption
             {
@@ -235,26 +240,26 @@ namespace COM3D2.SceneEditor.Plugin
                 value = value,
                 onChanged = newValue =>
                 {
-                    RecordBgTransformEdit(label, target);
+                    RecordObjectEdit(historyLabel, target);
                     onChanged(newValue);
                 },
                 onReset = () =>
                 {
-                    RecordBgTransformEdit(label, target);
+                    RecordObjectEdit(historyLabel, target);
                     onReset();
                 },
             });
         }
 
         /// <summary>
-        /// 背景モデルの Transform 操作を履歴へ記録する。
+        /// オブジェクトの Transform 操作を履歴へ記録する。
         /// Background スコープは Parent のワールド座標しか持たないため、
         /// 対象 Transform を直接記録する Object スコープを使う
         /// </summary>
-        private static void RecordBgTransformEdit(string label, Transform target)
+        private static void RecordObjectEdit(string description, Transform target)
         {
             HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                "背景Transform: " + label, new[] { target });
+                description, new[] { target });
         }
 
         /// <summary>
@@ -273,6 +278,74 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.DrawLabel("アルファを下げると透過PNGで撮影されます", -1, ROW_HEIGHT,
                 textColor: Color.gray);
+        }
+
+        /// <summary>
+        /// 地面の表示・色・位置・広さ。
+        /// 編集対象はタイムラインの背景色レイヤーがキー化するのと同じ BGGround
+        /// </summary>
+        private void DrawGroundRows()
+        {
+            var groundManager = MTEP.BGGroundManager.instance;
+            var ground = groundManager.bgGround;
+
+            _view.DrawHorizontalLine();
+
+            _view.DrawToggle("地面を表示", ground != null && ground.visible, -1, ROW_HEIGHT,
+                value =>
+                {
+                    // 表示するまで実体を作らない（タイムラインを使わない間は生成しない）
+                    var target = groundManager.GetOrCreate();
+                    RecordObjectEdit("地面: 表示", target.transform);
+                    target.visible = value;
+                });
+
+            if (ground == null)
+            {
+                return;
+            }
+
+            var groundTransform = ground.transform;
+
+            // 地面色は履歴のスナップショットが持たないため記録しない
+            // （ObjectSnapshot は Transform とアクティブ状態しか復元できない）
+            var fieldCache = _view.GetColorFieldCache("地面色", false);
+            _view.DrawColor(fieldCache, ground.color, MTEP.BGGround.DefaultColor,
+                value => ground.color = value);
+
+            DrawObjectVector3Row("位置", "地面: 位置", ground.position,
+                value => ground.position = value,
+                () => ground.position = MTEP.BGGround.DefaultPosition,
+                groundTransform);
+
+            var scale = ground.scale;
+            DrawGroundScaleSlider("SX", scale.x, MTEP.BGGround.DefaultScale.x, groundTransform,
+                value => ground.scale = new Vector3(value, scale.y, scale.z));
+            DrawGroundScaleSlider("SZ", scale.z, MTEP.BGGround.DefaultScale.z, groundTransform,
+                value => ground.scale = new Vector3(scale.x, scale.y, value));
+        }
+
+        /// <summary>地面の広さのスライダー 1 行</summary>
+        private void DrawGroundScaleSlider(
+            string label, float value, float defaultValue, Transform target,
+            Action<float> onChanged)
+        {
+            _view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = label,
+                labelWidth = 30,
+                width = -1,
+                min = 0f,
+                max = 1000f,
+                step = 1f,
+                defaultValue = defaultValue,
+                value = value,
+                onChanged = newValue =>
+                {
+                    RecordObjectEdit("地面: " + label, target);
+                    onChanged(newValue);
+                },
+            });
         }
 
         /// <summary>

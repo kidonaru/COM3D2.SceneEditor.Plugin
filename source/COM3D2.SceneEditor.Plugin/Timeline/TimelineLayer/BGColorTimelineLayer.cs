@@ -1,6 +1,5 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -12,7 +11,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(BGColorTimelineLayer);
         public override string layerName => nameof(BGColorTimelineLayer);
 
-        public BGGround bgGround = null;
+        /// <summary>地面の実体。所有は BGGroundManager にあり、レイヤーは参照するだけ</summary>
+        private static BGGround bgGround => BGGroundManager.instance.bgGround;
 
         public static string BGColorBoneName = "BGColor";
         public static string BGColorDisplayName = "背景色";
@@ -42,26 +42,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.Init();
 
-            if (bgGround == null)
-            {
-                var go = new GameObject("Ground");
-                bgGround = go.AddComponent<BGGround>();
-                bgGround.visible = false;
-            }
+            BGGroundManager.instance.GetOrCreate();
 
             AddFirstBones(allBoneNames);
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-
-            if (bgGround != null)
-            {
-                GameObject.Destroy(bgGround.gameObject);
-                bgGround = null;
-            }
-        }
+        // 地面はウィンドウからも編集するため、レイヤー破棄では消さない
+        // （破棄は BGGroundManager がプラグイン無効化・シーン切替で行う）
 
         protected override void InitMenuItems()
         {
@@ -179,100 +166,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        private ColorFieldCache _colorFieldValue = new ColorFieldCache("Color", false);
-
         public override void DrawWindow(GUIView view)
         {
-            if (camera == null)
-            {
-                return;
-            }
-            var color = camera.backgroundColor;
-            var updateTransform = false;
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            view.DrawLabel("背景色", 70, 20);
-
-            updateTransform |= view.DrawColor(
-                _colorFieldValue,
-                color,
-                Color.black,
-                c => color = c);
-
-            if (updateTransform)
-            {
-                camera.backgroundColor = color;
-            }
-
-            view.DrawHorizontalLine(Color.gray);
-
-            if (bgGround != null)
-            {
-                var defaultTrans = TransformDataBGGroundColor.defaultTrans;
-
-                updateTransform |= view.DrawToggle("地面色", bgGround.visible, 80, 20, v =>
-                {
-                    bgGround.visible = v;
-                });
-
-                updateTransform |= view.DrawColor(
-                    _colorFieldValue,
-                    bgGround.color,
-                    defaultTrans.initialColor,
-                    c => bgGround.color = c);
-
-                {
-                    var initialPosition = defaultTrans.initialPosition;
-                    var transformCache = view.GetTransformCache(null);
-                    transformCache.position = bgGround.position;
-
-                    updateTransform |= DrawPosition(
-                        view,
-                        transformCache,
-                        TransformEditType.全て,
-                        initialPosition);
-
-                    if (updateTransform)
-                    {
-                        bgGround.position = transformCache.position;
-                    }
-                }
-
-                {
-                    var initialScale = defaultTrans.initialScale;
-                    var scale = bgGround.scale;
-
-                    updateTransform |= view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        label = "SX",
-                        labelWidth = 30,
-                        min = 0,
-                        max = 1000f,
-                        step = 1f,
-                        defaultValue = initialScale.x,
-                        value = scale.x,
-                        onChanged = x => scale.x = x,
-                    });
-
-                    updateTransform |= view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        label = "SZ",
-                        labelWidth = 30,
-                        min = 0,
-                        max = 1000f,
-                        step = 1f,
-                        defaultValue = initialScale.z,
-                        value = scale.z,
-                        onChanged = z => scale.z = z,
-                    });
-
-                    if (updateTransform)
-                    {
-                        bgGround.scale = scale;
-                    }
-                }
-            }
+            // 背景色・地面の編集 UI は SE の BackgroundWindow に委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("背景色・地面の編集は 背景ウィンドウで行ってください", -1, 20);
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)

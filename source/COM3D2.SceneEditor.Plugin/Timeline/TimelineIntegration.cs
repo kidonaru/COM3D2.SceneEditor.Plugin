@@ -32,6 +32,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.ModelHackManager.instance,
                 MTEP.StudioModelManager.instance,
                 MTEP.BGModelManager.instance,
+                MTEP.BGGroundManager.instance,
                 MTEP.SubCameraManager.instance,
                 MTEP.TimelineBundleManager.instance,
                 MTEP.StageLightManager.instance,

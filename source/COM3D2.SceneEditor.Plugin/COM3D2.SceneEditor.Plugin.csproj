@@ -368,6 +368,7 @@
     <Compile Include="Timeline\Manager\StudioModelManager.cs" />
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />
     <Compile Include="Timeline\Manager\BGModelManager.cs" />
+    <Compile Include="Timeline\Manager\BGGroundManager.cs" />
     <Compile Include="Timeline\Manager\SubCameraManager.cs" />
     <Compile Include="Timeline\Manager\TimelineBundleManager.cs" />
     <Compile Include="Timeline\Manager\StageLightManager.cs" />
