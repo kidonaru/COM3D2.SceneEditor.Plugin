@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -142,28 +141,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void DrawWindow(GUIView view)
         {
-            var maid = this.maid;
-            if (maid == null)
-            {
-                return;
-            }
-
-            var transform = maid.transform;
-            var initialPosition = Vector3.zero;
-            var initialEulerAngles = Vector3.zero;
-            var initialScale = Vector3.one;
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            DrawTransform(
-                view,
-                transform,
-                TransformEditType.全て,
-                DrawMaskAll,
-                MoveBoneName,
-                initialPosition,
-                initialEulerAngles,
-                initialScale);
+            // メイド本体の Transform 編集は SE のインスペクタ / ギズモへ委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("メイドの移動はギズモ、またはインスペクタで編集してください", -1, 20);
+            view.DrawLabel("※キーの値はローカル座標で記録されます", -1, 20);
         }
 
         public override TransformType GetTransformType(string name)
