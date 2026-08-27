@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -75,7 +75,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public bool visible = true;
+        private bool _visible = true;
+
+        /// <summary>
+        /// ライトの可視状態。ライトウィンドウ等が light.enabled を直接切り替えても
+        /// キー化した値がずれないよう、実体があるかぎり light.enabled を正とする
+        /// </summary>
+        public bool visible
+        {
+            get => light != null ? light.enabled : _visible;
+            set
+            {
+                _visible = value;
+                if (light != null)
+                {
+                    light.enabled = value;
+                }
+            }
+        }
+
         public Light light = null;
         public Transform transform = null;
         public object obj = null;
