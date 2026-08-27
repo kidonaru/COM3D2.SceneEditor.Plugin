@@ -203,6 +203,7 @@
     <Compile Include="MaidManipulation\ModelMaterialEditManager.cs" />
     <Compile Include="MaidManipulation\ModelGizmoRender.cs" />
     <Compile Include="MaidManipulation\SlotBoneManager.cs" />
+    <Compile Include="MaidManipulation\SlotQualifiedNames.cs" />
     <Compile Include="MaidManipulation\BoneEditStore.cs" />
     <Compile Include="MaidManipulation\EditTargetStore.cs" />
     <Compile Include="MaidManipulation\FaceEditManager.cs" />

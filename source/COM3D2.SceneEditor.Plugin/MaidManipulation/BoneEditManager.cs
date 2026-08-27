@@ -101,6 +101,27 @@ namespace COM3D2.SceneEditor.Plugin
 
         public EditTargetStore modelBoneTrackedStore => _modelBoneTracked.store;
 
+        /// <summary>
+        /// メイドごとの編集済みボーンを拡張ボーン名 ("slot/bone") で集約した読み取り専用ビュー。
+        /// MotionTimelineLayer の追跡ストアとして使う。
+        /// 名前にメイドの識別子が入らないため、メイドごとに別インスタンスへ集約する。
+        /// ソース・オブ・トゥルースは _stores 側で、ここへ直接 Mark/Unmark してはならない
+        /// </summary>
+        private readonly Dictionary<Maid, ModelTrackedNameStore<Maid>> _maidBoneTracked
+            = new Dictionary<Maid, ModelTrackedNameStore<Maid>>();
+
+        // Sync へ毎フレーム渡すキー列。1 要素だけ入れて使い回す
+        private readonly List<Maid> _maidTrackedKeys = new List<Maid>(1);
+
+        /// <summary>メイドの拡張ボーン集約ストア。記録が無ければ null</summary>
+        public EditTargetStore FindMaidBoneTrackedStore(Maid maid)
+        {
+            ModelTrackedNameStore<Maid> tracked;
+            return maid != null && _maidBoneTracked.TryGetValue(maid, out tracked)
+                ? tracked.store
+                : null;
+        }
+
         // Sync へ毎フレーム渡すキー列。使い回してゴミを出さない
         private readonly List<GameObject> _modelStoreKeys = new List<GameObject>();
 
@@ -561,6 +582,7 @@ namespace COM3D2.SceneEditor.Plugin
             CleanupModelStores();
             // 破棄済みモデルのストアを捨てた後で集約する
             SyncModelBoneTrackedStore();
+            SyncMaidBoneTrackedStores();
         }
 
         /// <summary>
@@ -620,6 +642,38 @@ namespace COM3D2.SceneEditor.Plugin
                         modelName, _modelStores[model].GetEntries(ModelSlotKey), result);
                     return true;
                 });
+        }
+
+        /// <summary>メイドの編集済みボーンを集約ストアへ片方向同期する</summary>
+        private void SyncMaidBoneTrackedStores()
+        {
+            foreach (var pair in _stores)
+            {
+                var maid = pair.Key;
+                if (maid == null)
+                {
+                    continue;
+                }
+
+                ModelTrackedNameStore<Maid> tracked;
+                if (!_maidBoneTracked.TryGetValue(maid, out tracked))
+                {
+                    tracked = new ModelTrackedNameStore<Maid>();
+                    _maidBoneTracked[maid] = tracked;
+                }
+
+                _maidTrackedKeys.Clear();
+                _maidTrackedKeys.Add(maid);
+
+                tracked.Sync(
+                    _maidTrackedKeys,
+                    m => _stores[m].version,
+                    (m, result) =>
+                    {
+                        SlotQualifiedNames.Collect(_stores[m].GetAllEntries(), result);
+                        return true;
+                    });
+            }
         }
 
         /// <summary>モデルルートからタイムライン側のモデル名を引く。取れなければ null</summary>
@@ -792,6 +846,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _stores.Remove(maid);
                 _wasLoading.Remove(maid);
+                _maidBoneTracked.Remove(maid);
             }
         }
 
@@ -809,6 +864,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _stores.Clear();
             _wasLoading.Clear();
+            _maidBoneTracked.Clear();
             _modelStores.Clear();
             _modelBoneTracked.Clear();
             // シーン遷移では SelectionManager 側が選択を解除するため setter は通さない
