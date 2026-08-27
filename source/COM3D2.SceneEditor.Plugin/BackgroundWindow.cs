@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -21,6 +21,14 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int LABEL_WIDTH = 70;
 
         private const string ALL_CATEGORY = "すべて";
+
+        /// <summary>座標行（Inspector の座標行と同じ形式）のドラッグ感度</summary>
+        private const float PositionDragSensitivity = 0.01f;
+
+        // 背景 Transform のリセット既定値（BgMgr が背景を生成した直後と同じ値）
+        private static readonly Vector3 DefaultBgPosition = Vector3.zero;
+        private static readonly Vector3 DefaultBgEulerAngles = Vector3.zero;
+        private static readonly Vector3 DefaultBgScale = Vector3.one;
 
         /// <summary>選択中カテゴリ。ALL_CATEGORY なら全カテゴリ表示</summary>
         private string _category = ALL_CATEGORY;
@@ -172,6 +180,81 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _view.EndLayout();
+
+            DrawBgTransformRows(bgMgr);
+        }
+
+        /// <summary>
+        /// 背景モデルのローカル Transform 編集行。
+        /// 編集対象はタイムラインの背景レイヤーがキー化するのと同じ current_bg_object で、
+        /// Inspector に出る Parent の座標（ワールド値）とは別物
+        /// </summary>
+        private void DrawBgTransformRows(BgMgr bgMgr)
+        {
+            var bgObject = bgMgr.current_bg_object;
+            if (bgObject == null)
+            {
+                return;
+            }
+
+            var transform = bgObject.transform;
+
+            _view.DrawHorizontalLine();
+            _view.DrawLabel("背景Transform (ローカル)", -1, ROW_HEIGHT);
+
+            DrawBgVector3Row("位置", transform.localPosition,
+                value => transform.localPosition = value,
+                () => transform.localPosition = DefaultBgPosition, transform);
+            DrawBgVector3Row("回転", transform.localEulerAngles,
+                value => transform.localEulerAngles = value,
+                () => transform.localEulerAngles = DefaultBgEulerAngles, transform);
+            DrawBgVector3Row("拡縮", transform.localScale,
+                value => transform.localScale = value,
+                () => transform.localScale = DefaultBgScale, transform);
+
+            if (_view.DrawButton("Transformリセット", 140, ROW_HEIGHT))
+            {
+                RecordBgTransformEdit("リセット", transform);
+                transform.localPosition = DefaultBgPosition;
+                transform.localEulerAngles = DefaultBgEulerAngles;
+                transform.localScale = DefaultBgScale;
+            }
+        }
+
+        /// <summary>ラベル + XYZ（ドラッグラベル + 数値入力）+ リセットボタンの 1 行</summary>
+        private void DrawBgVector3Row(
+            string label, Vector3 value, Action<Vector3> onChanged, Action onReset,
+            Transform target)
+        {
+            _view.DrawVector3Row(new GUIView.Vector3RowOption
+            {
+                label = label,
+                labelWidth = LABEL_WIDTH,
+                height = ROW_HEIGHT,
+                dragSensitivity = PositionDragSensitivity,
+                value = value,
+                onChanged = newValue =>
+                {
+                    RecordBgTransformEdit(label, target);
+                    onChanged(newValue);
+                },
+                onReset = () =>
+                {
+                    RecordBgTransformEdit(label, target);
+                    onReset();
+                },
+            });
+        }
+
+        /// <summary>
+        /// 背景モデルの Transform 操作を履歴へ記録する。
+        /// Background スコープは Parent のワールド座標しか持たないため、
+        /// 対象 Transform を直接記録する Object スコープを使う
+        /// </summary>
+        private static void RecordBgTransformEdit(string label, Transform target)
+        {
+            HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
+                "背景Transform: " + label, new[] { target });
         }
 
         /// <summary>

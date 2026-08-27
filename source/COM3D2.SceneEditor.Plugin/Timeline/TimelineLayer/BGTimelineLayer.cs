@@ -1,6 +1,5 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -148,49 +147,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        private GUIComboBox<PhotoBGData> _bgComboBox = new GUIComboBox<PhotoBGData>
-        {
-            items = photoBGManager.bgList,
-            getName = (data, index) => data.name,
-            onSelected = (data, index) =>
-            {
-                studioHack.ChangeBackground(data.create_prefab_name);
-            },
-            contentSize = new Vector2(200, 300),
-        };
-
         public override void DrawWindow(GUIView view)
         {
-            if (bgObject == null || bgObject.transform == null)
-            {
-                return;
-            }
-
-            var transform = bgObject.transform;
-            var boneName = bgMgr.GetBGName();
-
-            var initialPosition = Vector3.zero;
-            var initialEulerAngles = Vector3.zero;
-            var initialScale = Vector3.one;
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            _bgComboBox.currentIndex = photoBGManager.GetBGIndex(boneName);
-            _bgComboBox.DrawButton("背景", view);
-
-            view.DrawLabel(boneName, -1, 20);
-
-            view.DrawHorizontalLine(Color.gray);
-
-            DrawTransform(
-                view,
-                transform,
-                TransformEditType.全て,
-                DrawMaskAll,
-                boneName,
-                initialPosition,
-                initialEulerAngles,
-                initialScale);
+            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
+            // 背景の選択と Transform 編集は SE の BackgroundWindow に委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("背景の編集は 背景ウィンドウで行ってください", -1, 20);
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
