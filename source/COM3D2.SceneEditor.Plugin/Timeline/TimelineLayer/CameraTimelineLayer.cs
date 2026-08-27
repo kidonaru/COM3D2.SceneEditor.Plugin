@@ -1,6 +1,5 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -170,133 +169,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        private GUIComboBox<MaidCache> _maidComboBox = new GUIComboBox<MaidCache>
-        {
-            getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
-            buttonSize = new Vector2(100, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private GUIComboBox<MaidPointType> _targetMaidPointComboBox = new GUIComboBox<MaidPointType>
-        {
-            items = Enum.GetValues(typeof(MaidPointType)).Cast<MaidPointType>().ToList(),
-            getName = (type, index) => MaidCache.GetMaidPointTypeName(type),
-            buttonSize = new Vector2(50, 20),
-        };
-
         public override void DrawWindow(GUIView view)
         {
-            var uoCamera = GetUOCamera();
-            var target = uoCamera.target;
-            var position = target.position;
-            var aroundAngle = uoCamera.GetAroundAngle();
-            var rotZ = camera.GetRotationZ();
-            var angles = new Vector3(aroundAngle.y, aroundAngle.x, rotZ);
-            var distance = uoCamera.distance;
-            var prevBone = GetPrevBone(timelineManager.currentFrameNo, CameraBoneName);
-            var prevAngles = prevBone != null ? prevBone.transform.eulerAngles : Vector3.zero;
-            angles = TransformDataBase.GetFixedEulerAngles(angles, prevAngles);
-            var updateTransform = false;
-
-            var initialPosition = Vector3.zero;
-            var initialEulerAngles = Vector3.zero;
-
-            // SE 版 GUIView には IsComboBoxFocused がないため focusedComboBox 判定に置き換え
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            updateTransform |= DrawTransformVector3(
-                view, "位置", PositionSensitivity, position, initialPosition,
-                value => position = value);
-
-            updateTransform |= DrawTransformVector3(
-                view, "回転", RotationSensitivity, angles, initialEulerAngles,
-                value => angles = value);
-
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "距離",
-                    labelWidth = 30,
-                    min = 0.1f,
-                    max = 30,
-                    step = 0.01f,
-                    defaultValue = 2,
-                    value = distance,
-                    onChanged = d => distance = d,
-                });
-
-            updateTransform |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "FoV",
-                    labelWidth = 30,
-                    min = 1,
-                    max = 179,
-                    step = 0.1f,
-                    defaultValue = 35,
-                    value = camera.fieldOfView,
-                    onChanged = a => camera.fieldOfView = a,
-                });
-
-            view.DrawHorizontalLine(Color.gray);
-
-            view.DrawLabel("対象設定", 70, 20);
-
-            Action updateCamera = () =>
-            {
-                uoCamera.SetTargetPos(position);
-                uoCamera.SetDistance(distance);
-                uoCamera.SetAroundAngle(new Vector2(angles.y, angles.x));
-                camera.SetRotationZ(angles.z);
-            };
-
-            Action focusToMaid = () =>
-            {
-                var maidCache = _maidComboBox.currentItem;
-                if (maidCache != null)
-                {
-                    var trans = maidCache.GetPointTransform(_targetMaidPointComboBox.currentItem);
-                    position = trans.position;
-                    updateCamera();
-                }
-            };
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("対象メイド", 70, 20);
-
-                _maidComboBox.items = maidManager.maidCaches;
-                _maidComboBox.onSelected = (maidCache, index) =>
-                {
-                    focusToMaid();
-                };
-                _maidComboBox.DrawButton(view);
-
-                if (view.DrawButton("移動", 40, 20))
-                {
-                    focusToMaid();
-                }
-            }
-            view.EndLayout();
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("対象ポイント", 70, 20);
-
-                _targetMaidPointComboBox.onSelected = (type, index) =>
-                {
-                    focusToMaid();
-                };
-                _targetMaidPointComboBox.DrawButton(view);
-            }
-            view.EndLayout();
-
-            // StudioModelManager は未移植のため「対象モデル」フォーカスは提供しない
-
-            if (updateTransform)
-            {
-                updateCamera();
-            }
+            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
+            // カメラの編集 UI は SE の CameraWindow に委譲する (レイヤー UI 非接続方針)
+            // 回転の 360 度跨ぎは GetAnmBinary の FixRotation が前キー基準で補正するため、UI 側の補正は不要
+            view.DrawLabel("カメラの編集は カメラウィンドウで行ってください", -1, 20);
         }
 
         public override TransformType GetTransformType(string name)
