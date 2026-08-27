@@ -352,7 +352,7 @@
     <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
     <Compile Include="Timeline\Hack\StudioHackBase.cs" />
     <Compile Include="Timeline\Hack\ModelHackBase.cs" />
-    <Compile Include="Timeline\IKHoldEntity.cs" />
+    <Compile Include="Timeline\IKHoldType.cs" />
     <Compile Include="Timeline\MaidBlendShape.cs" />
     <Compile Include="Timeline\MaidCache.cs" />
     <Compile Include="Timeline\MaidInfo.cs" />

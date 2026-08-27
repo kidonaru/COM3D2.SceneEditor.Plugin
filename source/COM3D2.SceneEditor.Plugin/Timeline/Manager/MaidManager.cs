@@ -145,7 +145,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private MaidManager()
         {
             TimelineManager.onRefresh += OnRefresh;
-            TimelineManager.onPoseEditUpdated += OnPoseEditUpdated;
         }
 
         public Maid GetMaid(int slotNo)
@@ -248,19 +247,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public override void LateUpdate()
-        {
-            if (!IsValid())
-            {
-                return;
-            }
-
-            foreach (var cache in maidCaches)
-            {
-                cache.LateUpdate();
-            }
-        }
-
         public override void OnLoad()
         {
             ChangeMaid(currentLayer.maid);
@@ -274,16 +260,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             Reset();
-        }
-
-        public Vector3 GetIkPosition(IKHoldType holdType)
-        {
-            var cache = this.maidCache;
-            if (cache != null)
-            {
-                return cache.GetIkPosition(holdType);
-            }
-            return Vector3.zero;
         }
 
         public MaidCache GetMaidCache(int slotNo)
@@ -394,14 +370,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             ResetAnm();
             PreUpdate();
-        }
-
-        private void OnPoseEditUpdated()
-        {
-            foreach (var cache in maidCaches)
-            {
-                cache.OnPoseEditUpdated();
-            }
         }
     }
 }

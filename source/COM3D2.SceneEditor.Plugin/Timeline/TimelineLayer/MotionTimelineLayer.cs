@@ -169,13 +169,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var ikSetMenuItem = new BoneSetMenuItem("IK", "IK");
             allMenuItems.Add(ikSetMenuItem);
 
-            foreach (var pair in MaidCache.ikHoldTypeMap)
+            foreach (var boneName in MaidCache.ikHoldTypeMap.Keys)
             {
-                var boneName = pair.Key;
-                var holdType = pair.Value;
-                var displayName = IKHoldEntity.GetHoldTypeName(holdType);
+                MaidIKHoldType holdType;
+                if (!MaidIKHoldController.TryParseHoldType(boneName, out holdType))
+                {
+                    continue;
+                }
 
-                var menuItem = new BoneMenuItem(boneName, displayName);
+                var menuItem = new BoneMenuItem(
+                    boneName, MaidIKHoldController.GetHoldTypeName(holdType));
                 ikSetMenuItem.AddChild(menuItem);
             }
 
@@ -997,17 +1000,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             var boneName = menuItem.name;
             var displayName = menuItem.displayName;
-            var ikHoldEntity = maidCache.GetIKHoldEntity(boneName);
-            var transformCache = view.GetTransformCache(null);
-            var initialPosition = maidCache.GetInitialPosition(boneName);
-            if (ikHoldEntity == null)
+            var maid = this.maid;
+
+            MaidIKHoldType holdType;
+            if (maid == null || !MaidIKHoldController.TryParseHoldType(boneName, out holdType))
             {
                 return;
             }
 
+            var transformCache = view.GetTransformCache(null);
+            var initialPosition = maidCache.GetInitialPosition(boneName);
+
             view.DrawLabel(displayName, 200, 20);
 
-            transformCache.position = ikHoldEntity.targetPosition;
+            transformCache.position = ikHoldController.GetTargetPosition(maid, holdType);
             var updateTransform = DrawPosition(
                 view,
                 transformCache,
@@ -1018,11 +1024,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (updateTransform)
             {
-                var position = transformCache.position;
-                if (ikHoldEntity != null)
-                {
-                    ikHoldEntity.targetPosition = position;
-                }
+                ikHoldController.SetTargetPosition(maid, holdType, transformCache.position);
             }
         }
 

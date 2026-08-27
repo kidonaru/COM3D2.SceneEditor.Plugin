@@ -134,32 +134,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public static IKManager.BoneType ConvertBoneType(this IKHoldType holdType)
-        {
-            switch (holdType)
-            {
-                case IKHoldType.Arm_R_Joint:
-                    return IKManager.BoneType.UpperArm_R;
-                case IKHoldType.Arm_R_Tip:
-                    return IKManager.BoneType.Forearm_R;
-                case IKHoldType.Arm_L_Joint:
-                    return IKManager.BoneType.UpperArm_L;
-                case IKHoldType.Arm_L_Tip:
-                    return IKManager.BoneType.Forearm_L;
-                case IKHoldType.Foot_R_Joint:
-                    return IKManager.BoneType.Thigh_R;
-                case IKHoldType.Foot_R_Tip:
-                    return IKManager.BoneType.Calf_R;
-                case IKHoldType.Foot_L_Joint:
-                    return IKManager.BoneType.Thigh_L;
-                case IKHoldType.Foot_L_Tip:
-                    return IKManager.BoneType.Calf_L;
-            }
-
-            MTEUtils.LogError("Invalid IKHoldType: " + holdType);
-            return IKManager.BoneType.UpperArm_R;
-        }
-
         public static float[] GetInTangents(this ValueData[] values)
         {
             var ret = new float[values.Length];

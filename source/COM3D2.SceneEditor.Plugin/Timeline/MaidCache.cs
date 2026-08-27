@@ -42,7 +42,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public IKManager ikManager = null;
         public ExtendBoneCache extendBoneCache = null;
         public MaidPropCache maidPropCache = null;
-        public Dictionary<IKHoldType, IKHoldEntity> ikHoldEntities = new Dictionary<IKHoldType, IKHoldEntity>(6);
         public List<MaidSlotStat> slotStats = new List<MaidSlotStat>(32);
         public Dictionary<TBody.SlotID, MaidSlotStat> slotStatMap = new Dictionary<TBody.SlotID, MaidSlotStat>(32);
         public Dictionary<string, ModelMaterial> materialMap = new Dictionary<string, ModelMaterial>(32);
@@ -51,14 +50,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static readonly int MinLayerIndex = 2;
         public static readonly int MaxLayerIndex = 8;
-
-        public bool isGroundingFootL = false; // 左足の接地を有効
-        public bool isGroundingFootR = false; // 右足の接地を有効
-        public float floorHeight = 0f; // 接地面の高さ
-        public float footBaseOffset = 0.05f; // 足の位置のオフセット
-        public float footStretchHeight = 0.1f; // 足を伸ばす高さ
-        public float footStretchAngle = 45f; // 足を伸ばしたときの角度
-        public float footGroundAngle = 90f; // 接地時の足の角度
 
         public static event UnityAction<int, Maid> onMaidChanged;
         public static event UnityAction<int, string> onAnmChanged;
@@ -367,33 +358,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public void ResetIkHoldEntities()
-        {
-            ikHoldEntities.Clear();
-        }
-
-        public void ResetGrounding()
-        {
-            isGroundingFootL = false;
-            isGroundingFootR = false;
-        }
-
-        public IKHoldEntity GetIKHoldEntity(IKHoldType holdType)
-        {
-            if (holdType == IKHoldType.Max)
-            {
-                return null;
-            }
-
-            IKHoldEntity entity;
-            if (!ikHoldEntities.TryGetValue(holdType, out entity))
-            {
-                entity = new IKHoldEntity(holdType, this);
-                ikHoldEntities[holdType] = entity;
-            }
-            return entity;
-        }
-
         public static IKHoldType GetIKHoldType(string holdName)
         {
             IKHoldType holdType;
@@ -402,42 +366,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return holdType;
             }
             return IKHoldType.Max;
-        }
-
-        public IKHoldEntity GetIKHoldEntity(string holdName)
-        {
-            var holdType = GetIKHoldType(holdName);
-            return GetIKHoldEntity(holdType);
-        }
-
-        public FABRIK GetIkFabrik(IKHoldType holdType)
-        {
-            return GetIKHoldEntity(holdType).fabrik;
-        }
-
-        public IKDragPoint GetDragPoint(IKHoldType holdType)
-        {
-            return GetIKHoldEntity(holdType).dragPoint;
-        }
-
-        public WorldTransformAxis GetAxisObj(IKHoldType holdType)
-        {
-            return GetDragPoint(holdType).axis_obj;
-        }
-
-        public Vector3 GetIkPosition(IKHoldType holdType)
-        {
-            return GetIKHoldEntity(holdType).position;
-        }
-
-        public bool IsIkDragging(IKHoldType holdType)
-        {
-            var dragPoint = GetDragPoint(holdType);
-            if (dragPoint != null && dragPoint.axis_obj != null)
-            {
-                return dragPoint.axis_obj.is_drag || dragPoint.axis_obj.is_grip;
-            }
-            return false;
         }
 
         public Vector3 GetInitialPosition(IKManager.BoneType boneType)
@@ -453,7 +381,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ikManager = null;
             extendBoneCache = null;
             maidPropCache = null;
-            ikHoldEntities.Clear();
             _blendShapeCache.Clear();
             slotStats.Clear();
             slotStatMap.Clear();
@@ -532,19 +459,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             UpdateEyeEulerAngle();
             UpdateVoice();
-        }
-
-        public void LateUpdate()
-        {
-            if (maid == null)
-            {
-                return;
-            }
-
-            foreach (var ikHoldEntity in ikHoldEntities.Values)
-            {
-                ikHoldEntity.LateUpdate();
-            }
         }
 
         public void PlayAnm(long id, byte[] anmData)
@@ -802,12 +716,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     return entity.transform;
                 }
-            }
-
-            var ikHoldEntity = GetIKHoldEntity(boneName);
-            if (ikHoldEntity != null)
-            {
-                return ikHoldEntity.transform;
             }
 
             return null;
@@ -1223,17 +1131,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             long.TryParse(annName, out anmId);
 
             onAnmChanged?.Invoke(slotNo, anmName);
-        }
-
-        public void OnPoseEditUpdated()
-        {
-            foreach (var ikHoldEntity in ikHoldEntities.Values)
-            {
-                if (!ikHoldEntity.isAnime)
-                {
-                    ikHoldEntity.ResetTargetPosition();
-                }
-            }
         }
     }
 }
