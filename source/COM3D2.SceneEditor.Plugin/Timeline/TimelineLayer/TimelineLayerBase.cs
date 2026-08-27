@@ -288,16 +288,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // do nothing
         }
 
-        public virtual void OnBoneNameAdded(string extendBoneName)
-        {
-            // do nothing
-        }
-
-        public virtual void OnBoneNameRemoved(string extendBoneName)
-        {
-            // do nothing
-        }
-
         public abstract void UpdateFrame(FrameData frame, bool initialEdit = false, bool force = false);
 
         public virtual void ApplyAnm(long id, byte[] anmData)

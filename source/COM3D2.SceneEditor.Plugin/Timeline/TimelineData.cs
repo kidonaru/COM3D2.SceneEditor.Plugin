@@ -735,12 +735,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public bool HasExtendBoneName(int maidSlotNo, string extendBoneName)
-        {
-            var boneNames = GetExtendBoneNames(maidSlotNo);
-            return boneNames.Contains(extendBoneName);
-        }
-
         public HashSet<string> GetExtendBoneNames(int maidSlotNo)
         {
             HashSet<string> boneNames;
@@ -751,34 +745,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             return boneNames;
-        }
-
-        public void AddExtendBoneName(int maidSlotNo, string extendBoneName)
-        {
-            var boneNames = GetExtendBoneNames(maidSlotNo);
-            boneNames.Add(extendBoneName);
-
-            foreach (var layer in layers)
-            {
-                if (layer.hasSlotNo && layer.slotNo == maidSlotNo)
-                {
-                    layer.OnBoneNameAdded(extendBoneName);
-                }
-            }
-        }
-
-        public void RemoveExtendBoneName(int maidSlotNo, string extendBoneName)
-        {
-            var boneNames = GetExtendBoneNames(maidSlotNo);
-            boneNames.Remove(extendBoneName);
-
-            foreach (var layer in layers)
-            {
-                if (layer.hasSlotNo && layer.slotNo == maidSlotNo)
-                {
-                    layer.OnBoneNameRemoved(extendBoneName);
-                }
-            }
         }
 
         public void AdjustMaxFrameNo()
