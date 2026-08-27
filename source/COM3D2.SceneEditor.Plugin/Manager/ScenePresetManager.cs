@@ -1184,6 +1184,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     state.ikHolds.Add(type.ToString());
                 }
+                if (maidManager.ikHoldController.GetAnime(maid, type))
+                {
+                    state.ikAnimes.Add(type.ToString());
+                }
             }
         }
 
@@ -2575,6 +2579,7 @@ namespace COM3D2.SceneEditor.Plugin
             for (var i = 0; i < (int)MaidIKHoldType.Max; i++)
             {
                 var type = (MaidIKHoldType)i;
+                ik.SetAnime(maid, type, state.ikAnimes.Contains(type.ToString()));
                 ik.SetHold(maid, type, state.ikHolds.Contains(type.ToString()));
             }
         }

@@ -45,6 +45,8 @@ namespace COM3D2.SceneEditor.Plugin
         private class HoldEntity
         {
             public bool isHold;
+            /// <summary>モーション再生中も固定を効かせる（MTE の IK アニメーション相当）</summary>
+            public bool isAnime;
             public bool resetRequested;
             public Vector3 targetPosition;
         }
@@ -235,6 +237,22 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        public bool GetAnime(Maid maid, MaidIKHoldType type)
+        {
+            MaidEntry entry;
+            return _entries.TryGetValue(maid, out entry) && entry.entities[(int)type].isAnime;
+        }
+
+        public void SetAnime(Maid maid, MaidIKHoldType type, bool anime)
+        {
+            var entry = GetOrCreateEntry(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.entities[(int)type].isAnime = anime;
+        }
+
         /// <summary>
         /// 編集モード開始時の処理。固定が残っているメイドのモーションを停止し、
         /// ボーンを触らなくても固定が効いている状態から編集を始められるようにする
@@ -347,16 +365,31 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 固定はポーズ編集用の機能なので、編集モード中だけ効かせる
-            // （UI の「※編集モードで有効」表記と揃える）
-            if (!MaidManipulateManager.instance.isEditMode)
-            {
-                return;
-            }
+            // （UI の「※編集モードで有効」表記と揃える）。
+            // ただしアニメ指定（タイムライン再生中の固定）は編集モード外でも効かせる
+            var isEditMode = MaidManipulateManager.instance.isEditMode;
 
             foreach (var pair in _entries)
             {
+                if (!isEditMode && !HasAnime(pair.Value))
+                {
+                    continue;
+                }
                 UpdateMaid(pair.Key, pair.Value);
             }
+        }
+
+        /// <summary>アニメ指定の固定を 1 箇所でも持つか</summary>
+        private static bool HasAnime(MaidEntry entry)
+        {
+            foreach (var entity in entry.entities)
+            {
+                if (entity.isHold && entity.isAnime)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>チェーンのボーンが 1 本でも破棄されているか（部分的な再ロード対策）</summary>
@@ -389,9 +422,15 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                // モーション再生中の固定（IK アニメーション）は MTE 側の担当なので、
-                // 停止中のポーズ編集時のみ固定する
-                if (!isMotionStopped)
+                // 編集モード外はアニメ指定の箇所だけ固定する
+                if (!MaidManipulateManager.instance.isEditMode && !entity.isAnime)
+                {
+                    continue;
+                }
+
+                // モーション再生中の固定はアニメ指定のときだけ行う。
+                // 指定が無ければ従来どおり停止中のポーズ編集時のみ固定する
+                if (!isMotionStopped && !entity.isAnime)
                 {
                     continue;
                 }

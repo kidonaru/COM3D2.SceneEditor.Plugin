@@ -11,6 +11,7 @@ namespace COM3D2.SceneEditor.Plugin
     {
         private Maid _capturedMaid;
         private readonly bool[] _holds = new bool[(int)MaidIKHoldType.Max];
+        private readonly bool[] _animes = new bool[(int)MaidIKHoldType.Max];
         private ScenePresetIKParams _params;
 
         public static IKSnapshot Capture(Maid maid)
@@ -21,6 +22,7 @@ namespace COM3D2.SceneEditor.Plugin
             for (var i = 0; i < (int)MaidIKHoldType.Max; i++)
             {
                 snapshot._holds[i] = controller.GetHold(maid, (MaidIKHoldType)i);
+                snapshot._animes[i] = controller.GetAnime(maid, (MaidIKHoldType)i);
             }
 
             var holdParams = controller.GetParamsOrNull(maid) ?? MaidIKHoldParams.Default;
@@ -44,6 +46,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             for (var i = 0; i < (int)MaidIKHoldType.Max; i++)
             {
+                controller.SetAnime(maid, (MaidIKHoldType)i, _animes[i]);
                 controller.SetHold(maid, (MaidIKHoldType)i, _holds[i]);
             }
         }
@@ -58,7 +61,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             for (var i = 0; i < _holds.Length; i++)
             {
-                if (_holds[i] != o._holds[i])
+                if (_holds[i] != o._holds[i] || _animes[i] != o._animes[i])
                 {
                     return false;
                 }

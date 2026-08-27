@@ -5,7 +5,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// IK 固定ウィンドウ。MTE の「IK固定」相当で、四肢の空間固定と足の接地を操作する。
-    /// モーション再生中の固定（IK アニメーション）は MTE 側の担当なので持たない
+    /// 固定ごとの「アニメ」指定を ON にすると、モーション再生中も固定が効く
     /// </summary>
     public class MaidIKWindow : MaidWindowBase
     {
@@ -24,6 +24,7 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         private static readonly int ToggleWidth = 90;
+        private static readonly int AnimeToggleWidth = 60;
         private static readonly int PairButtonWidth = 50;
 
         private static MaidIKWindow _instance = null;
@@ -104,13 +105,25 @@ namespace COM3D2.SceneEditor.Plugin
                     foreach (var type in pair)
                     {
                         var holdType = type;
+                        var isHold = holdController.GetHold(target, holdType);
+
                         view.DrawToggle(MaidIKHoldController.GetHoldTypeName(holdType),
-                            holdController.GetHold(target, holdType), ToggleWidth, ROW_HEIGHT,
+                            isHold, ToggleWidth, ROW_HEIGHT,
                             newValue =>
                             {
                                 HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
                                     "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
                                 holdController.SetHold(target, holdType, newValue);
+                            });
+
+                        // 再生中も固定を効かせる指定。固定 OFF では効かないので押させない
+                        view.DrawToggle("アニメ", holdController.GetAnime(target, holdType),
+                            AnimeToggleWidth, ROW_HEIGHT, isHold,
+                            newValue =>
+                            {
+                                HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
+                                    "IKアニメ: " + MaidIKHoldController.GetHoldTypeName(holdType));
+                                holdController.SetAnime(target, holdType, newValue);
                             });
                     }
 

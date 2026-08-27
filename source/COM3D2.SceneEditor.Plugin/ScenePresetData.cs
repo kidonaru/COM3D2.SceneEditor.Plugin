@@ -573,6 +573,10 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlElement("ikHold")]
         public List<string> ikHolds = new List<string>();
 
+        /// <summary>アニメ指定（再生中も固定）の箇所。MaidIKHoldType 名の一覧</summary>
+        [XmlElement("ikAnime")]
+        public List<string> ikAnimes = new List<string>();
+
         /// <summary>
         /// スロットボーンの編集差分。編集なし・旧プリセット (v5 以前) では null になり、
         /// 適用時にボーンへ触らない
@@ -668,7 +672,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      構造変更なし。旧データは記載シェイプキー (=非 0 保存分) を適用時にチェック済みへ復元する
         // v24: メイドの任意シェイプキーの保存対象を「値が非 0」から「チェック済み (EditTargetStore)」へ変更。
         //      構造変更なし。旧データは記載タグ (=非 0 保存分) を適用時にチェック済みへ復元する
-        public static readonly int CurrentVersion = 24;
+        // v25: maid に ikAnimes（IK 固定のアニメ指定）を追加。
+        //      旧形式は一覧が空 = 全 OFF として読める
+        public static readonly int CurrentVersion = 25;
 
         [XmlAttribute]
         public int version = CurrentVersion;
