@@ -350,26 +350,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static TabType _tabType = TabType.視線;
 
-        private GUIComboBox<LookAtTargetType> _targetTypeComboBox = new GUIComboBox<LookAtTargetType>
-        {
-            // StudioModelManager 未移植のためモデル注視は選択肢から除外する (enum 値と XML 互換は維持)
-            items = Enum.GetValues(typeof(LookAtTargetType)).Cast<LookAtTargetType>()
-                .Where(type => type != LookAtTargetType.Model).ToList(),
-            getName = (type, index) => TransformDataLookAtTarget.TargetTypeNames[index],
-        };
-
-        private GUIComboBox<MaidCache> _maidComboBox = new GUIComboBox<MaidCache>
-        {
-            getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
-            contentSize = new Vector2(150, 300),
-        };
-
-        private GUIComboBox<MaidPointType> _maidPointComboBox = new GUIComboBox<MaidPointType>
-        {
-            items = Enum.GetValues(typeof(MaidPointType)).Cast<MaidPointType>().ToList(),
-            getName = (type, index) => MaidCache.GetMaidPointTypeName(type),
-        };
-
         public override void DrawWindow(GUIView view)
         {
             _tabType = view.DrawTabs(_tabType, 50, 20);
@@ -390,86 +370,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void DrawEyesLookAt(GUIView view)
         {
-            var maid = this.maid;
-            if (maid == null)
-            {
-                return;
-            }
-
-            if (!timeline.useHeadKey)
-            {
-                view.DrawLabel("顔/瞳の固定化を有効にしてください", -1, 20);
-                return;
-            }
-
-            InitTexture();
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            // 選択肢から除外した Model が既存データに保存されている場合は手動 (None) へ丸める
-            var targetTypeIndex = (int) maidCache.lookAtTargetType;
-            if (targetTypeIndex >= _targetTypeComboBox.items.Count)
-            {
-                targetTypeIndex = (int) LookAtTargetType.None;
-            }
-            _targetTypeComboBox.currentIndex = targetTypeIndex;
-            _targetTypeComboBox.onSelected = (type, index) => maidCache.lookAtTargetType = type;
-            _targetTypeComboBox.DrawButton("注視先", view);
-
-            var targetType = _targetTypeComboBox.currentItem;
-            switch (targetType)
-            {
-                case LookAtTargetType.Maid:
-                    _maidComboBox.items = maidManager.maidCaches;
-                    _maidComboBox.currentIndex = maidCache.lookAtTargetIndex;
-                    _maidComboBox.onSelected = (_, index) => maidCache.lookAtTargetIndex = index;
-                    _maidComboBox.DrawButton("メイド", view);
-
-                    _maidPointComboBox.currentIndex = (int) maidCache.lookAtMaidPointType;
-                    _maidPointComboBox.onSelected = (type, index) => maidCache.lookAtMaidPointType = type;
-                    _maidPointComboBox.DrawButton("ポイント", view);
-                    break;
-            }
-
-            view.DrawHorizontalLine(Color.gray);
-
-            view.AddSpace(5);
-
-            view.BeginScrollView();
-
-            var basePos = view.currentPos;
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing && targetType == LookAtTargetType.None);
-
-            DrawEyesImage(view, basePos, new MotionEyesType[]
-            {
-                MotionEyesType.EyesRot,
-            });
-
-            view.currentPos = basePos;
-            view.currentPos.x += 150 + 10;
-
-            if (view.DrawButton("初期化", 60, 20))
-            {
-                ApplyEyes(MotionEyesType.EyesRot, 0, 0);
-                ApplyLookAtTarget(LookAtTargetType.None, 0, 0);
-            }
-
-            view.currentPos = basePos;
-            view.currentPos.y += 150;
-
-            var eyesTypes = new MotionEyesType[]
-            {
-                MotionEyesType.EyesRot,
-            };
-
-            foreach (var eyesType in eyesTypes)
-            {
-                DrawEyesSlider(view, eyesType);
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-            view.EndScrollView();
+            // 視線の編集 UI は SE の表情ウィンドウ (視線タブ) に委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("視線の編集は 表情ウィンドウの視線タブで行ってください", -1, 20);
         }
 
         private void DrawEyesPos(GUIView view)
