@@ -38,20 +38,50 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static MaidIKHoldController ikHoldController
             => MaidManipulateManager.instance.ikHoldController;
 
-        private List<string> _allBoneNames = null;
+        protected override EditTargetStore trackedStore
+        {
+            get
+            {
+                var maid = this.maid;
+                return maid != null
+                    ? BoneEditManager.instance.FindMaidBoneTrackedStore(maid)
+                    : null;
+            }
+        }
+
+        private readonly List<string> _trackedCandidateNames = new List<string>();
+
+        /// <summary>拡張ボーンの候補。MTE の ExtendBoneCache が拾えたボーンだけが対象になる</summary>
+        protected override List<string> trackedCandidateNames
+        {
+            get
+            {
+                _trackedCandidateNames.Clear();
+                var cache = maidCache != null ? maidCache.extendBoneCache : null;
+                if (cache != null)
+                {
+                    _trackedCandidateNames.AddRange(cache.entities.Keys);
+                }
+                return _trackedCandidateNames;
+            }
+        }
+
+        protected override string trackedHistoryPrefix => "拡張ボーン";
+
+        private readonly List<string> _allBoneNamesCache = new List<string>();
+
         public override List<string> allBoneNames
         {
             get
             {
-                if (_allBoneNames == null)
-                {
-                    _allBoneNames = new List<string>(BoneUtils.saveBoneNames);
-                    _allBoneNames.AddRange(timeline.GetExtendBoneNames(slotNo));
-                    _allBoneNames.AddRange(MaidCache.ikHoldTypeMap.Keys);
-                    _allBoneNames.Add(GroundingBoneName);
-                    _allBoneNames.AddRange(FingerBlendBoneNames);
-                }
-                return _allBoneNames;
+                _allBoneNamesCache.Clear();
+                _allBoneNamesCache.AddRange(BoneUtils.saveBoneNames);
+                // 拡張ボーンはボーンウィンドウのチェック (∪ 既存キーフレーム記載) が対象集合
+                _allBoneNamesCache.AddRange(trackedBoneNames);
+                _allBoneNamesCache.AddRange(MaidCache.ikHoldTypeMap.Keys);
+                _allBoneNamesCache.Add(GroundingBoneName);
+                _allBoneNamesCache.AddRange(FingerBlendBoneNames);
+                return _allBoneNamesCache;
             }
         }
 
@@ -80,7 +110,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             foreach (var frame in keyFrames)
             {
-                foreach (var extendBoneName in timeline.GetExtendBoneNames(slotNo))
+                foreach (var extendBoneName in trackedBoneNames)
                 {
                     var bone = frame.GetBone(extendBoneName);
                     if (bone == null)
@@ -102,7 +132,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             _allMenuItems.Clear();
             _extendSlotNames.Clear();
-            _allBoneNames = null;
 
             var setMenuItemMap = new Dictionary<BoneSetMenuType, BoneSetMenuItem>(12);
 
@@ -136,7 +165,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var slotMenuItemMap = new Dictionary<string, BoneSetMenuItem>(12);
 
-            foreach (var extendBoneName in timeline.GetExtendBoneNames(slotNo))
+            foreach (var extendBoneName in trackedBoneNames)
             {
                 if (maidCache == null)
                 {
@@ -165,6 +194,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             _extendSlotNames.AddRange(slotMenuItemMap.Keys);
+
+            // 保存互換のため、タイムライン側の拡張ボーン一覧は追跡集合から作り直す。
+            // ソース・オブ・トゥルースはボーンウィンドウのチェック側
+            var extendBoneNames = timeline.GetExtendBoneNames(slotNo);
+            extendBoneNames.Clear();
+            foreach (var extendBoneName in trackedBoneNames)
+            {
+                extendBoneNames.Add(extendBoneName);
+            }
 
             var ikSetMenuItem = new BoneSetMenuItem("IK", "IK");
             allMenuItems.Add(ikSetMenuItem);
@@ -373,6 +411,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void OnMaidChanged(Maid maid)
         {
+            // 候補 (extendBoneCache) ごと入れ替わるため、追跡集合のキャッシュを捨てる
+            InvalidateTrackedBoneNames();
             InitMenuItems();
         }
 
@@ -461,7 +501,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 frame.UpdateBone(bone);
             }
 
-            foreach (var name in timeline.GetExtendBoneNames(slotNo))
+            foreach (var name in trackedBoneNames)
             {
                 var transform = maidCache.GetBoneTransform(name);
                 if (transform == null)
