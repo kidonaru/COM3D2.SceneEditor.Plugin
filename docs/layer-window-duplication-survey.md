@@ -30,14 +30,14 @@
 | ModelShapeKeyTimelineLayer「モデルシェイプ」操作タブ | ブレンドシェイプ weight スライダ | ShapeKeyEditWindow `DrawModelContent`（:292） | 同機能・追跡連携あり | 対応済み（委譲ラベル化。管理 UI は常時表示へ） |
 | ModelBoneTimelineLayer「モデルボーン」操作タブ | モデル選択・ボーンごとの Transform 編集 | BoneEditWindow `DrawModelContent`（:304）＋ InspectorWindow ボーン編集 | 同機能。個別側はボーン追跡トグル連携あり | 対応済み（委譲ラベル化。管理 UI は常時表示へ） |
 | MorphTimelineLayer「メイド表情」 | 表情モーフのスライダ/トグル | MaidFaceWindow `DrawMorphList`（:224） | 同機能。個別側は追跡チェック・プリセット連携あり | 対応済み（委譲ラベル化。強制上書きは編集経路の消失に伴い廃止） |
-| MotionTimelineLayer「メイドアニメ」の手指/足指タブ | フィンガーブレンド編集 | MaidFingerWindow `DrawFingerBlend`（:190） | 同機能（プリセットは個別側のみ） | 対応済み（手指/足指タブを「指」タブへ統合し委譲ラベル化。ブレンド有効トグルは残置） |
+| MotionTimelineLayer「メイドアニメ」の手指/足指タブ | フィンガーブレンド編集 | MaidFingerWindow `DrawFingerBlend`（:190） | 同機能（プリセットは個別側のみ） | 対応済み（手指/足指タブを「指」タブへ統合し委譲ラベル化。ブレンド有効トグルは MaidFingerWindow のヘッダーへ「TL:ブレンド有効」として移設） |
 | UndressTimelineLayer「メイド脱衣」 | スロット表示トグル | MaidUndressWindow `DrawCategoryList`（:96） | 同機能（一括ボタン・衣装変更は個別側のみ） | 対応済み（委譲ラベル化） |
 
 **BGModelMaterialTimelineLayer を対象外とした理由:** MaterialEditWindow の背景タブは「現在の背景の Renderer」を対象とする（MaterialEditWindow.cs:285-286）のに対し、レイヤー側は「BGModelManager が配置した背景モデル」を対象とするため、両者の対象集合が食い違う。委譲すると配置背景モデルのマテリアルを編集する手段が失われるため、レイヤー側 UI を残している。
 
 ### B. 部分的に被っている（要検討）
 
-> **対応状況（2026-08-27）:** カメラ / ライト / 背景 / 背景色 / メイド移動 / メイド瞳（視線タブ）の 6 件は、個別ウィンドウへ不足機能を追加したうえで案内ラベル委譲へ移行済み。残る 3 件は対象外。
+> **対応状況（2026-08-27）:** カメラ / ライト / 背景 / 背景色 / メイド移動 / メイド瞳（視線タブ）/ メイドアニメ（編集タブ）の 7 件は、個別ウィンドウへ不足機能を追加したうえで案内ラベル委譲へ移行済み。残る 2 件は対象外。
 
 | レイヤー | レイヤー側 UI | 対応する個別ウィンドウ | 差分・注意点 | 対応 |
 |---|---|---|---|---|
@@ -46,7 +46,7 @@
 | LightTimelineLayer「ライト」 | ライト選択、Transform、色、range/強度/角度、管理タブ | LightWindow | 編集項目はほぼ重複。ただし実体が別系統（レイヤー側は MTE の `StudioLightStat`、個別側は `StudioLightManager`）で、色補間等のレイヤー固有トグルは基底 `LightTimelineLayerBase` にある | 対応済み（LightWindow へ位置/ロール/影/メイド追従を追加のうえ操作タブを委譲ラベル化。管理タブは残置） |
 | BGTimelineLayer「背景」 | 背景選択、背景 Transform | BackgroundWindow | 背景選択は被り。背景オブジェクトの Transform 編集は個別側に無い | 対応済み（BackgroundWindow へ `current_bg_object` のローカル Transform 行を追加のうえ委譲ラベル化） |
 | BGColorTimelineLayer「背景色」 | カメラ背景色、地面色/位置/スケール | BackgroundWindow `DrawBgColorRow` | 背景色のみ被り。地面設定はレイヤー側固有 | 対応済み（地面の所有を `BGGroundManager` へ持ち上げ、背景色行の常時表示＋地面 UI を BackgroundWindow へ集約のうえ委譲ラベル化） |
-| MotionTimelineLayer「メイドアニメ」の編集タブ（`DrawTransformEdit`） | ボーンごとの Transform / IK 編集 | BoneEditWindow ＋ MaidIKWindow ＋ InspectorWindow | 概念的には被るが、レイヤー側はキーフレーム対象カテゴリ・操作種類の切替が密結合 | **対象外**（IK ホールド・接地が MTE 系 `Timeline/IKHoldEntity.cs` / `MaidCache` と SE 系 `MaidManipulation/MaidIKHoldController.cs` で分離しておりブリッジが無い。委譲するとキーが打てなくなる） |
+| MotionTimelineLayer「メイドアニメ」の編集タブ（`DrawTransformEdit`） | ボーンごとの Transform / IK 編集 | BoneEditWindow ＋ MaidIKWindow ＋ InspectorWindow | 概念的には被るが、レイヤー側はキーフレーム対象カテゴリ・操作種類の切替が密結合 | 対応済み（IK 固定・接地を SE の `MaidIKHoldController` へ一本化し、MTE の `Timeline/IKHoldEntity.cs` を撤去。再生中の固定（旧 `isAnime`）は IK ウィンドウの「アニメ」トグルへ移設。拡張ボーンの対象選択はボーンウィンドウのチェック（追跡ストア）へ移行のうえ委譲ラベル化） |
 | MoveTimelineLayer「メイド移動」 | メイド本体の位置/回転/スケール | （直接対応なし。ギズモ/InspectorWindow 操作） | 個別ウィンドウとしての被りは無いが、ギズモ操作で代替可能かは要検討 | 対応済み（Inspector とギズモが同じ `maid.transform` を編集済みのため委譲ラベル化。ローカル座標で記録される旨を注記） |
 | EyesTimelineLayer「メイド瞳」の視線タブ（`DrawEyesLookAt`） | 注視先・視線編集 | MaidFaceWindow `DrawLookContent` | 視線・注視は被り。瞳位置/スケールの画像 UI（位置タブ）はレイヤー側固有 | 対応済み（MaidFaceWindow 視線タブへ「タイムライン視線」セクション（注視先・瞳回転）を追加のうえ委譲ラベル化。位置タブは残置） |
 | BGModelTimelineLayer / ModelTimelineLayer の管理タブ（各 Base の `DrawModelManage`） | モデル追加/削除/複製/アタッチ | HierarchyWindow ＋ InspectorWindow ＋（モデル導入は ModItemExplorer 系） | 管理機能は個別ウィンドウに完全対応するものが無い → 被りは薄い | **対象外**（個別ウィンドウに完全対応する機能が無く被りが薄い） |
@@ -73,7 +73,7 @@
    - 回転の 360 度跨ぎ対策は `TimelineLayerBase.GetAnmBinary` の `FixRotation` が前キー基準で行うため、レイヤー UI 側の連続角化を移設する必要はなかった。
    - `StudioLightStat.visible` はライト実体の `enabled` と同期していなかったため、ライトウィンドウの「有効」トグルがキー化されるよう同期させた。
    - 地面（`BGGround`）はレイヤーが所有していたため、ウィンドウからレイヤー非依存で編集できるよう `BGGroundManager` へ持ち上げた。
-4. B 分類の残り 3 件（サブカメラ / メイドアニメ編集タブ / モデル系管理タブ）は対象外。理由は上表を参照。
+4. B 分類の残り 2 件（サブカメラ / モデル系管理タブ）は対象外。理由は上表を参照。
 5. C 分類はレイヤー編集ウィンドウにしか無い UI のため残す。
 
 ## 参照
