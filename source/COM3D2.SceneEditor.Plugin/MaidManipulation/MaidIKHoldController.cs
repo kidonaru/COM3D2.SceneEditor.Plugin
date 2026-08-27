@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -120,6 +122,20 @@ namespace COM3D2.SceneEditor.Plugin
         public static bool TryGetHoldType(string boneName, out MaidIKHoldType type)
         {
             return HoldTypeByBoneName.TryGetValue(boneName, out type);
+        }
+
+        /// <summary>enum メンバ名 → 固定タイプ。タイムラインのキーは enum 名でボーンを指す</summary>
+        private static readonly Dictionary<string, MaidIKHoldType> HoldTypeByEnumName =
+            Enum.GetValues(typeof(MaidIKHoldType))
+                .Cast<MaidIKHoldType>()
+                .Where(t => t != MaidIKHoldType.Max)
+                .ToDictionary(t => t.ToString(), t => t);
+
+        /// <summary>enum メンバ名から固定タイプを引く。未知の名前なら false</summary>
+        public static bool TryParseHoldType(string name, out MaidIKHoldType type)
+        {
+            type = MaidIKHoldType.Max;
+            return !string.IsNullOrEmpty(name) && HoldTypeByEnumName.TryGetValue(name, out type);
         }
 
         /// <summary>0=腕L, 1=腕R, 2=脚L, 3=脚R（ChainDefs と同じ並び）</summary>
@@ -251,6 +267,30 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             entry.entities[(int)type].isAnime = anime;
+        }
+
+        /// <summary>固定点の目標ワールド座標。エントリ未作成なら Vector3.zero</summary>
+        public Vector3 GetTargetPosition(Maid maid, MaidIKHoldType type)
+        {
+            MaidEntry entry;
+            return _entries.TryGetValue(maid, out entry)
+                ? entry.entities[(int)type].targetPosition
+                : Vector3.zero;
+        }
+
+        /// <summary>固定点の目標ワールド座標を差し替える（タイムライン再生からの書き戻し用）</summary>
+        public void SetTargetPosition(Maid maid, MaidIKHoldType type, Vector3 position)
+        {
+            var entry = GetOrCreateEntry(maid);
+            if (entry == null)
+            {
+                return;
+            }
+
+            var entity = entry.entities[(int)type];
+            entity.targetPosition = position;
+            // 外から位置を指定した以上、現在のボーン位置で取り直させてはいけない
+            entity.resetRequested = false;
         }
 
         /// <summary>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using UnityEngine;
+using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -32,6 +33,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static string GroundingBoneName = "Grounding";
         public static string GroundingDisplayName = "接地";
+
+        /// <summary>IK 固定・接地の実体は SE 側が持つ (maidManager は MTE 側なので混同しないこと)</summary>
+        private static MaidIKHoldController ikHoldController
+            => MaidManipulateManager.instance.ikHoldController;
 
         private List<string> _allBoneNames = null;
         public override List<string> allBoneNames
@@ -70,8 +75,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            maidCache.ResetIkHoldEntities();
-            maidCache.ResetGrounding();
+            // IK 固定・接地の状態は SE の MaidIKHoldController が持つ (タイムライン所有ではない)。
+            // 読み込み時のリセットは IK ウィンドウの設定を消すことになるため行わない
 
             foreach (var frame in keyFrames)
             {
@@ -288,20 +293,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void ApplyIKHoldMotion(MotionData motion, float t)
         {
-            if (maidCache == null)
+            var maid = this.maid;
+            if (maid == null)
             {
                 return;
             }
 
-            var boneName = motion.name;
-
-            if (!MaidCache.ikHoldTypeMap.ContainsKey(boneName))
-            {
-                return;
-            }
-
-            var ikHoldEntity = maidCache.GetIKHoldEntity(boneName);
-            if (ikHoldEntity == null)
+            MaidIKHoldType holdType;
+            if (!MaidIKHoldController.TryParseHoldType(motion.name, out holdType))
             {
                 return;
             }
@@ -312,33 +311,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var t0 = motion.stFrame * timeline.frameDuration;
             var t1 = motion.edFrame * timeline.frameDuration;
 
-            ikHoldEntity.isHold = start.isHold;
-            ikHoldEntity.isAnime = start.isAnime;
-
-            ikHoldEntity.targetPosition = PluginUtils.HermiteVector3(
+            ikHoldController.SetAnime(maid, holdType, start.isAnime);
+            ikHoldController.SetHold(maid, holdType, start.isHold);
+            ikHoldController.SetTargetPosition(maid, holdType, PluginUtils.HermiteVector3(
                 t0,
                 t1,
                 start.positionValues,
                 end.positionValues,
-                t);
+                t));
         }
 
         private void ApplyGroundingMotion(MotionData motion)
         {
-            if (maidCache == null)
+            var maid = this.maid;
+            if (maid == null)
             {
                 return;
             }
 
             var start = motion.start as TransformDataGrounding;
+            var holdParams = ikHoldController.GetParams(maid);
 
-            maidCache.isGroundingFootL = start.isGroundingFootL;
-            maidCache.isGroundingFootR = start.isGroundingFootR;
-            maidCache.floorHeight = start.floorHeight;
-            maidCache.footBaseOffset = start.footBaseOffset;
-            maidCache.footStretchHeight = start.footStretchHeight;
-            maidCache.footStretchAngle = start.footStretchAngle;
-            maidCache.footGroundAngle = start.footGroundAngle;
+            holdParams.isGroundingFootL = start.isGroundingFootL;
+            holdParams.isGroundingFootR = start.isGroundingFootR;
+            holdParams.floorHeight = start.floorHeight;
+            holdParams.footBaseOffset = start.footBaseOffset;
+            holdParams.footStretchHeight = start.footStretchHeight;
+            holdParams.footStretchAngle = start.footStretchAngle;
+            holdParams.footGroundAngle = start.footGroundAngle;
         }
 
         private void ApplyFingerBlendMotion(MotionData motion)
@@ -478,16 +478,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             foreach (var name in MaidCache.ikHoldTypeMap.Keys)
             {
-                var ikHoldEntity = maidCache.GetIKHoldEntity(name);
-                if (ikHoldEntity == null)
+                MaidIKHoldType holdType;
+                if (!MaidIKHoldController.TryParseHoldType(name, out holdType))
                 {
                     continue;
                 }
 
                 var trans = CreateTransformData<TransformDataIKHold>(name);
-                trans.position = ikHoldEntity.position;
-                trans.isHold = ikHoldEntity.isHold;
-                trans.isAnime = ikHoldEntity.isAnime;
+                trans.position = ikHoldController.GetTargetPosition(maid, holdType);
+                trans.isHold = ikHoldController.GetHold(maid, holdType);
+                trans.isAnime = ikHoldController.GetAnime(maid, holdType);
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);
@@ -495,15 +495,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             {
                 var name = GroundingBoneName;
+                var holdParams = ikHoldController.GetParams(maid);
 
                 var trans = CreateTransformData<TransformDataGrounding>(name);
-                trans.isGroundingFootL = maidCache.isGroundingFootL;
-                trans.isGroundingFootR = maidCache.isGroundingFootR;
-                trans.floorHeight = maidCache.floorHeight;
-                trans.footBaseOffset = maidCache.footBaseOffset;
-                trans.footStretchHeight = maidCache.footStretchHeight;
-                trans.footStretchAngle = maidCache.footStretchAngle;
-                trans.footGroundAngle = maidCache.footGroundAngle;
+                trans.isGroundingFootL = holdParams.isGroundingFootL;
+                trans.isGroundingFootR = holdParams.isGroundingFootR;
+                trans.floorHeight = holdParams.floorHeight;
+                trans.footBaseOffset = holdParams.footBaseOffset;
+                trans.footStretchHeight = holdParams.footStretchHeight;
+                trans.footStretchAngle = holdParams.footStretchAngle;
+                trans.footGroundAngle = holdParams.footGroundAngle;
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);
