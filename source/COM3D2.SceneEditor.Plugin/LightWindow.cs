@@ -1,5 +1,8 @@
+﻿using System;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -25,14 +28,34 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Vector3 DefaultMainRotation = new Vector3(40f, 180f, 18f);
         private const float DefaultMainIntensity = 0.95f;
         private const float DefaultMainShadowStrength = 0.098f;
+        private const float DefaultMainShadowBias = 0.01f;
 
         /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
         private static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
 
+        // 追加した平行光源の影のリセット既定値（メインライトの初期値に合わせる）
+        private const float DefaultAdditionalShadowStrength = 0.098f;
+        private const float DefaultAdditionalShadowBias = 0.01f;
+
+        /// <summary>座標行（Inspector の座標行と同じ形式）のドラッグ感度</summary>
+        private const float PositionDragSensitivity = 0.01f;
+
         /// <summary>編集中のライト（メイン / 追加）。破棄・削除で null になりうる</summary>
         private Light _selectedLight = null;
 
+        // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
+        private readonly GUIView _rootView = new GUIView();
         private readonly GUIView _view = new GUIView();
+
+        /// <summary>追従先メイドのコンボ（LightTimelineLayer の「追従メイド」から移植）</summary>
+        private readonly GUIComboBox<MTEP.MaidCache> _followMaidComboBox =
+            new GUIComboBox<MTEP.MaidCache>
+            {
+                getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
+                buttonSize = new Vector2(120, ROW_HEIGHT),
+                contentSize = new Vector2(150, 300),
+                showArrow = false,
+            };
 
         private static LightWindow _instance = null;
         public static LightWindow instance
@@ -87,6 +110,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void DrawContent()
         {
+            _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
+            _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
 
             _view.DrawHorizontalLine(Color.gray);
@@ -106,6 +131,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _view.EndScrollView();
+
+            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
         /// <summary>ライト一覧（メインライト + 追加ライト）と、追加ライトの追加・削除</summary>
@@ -223,6 +251,9 @@ namespace COM3D2.SceneEditor.Plugin
                 value => lightMain.SetIntensity(value));
             DrawAxisSlider("影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
                 DefaultMainShadowStrength, value => lightMain.SetShadowStrength(value));
+            // shadowBias に LightMain の API は無いため Light へ直接書く（LightMain.Reset と同じ扱い）
+            DrawAxisSlider("影の距離", light.shadowBias, 0f, 1f, 0.01f,
+                DefaultMainShadowBias, value => light.shadowBias = value);
 
             // ColorPickerWindow はラベル文字列で編集対象を識別するため、
             // 追加ライト側の色行とラベルを重複させないこと
@@ -237,10 +268,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 追加ライトのパラメータ
-        /// （種別・有効・回転・強度・範囲・スポット角度・色）
+        /// （種別・有効・位置/オフセット・回転・強度・範囲・スポット角度・影・色・メイド追従）
         /// </summary>
         private void DrawAdditionalLightParams(Light light)
         {
+            // メイド追従の状態はタイムライン側の StudioLightStat が持つ MaidFollowLight が実体。
+            // ライトレイヤーがキー化するのと同じ実体を編集する
+            var followLight = FindFollowLight(light);
+
             _view.BeginHorizontal();
             {
                 _view.DrawLabel("種別", LABEL_WIDTH, ROW_HEIGHT);
@@ -256,6 +291,41 @@ namespace COM3D2.SceneEditor.Plugin
                     RecordLightEdit("有効");
                     light.enabled = value;
                 });
+
+            // 平行光源は位置を持たない。追従中は位置がメイド基準のオフセットになる
+            // （StudioLightStat.position と同じ切り替え）
+            if (light.type != LightType.Directional)
+            {
+                if (followLight != null && followLight.isFollow)
+                {
+                    DrawVector3Row("オフセット", followLight.offset,
+                        value =>
+                        {
+                            RecordLightEdit("オフセット");
+                            followLight.offset = value;
+                        },
+                        () =>
+                        {
+                            RecordLightEdit("オフセット");
+                            followLight.offset = Vector3.zero;
+                        });
+                }
+                else
+                {
+                    var lightTransform = light.transform;
+                    DrawVector3Row("位置", lightTransform.localPosition,
+                        value =>
+                        {
+                            RecordLightEdit("位置");
+                            lightTransform.localPosition = value;
+                        },
+                        () =>
+                        {
+                            RecordLightEdit("位置");
+                            lightTransform.localPosition = StudioLightManager.DefaultPosition;
+                        });
+                }
+            }
 
             // ポイントライトは全方位へ照らすため向きを持たない
             if (light.type != LightType.Point)
@@ -282,20 +352,95 @@ namespace COM3D2.SceneEditor.Plugin
                     StudioLightManager.DefaultSpotAngle, value => light.spotAngle = value);
             }
 
+            // 影は平行光源だけが落とす（ライトレイヤーの表示条件に合わせる）
+            if (light.type == LightType.Directional)
+            {
+                DrawAxisSlider("影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
+                    DefaultAdditionalShadowStrength, value => light.shadowStrength = value);
+                DrawAxisSlider("影の距離", light.shadowBias, 0f, 1f, 0.01f,
+                    DefaultAdditionalShadowBias, value => light.shadowBias = value);
+            }
+
             DrawColorRow("追加色", light, Color.white);
+
+            // 平行光源は位置を持たないため追従させない
+            if (light.type != LightType.Directional && followLight != null)
+            {
+                DrawFollowMaidRow(followLight);
+            }
         }
 
-        /// <summary>ライトの向き（縦回転・横回転）。ロールは扱わず元の値を保つ</summary>
+        /// <summary>
+        /// メイド追従の切替と追従先の選択。
+        /// メインライトはゲーム側の恒久オブジェクトのため追従対象にしない
+        /// （StudioLightManager.RemoveMainLightFollow の方針に合わせ、追加ライトでのみ描く）
+        /// </summary>
+        private void DrawFollowMaidRow(MTEP.MaidFollowLight followLight)
+        {
+            _view.BeginHorizontal();
+            {
+                _view.DrawLabel("追従メイド", LABEL_WIDTH, ROW_HEIGHT);
+
+                _view.DrawToggle("", followLight.maidSlotNo >= 0, 20, ROW_HEIGHT,
+                    value =>
+                    {
+                        RecordLightEdit("追従メイド");
+                        followLight.maidSlotNo =
+                            value ? Mathf.Max(0, _followMaidComboBox.currentIndex) : -1;
+                    });
+
+                _followMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
+                _followMaidComboBox.onSelected = (maidCache, index) =>
+                {
+                    RecordLightEdit("追従メイド");
+                    followLight.maidSlotNo = index;
+                };
+                _followMaidComboBox.DrawButton(_view);
+            }
+            _view.EndLayout();
+        }
+
+        /// <summary>
+        /// タイムライン側が持つ追従コンポーネント。
+        /// ライト一覧はタイムライン側で遅延収集されるため、未収集なら null を返す
+        /// </summary>
+        private static MTEP.MaidFollowLight FindFollowLight(Light light)
+        {
+            var stat = MTEP.StudioLightManager.instance.lights
+                .FirstOrDefault(s => s != null && s.light == light);
+            return stat != null ? stat.followLight : null;
+        }
+
+        /// <summary>ラベル + XYZ（ドラッグラベル + 数値入力）+ リセットボタンの 1 行</summary>
+        private void DrawVector3Row(
+            string label, Vector3 value, Action<Vector3> onChanged, Action onReset)
+        {
+            _view.DrawVector3Row(new GUIView.Vector3RowOption
+            {
+                label = label,
+                labelWidth = LABEL_WIDTH,
+                height = ROW_HEIGHT,
+                dragSensitivity = PositionDragSensitivity,
+                value = value,
+                onChanged = onChanged,
+                onReset = onReset,
+            });
+        }
+
+        /// <summary>ライトの向き（縦回転・横回転・ロール）</summary>
         private void DrawRotationSliders(
-            Vector3 eulerAngles, Vector3 defaultRotation, System.Action<Vector3> onChanged)
+            Vector3 eulerAngles, Vector3 defaultRotation, Action<Vector3> onChanged)
         {
             var pitch = NormalizeAngle(eulerAngles.x);
             var yaw = NormalizeAngle(eulerAngles.y);
+            var roll = NormalizeAngle(eulerAngles.z);
 
             DrawAxisSlider("縦回転", pitch, -90f, 90f, 0.1f, defaultRotation.x,
-                value => onChanged(new Vector3(value, yaw, eulerAngles.z)));
+                value => onChanged(new Vector3(value, yaw, roll)));
             DrawAxisSlider("横回転", yaw, -180f, 180f, 0.1f, defaultRotation.y,
-                value => onChanged(new Vector3(pitch, value, eulerAngles.z)));
+                value => onChanged(new Vector3(pitch, value, roll)));
+            DrawAxisSlider("ロール", roll, -180f, 180f, 0.1f, defaultRotation.z,
+                value => onChanged(new Vector3(pitch, yaw, value)));
         }
 
         /// <summary>種別切替ボタン 1 つ。選択中はアクセント色で示す</summary>
@@ -325,7 +470,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>共通書式のスライダー 1 行（CameraWindow と同形式）</summary>
         private void DrawAxisSlider(
             string label, float value, float min, float max, float step,
-            float defaultValue, System.Action<float> onChanged)
+            float defaultValue, Action<float> onChanged)
         {
             _view.DrawSliderValue(new GUIView.SliderOption
             {
