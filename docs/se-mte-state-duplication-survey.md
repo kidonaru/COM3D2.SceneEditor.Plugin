@@ -59,11 +59,11 @@ A/B 完了後の再調査で見つかった残り。A-1 追補(瞳回転→顔�
 | D-4 | **モーション再生状態** | `MaidMotionState`(:125-190 `StopMotion`。停止中の真実は `_resetClipNames` 辞書、:270-292 `SetPlaybackTime`) | `MaidCache.anmSpeed` / `motionSliderRate` / `isAnmEnabled` / `PlayAnm`(:69-180, :473-492)が `AnimationState` を直書き | **奪い合い＋概念重複**。`SceneEditorHack.isAnmEnabled` は委譲済みだが `MaidCache` 自身は未委譲。停止の真実が 2 つあり、タイムライン再生後に SE が「再生中」と誤認する。SE 経路にある `CaptureBasePose` の呼び直しも MTE 経路では走らない |
 | D-5 | **メイド配置(Transform)** | `MaidPlacementPreset`(`SetPos` / `SetRot`)＋ `MaidVisibilityController`(:54-71 非表示 = `HiddenPosition(100,0,0)` へ退避)＋ `MaidManipulateManager.GetLogicalPosition` | `MoveTimelineLayer`(:73-111)が `maid.transform` を毎 LateUpdate 直書き(`localScale` 含む) | **奪い合い**。MTE は退避を知らないため、再生中に退避メイドを引き戻す/退避座標 `(100,0,0)` がキーに焼かれる。`SetRestorePosition` も呼ばれない |
 | D-6 | **メインカメラ** | `CameraWindow`(:361-374, :463-493 `CameraMain.SetTargetPos` 等)＋ `CameraSnapshot` | `CameraTimelineLayer`(:118-124)が `UltimateOrbitCamera` を直叩き | **概念重複(軽度)**。実体は同じカメラだが操作 API が 2 系統、ロールの持ち方も別。優先度低。`Timeline/Manager/CameraManager` はオーバーレイ専用の `MTEFrontCamera` で競合しない |
-| D-7 | **視線の向け先 vs 注視先** | `MaidLookController` の `MaidLookMode`(カメラ/マウス/方向指定/オブジェクト/無し)＋視線タブ「向け先」コンボ | `MaidCache.lookAtTargetType`(`LookAtTargetType`: None/Camera/Maid/Model)＋メイド・ポイント指定、視線タブ「注視先」行 | **概念重複**(A-1 の残り)。書き込みは `MaidLookBridge.ResolveLookMode` で一本化済みだが、同じ「どこを見るか」に 2 つの列挙・2 つの UI 行が残り、キー化 ON/OFF で操作する行が入れ替わる。MTE 側にしか無い値(メイドのポイント指定)と SE 側にしか無い値(マウス)があり単純な統合はできない。瞳回転→顔向きと同様に片方へ寄せるなら、キー化の有無で意味が変わらない共通の注視先表現の設計が要る |
+| D-7 | **視線の向け先 vs 注視先** | `MaidLookController` の `MaidLookMode`(カメラ/マウス/方向指定/オブジェクト/無し)＋視線タブ「向け先」コンボ | `MaidCache.lookAtTargetType`(`LookAtTargetType`: None/Camera/Maid/Model)＋メイド・ポイント指定、視線タブ「注視先」行 | **概念重複**(A-1 の残り)。書き込みは `MaidLookBridge.ResolveLookMode` で一本化済みだが、同じ「どこを見るか」に 2 つの列挙・2 つの UI 行が残り、キー化 ON/OFF で操作する行が入れ替わる。MTE 側にしか無い値(メイドのポイント指定)と SE 側にしか無い値(マウス)があり単純な統合はできない。瞳回転→顔向きと同様に片方へ寄せるなら、キー化の有無で意味が変わらない共通の注視先表現の設計が要る → 統合済み(実装メモ参照) |
 
 **確認済み・問題なし**: メイド/モデルのシェイプキー(`EditTargetStore` 追跡のみで値は一本化)、マテリアル 3 レイヤー、IK 接地(`MaidIKHoldController` 経由)、拡張ボーン/モデルボーン(`BoneEditManager` 経由)、モーフ名前解決・追跡(A-5 で統合済み)。**片側のみ**: 衣装差し替え(`DressTimelineLayer`、SE に書き手なし)、ボイス(`MaidCache`、SE に対応実装なし)。
 
-**優先度の所感**: 最小コストは D-3(ただし親スイッチ設計が要る)。実害が出やすいのは D-4 / D-5。統合効果が大きいのは D-1 / D-2。D-7 は書き込み経路の統合(A-1)が済んでいるため実害は小さいが、視線 UI を完全に 1 系統へ畳むなら避けて通れない。
+**優先度の所感**: 最小コストは D-3(ただし親スイッチ設計が要る)。実害が出やすいのは D-4 / D-5。統合効果が大きいのは D-1 / D-2。D-7 は書き込み経路の統合(A-1)が済んでいるため実害は小さかったが、視線 UI を 1 系統へ畳むために統合済み。
 
 ## 統合方針の示唆
 
@@ -136,7 +136,7 @@ D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実
 - [x] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
 - [x] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
 - [x] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する → **調査の結果、現状維持で確定**(下記実装メモ参照)
-- [ ] D-7: 視線の「向け先」「注視先」の概念統合(キー化の有無で意味が変わらない共通の注視先表現の設計)。**設計案を「D-7 の検討メモ」に記録済み・ユーザー判断待ち**(瞳回転撤去と同じく仕様判断が要るため自走では進めない)
+- [x] D-7: 視線の「向け先」「注視先」の概念統合(キー化の有無で意味が変わらない共通の注視先表現の設計)。**統合済み**(下記「D-7 の実装メモ」参照)
 
 B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は音源が別で機能が異なり、B-5 は静的プリセット vs アニメーションの役割分担が妥当なため、本 loop では扱わない。
 
@@ -355,18 +355,70 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - ロールも両者とも同じ `Camera` transform(`SetRotationZ` 拡張)を書き、SE 側にロールの持ち分は無い
 - つまり「2 つの API 表面が 1 つのゲーム状態を指す」だけで、A-1〜D-5 のような影の状態・上書き経路は無い。奪い合いは「再生中にカメラウィンドウを操作すると再生値に負ける」だが、これはタイムラインの再生が値を駆動する以上避けられない仕様で、他レイヤー(移動等)と同じ振る舞い
 
-### D-7 の検討メモ(視線の向け先/注視先の概念統合・ユーザー判断待ち)
+### D-7 の実装メモ(視線の向け先/注視先の概念統合)
 
-書き込み経路は A-1 で一本化済みのため実害は無く、残るは「同じ『どこを見るか』に 2 つの列挙・2 つの UI 行がある」という概念重複のみ。瞳回転→顔向き一本化(A-1 追補)と同じく、**どちらへ寄せるか・片側にしか無い値をどう扱うかはユーザー判断が要る**ため、本 loop では設計案の記録に留める。
+書き込み経路は A-1 で一本化済みだったため、残っていたのは概念重複のみ。2026-08-30 に
+**統合列挙 + UI 1 行(保存形式は据え置き)** の方針で統合した。実装は次の 5 点。
 
-**統合案(たたき台)**: 共通の注視先表現を「なし / カメラ / マウス / 方向指定 / メイド(+ポイント) / オブジェクト(モデル)」の 1 列挙にし、UI は視線タブの 1 行に畳む。
+1. **統合列挙**: `MaidLookMode` の末尾へ `メイド` を追加し、「どこを見るか」の語彙を 1 本にした
+2. **双方向マップ**: `MaidLookBridge` の `ToLookMode` / `ToTargetType` / `GetSelectableModes` が
+   統合列挙と `LookAtTargetType` を相互に写す。キー化中に選べない値(無し/マウス/オブジェクト)は
+   表示時に「方向指定」へ丸め、キー化を戻せば SE 側の設定が残る
+3. **UI 1 行**: キー化 ON/OFF のどちらでもラベルは「向け先」で、対象がメイドなら
+   「メイド」「ポイント」の行が続く(`MaidFaceWindow.DrawLookTargetRows` /
+   `TimelineLookRowDrawer.DrawLookAtTargetRows`)。行が入れ替わらなくなった
+4. **ポイント解決の一本化**: メイドの注視ポイントは
+   `MaidLookController.GetMaidPointTransform` に集約し、`MaidCache.GetPointTransform` は委譲だけを行う
+5. **プリセット v27**: 向け先「メイド」の部位を `ScenePresetLook.maidPointType` へ記録する
+   (対象メイドは既存の `targetMaidGuid` を使い回す)。履歴(`PoseSnapshot`)も対象・部位を持つ
 
-- キー化 OFF: 全選択肢が SE の `MaidLookController` を直接駆動する(現行の「向け先」と同じ)
-- キー化 ON: 同じ行がキーフレーム指定値(`MaidCache.lookAtTarget*`)を編集する。**マウスはキー化できない**(再生に再現性が無い)ため選択肢から外すか、選ぶとキー化を促す
-- メイドのポイント指定は SE 側へ昇格(`MaidLookMode.オブジェクト` の対象にメイドポイントを含める)。`ScenePresetLook` v26 の `timeline*` 属性は共通表現へ吸収できる見込み
-- モデル注視は C 分類(`StudioModelManager` 未接続)の解消が前提
+**統合前の状態**(着手時のコード確認結果)
+
+- 列挙が 2 本: `MaidLookMode`(カメラ/マウス/方向指定/オブジェクト/無し) と `LookAtTargetType`(None/Camera/Maid/Model)
+- キー化で行が入れ替わる: OFF は「向け先」コンボ、ON は「注視先 + メイド + ポイント」の 3 行(`MaidFaceWindow.DrawLookTargetRows` → `TimelineLookRowDrawer.DrawLookAtTargetRows`)
+- 片側にしか無い値: SE = マウス・任意 Transform(`SelectionManager` 選択)、MTE = メイドのポイント指定・モデル
+
+**本質的な制約**: 任意 Transform はキーへ保存できず、マウスは再生に再現性が無い。よって「完全に 1 列挙」にはできず、**キー化可否で選択肢が変わる統合列挙**にした。
+
+#### 決定した方針
+
+1. **統合列挙**: `MaidLookMode` に `メイド` を末尾追加(既存プリセット互換のため末尾)。統合後の対応は下表。
+
+   | 統合列挙 | キー化 OFF の実体 | キー化 ON の実体(`LookAtTargetType`) | ON の選択肢 |
+   |---|---|---|---|
+   | カメラ | `MaidLookController` | `Camera` | あり |
+   | メイド(+ポイント) | 同上(新規) | `Maid` + `targetIndex` + `maidPointType` | あり |
+   | 方向指定 | 同上(顔向き `lookX/Y`) | `None` + `lookDirection` | あり |
+   | 無し | 同上 | `None`(そらし時に自動フォールバック。現行どおり) | なし |
+   | マウス | 同上 | — | なし |
+   | オブジェクト(任意 Transform) | 同上 | — | なし |
+
+   「無し」をキー化 ON の選択肢に出さないのは、`None` が「方向指定」と衝突して往復で意味が変わるため。
+   そらし時のフォールバックは `ResolveLookMode` が自動で行う(現行どおり)。
+
+2. **格納先は変えない**: キー化 ON の値は従来どおり `MaidCache.lookAtTarget*` に入り、統合列挙は UI と `MaidLookBridge` の共通語彙としてだけ使う。`TransformDataLookAtTarget` は無変更で、**タイムラインの保存互換は完全維持**。
+3. **メイドポイント解決を SE へ一本化**: `MaidCache.GetPointTransform`(`trsHead` / `Spine1a` / `Pelvis` / `Hip_R` / `trBip`)は `TBody` だけで解決でき MTE 依存が無いため SE 側ヘルパへ移し、`MaidCache` は委譲する(D-2 と同じ形)。`ScenePresetLook` が既に注視対象を「メイド guid + ボーン名」で持つため、SE 側のメイド注視は既存表現の昇格になる。
+4. **UI は「向け先」コンボ 1 本**: 現行の「注視先」「メイド」「ポイント」3 行を畳む。選択肢だけをキー化状態で切り替え(ON = カメラ/メイド/方向指定、OFF = ＋マウス/オブジェクト/無し)、追随行(メイド+ポイント / 注視対象 / 顔向きスライダー)は共通。**キー化を切っても同じ行・同じ語彙のまま**になり、書き込み先だけが `MaidLookController` ↔ `MaidCache` で変わる。
+5. **キー化不可の値の丸め**: キー化 ON へ切り替えた時点で SE 側がマウス/オブジェクトなら「方向指定」として表示する(`LookAtTargetType.None` 相当)。OFF に戻せば SE の設定はそのまま復帰(現行挙動を維持)。
+6. **モデル注視は除外を継続**: `StudioModelManager` 未接続のため選択肢に出さない(C 分類の解消が前提)。統合列挙の `オブジェクト` はキー化 OFF 専用なので `Model` と衝突しない。
+7. **プリセット v27**: SE 側の `メイド` モードを保存するため `ScenePresetLook` に `maidPointType` 属性を追加する。対象メイドは既存の `targetMaidGuid` を再利用。`timeline*` 属性(v26)は格納先を変えないため据え置き。旧プリセットは `mode` が「メイド」でない限り新属性を読まないので互換影響なし。
+
+**変更ファイル**: `MaidManipulation/MaidLookController.cs` / `Timeline/MaidLookBridge.cs` / `MaidFaceWindow.cs` / `TimelineLookRowDrawer.cs` / `Timeline/MaidCache.cs` / `ScenePresetData.cs` / `Manager/ScenePresetManager.cs`
+
+**実装計画**: `docs/superpowers/plans/2026-08-30-d7-look-target-unification.md`
+
+**テスト**: 双方向マップ(統合列挙 ⇔ `LookAtTargetType`)は純粋ロジックのため `MaidLookBridgeTests.cs` へ追加。プリセット v27 の往復は `ScenePresetLookXmlTests.cs` へ追加。UI とボーン解決は実機確認項目で担保する。
 
 ### 実機確認項目(loop 中に追記)
+
+- D-7: 視線タブでキー化 ON/OFF を切り替えても「向け先」行のラベルと語彙が変わらず、行数が飛ばないこと
+- D-7: キー化 OFF で向け先「メイド」を選び、対象メイドと部位(顔/胸/股/尻/中心)を切り替えると視線が追従すること
+- D-7: キー化 ON で向け先「メイド」を選んだときの見た目が、OFF で同じメイド・同じ部位を選んだときと一致すること
+- D-7: キー化 OFF でマウス/オブジェクトを選んだ状態でキー化 ON にすると「方向指定」表示になり、OFF に戻すと元の選択が残っていること
+- D-7: 向け先「メイド」で対象メイドを退去させると方向指定の注視点へ落ち、例外が出ないこと
+- D-7: 向け先「メイド」のままシーンプリセットを保存 → ロードで対象メイドと部位が戻ること。v26 以前のプリセットをロードしても視線まわりで例外・値の飛びが出ないこと
+- D-7: 向け先「メイド」で対象・部位を変えた直後に Ctrl+Z すると、変更前の対象・部位へ戻ること
+- D-7: 瞳レイヤーの項目表示(EyesItemInspector)の注視先行が視線タブと同じ「向け先」語彙になっていること
 
 - D-2: ポーズ編集中に指ブレンドキーを打ったフレームへシークすると、SE の指ウィンドウのスライダー・ロック表示がキーの値へ追従すること
 - D-2: SE の指ウィンドウで開き/握り・ロックを操作してキーを打つと、その値がキーに記録され再シークで再現されること(旧タイムラインのキーも同じ見た目で再生されること)
