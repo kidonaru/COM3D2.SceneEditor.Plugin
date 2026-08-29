@@ -296,9 +296,10 @@ namespace COM3D2.SceneEditor.Plugin
                     // アダプタを作り直さず同じ登録のまま再表示するゲストにも自動再ドッキングを効かせる
                     adapter.ResetAutoDockRetry();
                 }
-                // 表示直後の一定フレーム、ヘッダー位置がほぼ一致する窓があれば自動再ドッキング。
-                // 外部窓のドッキング構成は復元されないが位置はゲストが保持しているため、
-                // 同じ位置に出てきたものはドッキングへ復帰させる (設計判断は autoDockRetryFrames 参照)
+                // 表示直後の一定フレーム、自動再ドッキングを試みる (猶予は autoDockRetryFrames 参照)。
+                // まず config の保存構成による ID ベース復元 (TryRestoreExternal) を試し、
+                // 保存エントリの無い窓は位置をゲストが保持していることを利用して、
+                // ヘッダー位置がほぼ一致する窓のグループへ復帰させる
                 else if (adapter.group == null && adapter.autoDockRetryFrames > 0)
                 {
                     adapter.autoDockRetryFrames--;

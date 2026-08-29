@@ -1,4 +1,4 @@
-﻿using COM3D2.MotionTimelineEditor;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -89,8 +89,10 @@ namespace COM3D2.SceneEditor.Plugin
             _tabActiveIndex = activeIndex;
             if (titles == null)
             {
-                // グループ離脱時は次回加入へスクロール位置を持ち越さない
+                // グループ離脱時は次回加入へスクロール位置を持ち越さない。
+                // タブバーを描かなくなるとメニューを閉じる機会も失うのでここで閉じる
                 _tabScrollOffset = 0;
+                TabBarDrawer.CloseContextMenu(windowId);
             }
         }
 
@@ -491,6 +493,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             isShowWnd = false;
             _resize.Cancel();
+            // 非表示中は DrawWindow が回らずメニューを閉じられないため先に閉じる
+            TabBarDrawer.CloseContextMenu(windowId);
             // モード終了時の片付け。保存済みのグループ構成は次回復元用に残す
             TabGroupManager.instance.RemoveFromGroup(this, save: false);
             WindowConnectManager.instance.OnWindowHidden(this, save: false);
