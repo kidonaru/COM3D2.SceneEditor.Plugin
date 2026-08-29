@@ -483,6 +483,14 @@ namespace COM3D2.SceneEditor.Plugin
         public string targetPath;
 
         /// <summary>
+        /// 向け先がメイドのときの部位 (MaidPointType の名前)。
+        /// 対象メイドは targetMaidGuid を使い回す。
+        /// v26 以前や他モードでは null になり、適用時に部位へ触らない
+        /// </summary>
+        [XmlAttribute]
+        public string maidPointType;
+
+        /// <summary>
         /// タイムラインの注視先種別 (MaidCache.lookAtTargetType の名前)。
         /// v25 以前のプリセットや、タイムライン未読込で保存した場合は null になり、
         /// 適用時にタイムライン側の視線へ触らない。
@@ -708,7 +716,10 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は timelineTargetType が null = 未記録として読み飛ばす。
         //      同バージョン内で瞳回転 (eyeAngle*) を顔向き (timelineLook*) へ置き換えた。
         //      eyeAngle* 付きで保存したデータは同属性だけ読み飛ばされる（構造は互換）
-        public static readonly int CurrentVersion = 26;
+        // v27: look に maidPointType（向け先「メイド」の部位）を追加。
+        //      対象メイドは既存の targetMaidGuid を使い回す。
+        //      旧形式は maidPointType が null = 未記録として読み飛ばす
+        public static readonly int CurrentVersion = 27;
 
         [XmlAttribute]
         public int version = CurrentVersion;

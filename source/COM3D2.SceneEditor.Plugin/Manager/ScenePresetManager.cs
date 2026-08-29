@@ -1198,9 +1198,10 @@ namespace COM3D2.SceneEditor.Plugin
         private static void CaptureLook(Maid maid, ScenePresetMaid state)
         {
             var controller = maidManager.lookController;
+            var mode = controller.GetMode(maid);
             var look = new ScenePresetLook
             {
-                mode = controller.GetMode(maid).ToString(),
+                mode = mode.ToString(),
                 lookX = controller.GetLookX(maid),
                 lookY = controller.GetLookY(maid),
             };
@@ -1216,7 +1217,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var target = controller.GetTarget(maid);
-            if (controller.GetMode(maid) == MaidLookMode.オブジェクト && target != null)
+            if (mode == MaidLookMode.オブジェクト && target != null)
             {
                 var ownerMaid = FindOwnerMaid(target);
                 if (ownerMaid != null)
@@ -1227,6 +1228,16 @@ namespace COM3D2.SceneEditor.Plugin
                 else
                 {
                     look.targetPath = GetScenePath(target);
+                }
+            }
+            else if (mode == MaidLookMode.メイド)
+            {
+                // メイド注視は「対象メイド + 部位」で持つ。ボーン名は復元時に部位から引き直す
+                var targetMaid = controller.GetTargetMaid(maid);
+                if (targetMaid != null)
+                {
+                    look.targetMaidGuid = GetGuid(targetMaid);
+                    look.maidPointType = controller.GetMaidPointType(maid).ToString();
                 }
             }
 
@@ -1688,7 +1699,27 @@ namespace COM3D2.SceneEditor.Plugin
                 mode = MaidLookMode.方向指定;
             }
 
-            maidManager.lookController.SetState(maid, mode, look.lookX, look.lookY, target);
+            Maid targetMaid = null;
+            var maidPointType = MTEP.MaidPointType.Head;
+            if (mode == MaidLookMode.メイド)
+            {
+                targetMaid = !string.IsNullOrEmpty(look.targetMaidGuid)
+                    ? FindMaidBySlotGuid(look.targetMaidGuid) : null;
+                // XML は外部入力のため、未知の部位名は既定 (顔) のままにする
+                if (!TryParseEnum(look.maidPointType, out maidPointType))
+                {
+                    maidPointType = MTEP.MaidPointType.Head;
+                }
+                if (targetMaid == null)
+                {
+                    MTEUtils.LogWarning("注視対象のメイドが見つからないため方向指定で復元します: {0}",
+                        look.targetMaidGuid);
+                    mode = MaidLookMode.方向指定;
+                }
+            }
+
+            maidManager.lookController.SetState(
+                maid, mode, look.lookX, look.lookY, target, targetMaid, maidPointType);
 
             // TBody に依存しないため、追従トグルの防御的ガードより前に戻す
             // (未ロードのメイドでも指定値だけは欠落させない)

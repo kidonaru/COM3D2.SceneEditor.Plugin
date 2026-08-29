@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -20,6 +21,8 @@ namespace COM3D2.SceneEditor.Plugin
         private float _lookX;
         private float _lookY;
         private Transform _lookTarget;
+        private Maid _lookTargetMaid;
+        private MTEP.MaidPointType _lookMaidPointType;
 
         /// <summary>記録時の胸の揺れもの状態。ボーンが動かないトグル操作も履歴に残すために持つ</summary>
         private bool _muneYureL;
@@ -61,6 +64,8 @@ namespace COM3D2.SceneEditor.Plugin
             snapshot._lookX = lookController.GetLookX(maid);
             snapshot._lookY = lookController.GetLookY(maid);
             snapshot._lookTarget = lookController.GetTarget(maid);
+            snapshot._lookTargetMaid = lookController.GetTargetMaid(maid);
+            snapshot._lookMaidPointType = lookController.GetMaidPointType(maid);
 
             snapshot._clipName = MaidMotionState.GetCurrentClipName(maid);
             snapshot._isPlaying = MaidMotionState.IsPlaying(maid);
@@ -192,7 +197,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             MaidManipulateManager.instance.lookController.SetState(
-                maid, _lookMode, _lookX, _lookY, _lookTarget);
+                maid, _lookMode, _lookX, _lookY, _lookTarget,
+                _lookTargetMaid, _lookMaidPointType);
 
             // IK 固定が復元前の位置へ解き直すと undo が打ち消されるため、
             // 復元後のボーン位置を新しい固定ターゲットとして取り直させる
@@ -239,6 +245,8 @@ namespace COM3D2.SceneEditor.Plugin
                 || Mathf.Abs(_lookX - o._lookX) >= 0.001f
                 || Mathf.Abs(_lookY - o._lookY) >= 0.001f
                 || _lookTarget != o._lookTarget
+                || _lookTargetMaid != o._lookTargetMaid
+                || _lookMaidPointType != o._lookMaidPointType
                 || _muneYureL != o._muneYureL
                 || _muneYureR != o._muneYureR)
             {

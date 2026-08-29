@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Xml.Serialization;
 using Xunit;
 
@@ -89,6 +89,37 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 Assert.Null(look.timelineTargetType);
                 Assert.Null(look.timelineMaidPointType);
                 Assert.Equal(0, look.timelineTargetIndex);
+            }
+        }
+
+        [Fact]
+        public void メイド注視の対象と部位が往復で保たれる()
+        {
+            var restored = RoundTrip(new ScenePresetLook
+            {
+                mode = "メイド",
+                targetMaidGuid = "guid-1234",
+                maidPointType = "Chest",
+            });
+
+            Assert.Equal("メイド", restored.mode);
+            Assert.Equal("guid-1234", restored.targetMaidGuid);
+            Assert.Equal("Chest", restored.maidPointType);
+        }
+
+        [Fact]
+        public void メイド注視を持たない旧プリセットは部位が未記録になる()
+        {
+            const string oldPreset =
+                "<?xml version=\"1.0\"?>"
+                + "<ScenePresetLook mode=\"カメラ\">"
+                + "<lookX>0</lookX><lookY>0</lookY>"
+                + "</ScenePresetLook>";
+
+            using (var reader = new StringReader(oldPreset))
+            {
+                var look = (ScenePresetLook) Serializer.Deserialize(reader);
+                Assert.Null(look.maidPointType);
             }
         }
     }
