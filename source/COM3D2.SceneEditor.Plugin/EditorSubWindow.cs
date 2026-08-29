@@ -409,14 +409,18 @@ namespace COM3D2.SceneEditor.Plugin
             // スクロール位置はグループの状態。タブバーを描くのはアクティブな窓だけなので、
             // 窓ごとに持つとタブ切替のたびに別の窓が覚えていた位置へ飛ぶ
             var tabGroup = group;
-            var scrollX = tabGroup != null ? tabGroup.tabScrollX : 0f;
+            var before = tabGroup != null ? tabGroup.tabScrollX : 0f;
+            var scrollX = before;
             TabBarDrawer.Draw(
                 windowId, _tabTitles, _tabActiveIndex,
                 FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, HEADER_HEIGHT, available,
                 ref scrollX,
                 (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos),
                 index => TabGroupManager.instance.ActivateTabIndex(this, index));
-            if (tabGroup != null)
+
+            // 描画中のコールバック (タブ切替) がグループ側を書き換えていたらそちらが新しい。
+            // 無条件に書き戻すと、切替に伴う「見切れたタブへの寄せ」を古い位置で潰してしまう
+            if (tabGroup != null && tabGroup.tabScrollX == before)
             {
                 tabGroup.tabScrollX = scrollX;
             }
