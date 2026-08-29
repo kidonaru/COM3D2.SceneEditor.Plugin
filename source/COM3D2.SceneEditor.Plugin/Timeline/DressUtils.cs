@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SEP = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -264,7 +265,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 return;
             }
-            body.SetMask(slotId, visible);
+            // TBody へ直接書かず SE の書き込み経路へ合流させる (MaskMode の解除を保証する)
+            SEP.MaidUndressController.SetSlotMask(maidCache.maid, slotId, visible);
         }
 
         public static bool GetMask(this MaidCache maidCache, TBody.SlotID slotId)

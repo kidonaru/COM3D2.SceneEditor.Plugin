@@ -133,7 +133,7 @@ D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実
 - [x] D-3: `TimelineFaceManager.SetMabatakiOff` の `boMabataki` 直書きをやめ、`MaidFaceMorphController.SetMabataki` を唯一の書き手にする。表情レイヤー有効中は SE トグルを無効化する親スイッチ設計(A-1b と同じ形)を含む
 - [x] D-5: `MoveTimelineLayer` の `maid.transform` 直書きを SE の配置系(`MaidVisibilityController` の退避・`SetRestorePosition`)と調停する。退避中メイドの引き戻し・退避座標 `(100,0,0)` のキー焼き込みを防ぐ
 - [x] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
-- [ ] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
+- [x] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
 - [ ] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
 - [ ] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する(軽度。実害が確認できなければ現状維持の判断も可)
 - [ ] D-7: 視線の「向け先」「注視先」の概念統合(キー化の有無で意味が変わらない共通の注視先表現の設計)。UI を 1 系統へ畳む設計判断が要るため最後
@@ -326,7 +326,20 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - **停止記録(`_resetClipNames`)とタイムライン再生の相互作用は現状維持**: MTE は再生前に `SceneEditorHack.isAnmEnabled`(委譲済み)経由で SE の停止を解除して再生する既存経路があり、タイムラインの anm 差し替え(`PlayAnm`)が SE の記録を勝手に消すことはしない
 - 新規ロジックは `Animation`/`Maid` 依存のため単体テストは追加していない(A-2 と同じ判断)
 
+### D-1 の実装メモ(脱衣マスクの書き込み経路統合)
+
+`TBody` マスクへの書き込みを SE の `MaidUndressController` に一本化した。
+
+- **`SetSlotMask`(スロット単位)を SE 側に新設**: 脱衣ウィンドウ(カテゴリ単位の `SetUndressed`)もタイムラインの脱衣レイヤー(`DressUtils.SetMask` 経由のスロット単位)も、`MaskMode`(Nude 等)を個別制御へ解除する `EnsureIndividualMaskMode` を必ず通ってから `body.SetMask` する形に合流した。MTE 経由で `MaskMode.None` が保証されない問題はこれで解消
+- **調査時の「奪い合い」認識の訂正**: `MaidUndressController` はステートレスで真実は `TBody` のマスクそのもの。厳密な状態二重化ではなく、欠けていたのは MTE 経路の `MaskMode` 解除だけだった。カテゴリ(`UndressCategory`)⇔スロット(`DressSlotID`)の値表現は「UI の集計単位」の違いで、書き込みの最小単位(スロット)が一致しているため対応表は不要
+- **片側のみの要素は現状維持**: SE の衣装タイプ(めくれ等は `MaidCostumeChangeController` 経由で別経路)、MTE のずらし/めくれキー化(`DressUtils` の Shift 系。`mekureController` 経由で同じゲーム API に乗る)
+- 新規ロジックは `TBody` 依存のため単体テストは追加していない(A-2 と同じ判断)
+
 ### 実機確認項目(loop 中に追記)
+
+- D-1: MaskMode が Nude 系の状態(スタジオ等から引き継いだ場合)で脱衣レイヤーのキーを打つ/再生すると、個別制御へ解除されてスロット表示が指定どおりになること。このとき操作対象外のスロットが一旦表示へ戻るのは公式(`SetMaskMode(None)`)と同じ仕様であること
+- D-1: 脱衣ウィンドウのカテゴリトグルと脱衣レイヤーのスロットトグルを交互に操作しても、互いの表示状態が正しく追従すること
+- D-1: めくれ/ずらしのキー化と脱衣ウィンドウのめくれ系チェックが従来どおり動くこと
 
 - D-4: タイムラインを再生→一時停止した直後、SE のポーズウィンドウの再生ボタンが「■(再生中)」のままにならず、ボーンスライダーが操作できること。スライダー操作の起点が停止時のポーズになっている(ポーズが飛ばない)こと
 - D-4: タイムライン停止中にフレームをシークした後、ボーンスライダーを操作してもシーク前のポーズへ飛ばないこと
