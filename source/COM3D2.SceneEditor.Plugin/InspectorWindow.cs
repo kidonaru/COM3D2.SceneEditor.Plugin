@@ -160,6 +160,14 @@ namespace COM3D2.SceneEditor.Plugin
                 KeyFrameInspector.instance.Draw(_view);
                 _view.EndScrollView();
             }
+            else if (TimelineItemInspector.ShouldDraw())
+            {
+                // タイムラインのメニュー項目選択(キーフレーム未選択時)は現在値の編集UIを出す
+                _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+                DrawGizmoHeader(_view);
+                TimelineItemInspector.Draw(_view);
+                _view.EndScrollView();
+            }
             else if (go == null)
             {
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
