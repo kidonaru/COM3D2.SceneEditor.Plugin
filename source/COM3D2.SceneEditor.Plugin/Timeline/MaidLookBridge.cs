@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -20,6 +21,64 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static MaidLookController lookController
             => MaidManipulateManager.instance.lookController;
+
+        /// <summary>キー化中に選べる向け先。「無し」は None が方向指定と衝突するため出さない</summary>
+        private static readonly MaidLookMode[] KeyedModes =
+        {
+            MaidLookMode.カメラ, MaidLookMode.メイド, MaidLookMode.方向指定,
+        };
+
+        /// <summary>キー化していないときに選べる向け先 (SE の全モード)</summary>
+        private static readonly MaidLookMode[] UnkeyedModes =
+        {
+            MaidLookMode.カメラ, MaidLookMode.マウス, MaidLookMode.方向指定,
+            MaidLookMode.メイド, MaidLookMode.オブジェクト, MaidLookMode.無し,
+        };
+
+        /// <summary>
+        /// 向け先の選択肢。キー化の有無で選べる値だけが変わり、語彙は共通にする。
+        /// コンボボックスへ渡す List を呼び出し側が持ち回るため、毎回複製して返す
+        /// </summary>
+        public static List<MaidLookMode> GetSelectableModes(bool useHeadKey)
+        {
+            return new List<MaidLookMode>(useHeadKey ? KeyedModes : UnkeyedModes);
+        }
+
+        /// <summary>
+        /// キーの注視先種別を統合列挙へ写す (UI 表示用)。
+        /// モデル注視は選択肢に出していないため方向指定へ丸める
+        /// (StudioModelManager 未移植。TimelineLookRowDrawer の除外と揃える)
+        /// </summary>
+        public static MaidLookMode ToLookMode(MTEP.LookAtTargetType targetType)
+        {
+            switch (targetType)
+            {
+                case MTEP.LookAtTargetType.Camera:
+                    return MaidLookMode.カメラ;
+                case MTEP.LookAtTargetType.Maid:
+                    return MaidLookMode.メイド;
+                default:
+                    return MaidLookMode.方向指定;
+            }
+        }
+
+        /// <summary>
+        /// 統合列挙をキーの注視先種別へ写す。
+        /// キー化できない値 (マウス・任意オブジェクト・無し) は、顔向きキーで駆動する
+        /// None へ丸める (選択肢には出さないが、外部から渡っても壊れないようにする)
+        /// </summary>
+        public static MTEP.LookAtTargetType ToTargetType(MaidLookMode mode)
+        {
+            switch (mode)
+            {
+                case MaidLookMode.カメラ:
+                    return MTEP.LookAtTargetType.Camera;
+                case MaidLookMode.メイド:
+                    return MTEP.LookAtTargetType.Maid;
+                default:
+                    return MTEP.LookAtTargetType.None;
+            }
+        }
 
         /// <summary>
         /// タイムライン設定から SE の向け先モードを決める。

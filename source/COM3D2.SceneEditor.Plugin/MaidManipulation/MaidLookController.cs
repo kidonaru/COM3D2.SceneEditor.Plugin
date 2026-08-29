@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -18,6 +19,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// 既存プリセットの互換のため末尾に足す (列挙値のずれを避ける)
         /// </summary>
         無し,
+
+        /// <summary>
+        /// 他のメイドの部位 (顔・胸・股・尻・中心) を見る。
+        /// タイムラインの注視先「メイド」と同じ概念で、キー化の有無に関わらず選べる
+        /// (対象の Transform はボディ読み直しで破棄されるため、適用のたびに引き直す)。
+        /// 既存プリセットの互換のため末尾に足す (列挙値のずれを避ける)
+        /// </summary>
+        メイド,
     }
 
     /// <summary>
