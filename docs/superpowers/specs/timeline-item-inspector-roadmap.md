@@ -57,7 +57,7 @@ public interface ITimelineItemInspector
 
 ## 3. 既知のリスク・注意点
 
-- **`MaidBoneMenuItem.isSelectedMenu` は副作用を持つ**。setter が `studioHack.SetBoneRotateVisible(boneType, value)` へ書き込み、getter も studioHack の状態を返す。逆方向同期でこのプロパティへ書く際はボーン回転表示が連動して切り替わることを仕様として受け入れる(MTE 本来の挙動と同じ)か、ブリッジで除外するかを S0 実装時に実機で判断する
+- **`MaidBoneMenuItem.isSelectedMenu` の副作用経路は現状発火しない**。setter は `studioHack.SetBoneRotateVisible` への書き込み経路を持つが、`SceneEditorHack` は `HasBoneRotateVisible` をオーバーライドしていない(既定 false)ため、現状は単純なフラグとして動く(plan-review で静的解析済み)。将来別の StudioHackBase 実装を追加する場合のみ再考する
 - `BoneSetMenuItem.isSelectedMenu` は「配下すべて選択」で真になる集計値。順方向監視の diff は子項目単位で取ること
 - 変更追跡チェック(`FaceEditManager` 等)・履歴(`HistoryManager`)・まばたき停止などの編集ロジックは行描画ヘルパー側に含めて抽出する。Inspector 経由の編集がウィンドウ経由と挙動差を持ってはならない
 - Inspector の横幅はウィンドウより狭い場合がある。抽出ヘルパーはラベル幅・スライダー幅を呼び出し側から調整できる形にする
@@ -75,6 +75,19 @@ public interface ITimelineItemInspector
 | MotionTimelineLayer(メイドアニメ) | ボーンの Transform 編集(位置/回転) | InspectorWindow ボーン編集 UI(`DrawBoneContent` 系)を共有 | あり(`SelectBone` / ボーン編集選択 → 該当ボーン行) |
 
 完了条件: 目閉じ選択で Inspector に目閉じスライダーが出て編集できる。Inspector でボーンを選ぶとタイムラインの該当行が選択される。ループ・NPE なし。
+
+#### S0 実装済み・実機確認項目(次回ゲーム起動時)
+
+- [ ] 表情レイヤーで「目閉じ」行を選択 → Inspector に目閉じスライダーが出て編集できる
+- [ ] セット行(例: 目)を選択 → 配下モーフがまとめて表示される
+- [ ] キーフレームを選択 → KeyFrameInspector が優先表示され、解除で項目表示に戻る
+- [ ] モーションレイヤーでボーン行を選択 → Inspector にボーンスライダーが出る
+- [ ] タイムライン未読込・メイド未解決時は双方向同期が動かない(意図した制約。Inspector 選択がタイムラインに反応しなくても正常)
+- [ ] Inspector /ビューポートでボーンを選択 → タイムラインの該当行が選択される(ループしない)
+- [ ] メニュー行クリックでボーン/IK 選択が降格して項目表示に切り替わる
+- [ ] 簡易表示 (isEasyEdit) では項目表示が出ない
+- [ ] レイヤー切り替え・タイムライン閉鎖で NPE が出ない
+- [ ] 表情ウィンドウ・Inspector ボーン選択の従来挙動に退行が無い(抽出リファクタリングの確認)
 
 ### Phase S1: メイド系レイヤー
 
