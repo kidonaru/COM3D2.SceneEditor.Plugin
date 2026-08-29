@@ -1418,7 +1418,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public readonly static int DrawMaskRotation = (int) (TransformDrawType.回転);
         public readonly static int DrawMaskPosition = (int) (TransformDrawType.移動);
 
-        protected bool IsDrawTransformType(
+        public static bool IsDrawTransformType(
             TransformDrawType drawType,
             TransformEditType editType,
             int drawMask)
@@ -1537,7 +1537,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// リセットは連動の有無に依らず初期値で全軸を戻す。
         /// linkable なら拡縮の連動トグルも出す
         /// </summary>
-        protected static bool DrawTransformVector3(
+        public static bool DrawTransformVector3(
             GUIView view,
             string label,
             float dragSensitivity,
@@ -1587,7 +1587,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             config.dirty = true;
         }
 
-        protected bool DrawPosition(
+        public static bool DrawPosition(
             GUIView view,
             TransformCache transform,
             TransformEditType editType,
@@ -1612,7 +1612,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return updateTransform;
         }
 
-        protected bool DrawPositionRect(
+        protected static bool DrawPositionRect(
             GUIView view,
             TransformCache transform,
             TransformEditType editType,
@@ -1664,7 +1664,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return DrawEulerAngles(view, transform, editType, prevAngles, initialEulerAngles);
         }
 
-        protected bool DrawEulerAngles(
+        public static bool DrawEulerAngles(
             GUIView view,
             TransformCache transform,
             TransformEditType editType,

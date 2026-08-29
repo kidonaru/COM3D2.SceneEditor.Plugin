@@ -191,6 +191,13 @@ namespace COM3D2.SceneEditor.Plugin
         public int timelineHeight = 480;
         public bool timelineVisible = false;
 
+        // ライブ演出ウィンドウ
+        public int liveEffectPosX = -1;
+        public int liveEffectPosY = -1;
+        public int liveEffectWidth = 440;
+        public int liveEffectHeight = 600;
+        public bool liveEffectVisible = false;
+
         // サウンドウィンドウ
         public int soundPosX = -1;
         public int soundPosY = -1;

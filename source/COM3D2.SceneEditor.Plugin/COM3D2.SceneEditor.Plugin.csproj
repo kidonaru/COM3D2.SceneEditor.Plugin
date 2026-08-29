@@ -306,6 +306,7 @@
     <Compile Include="TimelineTemplateWindow.cs" />
     <Compile Include="ShapeKeyEditWindow.cs" />
     <Compile Include="SoundWindow.cs" />
+    <Compile Include="LiveEffectWindow.cs" />
     <Compile Include="ProviderModelStat.cs" />
     <Compile Include="MaterialEditWindow.cs" />
     <Compile Include="TimelineLoadWindow.cs" />
