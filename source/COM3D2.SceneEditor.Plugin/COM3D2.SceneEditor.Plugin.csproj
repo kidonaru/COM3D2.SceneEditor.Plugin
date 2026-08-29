@@ -275,6 +275,7 @@
     <Compile Include="MaidWindowBase.cs" />
     <Compile Include="MaidCallWindow.cs" />
     <Compile Include="MaidPoseWindow.cs" />
+    <Compile Include="BoneSliderRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
     <Compile Include="MaidFingerWindow.cs" />

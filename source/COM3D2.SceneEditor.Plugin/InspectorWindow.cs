@@ -407,37 +407,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 再生中は基準ポーズが定まらないため値を読まず、操作された瞬間に停止して書き込む
-            var offset = MaidMotionState.IsPlaying(maid)
-                ? Vector3.zero
-                : MaidBoneSliderController.GetOffset(maid, selectedDef);
-
-            for (var i = 0; i < selectedDef.axes.Length; i++)
-            {
-                var axisIndex = i;
-                var axis = selectedDef.axes[i];
-
-                _view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = axis.label,
-                    labelWidth = LabelWidth,
-                    width = -1,
-                    min = axis.min,
-                    max = axis.max,
-                    step = 0.1f,
-                    defaultValue = 0f,
-                    value = offset[axisIndex],
-                    onChanged = value =>
-                    {
-                        MaidMotionState.StopMotion(maid);
-                        HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                            "ボーン回転: " + selectedDef.displayName,
-                            new[] { MaidBoneSliderController.GetBone(maid, selectedDef.boneName) });
-                        MaidBoneSliderController.SetOffsetAxis(
-                            maid, selectedDef, axisIndex, value);
-                    },
-                });
-            }
+            BoneSliderRowDrawer.Draw(_view, maid, selectedDef, LabelWidth);
         }
 
         /// <summary>
