@@ -99,7 +99,7 @@ A 分類(状態の奪い合い解消):
 - [x] A-1a: `MaidCache` の視線フィールド(`lookAtTargetType` / `lookAtTargetIndex` / `lookAtMaidPointType` / `eyeEulerAngle`)を `MaidLookController` へ委譲し、`UpdateHeadLook` / `UpdateLookAtTarget` を SE の適用経路へ合流させる
 - [x] A-1b: 表情ウィンドウ視線タブの「視線」「タイムライン視線」を 1 セクションへ統合し、`TimelineSettingWindow` の「メイド目線」(`eyeMoveType`)と「顔/瞳の固定化」(`useHeadKey`)もそこへ集約する
 - [x] A-1c: B-6 の解消確認 — 視線の所有者統合後、`ScenePresetLook` の保存→ロードで視線状態が欠落しないことを確認し、不足があればスキーマへ追加する
-- [ ] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
+- [x] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
 - [ ] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
 - [ ] A-4: `StudioHackManager.isPoseEditing` setter の `canIKVisible` による `isIKVisible` / `isIkBoxVisibleRoot/Body` 上書きを廃し、SE 側のトグルを唯一の入口にする(`alwaysShowIK` の扱いも整理。`isBoneVisible` 自体はアダプタ化済みで対象外)
 - [ ] A-5: `TimelineFaceManager` の名前解決・倍率換算を `MaidFaceMorphController` へ一本化する(表情プリセット・モーフ追跡への影響が広いため差分を丁寧に確認する)
@@ -144,12 +144,27 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **既知の前提**: プリセットは「視線をキー化」(`useHeadKey`)を保存しない。保存時と復元時でこの設定が違うと、指定値の復元が `mode` の復元を上書きしうる。所在をコードのコメントに明記した
 - **B-6 の扱い**: 上記により解消。B 表の B-6 は本項目で閉じる
 
+### A-2 の実装メモ
+
+`MaidCache.UpdateMuneYure` の直接上書きをやめ、`MaidMuneYureController` を唯一の所有者にした。
+
+- **`UpdateMuneYure` は `Reapply` へ委譲**: アニメーション再生でボディの揺れものが既定へ戻る分を SE の記録で塗り直すだけにした。タイムラインのフラグはここでは見ない
+- **`SceneEditorHack.useMuneKeyL/R` の空実装を解消**: フラグの反映はこちらが担い、呼出済み全メイドへ `SetYure(maid, isLeft, !useMuneKey)` を書く(「物理無効」なので揺れとは反転する)
+- **同期は一方向のみ**: SE のトグルはメイド別、タイムラインのフラグは全体設定。逆方向は 1 体の操作で全体設定が動くうえ、このフラグは胸ボーンのキー化可否判定(`TransformDataRotation`)も兼ねるため行わない
+- **対象は `calledMaids`**: コントローラの記録は `MaidManipulateManager` の呼び出し管理と同じ寿命を持つため、管理外のメイドの分を作らない
+- **削除したもの**: 意味を失った `TimelineData` セッター内の `maidManager.UpdateMuneYure()` 呼び出しと、呼び出し元が無くなった `MaidManager.UpdateMuneYure`
+- **`!maid.boMAN` ガードの削除**: `Reapply` は記録の無いメイドへ何もせず、記録は胸の揺れトグルを操作したメイドにしか作られないため不要
+- 新規の純粋ロジックは反転 1 つのみで、`Maid` / `TBody` 依存のため単体テストは追加していない
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- A-2: Inspector で胸の揺れを止めた後にタイムラインを再生しても、揺れが復活しないこと
+- A-2: タイムライン設定の「胸(左/右)の物理無効」を切り替えると、呼出済み全メイドの Inspector トグルが追従すること
+- A-2: 「物理無効」が有効なタイムラインを読み込むと、その時点の SE 側トグルが一括で上書きされること(全体設定として意図した挙動)
 - A-1c: 「視線をキー化」ON で注視先・瞳回転を設定 → シーンプリセット保存 → ロードで指定値が戻ること
 - A-1c: v25 以前の既存プリセットをロードしても、視線まわりで例外・値の飛びが出ないこと
 - A-1b: 視線タブで「視線をキー化」を切り替えると、同じ描画のうちに「向け先」コンボと顔向きスライダーの活性が切り替わること

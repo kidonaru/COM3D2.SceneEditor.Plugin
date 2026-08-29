@@ -289,7 +289,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
 
                 _useMuneKeyL = value;
-                maidManager.UpdateMuneYure();
                 studioHack.useMuneKeyL = value;
             }
         }
@@ -306,7 +305,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
 
                 _useMuneKeyR = value;
-                maidManager.UpdateMuneYure();
                 studioHack.useMuneKeyR = value;
             }
         }

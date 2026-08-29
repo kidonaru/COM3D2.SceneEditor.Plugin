@@ -118,14 +118,37 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set { }
         }
 
+        // 詳細は ApplyMuneYure を参照
         public override bool useMuneKeyL
         {
-            set { }
+            set => ApplyMuneYure(true, value);
         }
 
         public override bool useMuneKeyR
         {
-            set { }
+            set => ApplyMuneYure(false, value);
+        }
+
+        /// <summary>
+        /// 胸の揺れを呼出済みの全メイドへ反映する。
+        /// useMuneKey* は「物理無効」なので、揺れの ON/OFF とは反転する。
+        ///
+        /// SE のトグルはメイド別だがタイムラインのフラグは全体設定のため、一括で書く。
+        /// 逆方向 (SE のトグル → フラグ) は 1 体の操作で全体設定が動いてしまううえ、
+        /// このフラグは胸ボーンをキー化できるかの判定 (TransformDataRotation) も
+        /// 兼ねているため行わない。
+        ///
+        /// 対象は allMaids ではなく calledMaids。コントローラの記録は
+        /// MaidManipulateManager の呼び出し管理と同じ寿命 (Release で破棄) を持つため、
+        /// このプラグインが管理していないメイドの分を作らない
+        /// </summary>
+        private static void ApplyMuneYure(bool isLeft, bool useMuneKey)
+        {
+            var manager = manipulateManager;
+            foreach (var maid in manager.calledMaids)
+            {
+                manager.muneYureController.SetYure(maid, isLeft, !useMuneKey);
+            }
         }
 
         public override Camera subCamera => null;

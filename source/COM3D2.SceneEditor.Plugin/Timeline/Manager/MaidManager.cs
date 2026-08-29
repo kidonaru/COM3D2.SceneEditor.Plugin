@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -316,14 +316,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             foreach (var cache in maidCaches)
             {
                 cache.anmSpeed = speed;
-            }
-        }
-
-        public void UpdateMuneYure()
-        {
-            foreach (var cache in maidCaches)
-            {
-                cache.UpdateMuneYure();
             }
         }
 

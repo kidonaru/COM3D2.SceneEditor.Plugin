@@ -483,15 +483,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 胸の揺れものを SE の状態へ焼き直す。アニメーション再生でボディの揺れものが
+        /// 既定へ戻るため、所有者である MaidMuneYureController に塗り直させる。
+        /// タイムラインのフラグの反映は別経路が担当するため、ここでは見ない。
+        ///
+        /// 旧実装にあった男性の除外は不要。Reapply は記録の無いメイドへ何もせず、
+        /// 記録は胸の揺れトグルを操作したメイドにしか作られない
+        /// </summary>
         public void UpdateMuneYure()
         {
-            if (maid != null && !maid.boMAN)
+            if (maid == null)
             {
-                maid.body0.MuneYureL((float)((!timeline.useMuneKeyL) ? 1 : 0));
-                maid.body0.MuneYureR((float)((!timeline.useMuneKeyR) ? 1 : 0));
-                maid.body0.jbMuneL.enabled = !timeline.useMuneKeyL;
-                maid.body0.jbMuneR.enabled = !timeline.useMuneKeyR;
+                return;
             }
+
+            SEP.MaidManipulateManager.instance.muneYureController.Reapply(maid);
         }
 
         public void UpdateHeadLook()
