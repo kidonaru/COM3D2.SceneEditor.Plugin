@@ -332,6 +332,8 @@
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
     <Compile Include="MTEUtils\MPNUtils.cs" />
     <Compile Include="Timeline\BoneData.cs" />
+    <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuManager.cs" />
     <Compile Include="Timeline\BoneMenu\BoneSetMenuItem.cs" />
