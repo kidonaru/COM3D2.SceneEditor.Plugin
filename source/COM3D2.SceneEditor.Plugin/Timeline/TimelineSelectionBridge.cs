@@ -125,6 +125,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 選択集合が前回から変化したか。GetSelectedItems は毎回 allMenuItems を固定順で
+        /// 走査して組み直すため、同じ集合なら列挙順も必ず一致する = 添字比較で足りる
+        /// </summary>
         private bool MenuSelectionChanged(
             MTEP.ITimelineLayer layer, List<MTEP.IBoneMenuItem> selectedItems)
         {
