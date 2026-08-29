@@ -1,4 +1,4 @@
-using COM3D2.MotionTimelineEditor;
+﻿using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -80,11 +80,18 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>push されたタブバー状態。null はグループ非加入</summary>
         private string[] _tabTitles;
         private int _tabActiveIndex = -1;
+        /// <summary>タブ列のスクロール位置 (先頭に描くタブの index)。TabBarDrawer が書き戻す</summary>
+        private int _tabScrollOffset;
 
         public void SetTabBarState(string[] titles, int activeIndex)
         {
             _tabTitles = titles;
             _tabActiveIndex = activeIndex;
+            if (titles == null)
+            {
+                // グループ離脱時は次回加入へスクロール位置を持ち越さない
+                _tabScrollOffset = 0;
+            }
         }
 
         /// <summary>
@@ -390,14 +397,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>グループ時のタブ列。描画は MTEUtils の TabBarDrawer と共通</summary>
         private void DrawTabBar()
         {
-            // タブ列がヘッダー右のボタン (閉じる + ロック) へ食い込まないよう、利用可能幅を先に確定する
-            var available = _windowRect.width - FRAME * 2
-                - (CLOSE_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN * 2)
-                - (LOCK_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN);
+            // タブ列がヘッダー右のボタン (閉じる + ロック) へ食い込まないよう、
+            // 利用可能幅の算出は TabBarLayout へ集約している
+            var available = TabBarLayout.CalcAvailableWidth(_windowRect.width);
 
             TabBarDrawer.Draw(
                 _tabTitles, _tabActiveIndex,
                 FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, available,
+                ref _tabScrollOffset,
                 (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos));
         }
 
