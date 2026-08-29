@@ -192,7 +192,7 @@ Phase S1(メイド系):
 - [x] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
 - [x] UndressTimelineLayer(スロット表示トグル / レイヤー固有: DressSlotID 単位のため脱衣ウィンドウの行とは非対応 / 逆方向なし)
 - [x] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
-- [ ] DressTimelineLayer(簡易表示・レイヤー固有 / 逆方向なし)
+- [x] DressTimelineLayer(簡易表示・レイヤー固有 / 逆方向なし)
 
 Phase S1 実機確認項目(loop 中に追記):
 
@@ -222,6 +222,10 @@ Phase S1 実機確認項目(loop 中に追記):
 - [ ] 退避(非表示)中のメイドでは Inspector に「非表示中は移動を操作できません」が出て編集できない
 - [ ] IK・ボーン・ポーズの各表示で従来どおり非表示中の警告が出る(HiddenMaidGuard 集約の確認)
 - [ ] 移動レイヤーを開いている間はメイドのルート選択が常に項目表示へ切り替わる(仕様どおりだが操作感に問題が無いか確認する)
+- [ ] 衣装レイヤーで部位行を選択 → Inspector に「部位名: menu ファイル名」が出る
+- [ ] 初期値から変えた部位が緑、変えていない部位が白で表示される(レイヤーのウィンドウと同じ色分け)
+- [ ] セット行(顔 / 髪 / 体 / 服 / アクセ)を選択 → 配下部位がまとめて表示される
+- [ ] 衣装レイヤーの表示は読み取り専用で、編集はアイテム選択UI側で行う(意図した制約)
 
 Phase S2(モデル系):
 

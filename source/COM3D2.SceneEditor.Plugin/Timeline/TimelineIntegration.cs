@@ -271,6 +271,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.UndressTimelineLayer), new UndressItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.MoveTimelineLayer), new MoveItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.DressTimelineLayer), new DressItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
