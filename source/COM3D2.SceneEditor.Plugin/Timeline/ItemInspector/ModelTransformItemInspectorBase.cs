@@ -23,8 +23,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>InspectorWindow.ScaleLabelWidth と同じ値 (連動トグル分を差し引いた幅)</summary>
         private const float ScaleLabelWidth = 25f;
 
-        private readonly ObjectTransformRowDrawer _transformRowDrawer =
-            new ObjectTransformRowDrawer();
+        private readonly ItemRowDrawerCache<ObjectTransformRowDrawer> _transformRowDrawers =
+            new ItemRowDrawerCache<ObjectTransformRowDrawer>();
 
         /// <summary>メニュー項目名からモデルを引く。見つからなければ null</summary>
         protected abstract TModel FindModel(string itemName);
@@ -49,9 +49,11 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 複数選択時にどのモデルの行か分かるよう見出しを出す
                 view.DrawLabel(item.displayName, -1, RowHeight);
-                _transformRowDrawer.Draw(
+                _transformRowDrawers.Get(item.name).Draw(
                     view, transform.gameObject, LabelWidth, ScaleLabelWidth, RowHeight);
             }
+
+            _transformRowDrawers.PruneExcept(items);
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)

@@ -278,8 +278,11 @@
     <Compile Include="BoneSliderRowDrawer.cs" />
     <Compile Include="HiddenMaidGuard.cs" />
     <Compile Include="LabeledComboRow.cs" />
+    <Compile Include="ItemRowDrawerCache.cs" />
+    <Compile Include="ModelBoneRowDrawer.cs" />
     <Compile Include="ObjectTransformRowDrawer.cs" />
     <Compile Include="ScaleRowDrawer.cs" />
+    <Compile Include="Vector3RowDrawer.cs" />
     <Compile Include="MaidShapeKeyRowDrawer.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
@@ -347,6 +350,7 @@
     <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\DressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ModelItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ModelBoneItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ModelTransformItemInspectorBase.cs" />
     <Compile Include="Timeline\ItemInspector\MoveItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MorphItemInspector.cs" />

@@ -26,7 +26,7 @@ namespace COM3D2.SceneEditor.Plugin
             // ギズモの Local/Global 切替に合わせて表示・編集する座標系も切り替える
             var useLocal = GizmoRenderer.useLocalSpace;
 
-            DrawVector3Row(view, "位置", PositionSensitivity, labelWidth, rowHeight,
+            Vector3RowDrawer.Draw(view, "位置", PositionSensitivity, labelWidth, rowHeight,
                 useLocal ? t.localPosition : t.position,
                 value =>
                 {
@@ -39,7 +39,7 @@ namespace COM3D2.SceneEditor.Plugin
                     SetPosition(t, Vector3.zero, useLocal);
                 });
 
-            DrawVector3Row(view, "回転", RotationSensitivity, labelWidth, rowHeight,
+            Vector3RowDrawer.Draw(view, "回転", RotationSensitivity, labelWidth, rowHeight,
                 _eulerCache.GetOffset(t, Quaternion.identity, useLocal),
                 value =>
                 {
@@ -100,29 +100,6 @@ namespace COM3D2.SceneEditor.Plugin
                 t.eulerAngles = eulerAngles;
             }
             _eulerCache.Store(t, Quaternion.identity, eulerAngles, useLocal);
-        }
-
-        /// <summary>ラベル + XYZ (ドラッグラベル + 数値入力) + リセットボタンの 1 行</summary>
-        private static void DrawVector3Row(
-            GUIView view,
-            string label,
-            float dragSensitivity,
-            float labelWidth,
-            float rowHeight,
-            Vector3 value,
-            System.Action<Vector3> onChanged,
-            System.Action onReset)
-        {
-            view.DrawVector3Row(new GUIView.Vector3RowOption
-            {
-                label = label,
-                labelWidth = labelWidth,
-                height = rowHeight,
-                dragSensitivity = dragSensitivity,
-                value = value,
-                onChanged = onChanged,
-                onReset = onReset,
-            });
         }
     }
 }

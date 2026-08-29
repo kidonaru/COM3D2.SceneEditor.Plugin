@@ -231,7 +231,7 @@ Phase S1 実機確認項目(loop 中に追記):
 Phase S2(モデル系):
 
 - [x] ModelTimelineLayer / BGModelTimelineLayer(モデル Transform / 逆方向あり: `Select(モデルGameObject)`)
-- [ ] ModelBoneTimelineLayer(モデルボーン Transform / BoneEditWindow `DrawModelContent` / 逆方向あり: ボーン GameObject 選択)
+- [x] ModelBoneTimelineLayer(モデルボーン Transform / 共有元は BoneEditManager の差分ストア経由の編集 / 逆方向あり: ボーン GameObject 選択)
 - [ ] ModelShapeKeyTimelineLayer(ブレンドシェイプ重み / ShapeKeyEditWindow `DrawModelContent` / 逆方向なし)
 - [ ] MaidMaterialTimelineLayer / ModelMaterialTimelineLayer / BGModelMaterialTimelineLayer(マテリアルプロパティ / MaterialEditWindow / 逆方向なし)
 
@@ -242,6 +242,12 @@ Phase S2 実機確認項目(loop 中に追記):
 - [ ] モデル (または子メッシュ) をビューポートで選択 → 該当モデルの行が選択される(ループしない)
 - [ ] モデルを削除した直後の項目が「(モデルが見つかりません)」表示になる
 - [ ] ModItemExplorer 未導入時は配置モデルレイヤー自体が出ない(従来どおり。プロバイダも登録されない)
+- [ ] モデルボーンレイヤーでボーン行を選択 → Inspector に位置/回転/拡縮が出て編集できる
+- [ ] Inspector で編集したモデルボーンが、ボーン編集ウィンドウのリセット・プリセット保存の対象になる(差分ストアへ記録されているかの確認。最重要)
+- [ ] 位置・拡縮のリセットが編集前の値へ、回転のリセットが元姿勢へ戻る(ボーン編集ウィンドウと同じ)
+- [ ] ボーンを直接選択 → 該当ボーン行が選択される。モデル本体を選んだときはモデルレイヤー側だけが反応する(祖先を辿らない判断の確認)
+- [ ] ドラッグ中に回転角が跳ねない(EulerOffsetCache をウィンドウ側と別インスタンスで持つ影響の確認)
+- [ ] 複数のボーン行 / モデル行を同時に選択しても回転角が跳ねない(項目ごとにドロワーを配る ItemRowDrawerCache の確認)
 
 Phase S3(カメラ・ライト・背景):
 
