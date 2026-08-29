@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1376,9 +1376,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 OnPoseEditStart();
             }
-
-            // IK表示反映のために再設定
-            studioHackManager.isPoseEditing = isPoseEditing;
         }
 
         public void SetPlayingFrameNoAll(int frameNo)

@@ -24,6 +24,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public abstract int selectedMaidSlotNo { get; }
         public abstract string outputAnmPath { get; }
         public abstract bool isPoseEditing { get; set; }
+        public abstract bool isIKVisible { get; set; }
         public abstract float motionSliderRate { set; }
         public abstract bool useMuneKeyL { set; }
         public abstract bool useMuneKeyR { set; }

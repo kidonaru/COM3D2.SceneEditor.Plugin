@@ -80,6 +80,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>ボーン/IK の表示。SE の「ボーン表示」トグルがそのまま実体</summary>
+        public override bool isIKVisible
+        {
+            get => manipulateManager.isBoneVisible;
+            set => manipulateManager.isBoneVisible = value;
+        }
+
         public override bool isAnmEnabled
         {
             get
