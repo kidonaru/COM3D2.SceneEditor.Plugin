@@ -245,6 +245,11 @@ namespace COM3D2.SceneEditor.Plugin
             var title = _tabTitles != null ? "" : windowTitle;
             _windowRect = GUI.Window(windowId, _windowRect, DrawWindow, title, GUIView.gsWin);
 
+            // タブ切替メニューはホスト矩形にクリップされないよう別ウィンドウとして描く
+            TabBarDrawer.DrawContextMenuWindow(
+                windowId, _windowRect, _tabTitles, _tabActiveIndex,
+                index => TabGroupManager.instance.ActivateTabIndex(this, index));
+
             // 画面外へ出ないようクランプ。
             // 連結中はメンバー間のオフセットを壊さないよう個別クランプせず、
             // WindowConnectManager が群のバウンディングボックスでクランプする
@@ -284,18 +289,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawDropHighlight();
 
-            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)。
-            // タブ切替メニュー表示中も、メニュー外の押下がウィンドウ移動を始めないよう止める
-            // (メニューは最後に描くため、この判定を先に通すと押下を先取りできない)
-            if (!isLocked && !TabBarDrawer.IsContextMenuOpen(windowId))
+            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)
+            if (!isLocked)
             {
                 HandleDragInput(closeRect);
             }
-
-            // タブ切替メニューは全コントロールの後に描いて最前面へ出す
-            TabBarDrawer.DrawContextMenu(
-                windowId, _tabTitles, _tabActiveIndex,
-                index => TabGroupManager.instance.ActivateTabIndex(this, index));
         }
 
         /// <summary>

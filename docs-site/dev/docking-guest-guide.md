@@ -172,7 +172,10 @@ Rect SnapResize(object handle, Rect rect, int edges);
   `<` `>` ボタンが出て、見えている範囲だけを左右にスクロールする
   （アクティブタブは常に見える位置へ自動追従する）
 - **タブバーの右クリック**でタブ一覧メニューが開き、選んだタブがアクティブになる
-  （選択の通知は上記 `ActivateTabIndex`）
+  （選択の通知は上記 `ActivateTabIndex`）。メニューはドロップダウン（`ComboBoxPopupWindow`）と
+  同様に**独立した `GUI.Window`** として描かれる（ホスト窓の矩形でクリップされないため）。
+  自前描画のゲストは `TabBarDrawer.DrawContextMenuWindow(...)` を
+  **`GUI.Window` の外**（`OnGUI` 直下）から毎フレーム呼ぶこと
 - **タブを左右へドラッグ**するとグループ内の並び順が変わる
   （ヘッダーから離すと従来どおり分離になる）。並び替えの判定と保存はホスト側の責務で、
   ゲストは従来どおり `NotifyTabMouseDown` で押下位置を通知するだけでよい
