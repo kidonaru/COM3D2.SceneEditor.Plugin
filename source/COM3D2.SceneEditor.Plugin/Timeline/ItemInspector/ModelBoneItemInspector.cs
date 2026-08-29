@@ -39,8 +39,9 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                // 複数選択時にどのボーンの行か分かるよう見出しを出す
-                view.DrawLabel(item.displayName, -1, RowHeight);
+                // 複数選択時にどのモデルのどのボーンの行か分かるよう見出しを出す
+                // (項目名にはモデル名が入らないため補う)
+                view.DrawLabel(model.displayName + "/" + item.displayName, -1, RowHeight);
                 _boneRowDrawers.Get(item.name).Draw(
                     view, model.transform.gameObject, bone.transform,
                     LabelWidth, ScaleLabelWidth, RowHeight);

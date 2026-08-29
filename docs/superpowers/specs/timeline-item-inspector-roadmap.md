@@ -232,7 +232,7 @@ Phase S2(モデル系):
 
 - [x] ModelTimelineLayer / BGModelTimelineLayer(モデル Transform / 逆方向あり: `Select(モデルGameObject)`)
 - [x] ModelBoneTimelineLayer(モデルボーン Transform / 共有元は BoneEditManager の差分ストア経由の編集 / 逆方向あり: ボーン GameObject 選択)
-- [ ] ModelShapeKeyTimelineLayer(ブレンドシェイプ重み / ShapeKeyEditWindow `DrawModelContent` / 逆方向なし)
+- [x] ModelShapeKeyTimelineLayer(ブレンドシェイプ重み / ShapeKeyEditWindow `DrawModelContent` / 逆方向なし)
 - [ ] MaidMaterialTimelineLayer / ModelMaterialTimelineLayer / BGModelMaterialTimelineLayer(マテリアルプロパティ / MaterialEditWindow / 逆方向なし)
 
 Phase S2 実機確認項目(loop 中に追記):
@@ -248,6 +248,11 @@ Phase S2 実機確認項目(loop 中に追記):
 - [ ] ボーンを直接選択 → 該当ボーン行が選択される。モデル本体を選んだときはモデルレイヤー側だけが反応する(祖先を辿らない判断の確認)
 - [ ] ドラッグ中に回転角が跳ねない(EulerOffsetCache をウィンドウ側と別インスタンスで持つ影響の確認)
 - [ ] 複数のボーン行 / モデル行を同時に選択しても回転角が跳ねない(項目ごとにドロワーを配る ItemRowDrawerCache の確認)
+- [ ] モデルシェイプレイヤーでシェイプキー行を選択 → Inspector に重みスライダー(-1〜2)が出て編集できる
+- [ ] Inspector 側で重みを変えると変更追跡チェックが自動で ON になり、シェイプキーウィンドウの表示と一致する
+- [ ] 追跡チェックを OFF にすると重みが 0 に戻る(ウィンドウ側と同じ挙動)
+- [ ] シェイプキーウィンドウのモデルタブ(一覧・検索)に退行が無い(抽出リファクタリングの確認)
+- [ ] 同名シェイプキー / 同名ボーンを持つモデルを複数選択しても、見出しのモデル名で行を区別できる
 
 Phase S3(カメラ・ライト・背景):
 

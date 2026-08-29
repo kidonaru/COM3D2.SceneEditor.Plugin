@@ -202,6 +202,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.ModelTimelineLayer), new ModelItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.ModelBoneTimelineLayer), new ModelBoneItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.ModelShapeKeyTimelineLayer), new ModelShapeKeyItemInspector());
         }
 
         public static void Initialize(ManagerRegistry managerRegistry)

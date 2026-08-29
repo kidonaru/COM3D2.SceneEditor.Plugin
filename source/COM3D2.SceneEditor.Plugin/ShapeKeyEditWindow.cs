@@ -316,11 +316,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
-            var modelObject = model.transform.gameObject;
-            // 表示判定用。まだ 1 つもチェックしていないモデルのストアを作らないよう FindStore を使う
-            // (操作側のコールバックは GetStore で遅延生成する)
-            var shapeKeyStore = ModelShapeKeyEditManager.instance.FindStore(modelObject);
-
             var matchedCount = 0;
 
             view.BeginScrollView();
@@ -335,46 +330,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     matchedCount++;
 
-                    var weight = blendShape.weight;
-                    var isModified = shapeKeyStore != null && shapeKeyStore.IsModified(shapeKeyName);
-
-                    // 変更追跡チェック。ON=プリセット保存とタイムライン表示の対象。
-                    // 手動 OFF は「未編集へ戻す」操作なので重みも 0 に戻す
-                    Action<bool> onCheckChanged = newChecked =>
-                    {
-                        if (newChecked)
-                        {
-                            ModelShapeKeyEditManager.instance.GetStore(modelObject).Mark(shapeKeyName);
-                        }
-                        else
-                        {
-                            blendShape.weight = 0f;
-                            model.FixBlendValues();
-                            ModelShapeKeyEditManager.instance.GetStore(modelObject).Unmark(shapeKeyName);
-                        }
-                    };
-
-                    view.DrawTrackedLabel(isModified, onCheckChanged, shapeKeyName, -1, ROW_HEIGHT);
-
-                    var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        width = -1,
-                        min = -1f,
-                        max = 2f,
-                        step = 0.01f,
-                        defaultValue = 0f,
-                        value = weight,
-                        onChanged = x => weight = x,
-                    });
-
-                    // FixBlendValues は全頂点を走査するため、値が変わったときだけ呼ぶ
-                    if (updateTransform)
-                    {
-                        blendShape.weight = weight;
-                        model.FixBlendValues();
-                        // 編集したシェイプキーは自動で追跡対象にする
-                        ModelShapeKeyEditManager.instance.GetStore(modelObject).Mark(shapeKeyName);
-                    }
+                    ModelShapeKeyRowDrawer.Draw(view, model, blendShape, ROW_HEIGHT);
                 }
 
                 if (matchedCount == 0)
