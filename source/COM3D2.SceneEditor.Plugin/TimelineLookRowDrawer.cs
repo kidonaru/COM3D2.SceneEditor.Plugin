@@ -19,14 +19,6 @@ namespace COM3D2.SceneEditor.Plugin
             "表情ウィンドウの視線タブで「視線をキー化」を有効にしてください";
 
         /// <summary>
-        /// タイムライン視線の注視先の選択肢。
-        /// モデル注視は StudioModelManager 未移植のため除外する (レイヤー側の扱いに合わせる)
-        /// </summary>
-        private static readonly List<MTEP.LookAtTargetType> LookAtTargetTypes =
-            Enum.GetValues(typeof(MTEP.LookAtTargetType)).Cast<MTEP.LookAtTargetType>()
-                .Where(type => type != MTEP.LookAtTargetType.Model).ToList();
-
-        /// <summary>
         /// タイムライン視線がキー化される状態か。
         /// 参照するのは TimelineData 側のフラグ。
         /// タイムライン未読込 (timeline == null) も false を返すため、
@@ -42,11 +34,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>タイムライン視線の注視先コンボ。書き込み先は MaidCache</summary>
-        private readonly GUIComboBox<MTEP.LookAtTargetType> _targetTypeComboBox =
-            new GUIComboBox<MTEP.LookAtTargetType>
+        /// <summary>
+        /// キー化中の向け先コンボ。SE の向け先と同じ語彙 (MaidLookMode) を使い、
+        /// 書き込み先だけが MaidCache のキー指定値になる
+        /// </summary>
+        private readonly GUIComboBox<MaidLookMode> _lookModeComboBox =
+            new GUIComboBox<MaidLookMode>
             {
-                getName = (type, index) => MTEP.TransformDataLookAtTarget.TargetTypeNames[index],
+                getName = (mode, _) => mode.ToString(),
             };
 
         private readonly GUIComboBox<MTEP.MaidCache> _targetMaidComboBox =
@@ -63,24 +58,25 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
             };
 
-        /// <summary>注視先の行 (対象がメイドのときはメイド・ポイントの行も続けて出す)</summary>
+        /// <summary>
+        /// キー化中の向け先の行 (対象がメイドのときはメイド・ポイントの行も続けて出す)。
+        /// キー化していないときの SE の「向け先」行と同じ語彙・同じラベルにして、
+        /// キー化の切り替えで行が入れ替わらないようにする
+        /// </summary>
         public void DrawLookAtTargetRows(
             GUIView view, MTEP.MaidCache maidCache, float labelWidth, float rowHeight)
         {
-            // 選択肢から除外した Model が既存データに残っている場合は手動 (None) へ丸める
-            var targetTypeIndex = (int) maidCache.lookAtTargetType;
-            if (targetTypeIndex >= LookAtTargetTypes.Count)
-            {
-                targetTypeIndex = (int) MTEP.LookAtTargetType.None;
-            }
+            var modes = MaidLookBridge.GetSelectableModes(true);
+            // 選択肢に無い値 (モデル注視等) は ToLookMode が方向指定へ丸める
+            var mode = MaidLookBridge.ToLookMode(maidCache.lookAtTargetType);
 
-            _targetTypeComboBox.items = LookAtTargetTypes;
-            _targetTypeComboBox.currentIndex = targetTypeIndex;
-            _targetTypeComboBox.onSelected =
-                (type, _) => maidCache.lookAtTargetType = type;
-            LabeledComboRow.Draw(view, "注視先", _targetTypeComboBox, labelWidth, rowHeight);
+            _lookModeComboBox.items = modes;
+            _lookModeComboBox.currentIndex = modes.IndexOf(mode);
+            _lookModeComboBox.onSelected =
+                (newMode, _) => maidCache.lookAtTargetType = MaidLookBridge.ToTargetType(newMode);
+            LabeledComboRow.Draw(view, "向け先", _lookModeComboBox, labelWidth, rowHeight);
 
-            if (_targetTypeComboBox.currentItem != MTEP.LookAtTargetType.Maid)
+            if (_lookModeComboBox.currentItem != MaidLookMode.メイド)
             {
                 return;
             }
@@ -97,7 +93,7 @@ namespace COM3D2.SceneEditor.Plugin
             LabeledComboRow.Draw(view, "ポイント", _targetMaidPointComboBox, labelWidth, rowHeight);
         }
 
-        /// <summary>顔向きキーの 2 行。注視先が手動のときだけ効く (レイヤー側の活性条件と同じ)</summary>
+        /// <summary>顔向きキーの 2 行。向け先が方向指定のときだけ効く (レイヤー側の活性条件と同じ)</summary>
         public void DrawLookDirectionRows(GUIView view, MTEP.MaidCache maidCache, float labelWidth)
         {
             // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を

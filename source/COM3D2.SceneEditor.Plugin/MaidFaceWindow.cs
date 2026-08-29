@@ -53,6 +53,21 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 100),
         };
 
+        /// <summary>メイドモードの注視対象。呼出済みメイドから選ぶ</summary>
+        private readonly GUIComboBox<Maid> _lookMaidComboBox = new GUIComboBox<Maid>
+        {
+            getName = (maid, _) => maid.status.fullNameJpStyle,
+        };
+
+        /// <summary>メイドモードで見る部位。タイムラインのキーと同じ列挙を使う</summary>
+        private readonly GUIComboBox<MTEP.MaidPointType> _lookMaidPointComboBox =
+            new GUIComboBox<MTEP.MaidPointType>
+            {
+                items = new List<MTEP.MaidPointType>((MTEP.MaidPointType[])
+                    Enum.GetValues(typeof(MTEP.MaidPointType))),
+                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
+            };
+
         /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
         private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
 
@@ -76,16 +91,6 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                 },
             };
-
-        /// <summary>視線モードの選択肢。列挙の再生成を避けて使い回す</summary>
-        private static readonly List<MaidLookMode> LOOK_MODES = new List<MaidLookMode>
-        {
-            MaidLookMode.カメラ,
-            MaidLookMode.マウス,
-            MaidLookMode.方向指定,
-            MaidLookMode.オブジェクト,
-            MaidLookMode.無し,
-        };
 
         private static MaidLookController lookController
             => MaidManipulateManager.instance.lookController;
@@ -295,12 +300,6 @@ namespace COM3D2.SceneEditor.Plugin
             if (isKeyed)
             {
                 DrawKeyedLookResetRow(view, target);
-                return;
-            }
-
-            if (mode == MaidLookMode.オブジェクト)
-            {
-                DrawLookObjectRows(view, target);
             }
         }
 
@@ -353,31 +352,43 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 向け先の行。キー化中はタイムラインの注視先が向け先を決めるため、
-        /// SE のコンボは表示のみにして注視先の行へ操作を譲る
+        /// 向け先の行。キー化の有無で選択肢と書き込み先だけが変わり、
+        /// 行の構成 (向け先 → 対象の指定) は変えない
         /// </summary>
         private void DrawLookTargetRows(
             GUIView view, Maid target, MaidLookMode mode, bool isKeyed)
         {
-            view.SetEnabled(!isKeyed);
-            _lookModeComboBox.items = LOOK_MODES;
-            _lookModeComboBox.currentIndex = LOOK_MODES.IndexOf(mode);
+            if (isKeyed)
+            {
+                var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+                if (maidCache == null)
+                {
+                    view.DrawLabel("タイムライン側の対象メイドが見つかりません",
+                        -1, ROW_HEIGHT, textColor: Color.yellow);
+                    return;
+                }
+                _timelineLookRowDrawer.DrawLookAtTargetRows(
+                    view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
+                return;
+            }
+
+            _lookModeComboBox.items = MaidLookBridge.GetSelectableModes(false);
+            _lookModeComboBox.currentIndex = _lookModeComboBox.items.IndexOf(mode);
             _lookModeComboBox.onSelected = (newMode, _) =>
             {
                 HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線の向け先");
                 lookController.SetMode(target, newMode);
             };
             DrawLabeledComboBox("向け先", _lookModeComboBox);
-            view.SetEnabled(true);
 
-            if (isKeyed)
+            // 対象の指定はキー化中の行 (向け先の直下にメイド・ポイントが続く) と並びを揃える
+            if (mode == MaidLookMode.メイド)
             {
-                var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
-                if (maidCache != null)
-                {
-                    _timelineLookRowDrawer.DrawLookAtTargetRows(
-                        view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
-                }
+                DrawLookMaidRows(view, target);
+            }
+            else if (mode == MaidLookMode.オブジェクト)
+            {
+                DrawLookObjectRows(view, target);
             }
         }
 
@@ -417,11 +428,38 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndLayout();
         }
 
+        /// <summary>メイドモードの注視対象と部位。キー化中は同じ行を TimelineLookRowDrawer が描く</summary>
+        private void DrawLookMaidRows(GUIView view, Maid target)
+        {
+            var maids = MTEUtils.GetReadyMaidList();
+            var targetMaid = lookController.GetTargetMaid(target);
+
+            _lookMaidComboBox.items = maids;
+            // 未選択のときは currentIndex が -1 になりボタン文字列が決まらないため、既定名で埋める
+            // (先頭のメイドへ丸めると、選んでいないメイドが選択済みに見えてしまう)
+            _lookMaidComboBox.defaultName = targetMaid == null ? "未選択" : null;
+            _lookMaidComboBox.currentIndex = maids.IndexOf(targetMaid);
+            _lookMaidComboBox.onSelected = (selected, _) =>
+            {
+                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視対象の指定");
+                lookController.SetMaidTarget(
+                    target, selected, lookController.GetMaidPointType(target));
+            };
+            DrawLabeledComboBox("メイド", _lookMaidComboBox);
+
+            _lookMaidPointComboBox.currentIndex = (int) lookController.GetMaidPointType(target);
+            _lookMaidPointComboBox.onSelected = (pointType, _) =>
+            {
+                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視ポイントの指定");
+                lookController.SetMaidTarget(
+                    target, lookController.GetTargetMaid(target), pointType);
+            };
+            DrawLabeledComboBox("ポイント", _lookMaidPointComboBox);
+        }
+
         /// <summary>オブジェクトモードの注視対象。Hierarchy の選択をそのまま指定できる</summary>
         private void DrawLookObjectRows(GUIView view, Maid target)
         {
-            view.AddSpace(5);
-
             var current = lookController.GetTarget(target);
             var selected = SelectionManager.instance.selectedObject;
             view.BeginHorizontal();
