@@ -1016,10 +1016,6 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
-        /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
-        /// </summary>
-        /// <summary>
         /// レイヤーインスタンスの表示名。スロット付きレイヤーはメイド名を併記して
         /// 同型レイヤーのインスタンスを区別できるようにする
         /// </summary>
@@ -1038,6 +1034,10 @@ namespace COM3D2.SceneEditor.Plugin
             return name;
         }
 
+        /// <summary>
+        /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
+        /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
+        /// </summary>
         private void DrawLayerControls(GUIView view, int menuWidth)
         {
             var layerType = currentLayer.layerType;

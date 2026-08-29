@@ -27,7 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>IMGUI 既定の縦スクロールバー幅。項目幅の差し引きに使う</summary>
         public static readonly int SCROLLBAR_WIDTH = 16;
         // ポップアップ項目のホバー色。label スタイルはホバー反応を持たないため自前で塗る
-        private static readonly Color ITEM_HOVER_COLOR = new Color(1f, 1f, 1f, 0.15f);
+        public static readonly Color ITEM_HOVER_COLOR = new Color(1f, 1f, 1f, 0.15f);
 
         private static Config config => ConfigManager.instance.config;
 
