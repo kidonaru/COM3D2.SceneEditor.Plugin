@@ -59,10 +59,11 @@ A/B 完了後の再調査で見つかった残り。A-1 追補(瞳回転→顔�
 | D-4 | **モーション再生状態** | `MaidMotionState`(:125-190 `StopMotion`。停止中の真実は `_resetClipNames` 辞書、:270-292 `SetPlaybackTime`) | `MaidCache.anmSpeed` / `motionSliderRate` / `isAnmEnabled` / `PlayAnm`(:69-180, :473-492)が `AnimationState` を直書き | **奪い合い＋概念重複**。`SceneEditorHack.isAnmEnabled` は委譲済みだが `MaidCache` 自身は未委譲。停止の真実が 2 つあり、タイムライン再生後に SE が「再生中」と誤認する。SE 経路にある `CaptureBasePose` の呼び直しも MTE 経路では走らない |
 | D-5 | **メイド配置(Transform)** | `MaidPlacementPreset`(`SetPos` / `SetRot`)＋ `MaidVisibilityController`(:54-71 非表示 = `HiddenPosition(100,0,0)` へ退避)＋ `MaidManipulateManager.GetLogicalPosition` | `MoveTimelineLayer`(:73-111)が `maid.transform` を毎 LateUpdate 直書き(`localScale` 含む) | **奪い合い**。MTE は退避を知らないため、再生中に退避メイドを引き戻す/退避座標 `(100,0,0)` がキーに焼かれる。`SetRestorePosition` も呼ばれない |
 | D-6 | **メインカメラ** | `CameraWindow`(:361-374, :463-493 `CameraMain.SetTargetPos` 等)＋ `CameraSnapshot` | `CameraTimelineLayer`(:118-124)が `UltimateOrbitCamera` を直叩き | **概念重複(軽度)**。実体は同じカメラだが操作 API が 2 系統、ロールの持ち方も別。優先度低。`Timeline/Manager/CameraManager` はオーバーレイ専用の `MTEFrontCamera` で競合しない |
+| D-7 | **視線の向け先 vs 注視先** | `MaidLookController` の `MaidLookMode`(カメラ/マウス/方向指定/オブジェクト/無し)＋視線タブ「向け先」コンボ | `MaidCache.lookAtTargetType`(`LookAtTargetType`: None/Camera/Maid/Model)＋メイド・ポイント指定、視線タブ「注視先」行 | **概念重複**(A-1 の残り)。書き込みは `MaidLookBridge.ResolveLookMode` で一本化済みだが、同じ「どこを見るか」に 2 つの列挙・2 つの UI 行が残り、キー化 ON/OFF で操作する行が入れ替わる。MTE 側にしか無い値(メイドのポイント指定)と SE 側にしか無い値(マウス)があり単純な統合はできない。瞳回転→顔向きと同様に片方へ寄せるなら、キー化の有無で意味が変わらない共通の注視先表現の設計が要る |
 
 **確認済み・問題なし**: メイド/モデルのシェイプキー(`EditTargetStore` 追跡のみで値は一本化)、マテリアル 3 レイヤー、IK 接地(`MaidIKHoldController` 経由)、拡張ボーン/モデルボーン(`BoneEditManager` 経由)、モーフ名前解決・追跡(A-5 で統合済み)。**片側のみ**: 衣装差し替え(`DressTimelineLayer`、SE に書き手なし)、ボイス(`MaidCache`、SE に対応実装なし)。
 
-**優先度の所感**: 最小コストは D-3(ただし親スイッチ設計が要る)。実害が出やすいのは D-4 / D-5。統合効果が大きいのは D-1 / D-2。
+**優先度の所感**: 最小コストは D-3(ただし親スイッチ設計が要る)。実害が出やすいのは D-4 / D-5。統合効果が大きいのは D-1 / D-2。D-7 は書き込み経路の統合(A-1)が済んでいるため実害は小さいが、視線 UI を完全に 1 系統へ畳むなら避けて通れない。
 
 ## 統合方針の示唆
 
