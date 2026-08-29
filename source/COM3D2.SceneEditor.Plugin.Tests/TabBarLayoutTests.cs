@@ -16,6 +16,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(3, r.visibleCount);
             Assert.True(r.tabWidth >= TabBarLayout.MIN_TAB_WIDTH);
             Assert.Equal(0f, r.tabsOriginX);
+            // クリップは不要なので利用可能幅がそのままタブ領域になる
+            Assert.Equal(300f, r.tabsAreaWidth);
         }
 
         // 下限を割る枚数ならスクロールモードへ入り、幅は MIN 固定
@@ -29,6 +31,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             // タブ領域 = 300 - (16+2)*2 = 264 → floor((264+2)/62) = 4
             Assert.Equal(4, r.visibleCount);
             Assert.Equal(TabBarLayout.SCROLL_BUTTON_WIDTH + 2f, r.tabsOriginX);
+            // 見切れ描画のクリップ幅は両端のボタンを除いた領域
+            Assert.Equal(264f, r.tabsAreaWidth);
         }
 
         // scrollOffset は範囲へクランプされる
