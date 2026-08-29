@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -15,6 +16,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         private IDockableWindow _activeWindow;
         public IDockableWindow activeWindow => _activeWindow;
+
+        /// <summary>
+        /// タブ列のスクロール位置 (px)。タブバーはグループに 1 本なので位置もグループが持つ。
+        /// 描画するのはアクティブなウィンドウなので、ウィンドウ側に持たせると
+        /// タブを切り替えた瞬間に別の窓が覚えていた位置へ飛ぶ
+        /// </summary>
+        public float tabScrollX;
+
+        /// <summary>最後に push したアクティブ index。アクティブ切替の検出に使う</summary>
+        private int _lastPushedActiveIndex = -1;
 
         public bool Contains(IDockableWindow window)
         {
@@ -132,6 +143,21 @@ namespace COM3D2.SceneEditor.Plugin
                 titles[i] = windows[i].windowTitleForTab;
             }
             var activeIndex = _activeWindow != null ? windows.IndexOf(_activeWindow) : -1;
+
+            if (activeIndex != _lastPushedActiveIndex)
+            {
+                _lastPushedActiveIndex = activeIndex;
+                if (_activeWindow != null)
+                {
+                    // アクティブになったタブが見切れていたら見える位置まで寄せる
+                    // (収まっているならスクロール位置は動かさない)
+                    tabScrollX = TabBarLayout.ScrollToShow(
+                        windows.Count,
+                        TabBarLayout.CalcAvailableWidth(_activeWindow.windowRect.width),
+                        tabScrollX, activeIndex);
+                }
+            }
+
             foreach (var window in windows)
             {
                 window.SetTabBarState(titles, activeIndex);

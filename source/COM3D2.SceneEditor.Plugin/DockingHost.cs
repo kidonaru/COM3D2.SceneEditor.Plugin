@@ -165,6 +165,29 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// タブ列のスクロール位置 (px) を読む。スクロール位置はグループの状態なので、
+        /// ゲストが自前で持つとタブ切替のたびに位置が飛ぶ。
+        /// 未所属なら fallback をそのまま返す
+        /// </summary>
+        public static float GetTabScrollX(object handle, float fallback)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            var group = adapter != null ? adapter.group : null;
+            return group != null ? group.tabScrollX : fallback;
+        }
+
+        /// <summary>ゲストが操作した結果のスクロール位置 (px) を書き戻す</summary>
+        public static void SetTabScrollX(object handle, float scrollX)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            var group = adapter != null ? adapter.group : null;
+            if (group != null)
+            {
+                group.tabScrollX = scrollX;
+            }
+        }
+
+        /// <summary>
         /// ゲストのメニュー選択によるタブアクティブ化。tabIndex はグループ内 index。
         /// ActivateTab と違い自窓以外も指定でき、NotifyTabMouseDown と違い
         /// つまみドラッグ候補は記録しない (メニュー選択はドラッグではない)

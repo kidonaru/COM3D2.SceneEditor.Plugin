@@ -80,31 +80,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>push されたタブバー状態。null はグループ非加入</summary>
         private string[] _tabTitles;
         private int _tabActiveIndex = -1;
-        /// <summary>タブ列のスクロール位置 (px)。クランプ結果を TabBarDrawer が書き戻す</summary>
-        private float _tabScrollX;
 
         public void SetTabBarState(string[] titles, int activeIndex)
         {
-            var activeChanged = activeIndex != _tabActiveIndex;
             _tabTitles = titles;
             _tabActiveIndex = activeIndex;
 
             if (titles == null)
             {
-                // グループ離脱時は次回加入へスクロール位置を持ち越さない。
                 // タブバーを描かなくなるとメニューを閉じる機会も失うのでここで閉じる
-                _tabScrollX = 0f;
                 TabBarDrawer.CloseContextMenu(windowId);
-                return;
-            }
-
-            if (activeChanged)
-            {
-                // アクティブになったタブが見切れていたら見える位置まで寄せる
-                // (収まっているならスクロール位置は動かさない)
-                _tabScrollX = TabBarLayout.ScrollToShow(
-                    titles.Length, TabBarLayout.CalcAvailableWidth(_windowRect.width),
-                    _tabScrollX, activeIndex);
             }
         }
 
@@ -421,11 +406,19 @@ namespace COM3D2.SceneEditor.Plugin
             // 利用可能幅の算出は TabBarLayout へ集約している
             var available = TabBarLayout.CalcAvailableWidth(_windowRect.width);
 
+            // スクロール位置はグループの状態。タブバーを描くのはアクティブな窓だけなので、
+            // 窓ごとに持つとタブ切替のたびに別の窓が覚えていた位置へ飛ぶ
+            var tabGroup = group;
+            var scrollX = tabGroup != null ? tabGroup.tabScrollX : 0f;
             TabBarDrawer.Draw(
                 windowId, _tabTitles, _tabActiveIndex,
                 FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, HEADER_HEIGHT, available,
-                ref _tabScrollX,
+                ref scrollX,
                 (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos));
+            if (tabGroup != null)
+            {
+                tabGroup.tabScrollX = scrollX;
+            }
         }
 
         /// <summary>スクリーンGUI座標がリサイズのつかみ範囲上にあるか</summary>

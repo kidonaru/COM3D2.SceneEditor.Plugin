@@ -114,6 +114,12 @@ void NotifyTabMouseDown(object handle, int tabIndex, float x, float y);
 void ActivateTab(object handle);          // 自窓のタブをアクティブへ切り替える
                                           // (押下由来でないためドラッグ候補は記録しない。
                                           //  グループ非加入なら何もしない)
+float GetTabScrollX(object handle, float fallback);
+                                          // タブ列のスクロール位置 (px) を読む。
+                                          // 位置はグループの状態なのでホストが持つ
+                                          // (未所属なら fallback がそのまま返る)
+void SetTabScrollX(object handle, float scrollX);
+                                          // 操作した結果のスクロール位置を書き戻す
 void ActivateTabIndex(object handle, int tabIndex);
                                           // グループ内 index 指定でタブをアクティブへ切り替える
                                           // (タブバー右クリックメニュー用。ActivateTab と違い
@@ -159,7 +165,11 @@ Rect SnapResize(object handle, Rect rect, int edges);
    `NotifyTabMouseDown` はつまみドラッグ候補の記録を伴うため、実クリック以外から
    呼んではいけない（次フレームでタブが分離してカーソルへ吸い付く）。
    `ActivateTab` も後発 API なので、単独で存在検出して欠けるホストでは無効化すること
-6. **タブバー右クリックのタブ一覧メニューから他タブを選ばせる場合**は
+6. **スクロール位置はホストと共有すること**。タブバーはグループに 1 本で、描くのは
+   アクティブなウィンドウだけなので、位置をゲスト側だけで持つとタブを切り替えるたびに
+   別の窓が覚えていた位置へ飛ぶ。`GetTabScrollX` で読み、`SetTabScrollX` で書き戻す
+   （ペアで存在検出し、欠けるホストでは自前の値にフォールバックする）
+7. **タブバー右クリックのタブ一覧メニューから他タブを選ばせる場合**は
    `ActivateTabIndex(handle, index)` を使う（`ActivateTab` は自窓しか切り替えられない）。
    これも後発 API なので単独で存在検出し、欠けるホストではメニューを無効化すること
 
