@@ -229,14 +229,18 @@ Phase S1 実機確認項目(loop 中に追記):
 
 Phase S2(モデル系):
 
-- [ ] ModelTimelineLayer / BGModelTimelineLayer(モデル Transform / 逆方向あり: `Select(モデルGameObject)`)
+- [x] ModelTimelineLayer / BGModelTimelineLayer(モデル Transform / 逆方向あり: `Select(モデルGameObject)`)
 - [ ] ModelBoneTimelineLayer(モデルボーン Transform / BoneEditWindow `DrawModelContent` / 逆方向あり: ボーン GameObject 選択)
 - [ ] ModelShapeKeyTimelineLayer(ブレンドシェイプ重み / ShapeKeyEditWindow `DrawModelContent` / 逆方向なし)
 - [ ] MaidMaterialTimelineLayer / ModelMaterialTimelineLayer / BGModelMaterialTimelineLayer(マテリアルプロパティ / MaterialEditWindow / 逆方向なし)
 
 Phase S2 実機確認項目(loop 中に追記):
 
-- (なし)
+- [ ] 配置モデルレイヤーでモデル行を選択 → Inspector にモデルの位置/回転/拡縮が出て編集できる
+- [ ] 背景モデルレイヤーでも同様に編集できる
+- [ ] モデル (または子メッシュ) をビューポートで選択 → 該当モデルの行が選択される(ループしない)
+- [ ] モデルを削除した直後の項目が「(モデルが見つかりません)」表示になる
+- [ ] ModItemExplorer 未導入時は配置モデルレイヤー自体が出ない(従来どおり。プロバイダも登録されない)
 
 Phase S3(カメラ・ライト・背景):
 

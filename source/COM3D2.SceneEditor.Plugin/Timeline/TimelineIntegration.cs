@@ -197,6 +197,9 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.ModelShapeKeyTimelineLayer), MTEP.ModelShapeKeyTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.ModelMaterialTimelineLayer), MTEP.ModelMaterialTimelineLayer.Create);
+
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.ModelTimelineLayer), new ModelItemInspector());
         }
 
         public static void Initialize(ManagerRegistry managerRegistry)
@@ -273,6 +276,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.MoveTimelineLayer), new MoveItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.DressTimelineLayer), new DressItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.BGModelTimelineLayer), new BGModelItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
