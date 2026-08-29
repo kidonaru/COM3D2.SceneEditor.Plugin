@@ -78,6 +78,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return _visibleItems;
         }
 
+        /// <summary>
+        /// 指定レイヤーの可視メニュー項目を result へ追記する。
+        /// 複数レイヤー表示の行リスト構築用 (isEasyEdit の分岐は呼び出し側が行う)
+        /// </summary>
+        public void GetVisibleItems(ITimelineLayer layer, List<IBoneMenuItem> result)
+        {
+            foreach (var setMenuItem in layer.allMenuItems)
+            {
+                if (setMenuItem.isVisibleMenu)
+                {
+                    result.Add(setMenuItem);
+                }
+
+                if (setMenuItem.children == null)
+                {
+                    continue;
+                }
+
+                foreach (var menuItem in setMenuItem.children)
+                {
+                    if (menuItem.isVisibleMenu)
+                    {
+                        result.Add(menuItem);
+                    }
+                }
+            }
+        }
+
         private List<IBoneMenuItem> _selectedItems = new List<IBoneMenuItem>(128);
 
         public List<IBoneMenuItem> GetSelectedItems()
