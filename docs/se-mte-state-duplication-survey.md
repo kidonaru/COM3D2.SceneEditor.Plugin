@@ -47,6 +47,23 @@ MTE 移植で採用されている正しいパターンは **アダプタ化** �
 | **瞳の位置/スケール** | MTE の `MaidCache.eyesPosL/R` / `eyesScaL/R` のみ。EyesTimelineLayer の「位置タブ」に残置され、SE の個別ウィンドウには無い |
 | **モデル注視（`LookAtTargetType.Model`）** | `StudioModelManager` が未接続（`SceneEditorHack.modelList` は空リスト :172）のため、`TimelineLookRowDrawer` が選択肢から除外している（:26-30） |
 
+## D. 追加調査で見つかった未対応の二重化(2026-08-30)
+
+A/B 完了後の再調査で見つかった残り。A-1 追補(瞳回転→顔向き)と同型の**概念レベル二重化**(同じ目的を別の操作系・値表現で持つ)を含む。本 loop のスコープ外で、着手は別途計画する。
+
+| # | 対象 | SE 側 | MTE 側 | 判定・症状 |
+|---|---|---|---|---|
+| D-1 | **脱衣/マスク切替** | `MaidUndressController`(:199-217 `SetUndressed`。`UndressCategory` 単位、`SetMaskMode(None)` → `SetMask`)＋ `UndressSnapshot` / `MaidUndressWindow` | `Timeline/DressUtils`(:260-334 `SetMask` / `GetMask`。`DressSlotID` 単位で `TBody` 直書き)、`UndressTimelineLayer` / `UndressItemInspector`(:14 に「SE を迂回して直接書く」と明記) | **奪い合い＋概念重複**。同じ `TBody` マスクに 2 本の書き込み経路・2 つの値表現。`MaskMode` リセットは SE 側にしか無く、MTE 経由では `MaskMode.None` が保証されない。片側のみの要素: SE=衣装タイプ、MTE=めくれ |
+| D-2 | **指ブレンド** | `MaidFingerBlendController`(:99-240)。ゲームの `FingerBlend` を使わず自前実装(`valueOpen` / `valueFist` / digit 別 `isLock` を独自に持ちボーン回転を直書き) | `MotionTimelineLayer`(:387-412 / :540-570)がゲームの `FingerBlend.BaseFinger` を `MTEUtils/Extensions`(:227-334)のリフレクションで書く | **概念重複＋奪い合い**(瞳回転 vs 顔向きと同型)。同じ指ボーンを 2 つの操作系・2 つの値表現で持ち、SE のスライダーとタイムラインキーが別の値を指す |
+| D-3 | **まばたき(`boMabataki`)** | `MaidFaceMorphController.SetMabataki`(:360-367)＋ `MaidFaceWindow` トグル / 表情プリセット / `FaceSnapshot` / シーンプリセット | `TimelineFaceManager.SetMabatakiOff`(:64-74)が `maid.boMabataki = false` を直書き。`MorphTimelineLayer`(:113)が毎 LateUpdate で呼ぶ | **奪い合い**(A-5 の取りこぼし)。表情レイヤーが有効な間、SE のまばたきトグル ON・プリセット/履歴の復元が即座に潰される。委譲だけでは足りず「表情レイヤー有効中は SE トグルを無効化」の親スイッチ設計(A-1b と同じ形)が要る |
+| D-4 | **モーション再生状態** | `MaidMotionState`(:125-190 `StopMotion`。停止中の真実は `_resetClipNames` 辞書、:270-292 `SetPlaybackTime`) | `MaidCache.anmSpeed` / `motionSliderRate` / `isAnmEnabled` / `PlayAnm`(:69-180, :473-492)が `AnimationState` を直書き | **奪い合い＋概念重複**。`SceneEditorHack.isAnmEnabled` は委譲済みだが `MaidCache` 自身は未委譲。停止の真実が 2 つあり、タイムライン再生後に SE が「再生中」と誤認する。SE 経路にある `CaptureBasePose` の呼び直しも MTE 経路では走らない |
+| D-5 | **メイド配置(Transform)** | `MaidPlacementPreset`(`SetPos` / `SetRot`)＋ `MaidVisibilityController`(:54-71 非表示 = `HiddenPosition(100,0,0)` へ退避)＋ `MaidManipulateManager.GetLogicalPosition` | `MoveTimelineLayer`(:73-111)が `maid.transform` を毎 LateUpdate 直書き(`localScale` 含む) | **奪い合い**。MTE は退避を知らないため、再生中に退避メイドを引き戻す/退避座標 `(100,0,0)` がキーに焼かれる。`SetRestorePosition` も呼ばれない |
+| D-6 | **メインカメラ** | `CameraWindow`(:361-374, :463-493 `CameraMain.SetTargetPos` 等)＋ `CameraSnapshot` | `CameraTimelineLayer`(:118-124)が `UltimateOrbitCamera` を直叩き | **概念重複(軽度)**。実体は同じカメラだが操作 API が 2 系統、ロールの持ち方も別。優先度低。`Timeline/Manager/CameraManager` はオーバーレイ専用の `MTEFrontCamera` で競合しない |
+
+**確認済み・問題なし**: メイド/モデルのシェイプキー(`EditTargetStore` 追跡のみで値は一本化)、マテリアル 3 レイヤー、IK 接地(`MaidIKHoldController` 経由)、拡張ボーン/モデルボーン(`BoneEditManager` 経由)、モーフ名前解決・追跡(A-5 で統合済み)。**片側のみ**: 衣装差し替え(`DressTimelineLayer`、SE に書き手なし)、ボイス(`MaidCache`、SE に対応実装なし)。
+
+**優先度の所感**: 最小コストは D-3(ただし親スイッチ設計が要る)。実害が出やすいのは D-4 / D-5。統合効果が大きいのは D-1 / D-2。
+
 ## 統合方針の示唆
 
 1. **A 分類は「MTE 側をアダプタ化する」で揃える。** 既に `StudioLightManager` / `SceneEditorHack` / `PngObjectTimelineManager` で確立したパターンがあるので、新方式の発明は不要。
