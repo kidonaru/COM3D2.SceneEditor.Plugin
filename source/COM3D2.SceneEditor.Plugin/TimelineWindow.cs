@@ -25,6 +25,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int MAX_MENU_WIDTH = 300;
         /// <summary>フレーム番号バーの高さ</summary>
         private static readonly int FRAME_LABEL_HEIGHT = 20;
+        /// <summary>レイヤー行の削除ボタン / 追加コンボの幅</summary>
+        private static readonly int LAYER_BUTTON_WIDTH = 20;
 
         private static TimelineWindow _instance = null;
         public static TimelineWindow instance
@@ -71,6 +73,39 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIView.DragInfo areaDragInfo = new GUIView.DragInfo();
         private Rect areaDragRect = new Rect();
         private readonly GUIView.DragInfo _menuWidthDraggableInfo = new GUIView.DragInfo();
+
+        /// <summary>使用中レイヤーの選択コンボ。ボーンメニュー上部に置く</summary>
+        private readonly GUIComboBox<MTEP.TimelineLayerInfo> _layerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
+        {
+            getName = (layerInfo, index) => layerInfo.displayName,
+            onSelected = (layerInfo, index) =>
+            {
+                timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
+            },
+            contentSize = new Vector2(150, 300),
+            // menuWidth (100〜300px) に収めるため前後送りの矢印は省略する
+            showArrow = false,
+        };
+
+        /// <summary>未使用レイヤーの追加コンボ。選択と同時にアクティブ化する</summary>
+        private readonly GUIComboBox<MTEP.TimelineLayerInfo> _addLayerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
+        {
+            getName = (layerInfo, index) => layerInfo.displayName,
+            onSelected = (layerInfo, index) =>
+            {
+                timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
+                // MTE では追加後にレイヤー情報サブウィンドウを開くため、対応する編集ウィンドウを開く
+                if (!TimelineLayerWindow.instance.isShowWnd)
+                {
+                    WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
+                }
+            },
+            defaultName = "+",
+            buttonSize = new Vector2(LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT),
+            contentSize = new Vector2(150, 300),
+            showArrow = false,
+        };
+
         private bool isMultiSelect = false;
 
         private Texture2D texWhite => GUIView.texWhite;
@@ -874,6 +909,40 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndLayout();
         }
 
+        /// <summary>
+        /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
+        /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
+        /// </summary>
+        private void DrawLayerControls(GUIView view, int menuWidth)
+        {
+            var layerType = currentLayer.layerType;
+
+            view.currentPos.x = 0;
+            view.currentPos.y = 0;
+
+            // メニュー幅が極端に狭くてもボタンが負座標へ回り込まないよう下限を設ける
+            var comboWidth = Mathf.Max(LAYER_BUTTON_WIDTH, menuWidth - LAYER_BUTTON_WIDTH * 2);
+
+            _layerComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
+            _layerComboBox.currentItem = timelineManager.GetLayerInfo(layerType);
+            _layerComboBox.items = timelineManager.usingLayerInfoList;
+            _layerComboBox.DrawButton(view);
+
+            view.currentPos.x = comboWidth;
+            view.currentPos.y = 0;
+            if (view.DrawButton("-", LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT,
+                    layerType != typeof(MTEP.MotionTimelineLayer)))
+            {
+                timelineManager.RemoveLayers(layerType);
+            }
+
+            view.currentPos.x = comboWidth + LAYER_BUTTON_WIDTH;
+            view.currentPos.y = 0;
+            _addLayerComboBox.currentIndex = -1;
+            _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
+            _addLayerComboBox.DrawButton(view);
+        }
+
         private void DrawBoneMenu(Rect local, bool editEnabled, bool guiEnabled)
         {
             if (!editEnabled)
@@ -894,6 +963,8 @@ namespace COM3D2.SceneEditor.Plugin
             var frameHeight = tc.frameHeight;
 
             var menuItems = boneMenuManager.GetVisibleItems();
+
+            DrawLayerControls(view, menuWidth);
 
             // ボーンメニューの表示
             view.currentPos.x = 0;

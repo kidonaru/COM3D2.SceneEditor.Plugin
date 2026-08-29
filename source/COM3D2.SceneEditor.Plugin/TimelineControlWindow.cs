@@ -7,7 +7,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// タイムライン操作ウィンドウ。TimelineWindow 上段にあった操作パネル
-    /// (ファイル/フレーム操作/キーフレーム/範囲操作/レイヤー/表示トグル) を独立させたもの
+    /// (ファイル/フレーム操作/キーフレーム/範囲操作/操作対象/表示トグル) を独立させたもの
     /// </summary>
     public class TimelineControlWindow : EditorSubWindow
     {
@@ -131,36 +131,6 @@ namespace COM3D2.SceneEditor.Plugin
             buttonSize = new Vector2(60, 20),
         };
 
-        private readonly GUIComboBox<MTEP.TimelineLayerInfo> _layerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
-        {
-            getName = (layerInfo, index) => layerInfo.displayName,
-            onSelected = (layerInfo, index) =>
-            {
-                timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
-            },
-            labelWidth = SHORT_LABEL_WIDTH,
-            contentSize = new Vector2(150, 300),
-        };
-
-        /// <summary>未使用レイヤーの追加コンボ。選択と同時にアクティブ化する</summary>
-        private readonly GUIComboBox<MTEP.TimelineLayerInfo> _addLayerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
-        {
-            getName = (layerInfo, index) => layerInfo.displayName,
-            onSelected = (layerInfo, index) =>
-            {
-                timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
-                // MTE では追加後にレイヤー情報サブウィンドウを開くため、対応する編集ウィンドウを開く
-                if (!TimelineLayerWindow.instance.isShowWnd)
-                {
-                    WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
-                }
-            },
-            defaultName = "+",
-            buttonSize = new Vector2(20, 20),
-            contentSize = new Vector2(150, 300),
-            showArrow = false,
-        };
-
         private readonly GUIComboBox<MTEP.MaidCache> _maidComboBox = new GUIComboBox<MTEP.MaidCache>
         {
             getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
@@ -180,7 +150,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>グループ見出しラベルの幅</summary>
         private const float GROUP_LABEL_WIDTH = 80f;
 
-        /// <summary>文字数が少ない見出しの幅 (レイヤー / 範囲操作)</summary>
+        /// <summary>文字数が少ない見出しの幅 (範囲操作)</summary>
         private const float SHORT_LABEL_WIDTH = 55f;
 
         /// <summary>再生速度の既定値 (R ボタンで戻す)</summary>
@@ -276,7 +246,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawFrameControls(view);
             DrawKeyFrameControls(view);
             DrawRangeControls(view);
-            DrawLayerControls(view);
+            DrawTargetMaidControls(view);
             DrawToggles(view);
         }
 
@@ -588,35 +558,21 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private void DrawLayerControls(GUIView view)
+        /// <summary>操作対象メイドの選択。レイヤー選択自体は TimelineWindow のボーンメニュー上部にある</summary>
+        private void DrawTargetMaidControls(GUIView view)
         {
-            var layerType = currentLayer.layerType;
-
-            // レイヤーコンボと増減ボタンはまとめて折り返す
-            WrapIfNeeded(view, SHORT_LABEL_WIDTH + 150 + 20 + 20);
-            _layerComboBox.currentItem = timelineManager.GetLayerInfo(layerType);
-            _layerComboBox.items = timelineManager.usingLayerInfoList;
-            _layerComboBox.DrawButton("レイヤー", view);
-
-            if (view.DrawButton("-", 20, ROW_HEIGHT, layerType != typeof(MTEP.MotionTimelineLayer)))
+            if (!currentLayer.hasSlotNo)
             {
-                timelineManager.RemoveLayers(layerType);
+                return;
             }
 
-            _addLayerComboBox.currentIndex = -1;
-            _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
-            _addLayerComboBox.DrawButton(null, view);
+            // 操作対象ラベルとメイドコンボはまとめて折り返す
+            WrapIfNeeded(view, 60 + 150);
+            view.DrawLabel("操作対象", 60, ROW_HEIGHT);
 
-            if (currentLayer.hasSlotNo)
-            {
-                // 操作対象ラベルとメイドコンボはまとめて折り返す
-                WrapIfNeeded(view, 60 + 150);
-                view.DrawLabel("操作対象", 60, ROW_HEIGHT);
-
-                _maidComboBox.currentIndex = currentLayer.slotNo;
-                _maidComboBox.items = maidManager.maidCaches;
-                _maidComboBox.DrawButton(view);
-            }
+            _maidComboBox.currentIndex = currentLayer.slotNo;
+            _maidComboBox.items = maidManager.maidCaches;
+            _maidComboBox.DrawButton(view);
         }
 
         private void DrawToggles(GUIView view)
