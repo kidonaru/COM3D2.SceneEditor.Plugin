@@ -443,7 +443,8 @@ namespace COM3D2.SceneEditor.Plugin
 
     /// <summary>
     /// 視線の状態。旧プリセット (v10 以前) は null になり、適用時に視線へ触らない。
-    /// 注視対象はメイドなら guid + ボーン名、それ以外は階層パスで同定する
+    /// 注視対象はメイドなら guid + ボーン名 (メイドモードは guid + 部位)、
+    /// それ以外は階層パスで同定する
     /// </summary>
     public class ScenePresetLook
     {
@@ -470,7 +471,11 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlIgnore]
         public bool eyeToCamSpecified;
 
-        /// <summary>注視対象が呼出済みメイドの一部だった場合の maid.status.guid</summary>
+        /// <summary>
+        /// 注視対象の呼出済みメイドの maid.status.guid。
+        /// オブジェクトモードでは対象が属するメイド (部位は targetBone)、
+        /// メイドモードでは対象メイド自身 (部位は maidPointType) を指す
+        /// </summary>
         [XmlAttribute]
         public string targetMaidGuid;
 

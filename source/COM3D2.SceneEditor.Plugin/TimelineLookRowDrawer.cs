@@ -34,6 +34,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>キー化中に選べる向け先。毎フレーム複製しないよう控えておく</summary>
+        private static readonly List<MaidLookMode> KeyedLookModes =
+            MaidLookBridge.GetSelectableModes(true);
+
         /// <summary>
         /// キー化中の向け先コンボ。SE の向け先と同じ語彙 (MaidLookMode) を使い、
         /// 書き込み先だけが MaidCache のキー指定値になる
@@ -66,12 +70,11 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawLookAtTargetRows(
             GUIView view, MTEP.MaidCache maidCache, float labelWidth, float rowHeight)
         {
-            var modes = MaidLookBridge.GetSelectableModes(true);
             // 選択肢に無い値 (モデル注視等) は ToLookMode が方向指定へ丸める
             var mode = MaidLookBridge.ToLookMode(maidCache.lookAtTargetType);
 
-            _lookModeComboBox.items = modes;
-            _lookModeComboBox.currentIndex = modes.IndexOf(mode);
+            _lookModeComboBox.items = KeyedLookModes;
+            _lookModeComboBox.currentIndex = KeyedLookModes.IndexOf(mode);
             _lookModeComboBox.onSelected =
                 (newMode, _) => maidCache.lookAtTargetType = MaidLookBridge.ToTargetType(newMode);
             LabeledComboRow.Draw(view, "向け先", _lookModeComboBox, labelWidth, rowHeight);

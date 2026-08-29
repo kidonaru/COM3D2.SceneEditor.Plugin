@@ -46,6 +46,10 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
+        /// <summary>キー化していないときに選べる向け先。毎フレーム複製しないよう控えておく</summary>
+        private static readonly List<MaidLookMode> UnkeyedLookModes =
+            MaidLookBridge.GetSelectableModes(false);
+
         private readonly GUIComboBox<MaidLookMode> _lookModeComboBox = new GUIComboBox<MaidLookMode>
         {
             getName = (mode, _) => mode.ToString(),
@@ -372,8 +376,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _lookModeComboBox.items = MaidLookBridge.GetSelectableModes(false);
-            _lookModeComboBox.currentIndex = _lookModeComboBox.items.IndexOf(mode);
+            _lookModeComboBox.items = UnkeyedLookModes;
+            _lookModeComboBox.currentIndex = UnkeyedLookModes.IndexOf(mode);
             _lookModeComboBox.onSelected = (newMode, _) =>
             {
                 HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線の向け先");

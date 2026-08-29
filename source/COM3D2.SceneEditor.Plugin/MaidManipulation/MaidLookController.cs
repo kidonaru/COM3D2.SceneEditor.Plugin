@@ -174,7 +174,10 @@ namespace COM3D2.SceneEditor.Plugin
             return entry != null ? entry.maidPointType : MTEP.MaidPointType.Head;
         }
 
-        /// <summary>メイドモードの注視対象と部位。対象と部位は必ず対で変わるためまとめて受ける</summary>
+        /// <summary>
+        /// メイドモードの注視対象と部位。片方だけ変える場合ももう片方は現状値を渡し、
+        /// Apply を 1 回にまとめる (途中の組み合わせで注視点を計算させないため)
+        /// </summary>
         public void SetMaidTarget(Maid maid, Maid targetMaid, MTEP.MaidPointType pointType)
         {
             var entry = GetOrCreate(maid);
@@ -185,13 +188,6 @@ namespace COM3D2.SceneEditor.Plugin
             entry.targetMaid = targetMaid;
             entry.maidPointType = pointType;
             Apply(maid);
-        }
-
-        /// <summary>メイド注視の指定を変えずに状態を差し替える (従来の呼び出し向け)</summary>
-        public void SetState(Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target)
-        {
-            SetState(maid, mode, lookX, lookY, target,
-                GetTargetMaid(maid), GetMaidPointType(maid));
         }
 
         /// <summary>
@@ -519,11 +515,27 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メイド解除時。ストックの Maid は使い回されるため状態を持ち越さない</summary>
         public void Release(Maid maid)
         {
+            if (maid == null)
+            {
+                return;
+            }
+
             Entry entry;
-            if (maid != null && _entries.TryGetValue(maid, out entry))
+            if (_entries.TryGetValue(maid, out entry))
             {
                 DestroyMousePoint(entry);
                 _entries.Remove(maid);
+            }
+
+            // 退去したメイドを見ていた側の指定も外す。
+            // Maid インスタンスはストックで別キャラとして使い回されるため、
+            // 参照を残すと後から無関係なキャラを注視してしまう
+            foreach (var other in _entries.Values)
+            {
+                if (other.targetMaid == maid)
+                {
+                    other.targetMaid = null;
+                }
             }
         }
 

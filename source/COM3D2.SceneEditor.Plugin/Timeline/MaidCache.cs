@@ -561,13 +561,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             // メイド注視は Transform ではなく「対象メイド + 部位」で渡し、
             // 実際の Transform は SE のコントローラが適用のたびに引き直す
-            var targetMaidCache = lookAtTargetType == LookAtTargetType.Maid
-                ? maidManager.GetMaidCache(lookAtTargetIndex) : null;
-            var targetMaid = targetMaidCache != null ? targetMaidCache.maid : null;
-
             SEP.MaidLookBridge.ApplyLookMode(
                 maid, lookMode.Value, lookAtTarget, _lookDirection,
-                targetMaid, lookAtMaidPointType);
+                GetLookAtMaid(), lookAtMaidPointType);
 
             // そらし演出は trsLookTarget == null かつ非ロックが条件のため、常にロックを解く
             maid.LockHeadAndEye(false);
@@ -808,6 +804,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
+        /// 注視先がメイドのときの対象。注視先が別種別なら null。
+        /// Transform の解決と ApplyLookMode の両方から使うため、対象の決め方はここだけに置く
+        /// </summary>
+        private Maid GetLookAtMaid()
+        {
+            if (lookAtTargetType != LookAtTargetType.Maid)
+            {
+                return null;
+            }
+
+            var targetMaidCache = maidManager.GetMaidCache(lookAtTargetIndex);
+            return targetMaidCache != null ? targetMaidCache.maid : null;
+        }
+
+        /// <summary>
         /// メイドの注視ポイント。解決の実装は SE の MaidLookController に一本化しているため、
         /// ここでは委譲だけを行う (キー化の有無で同じ部位を指すようにするため)
         /// </summary>
@@ -840,10 +851,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return PluginUtils.MainCamera.transform;
                 case LookAtTargetType.Maid:
                 {
-                    var maidCache = maidManager.GetMaidCache(lookAtTargetIndex);
-                    if (maidCache != null)
+                    var targetMaid = GetLookAtMaid();
+                    if (targetMaid != null)
                     {
-                        return maidCache.GetPointTransform(lookAtMaidPointType);
+                        return SEP.MaidLookController.GetMaidPointTransform(
+                            targetMaid, lookAtMaidPointType);
                     }
                     break;
                 }
