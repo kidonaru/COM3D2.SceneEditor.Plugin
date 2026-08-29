@@ -131,7 +131,7 @@ B 分類(二重管理の整理):
 D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実害大 → 統合効果大 → 低優先の順):
 
 - [x] D-3: `TimelineFaceManager.SetMabatakiOff` の `boMabataki` 直書きをやめ、`MaidFaceMorphController.SetMabataki` を唯一の書き手にする。表情レイヤー有効中は SE トグルを無効化する親スイッチ設計(A-1b と同じ形)を含む
-- [ ] D-5: `MoveTimelineLayer` の `maid.transform` 直書きを SE の配置系(`MaidVisibilityController` の退避・`SetRestorePosition`)と調停する。退避中メイドの引き戻し・退避座標 `(100,0,0)` のキー焼き込みを防ぐ
+- [x] D-5: `MoveTimelineLayer` の `maid.transform` 直書きを SE の配置系(`MaidVisibilityController` の退避・`SetRestorePosition`)と調停する。退避中メイドの引き戻し・退避座標 `(100,0,0)` のキー焼き込みを防ぐ
 - [ ] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
 - [ ] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
 - [ ] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
@@ -306,7 +306,21 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - **破棄済みメイドの後始末**: Unity の null 化で復元先が無い場合は退避エントリを捨てる(辞書リーク防止)。レイヤー側の解除判定は Unity の `==`(fake-null)ではなく `ReferenceEquals` で行い、破棄済みでも解除経路が必ず走るようにした(レビュー指摘の取り込み)
 - 新規ロジックは `Maid` 依存のため単体テストは追加していない(A-2 と同じ判断)
 
+### D-5 の実装メモ(メイド配置と退避契約の調停)
+
+`MoveTimelineLayer` を SE の退避契約(`MaidVisibilityController`。非表示 = `(100,0,0)` へ退避、見かけの位置は戻り先で管理)に対応させた。
+
+- **位置の適用は `ApplyPosition` に集約**: 退避中(`MaidManipulateManager.IsVisible == false`)は実座標を触らず `SetRestorePosition` で戻り先だけを更新する。再生が退避メイドを画面へ引き戻さず、再表示時にはタイムラインの最新位置へ戻る
+- **キーの記録は見かけの位置**: `UpdateFrame` は `transform.localPosition` ではなく `GetLogicalPosition` を焼く。退避座標 `(100,0,0)` がキーに混入しない。座標系は `Maid.SetPos/GetPos` = `transform.localPosition` で一致することを逆コンパイル済みソースで確認済み
+- **回転・スケールは従来どおり直接適用**: 退避は位置のみの契約で、回転/スケールは退避中に書いても無害(再表示で位置だけ戻る)
+- **対象外**: `TimelineManager.OnPoseEditUpdated/End` と `MotionTimelineLayer` にある transform 退避・復元は「自分で保存した値を戻す」対称ペアで、SE 状態との奪い合いではない
+- 新規ロジックは `Maid`/マネージャ依存のため単体テストは追加していない(A-2 と同じ判断)
+
 ### 実機確認項目(loop 中に追記)
+
+- D-5: メイドを非表示にしたままメイド移動レイヤー入りタイムラインを再生しても、メイドが画面に現れないこと。再表示すると再生位置(タイムラインの最新の位置)に出ること
+- D-5: 非表示中にキーを打っても退避座標 `(100,0,0)` ではなく見かけの位置が記録されること
+- D-5: 表示中の再生・ギズモ編集からのキー記録が従来どおり動くこと
 
 - D-3: 表情レイヤーがあるタイムラインの再生中、表情ウィンドウの「強制上書き」トグルが編集不可になり、ポーズ編集モードへ入る(または表情レイヤーを削除する)と復帰すること
 - D-3: 「強制上書き」OFF(=まばたき有効)の状態でタイムラインを再生→停止・ポーズ編集へ戻すと、まばたきが再開すること(従来は false のまま潰れていた)

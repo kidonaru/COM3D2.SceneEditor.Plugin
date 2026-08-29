@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -68,12 +69,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ApplyMotionUpdateTangent(motion, t);
         }
 
+        /// <summary>
+        /// 位置の適用。SE の退避 (非表示 = 遠方へ飛ばす) 中は実座標を動かすと
+        /// 画面へ引き戻してしまうため、戻り先だけを更新する
+        /// </summary>
+        private void ApplyPosition(Vector3 position)
+        {
+            var manager = MaidManipulateManager.instance;
+            if (!manager.IsVisible(maid))
+            {
+                manager.SetRestorePosition(maid, position);
+                return;
+            }
+
+            maid.transform.localPosition = position;
+        }
+
         private void ApplyMotionInit(MotionData motion, float t)
         {
             var transform = maid.transform;
             var start = motion.start;
 
-            transform.localPosition = start.position;
+            ApplyPosition(start.position);
             transform.localRotation = Quaternion.Euler(start.eulerAngles);
             transform.localScale = start.scale;
         }
@@ -88,12 +105,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var t0 = motion.stFrame * timeline.frameDuration;
             var t1 = motion.edFrame * timeline.frameDuration;
 
-            transform.localPosition = PluginUtils.HermiteVector3(
+            ApplyPosition(PluginUtils.HermiteVector3(
                 t0,
                 t1,
                 start.positionValues,
                 end.positionValues,
-                t);
+                t));
 
             transform.localRotation = PluginUtils.HermiteQuaternion(
                 t0,
@@ -126,7 +143,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             var trans = CreateTransformData<TransformDataMove>(MoveBoneName);
-            trans.position = maid.transform.localPosition;
+            // 退避中は実座標が退避先 (遠方) で埋まっているため、キーには見かけ上の位置を焼く
+            trans.position = MaidManipulateManager.instance.GetLogicalPosition(maid);
             trans.rotation = maid.transform.localRotation;
             trans.scale = maid.transform.localScale;
 
