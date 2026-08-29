@@ -33,9 +33,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 timelineTargetType = "Maid",
                 timelineTargetIndex = 2,
                 timelineMaidPointType = "Chest",
-                eyeAngleX = 30f,
-                eyeAngleY = 0f,
-                eyeAngleZ = -15f,
+                timelineLookX = 0.3f,
+                timelineLookY = -0.15f,
             });
 
             Assert.Equal("オブジェクト", restored.mode);
@@ -44,9 +43,30 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal("Maid", restored.timelineTargetType);
             Assert.Equal(2, restored.timelineTargetIndex);
             Assert.Equal("Chest", restored.timelineMaidPointType);
-            Assert.Equal(30f, restored.eyeAngleX);
-            Assert.Equal(0f, restored.eyeAngleY);
-            Assert.Equal(-15f, restored.eyeAngleZ);
+            Assert.Equal(0.3f, restored.timelineLookX);
+            Assert.Equal(-0.15f, restored.timelineLookY);
+        }
+
+        [Fact]
+        public void 瞳回転時代のeyeAngle属性は読み飛ばされる()
+        {
+            // 瞳回転 (eyeAngle*) は顔向き (timelineLook*) へ一本化して撤去した。
+            // 撤去前に保存されたプリセットの同属性は未知属性として無視される
+            const string withEyeAngle =
+                "<?xml version=\"1.0\"?>"
+                + "<ScenePresetLook mode=\"カメラ\" timelineTargetType=\"None\""
+                + " eyeAngleX=\"30\" eyeAngleY=\"0\" eyeAngleZ=\"-15\">"
+                + "<lookX>0</lookX><lookY>0</lookY>"
+                + "</ScenePresetLook>";
+
+            using (var reader = new StringReader(withEyeAngle))
+            {
+                var look = (ScenePresetLook) Serializer.Deserialize(reader);
+
+                Assert.Equal("None", look.timelineTargetType);
+                Assert.Equal(0f, look.timelineLookX);
+                Assert.Equal(0f, look.timelineLookY);
+            }
         }
 
         [Fact]

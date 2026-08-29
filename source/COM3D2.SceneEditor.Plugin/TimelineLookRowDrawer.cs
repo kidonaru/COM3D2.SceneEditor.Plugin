@@ -8,16 +8,13 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// タイムライン視線 (注視先 / 瞳回転) の行描画。
+    /// タイムライン視線 (注視先 / 顔向きキー) の行描画。
     /// MaidFaceWindow の視線タブと TimelineItemInspector (瞳レイヤーの項目表示) で共有する。
     /// 書き込み先はどのスナップショットにも含まれない MaidCache のため履歴は記録しない。
     /// コンボボックスの開閉状態を持つため、描画するビューごとにインスタンスを分ける
     /// </summary>
     public class TimelineLookRowDrawer
     {
-        /// <summary>瞳回転スライダー (-1〜1) の両端に対応する回転角</summary>
-        private const float EyeRotationMaxAngle = 90f;
-
         public const string HeadKeyDisabledMessage =
             "表情ウィンドウの視線タブで「視線をキー化」を有効にしてください";
 
@@ -100,29 +97,27 @@ namespace COM3D2.SceneEditor.Plugin
             LabeledComboRow.Draw(view, "ポイント", _targetMaidPointComboBox, labelWidth, rowHeight);
         }
 
-        /// <summary>瞳回転の 2 行。注視先が手動のときだけ効く (レイヤー側の活性条件と同じ)</summary>
-        public void DrawEyeRotationRows(GUIView view, MTEP.MaidCache maidCache, float labelWidth)
+        /// <summary>顔向きキーの 2 行。注視先が手動のときだけ効く (レイヤー側の活性条件と同じ)</summary>
+        public void DrawLookDirectionRows(GUIView view, MTEP.MaidCache maidCache, float labelWidth)
         {
             // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を
             // 基準値へ戻してしまう。BeginEnabled は入れ子にできないため、
             // 基準値そのものを動かす SetEnabled で囲む
             view.SetEnabled(maidCache.lookAtTargetType == MTEP.LookAtTargetType.None);
 
-            var eyeEulerAngle = maidCache.eyeEulerAngle;
-            DrawEyeRotationSlider(view, "瞳回転左右", labelWidth,
-                eyeEulerAngle.x / EyeRotationMaxAngle,
-                value => maidCache.eyeEulerAngle =
-                    new Vector3(value * EyeRotationMaxAngle, 0f, eyeEulerAngle.z));
-            DrawEyeRotationSlider(view, "瞳回転上下", labelWidth,
-                eyeEulerAngle.z / EyeRotationMaxAngle,
-                value => maidCache.eyeEulerAngle =
-                    new Vector3(eyeEulerAngle.x, 0f, value * EyeRotationMaxAngle));
+            var lookDirection = maidCache.lookDirection;
+            DrawLookDirectionSlider(view, "顔向き左右", labelWidth,
+                lookDirection.x,
+                value => maidCache.lookDirection = new Vector2(value, lookDirection.y));
+            DrawLookDirectionSlider(view, "顔向き上下", labelWidth,
+                lookDirection.y,
+                value => maidCache.lookDirection = new Vector2(lookDirection.x, value));
 
             view.SetEnabled(true);
         }
 
-        /// <summary>瞳回転スライダー 1 本。値域はレイヤー側に合わせて -1〜1</summary>
-        private static void DrawEyeRotationSlider(
+        /// <summary>顔向きスライダー 1 本。値域は SE の顔向きに合わせて -1〜1</summary>
+        private static void DrawLookDirectionSlider(
             GUIView view, string label, float labelWidth, float value, Action<float> onChanged)
         {
             view.DrawSliderValue(new GUIView.SliderOption

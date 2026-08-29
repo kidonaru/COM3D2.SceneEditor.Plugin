@@ -291,7 +291,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (isKeyed)
             {
-                DrawKeyedEyeRotationRows(view, target);
+                DrawKeyedLookResetRow(view, target);
                 return;
             }
 
@@ -302,17 +302,29 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 顔向き左右/上下。向け先が「方向指定」でキー化していないときだけ効く
+        /// 顔向き左右/上下。キー化中はタイムラインの顔向きキー (MaidCache) を編集し、
+        /// 注視先が手動のときだけ効く。キー化していなければ SE の顔向きを編集し、
+        /// 向け先が「方向指定」のときだけ効く
         /// </summary>
         private void DrawLookDirectionSliders(
             GUIView view, Maid target, MaidLookMode mode, bool isKeyed)
         {
             view.AddSpace(5);
 
+            if (isKeyed)
+            {
+                var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+                if (maidCache != null)
+                {
+                    _timelineLookRowDrawer.DrawLookDirectionRows(view, maidCache, LABEL_WIDTH);
+                }
+                return;
+            }
+
             // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を
             // 基準値へ戻してしまう。BeginEnabled は入れ子にできないため、
             // 基準値そのものを動かす SetEnabled で囲む
-            view.SetEnabled(!isKeyed && mode == MaidLookMode.方向指定);
+            view.SetEnabled(mode == MaidLookMode.方向指定);
             DrawLookSlider(view, target, "顔向き左右", lookController.GetLookX(target),
                 value => lookController.SetLook(target, value, lookController.GetLookY(target)));
             DrawLookSlider(view, target, "顔向き上下", lookController.GetLookY(target),
@@ -424,8 +436,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>キー化される瞳回転。書き込み先は MaidCache のため履歴は記録しない</summary>
-        private void DrawKeyedEyeRotationRows(GUIView view, Maid target)
+        /// <summary>キー化される視線の初期化。書き込み先は MaidCache のため履歴は記録しない</summary>
+        private void DrawKeyedLookResetRow(GUIView view, Maid target)
         {
             var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
             if (maidCache == null)
@@ -433,11 +445,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _timelineLookRowDrawer.DrawEyeRotationRows(view, maidCache, LABEL_WIDTH);
-
             if (view.DrawButton("タイムライン視線を初期化", 190, ROW_HEIGHT))
             {
-                maidCache.eyeEulerAngle = Vector3.zero;
+                maidCache.lookDirection = Vector2.zero;
                 maidCache.lookAtTargetType = MTEP.LookAtTargetType.None;
             }
         }

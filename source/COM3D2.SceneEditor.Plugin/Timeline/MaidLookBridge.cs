@@ -25,19 +25,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// タイムライン設定から SE の向け先モードを決める。
         /// null は「SE 側の向け先を変更しない」を意味する。
         ///
-        /// 目線種別 (「メイド目線」) は判断材料にしない。向け先の所有者は SE であり、
-        /// タイムラインが向け先を持つのは固定化が有効なときだけと決めているため。
-        /// 視線そらしが TBody 側で効くのも SE の向け先が「無し」のときに限る
+        /// 注視先が無い (種別 None または対象が未解決) ときは、顔向きキーが
+        /// 効くよう「方向指定」にする。ただし視線そらし中は TBody の演出が
+        /// trsLookTarget == null を要求するため「無し」へ倒す
         /// </summary>
-        /// <param name="useHeadKey">タイムラインの「顔/瞳の固定化」</param>
+        /// <param name="useHeadKey">タイムラインの「視線をキー化」</param>
         /// <param name="targetType">タイムラインの注視先種別</param>
         /// <param name="hasTarget">注視先の Transform が解決できたか</param>
+        /// <param name="isEyeSorashi">目線種別が視線そらしか</param>
         public static MaidLookMode? ResolveLookMode(
             bool useHeadKey,
             MTEP.LookAtTargetType targetType,
-            bool hasTarget)
+            bool hasTarget,
+            bool isEyeSorashi)
         {
-            // 固定化が無効ならタイムラインは向け先を持たない。SE の設定が正
+            // キー化が無効ならタイムラインは向け先を持たない。SE の設定が正
             if (!useHeadKey)
             {
                 return null;
@@ -49,11 +51,20 @@ namespace COM3D2.SceneEditor.Plugin
                     return MaidLookMode.カメラ;
                 case MTEP.LookAtTargetType.Maid:
                 case MTEP.LookAtTargetType.Model:
-                    // 対象が未解決 (未選択・破棄済み) なら向け先無しへ倒す
-                    return hasTarget ? MaidLookMode.オブジェクト : MaidLookMode.無し;
+                    if (hasTarget)
+                    {
+                        return MaidLookMode.オブジェクト;
+                    }
+                    return ResolveNoTargetMode(isEyeSorashi);
                 default:
-                    return MaidLookMode.無し;
+                    return ResolveNoTargetMode(isEyeSorashi);
             }
+        }
+
+        /// <summary>注視先が無い (種別 None または対象が未解決) ときの向け先</summary>
+        private static MaidLookMode ResolveNoTargetMode(bool isEyeSorashi)
+        {
+            return isEyeSorashi ? MaidLookMode.無し : MaidLookMode.方向指定;
         }
 
         /// <summary>
@@ -119,9 +130,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 向け先モードを SE のコントローラへ反映する。
         /// オブジェクトモード以外では既存の注視対象を残す
-        /// (タイムライン側の都合で SE が覚えている対象を消さないため)
+        /// (タイムライン側の都合で SE が覚えている対象を消さないため)。
+        /// 方向指定のときだけ顔向きキーの指定値で lookX/lookY を駆動し、
+        /// それ以外では SE が覚えている顔向きを残す
         /// </summary>
-        public static void ApplyLookMode(Maid maid, MaidLookMode mode, Transform target)
+        /// <param name="lookDirection">顔向きキーの指定値 (lookX/lookY、-1〜1)</param>
+        public static void ApplyLookMode(
+            Maid maid, MaidLookMode mode, Transform target, Vector2 lookDirection)
         {
             if (maid == null)
             {
@@ -129,11 +144,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var controller = lookController;
+            var isDirection = mode == MaidLookMode.方向指定;
             controller.SetState(
                 maid,
                 mode,
-                controller.GetLookX(maid),
-                controller.GetLookY(maid),
+                isDirection ? lookDirection.x : controller.GetLookX(maid),
+                isDirection ? lookDirection.y : controller.GetLookY(maid),
                 mode == MaidLookMode.オブジェクト ? target : controller.GetTarget(maid));
         }
     }

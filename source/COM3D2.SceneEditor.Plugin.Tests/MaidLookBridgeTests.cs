@@ -11,45 +11,53 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData(MTEP.LookAtTargetType.Camera, false, MaidLookMode.カメラ)]
         [InlineData(MTEP.LookAtTargetType.Maid, true, MaidLookMode.オブジェクト)]
         [InlineData(MTEP.LookAtTargetType.Model, true, MaidLookMode.オブジェクト)]
-        [InlineData(MTEP.LookAtTargetType.None, false, MaidLookMode.無し)]
-        public void ResolveLookMode_固定化中は注視先種別を向け先モードへ写す(
+        [InlineData(MTEP.LookAtTargetType.None, false, MaidLookMode.方向指定)]
+        public void ResolveLookMode_キー化中は注視先種別を向け先モードへ写す(
             MTEP.LookAtTargetType targetType, bool hasTarget, MaidLookMode expected)
         {
-            var mode = MaidLookBridge.ResolveLookMode(true, targetType, hasTarget);
+            var mode = MaidLookBridge.ResolveLookMode(
+                true, targetType, hasTarget, isEyeSorashi: false);
             Assert.Equal(expected, mode);
         }
 
         [Theory]
         [InlineData(MTEP.LookAtTargetType.Maid)]
         [InlineData(MTEP.LookAtTargetType.Model)]
-        public void ResolveLookMode_注視対象が未解決なら向け先無しへ倒す(
+        public void ResolveLookMode_注視対象が未解決なら顔向きの方向指定へ倒す(
             MTEP.LookAtTargetType targetType)
         {
-            var mode = MaidLookBridge.ResolveLookMode(true, targetType, false);
+            var mode = MaidLookBridge.ResolveLookMode(
+                true, targetType, false, isEyeSorashi: false);
+            Assert.Equal(MaidLookMode.方向指定, mode);
+        }
+
+        [Theory]
+        [InlineData(MTEP.LookAtTargetType.None)]
+        [InlineData(MTEP.LookAtTargetType.Maid)]
+        public void ResolveLookMode_注視先なしでそらし中は向け先無しにする(
+            MTEP.LookAtTargetType targetType)
+        {
+            // そらし演出は trsLookTarget == null のときだけ動くため、
+            // 方向指定の注視点を作らず向け先を空ける
+            var mode = MaidLookBridge.ResolveLookMode(
+                true, targetType, false, isEyeSorashi: true);
             Assert.Equal(MaidLookMode.無し, mode);
         }
 
         [Fact]
-        public void ResolveLookMode_固定化が無効ならSEの向け先を変更しない()
+        public void ResolveLookMode_注視先ありならそらし中でも注視先を優先する()
         {
             var mode = MaidLookBridge.ResolveLookMode(
-                false, MTEP.LookAtTargetType.Camera, true);
-            Assert.Null(mode);
+                true, MTEP.LookAtTargetType.Camera, true, isEyeSorashi: true);
+            Assert.Equal(MaidLookMode.カメラ, mode);
         }
 
-        [Theory]
-        [InlineData(Maid.EyeMoveType.顔をそらす)]
-        [InlineData(Maid.EyeMoveType.目だけそらす)]
-        public void ResolveLookMode_視線そらしでもSEの向け先は奪わない(
-            Maid.EyeMoveType eyeMoveType)
+        [Fact]
+        public void ResolveLookMode_キー化が無効ならSEの向け先を変更しない()
         {
-            // そらしは向け先を要求するが、所有者は SE 側。
-            // 固定化が無効なら SE の向け先を書き換えず、そらしは向け先「無し」のときだけ効く
-            Assert.Null(MaidLookBridge.ResolveLookMode(
-                false, MTEP.LookAtTargetType.Camera, true));
-            Assert.Equal(MaidLookMode.カメラ, MaidLookBridge.ResolveLookMode(
-                true, MTEP.LookAtTargetType.Camera, true));
-            Assert.True(MaidLookBridge.IsEyeSorashi(eyeMoveType));
+            var mode = MaidLookBridge.ResolveLookMode(
+                false, MTEP.LookAtTargetType.Camera, true, isEyeSorashi: false);
+            Assert.Null(mode);
         }
 
         [Theory]

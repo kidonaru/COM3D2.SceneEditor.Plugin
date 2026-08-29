@@ -1238,7 +1238,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// タイムライン視線の指定値を記録する。
         /// 向け先そのものは lookController 側 (mode / target) に写っているため、
-        /// ここで残すのはキー化の元になる注視先種別と瞳回転だけ。
+        /// ここで残すのはキー化の元になる注視先種別と顔向きキーの指定値だけ。
         /// タイムライン未読込などで MaidCache が無いときは未記録のままにする
         /// </summary>
         private static void CaptureTimelineLook(Maid maid, ScenePresetLook look)
@@ -1252,9 +1252,8 @@ namespace COM3D2.SceneEditor.Plugin
             look.timelineTargetType = maidCache.lookAtTargetType.ToString();
             look.timelineTargetIndex = maidCache.lookAtTargetIndex;
             look.timelineMaidPointType = maidCache.lookAtMaidPointType.ToString();
-            look.eyeAngleX = maidCache.eyeEulerAngle.x;
-            look.eyeAngleY = maidCache.eyeEulerAngle.y;
-            look.eyeAngleZ = maidCache.eyeEulerAngle.z;
+            look.timelineLookX = maidCache.lookDirection.x;
+            look.timelineLookY = maidCache.lookDirection.y;
         }
 
         /// <summary>
@@ -1747,8 +1746,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            maidCache.eyeEulerAngle = new Vector3(
-                look.eyeAngleX, look.eyeAngleY, look.eyeAngleZ);
+            maidCache.lookDirection = new Vector2(look.timelineLookX, look.timelineLookY);
             maidCache.lookAtTargetIndex = look.timelineTargetIndex;
             maidCache.lookAtMaidPointType = maidPointType;
             maidCache.lookAtTargetType = targetType;

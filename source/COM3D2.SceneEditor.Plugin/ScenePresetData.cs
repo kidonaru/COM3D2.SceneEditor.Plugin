@@ -502,13 +502,14 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public string timelineMaidPointType;
 
-        /// <summary>MaidCache.eyeEulerAngle。注視先が手動のときの瞳の向き</summary>
+        /// <summary>
+        /// MaidCache.lookDirection。注視先が手動のときの顔向きキーの指定値 (-1〜1)。
+        /// 顔向きへ一本化する前の瞳回転 (eyeAngleX/Y/Z 属性) は未知属性として読み飛ばす
+        /// </summary>
         [XmlAttribute]
-        public float eyeAngleX;
+        public float timelineLookX;
         [XmlAttribute]
-        public float eyeAngleY;
-        [XmlAttribute]
-        public float eyeAngleZ;
+        public float timelineLookY;
     }
 
     /// <summary>
@@ -703,8 +704,10 @@ namespace COM3D2.SceneEditor.Plugin
         // v25: maid に ikAnimes（IK 固定のアニメ指定）を追加。
         //      旧形式は一覧が空 = 全 OFF として読める
         // v26: look にタイムライン視線の指定値（timelineTargetType / timelineTargetIndex /
-        //      timelineMaidPointType / eyeAngle*）を追加。
-        //      旧形式は timelineTargetType が null = 未記録として読み飛ばす
+        //      timelineMaidPointType / timelineLookX/Y）を追加。
+        //      旧形式は timelineTargetType が null = 未記録として読み飛ばす。
+        //      同バージョン内で瞳回転 (eyeAngle*) を顔向き (timelineLook*) へ置き換えた。
+        //      eyeAngle* 付きで保存したデータは同属性だけ読み飛ばされる（構造は互換）
         public static readonly int CurrentVersion = 26;
 
         [XmlAttribute]

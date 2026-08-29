@@ -7,7 +7,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     public class EyesItemInspectorTests
     {
         [Theory]
-        [InlineData("EyesRot", EyesItemInspector.RowKind.EyeRotation)]
+        [InlineData("EyesRot", EyesItemInspector.RowKind.LookDirection)]
         [InlineData("LookAtTarget", EyesItemInspector.RowKind.LookAtTarget)]
         [InlineData("EyesPosL", EyesItemInspector.RowKind.Unsupported)]
         [InlineData("EyesPosR", EyesItemInspector.RowKind.Unsupported)]
@@ -32,7 +32,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         /// 実際のメニュー項目名から編集UIを持つ項目が 1 つずつであることを固定する
         /// </summary>
         [Fact]
-        public void 瞳レイヤーの項目のうち編集UIを持つのは瞳回転と注視先だけ()
+        public void 瞳レイヤーの項目のうち編集UIを持つのは顔向きと注視先だけ()
         {
             var names = MTEP.EyesTimelineLayer.saveEyesNames;
             var rotationCount = 0;
@@ -41,7 +41,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 switch (EyesItemInspector.ResolveRowKind(name))
                 {
-                    case EyesItemInspector.RowKind.EyeRotation:
+                    case EyesItemInspector.RowKind.LookDirection:
                         rotationCount++;
                         break;
                     case EyesItemInspector.RowKind.LookAtTarget:

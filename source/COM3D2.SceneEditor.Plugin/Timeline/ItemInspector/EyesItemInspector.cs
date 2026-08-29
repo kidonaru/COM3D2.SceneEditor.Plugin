@@ -11,8 +11,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メニュー項目に対応する編集UIの種別</summary>
         public enum RowKind
         {
-            /// <summary>瞳回転 (EyesRot)</summary>
-            EyeRotation,
+            /// <summary>顔向き (EyesRot。旧瞳回転キーを顔向きとして解釈する)</summary>
+            LookDirection,
             /// <summary>注視先 (LookAtTarget)</summary>
             LookAtTarget,
             /// <summary>編集UIを持たない項目 (瞳の位置・サイズ)</summary>
@@ -41,7 +41,7 @@ namespace COM3D2.SceneEditor.Plugin
             switch (eyesType)
             {
                 case MTEP.MotionEyesType.EyesRot:
-                    return RowKind.EyeRotation;
+                    return RowKind.LookDirection;
                 case MTEP.MotionEyesType.LookAtTarget:
                     return RowKind.LookAtTarget;
                 default:
@@ -85,9 +85,9 @@ namespace COM3D2.SceneEditor.Plugin
                 // 複数選択時にどの項目の行か分かるよう見出しを出す
                 view.DrawLabel(item.displayName, -1, RowHeight);
 
-                if (rowKind == RowKind.EyeRotation)
+                if (rowKind == RowKind.LookDirection)
                 {
-                    _lookRowDrawer.DrawEyeRotationRows(view, maidCache, LabelWidth);
+                    _lookRowDrawer.DrawLookDirectionRows(view, maidCache, LabelWidth);
                 }
                 else
                 {

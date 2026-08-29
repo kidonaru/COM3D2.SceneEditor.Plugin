@@ -305,7 +305,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public Vector3 eyeEulerAngle;
+        private Vector2 _lookDirection;
+
+        /// <summary>
+        /// 顔向きキーの指定値 (lookX/lookY、-1〜1)。
+        /// 適用は MaidLookController の方向指定へ委譲するため、ここでは値だけを持つ
+        /// </summary>
+        public Vector2 lookDirection
+        {
+            get => _lookDirection;
+            set
+            {
+                _lookDirection = value;
+                UpdateLookAtTarget();
+            }
+        }
 
         public string oneShotVoiceName = string.Empty;
         public float oneShotVoiceStartTime = 0f;
@@ -385,7 +399,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             lookAtTargetType = LookAtTargetType.None;
             lookAtTargetIndex = 0;
             lookAtMaidPointType = MaidPointType.Head;
-            eyeEulerAngle = Vector3.zero;
+            _lookDirection = Vector2.zero;
             oneShotVoiceName = string.Empty;
             oneShotVoiceStartTime = 0f;
             oneShotVoiceLength = 0f;
@@ -453,7 +467,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _motionSliderRate = value / animationState.length;
             }
 
-            UpdateEyeEulerAngle();
             UpdateVoice();
         }
 
@@ -513,14 +526,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SEP.MaidLookBridge.ApplyEyeMoveType(maid, timeline.eyeMoveType);
             maid.LockHeadAndEye(false);
 
-            if (timeline.useHeadKey)
-            {
-                var trsEyeL = maid.body0.trsEyeL;
-                var trsEyeR = maid.body0.trsEyeR;
-                trsEyeL.localRotation = maid.body0.quaDefEyeL;
-                trsEyeR.localRotation = maid.body0.quaDefEyeR;
-            }
-
             UpdateLookAtTarget();
         }
 
@@ -537,47 +542,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var lookAtTarget = GetLookAtTarget();
             var lookMode = SEP.MaidLookBridge.ResolveLookMode(
-                timeline.useHeadKey, lookAtTargetType, lookAtTarget != null);
+                timeline.useHeadKey, lookAtTargetType, lookAtTarget != null,
+                SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType));
             if (lookMode == null)
             {
                 return;
             }
 
-            SEP.MaidLookBridge.ApplyLookMode(maid, lookMode.Value, lookAtTarget);
+            SEP.MaidLookBridge.ApplyLookMode(
+                maid, lookMode.Value, lookAtTarget, _lookDirection);
 
-            // 固定化中に向け先が無いときだけ、瞳回転を TBody に上書きされないよう固定する。
-            // 視線そらしはロック中は動かないため、そらし指定なら TBody の演出を優先する
-            maid.LockHeadAndEye(
-                lookMode.Value == SEP.MaidLookMode.無し
-                && !SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType));
-        }
-
-        public void UpdateEyeEulerAngle()
-        {
-            if (maid == null || timeline == null || !timeline.useHeadKey)
-            {
-                return;
-            }
-
-            // 視線そらし中の瞳は TBody の演出が動かす。固定値で上書きすると演出が潰れる
-            if (SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType))
-            {
-                return;
-            }
-
-            // 向け先の実体は MaidLookController が決めるため、TBody の現在値を見る
-            var lookAtTarget = maid.body0.trsLookTarget;
-            if (lookAtTarget == null)
-            {
-                maid.body0.SetEyeEulerAngle(eyeEulerAngle);
-
-                this.trsEyeL.localRotation = maid.body0.quaDefEyeL * Quaternion.Euler(0f, -eyeEulerAngle.x * 0.2f + maid.body0.m_editYorime, -eyeEulerAngle.z * 0.1f);
-                this.trsEyeR.localRotation = maid.body0.quaDefEyeR * Quaternion.Euler(0f, eyeEulerAngle.x * 0.2f + maid.body0.m_editYorime, eyeEulerAngle.z * 0.1f);
-            }
-            else
-            {
-                eyeEulerAngle = maid.body0.GetEyeEulerAngle();
-            }
+            // そらし演出は trsLookTarget == null かつ非ロックが条件のため、常にロックを解く
+            maid.LockHeadAndEye(false);
         }
 
         public Transform GetAttachPointTransform(AttachPoint point)

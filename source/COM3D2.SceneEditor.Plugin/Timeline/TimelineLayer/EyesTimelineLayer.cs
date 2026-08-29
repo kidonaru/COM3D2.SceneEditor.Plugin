@@ -40,7 +40,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             { "EyesPosR", "右瞳位置" },
             { "EyesScaL", "左瞳サイズ" },
             { "EyesScaR", "右瞳サイズ" },
-            { "EyesRot", "視線" },
+            // 旧「視線」(瞳回転)。顔向きへ一本化したため、キー名は互換のため
+            // EyesRot のまま顔向き (lookX/lookY) として解釈する
+            { "EyesRot", "顔向き" },
             { "LookAtTarget", "注視" },
         };
 
@@ -163,7 +165,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     maidCache.eyesScaR = new Vector3(0f, vertical, horizon);
                     break;
                 case MotionEyesType.EyesRot:
-                    maidCache.eyeEulerAngle = new Vector3(horizon * 90, 0f, vertical * 90);
+                    maidCache.lookDirection = new Vector2(horizon, vertical);
                     break;
             }
         }
@@ -247,10 +249,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return new Vector2(sca.z, sca.y);
                 }
                 case MotionEyesType.EyesRot:
-                {
-                    var rot = maidCache.eyeEulerAngle;
-                    return new Vector2(rot.x / 90f, rot.z / 90f);
-                }
+                    return maidCache.lookDirection;
             }
 
             return Vector2.zero;
@@ -444,7 +443,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 case MotionEyesType.EyesPosL:
                 case MotionEyesType.EyesPosR:
-                case MotionEyesType.EyesRot:
                     names = new string[] { "水平", "垂直" };
                     break;
                 case MotionEyesType.EyesScaL:
@@ -511,10 +509,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         {
                             ApplyEyes(eyesType, -horizon, -vertical);
                         }
-                        else if (eyesType == MotionEyesType.EyesRot)
-                        {
-                            ApplyEyes(eyesType, horizon, -vertical);
-                        }
                         else
                         {
                             ApplyEyes(eyesType, horizon, vertical);
@@ -538,10 +532,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (eyesType == MotionEyesType.EyesPosL)
                 {
                     horizon = -horizon;
-                    vertical = -vertical;
-                }
-                else if (eyesType == MotionEyesType.EyesRot)
-                {
                     vertical = -vertical;
                 }
 
