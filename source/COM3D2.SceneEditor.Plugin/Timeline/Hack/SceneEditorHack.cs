@@ -80,12 +80,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public override bool isIKVisible
-        {
-            get => manipulateManager.isBoneVisible;
-            set => manipulateManager.isBoneVisible = value;
-        }
-
         public override bool isAnmEnabled
         {
             get

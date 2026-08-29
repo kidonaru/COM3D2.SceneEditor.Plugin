@@ -60,8 +60,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isFixedFoV = false;
         public bool isFixedFocus = false;
         public bool isPostEffectSync = true;
-        public bool isIkBoxVisibleRoot = true;
-        public bool isIkBoxVisibleBody = true;
         public bool isAutoScroll = false;
         // ドラッグ編集完了時に現在フレームへ自動でキーフレーム登録する (SE 独自機能)
         public bool isAutoKeyFrame = false;
@@ -90,7 +88,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool useHSVColor = false;
         public bool autoResisterBackgroundCustom = true;
         public string backgroundCustomCategoryName = "MotionTimelineEditor";
-        public bool alwaysShowIK = false;
         // レイヤー編集の拡縮行の XYZ 連動 (1 軸の編集を比率で全軸へ反映)
         public bool scaleLinked = false;
 

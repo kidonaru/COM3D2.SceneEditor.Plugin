@@ -847,16 +847,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawToggle("常にIKを表示", timelineConfig.alwaysShowIK, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
-                {
-                    timelineConfig.alwaysShowIK = newValue;
-                    timelineConfig.dirty = true;
-                });
-            }
-            view.EndLayout();
-
-            view.BeginHorizontal();
-            {
                 view.DrawToggle("色をHSVで指定", timelineConfig.useHSVColor, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
                 {
                     timelineConfig.useHSVColor = newValue;

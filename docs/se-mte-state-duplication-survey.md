@@ -101,7 +101,7 @@ A 分類(状態の奪い合い解消):
 - [x] A-1c: B-6 の解消確認 — 視線の所有者統合後、`ScenePresetLook` の保存→ロードで視線状態が欠落しないことを確認し、不足があればスキーマへ追加する
 - [x] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
 - [x] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
-- [ ] A-4: `StudioHackManager.isPoseEditing` setter の `canIKVisible` による `isIKVisible` / `isIkBoxVisibleRoot/Body` 上書きを廃し、SE 側のトグルを唯一の入口にする(`alwaysShowIK` の扱いも整理。`isBoneVisible` 自体はアダプタ化済みで対象外)
+- [x] A-4: `StudioHackManager.isPoseEditing` setter の `canIKVisible` による `isIKVisible` / `isIkBoxVisibleRoot/Body` 上書きを廃し、SE 側のトグルを唯一の入口にする(`alwaysShowIK` の扱いも整理。`isBoneVisible` 自体はアダプタ化済みで対象外)
 - [ ] A-5: `TimelineFaceManager` の名前解決・倍率換算を `MaidFaceMorphController` へ一本化する(表情プリセット・モーフ追跡への影響が広いため差分を丁寧に確認する)
 
 B 分類(二重管理の整理):
@@ -166,12 +166,23 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **`Timeline.xml` の後方互換**: `XmlSerializer` は未知要素を読み飛ばすため、既存ファイルに残る `<isAutoYureBone>` は無害。`TimelineConfigXmlTests` で固定した(B-1 でフィールドを削除する際の前提にもなる)
 - **残したもの**: `ExtendBoneCache.yureSlotNames` / `IsYureSlot`(拡張ボーンキャッシュのデータ)、`PartsEditHackBase` の同名メンバー(未移植の PartsEdit 連携側で別階層)
 
+### A-4 の実装メモ
+
+`StudioHackManager.isPoseEditing` の setter から表示の書き換えを外し、編集モードの委譲だけを行うようにした。ボーン/IK 表示の所有者は SE の `MaidManipulateManager.isBoneVisible` 一本になった。
+
+- **仕様変更**: 編集モードに入っても、ボーン表示が自動で ON にならなくなった。SE の「ボーン表示」トグルが唯一の入口になるため、OFF のまま編集モードへ入るとボーンは出ない(意図した変更。以前は選択中のレイヤー種別でトグルが勝手に落ちる副作用の方が大きかった)
+- **削除したもの**: `canIKVisible`、`StudioHackBase` の `hasIkBoxVisible` / `isIkBoxVisibleRoot` / `isIkBoxVisibleBody`(このリポジトリでは `hasIkBoxVisible` が常に false で当該分岐は死んでいた)、上書きの消滅で呼び出し元を失った `isIKVisible`(`SceneEditorHack` の実装ごと)、設定 `isIkBoxVisibleRoot` / `isIkBoxVisibleBody` / `alwaysShowIK`、「常にIKを表示」トグル
+- **`Timeline.xml` の後方互換**: A-3 と同じく未知要素の読み飛ばしで吸収。削除した 3 項目を `TimelineConfigXmlTests` の XML へ追加した
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- A-4: 編集モードを何度か出入りしても、SE の「ボーン表示」トグルが勝手に落ちないこと
+- A-4: 編集モードに入ってもボーンが自動表示されないこと自体は仕様。手動でトグルを ON にすれば従来どおり編集できること
+- A-4: タイムライン設定から「常にIKを表示」が消えていること、既存の `Timeline.xml` を読んでも他の設定が既定へ戻らないこと
 - A-3: タイムライン設定から「自動揺れボーン」が消えていること、既存の `Timeline.xml` を読んでも他の設定が既定へ戻らないこと
 - A-3: タイムラインでキーを打っても、Inspector で切ったスロット揺れの設定が変化しないこと
 - A-2: Inspector で胸の揺れを止めた後にタイムラインを再生しても、揺れが復活しないこと

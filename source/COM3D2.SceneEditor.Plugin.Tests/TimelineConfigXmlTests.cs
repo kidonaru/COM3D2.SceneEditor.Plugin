@@ -21,6 +21,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 "<?xml version=\"1.0\"?>"
                 + "<Config xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">"
                 + "<isAutoYureBone>false</isAutoYureBone>"
+                + "<alwaysShowIK>true</alwaysShowIK>"
+                + "<isIkBoxVisibleRoot>false</isIkBoxVisibleRoot>"
+                + "<isIkBoxVisibleBody>false</isIkBoxVisibleBody>"
                 + "<historyLimit>50</historyLimit>"
                 + "<voiceMaxLength>12.5</voiceMaxLength>"
                 + "</Config>";

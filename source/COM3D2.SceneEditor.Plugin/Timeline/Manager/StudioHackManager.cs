@@ -13,6 +13,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override StudioHackBase studioHack => _studioHack;
 
         private bool _isPoseEditing = false;
+
+        /// <summary>
+        /// ポーズ編集モード。
+        /// ボーン/IK 表示の所有者は SE 側の MaidManipulateManager.isBoneVisible
+        /// (ボーン表示トグル) に一本化したため、ここでは編集モードの委譲だけを行い、
+        /// 表示状態には触れない。
+        /// 以前は編集モードを切り替えるたびに選択中のレイヤー種別で表示を上書きしており、
+        /// トグルが意図せず落ちていた
+        /// </summary>
         public bool isPoseEditing
         {
             get => _isPoseEditing;
@@ -21,20 +30,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_studioHack != null)
                 {
                     _studioHack.isPoseEditing = value;
-                    if (_studioHack.hasIkBoxVisible)
-                    {
-                        _studioHack.isIkBoxVisibleRoot = value && config.isIkBoxVisibleRoot && canIKVisible;
-                        _studioHack.isIkBoxVisibleBody = value && config.isIkBoxVisibleBody && canIKVisible;
-                    }
-                    else
-                    {
-                        _studioHack.isIKVisible = value && canIKVisible;
-                    }
                 }
             }
         }
-
-        public bool canIKVisible => currentLayer.isMotionLayer || currentLayer.isMoveLayer || config.alwaysShowIK;
 
         public static event UnityAction<bool> onPoseEditingChanged;
 
