@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -69,23 +69,6 @@ namespace COM3D2.SceneEditor.Plugin
 
                 timeline.videoDisplayType = type;
                 movieManager.ReloadMovie();
-            },
-        };
-
-        private readonly GUIComboBox<Maid.EyeMoveType> _eyeMoveTypeComboBox = new GUIComboBox<Maid.EyeMoveType>
-        {
-            items = Enum.GetValues(typeof(Maid.EyeMoveType)).Cast<Maid.EyeMoveType>().ToList(),
-            getName = (type, index) => type.ToString(),
-            // 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
-            // 開いている間にタイムラインが閉じられた場合に備えて null を弾く
-            onSelected = (type, index) =>
-            {
-                if (timeline == null)
-                {
-                    return;
-                }
-
-                timeline.eyeMoveType = type;
             },
         };
 
@@ -249,16 +232,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            _eyeMoveTypeComboBox.currentIndex = (int)timeline.eyeMoveType;
-            _eyeMoveTypeComboBox.DrawButton("メイド目線", view);
-
             _singleFrameTypeComboBox.currentIndex = (int)timeline.singleFrameType;
             _singleFrameTypeComboBox.DrawButton("1フレーム調整", view);
-
-            view.DrawToggle("顔/瞳の固定化", timeline.useHeadKey, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
-            {
-                timeline.useHeadKey = newValue;
-            });
 
             view.BeginHorizontal();
             {

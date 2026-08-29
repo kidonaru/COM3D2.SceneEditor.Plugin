@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -54,6 +55,27 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
         private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
+
+        /// <summary>
+        /// 目線種別。顔/瞳の追従トグルのプリセットで、書き込み先はタイムライン全体の設定。
+        /// 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
+        /// 開いている間にタイムラインが閉じられた場合に備えて null を弾く
+        /// </summary>
+        private readonly GUIComboBox<Maid.EyeMoveType> _eyeMoveTypeComboBox =
+            new GUIComboBox<Maid.EyeMoveType>
+            {
+                items = Enum.GetValues(typeof(Maid.EyeMoveType))
+                    .Cast<Maid.EyeMoveType>().ToList(),
+                getName = (type, _) => type.ToString(),
+                onSelected = (type, _) =>
+                {
+                    var timeline = MTEP.TimelineManager.instance.timeline;
+                    if (timeline != null)
+                    {
+                        timeline.eyeMoveType = type;
+                    }
+                },
+            };
 
         /// <summary>視線モードの選択肢。列挙の再生成を避けて使い回す</summary>
         private static readonly List<MaidLookMode> LOOK_MODES = new List<MaidLookMode>
@@ -149,7 +171,6 @@ namespace COM3D2.SceneEditor.Plugin
             else if (_tab == FaceTab.視線)
             {
                 DrawLookContent(view, target);
-                DrawTimelineLookContent(view, target);
             }
             else
             {
@@ -244,35 +265,125 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 視線タブ。向け先の選択と顔向き左右/上下を描画する。
-        /// 顔・目のトグルは向け先と独立で、頭ボーンのドラッグでも落ちる
+        /// 視線タブ。SE の向け先とタイムラインのキー化設定を 1 セクションで描く。
+        /// 向け先 (trsLookTarget) の所有者は MaidLookController で、
+        /// 「視線をキー化」が有効な間はタイムラインの注視先がそれを駆動する
+        /// (MaidLookBridge を参照)。そのため両者を並べず、
+        /// キー化の有無で有効になる行を切り替える
         /// </summary>
         private void DrawLookContent(GUIView view, Maid target)
         {
-            var body = target.body0;
+            var timeline = MTEP.TimelineManager.instance.timeline;
             var mode = lookController.GetMode(target);
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("向け先", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
+            DrawLookKeyToggleRow(view, timeline);
 
-                _lookModeComboBox.items = LOOK_MODES;
-                _lookModeComboBox.currentIndex = LOOK_MODES.IndexOf(mode);
-                _lookModeComboBox.onSelected = (newMode, _) =>
-                {
-                    HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線の向け先");
-                    lookController.SetMode(target, newMode);
-                };
-                _lookModeComboBox.DrawButton(view);
+            // キー化トグルの反映は同じ描画中に起きるため、以降の行はトグル後の値で決める
+            var isKeyed = TimelineLookRowDrawer.IsHeadKeyEnabled;
+
+            DrawLookTargetRows(view, target, mode, isKeyed);
+            DrawEyeMoveTypeRow(view, timeline);
+            DrawHeadToCamRow(view, target);
+            DrawLookDirectionSliders(view, target, mode, isKeyed);
+
+            if (isKeyed)
+            {
+                DrawKeyedEyeRotationRows(view, target);
+                return;
             }
-            view.EndLayout();
 
+            if (mode == MaidLookMode.オブジェクト)
+            {
+                DrawLookObjectRows(view, target);
+            }
+        }
+
+        /// <summary>
+        /// 顔向き左右/上下。向け先が「方向指定」でキー化していないときだけ効く
+        /// </summary>
+        private void DrawLookDirectionSliders(
+            GUIView view, Maid target, MaidLookMode mode, bool isKeyed)
+        {
+            view.AddSpace(5);
+
+            // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を
+            // 基準値へ戻してしまう。BeginEnabled は入れ子にできないため、
+            // 基準値そのものを動かす SetEnabled で囲む
+            view.SetEnabled(!isKeyed && mode == MaidLookMode.方向指定);
+            DrawLookSlider(view, target, "顔向き左右", lookController.GetLookX(target),
+                value => lookController.SetLook(target, value, lookController.GetLookY(target)));
+            DrawLookSlider(view, target, "顔向き上下", lookController.GetLookY(target),
+                value => lookController.SetLook(target, lookController.GetLookX(target), value));
+            view.SetEnabled(true);
+        }
+
+        /// <summary>
+        /// 視線をキー化するか (タイムラインの「顔/瞳の固定化」)。
+        /// タイムライン全体の設定なので、対象メイドを問わず同じ値を出す
+        /// </summary>
+        private void DrawLookKeyToggleRow(GUIView view, MTEP.TimelineData timeline)
+        {
+            if (timeline == null)
+            {
+                view.DrawLabel("タイムライン未読込のため視線はキー化されません",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+                return;
+            }
+
+            view.DrawToggle("視線をキー化", timeline.useHeadKey, 130, ROW_HEIGHT,
+                value => timeline.useHeadKey = value);
+        }
+
+        /// <summary>
+        /// 向け先の行。キー化中はタイムラインの注視先が向け先を決めるため、
+        /// SE のコンボは表示のみにして注視先の行へ操作を譲る
+        /// </summary>
+        private void DrawLookTargetRows(
+            GUIView view, Maid target, MaidLookMode mode, bool isKeyed)
+        {
+            view.SetEnabled(!isKeyed);
+            _lookModeComboBox.items = LOOK_MODES;
+            _lookModeComboBox.currentIndex = LOOK_MODES.IndexOf(mode);
+            _lookModeComboBox.onSelected = (newMode, _) =>
+            {
+                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線の向け先");
+                lookController.SetMode(target, newMode);
+            };
+            DrawLabeledComboBox("向け先", _lookModeComboBox);
+            view.SetEnabled(true);
+
+            if (isKeyed)
+            {
+                var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+                if (maidCache != null)
+                {
+                    _timelineLookRowDrawer.DrawLookAtTargetRows(
+                        view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
+                }
+            }
+        }
+
+        /// <summary>目線種別。顔/瞳の追従トグルをまとめて切り替えるプリセット</summary>
+        private void DrawEyeMoveTypeRow(GUIView view, MTEP.TimelineData timeline)
+        {
+            if (timeline == null)
+            {
+                return;
+            }
+
+            _eyeMoveTypeComboBox.currentIndex = (int) timeline.eyeMoveType;
+            DrawLabeledComboBox("メイド目線", _eyeMoveTypeComboBox);
+        }
+
+        /// <summary>顔・目の追従トグル。向け先と独立で、頭ボーンのドラッグでも落ちる</summary>
+        private void DrawHeadToCamRow(GUIView view, Maid target)
+        {
+            var body = target.body0;
             view.BeginHorizontal();
             {
-                // 頭部をドラッグすると上書きされるため、追従は自動的に解除される。
                 // BeginEnabled はネスト非対応のため、無効化は各 DrawToggle の enabled 引数で個別に指定する
                 view.DrawToggle("顔を向ける", body != null && body.boHeadToCam, 95, ROW_HEIGHT,
                     body != null, value =>
@@ -289,24 +400,11 @@ namespace COM3D2.SceneEditor.Plugin
                     });
             }
             view.EndLayout();
+        }
 
-            view.AddSpace(5);
-
-            // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を
-            // 基準値へ戻してしまう。BeginEnabled は入れ子にできないため、
-            // 基準値そのものを動かす SetEnabled で囲む
-            view.SetEnabled(mode == MaidLookMode.方向指定);
-            DrawLookSlider(view, target, "顔向き左右", lookController.GetLookX(target),
-                value => lookController.SetLook(target, value, lookController.GetLookY(target)));
-            DrawLookSlider(view, target, "顔向き上下", lookController.GetLookY(target),
-                value => lookController.SetLook(target, lookController.GetLookX(target), value));
-            view.SetEnabled(true);
-
-            if (mode != MaidLookMode.オブジェクト)
-            {
-                return;
-            }
-
+        /// <summary>オブジェクトモードの注視対象。Hierarchy の選択をそのまま指定できる</summary>
+        private void DrawLookObjectRows(GUIView view, Maid target)
+        {
             view.AddSpace(5);
 
             var current = lookController.GetTarget(target);
@@ -318,7 +416,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            // Hierarchy の選択をそのまま注視対象にできるようにする。
             // 選択が無いときは押しても何も起きないため無効化する
             if (view.DrawButton("選択中のオブジェクトを指定", 200, ROW_HEIGHT, selected != null))
             {
@@ -327,33 +424,15 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// タイムラインへキー化される視線設定。
-        /// 上の視線 UI (MaidLookController) はキー化されないため、
-        /// キーフレームの元になる MaidCache 側の注視先・瞳回転をここで編集する。
-        /// どちらも body0.trsLookTarget を奪い合う既存の競合があるが、本セクションでは触らない
-        /// </summary>
-        private void DrawTimelineLookContent(GUIView view, Maid target)
+        /// <summary>キー化される瞳回転。書き込み先は MaidCache のため履歴は記録しない</summary>
+        private void DrawKeyedEyeRotationRows(GUIView view, Maid target)
         {
-            var timeline = MTEP.TimelineManager.instance.timeline;
             var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
-            if (timeline == null || maidCache == null)
+            if (maidCache == null)
             {
                 return;
             }
 
-            view.AddSpace(5);
-            view.DrawHorizontalLine(Color.gray);
-            view.DrawLabel("タイムライン視線", -1, ROW_HEIGHT);
-
-            if (!TimelineLookRowDrawer.IsHeadKeyEnabled)
-            {
-                view.DrawLabel(TimelineLookRowDrawer.HeadKeyDisabledMessage,
-                    -1, ROW_HEIGHT, textColor: Color.yellow);
-                return;
-            }
-
-            _timelineLookRowDrawer.DrawLookAtTargetRows(view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
             _timelineLookRowDrawer.DrawEyeRotationRows(view, maidCache, LABEL_WIDTH);
 
             if (view.DrawButton("タイムライン視線を初期化", 190, ROW_HEIGHT))

@@ -19,7 +19,7 @@ namespace COM3D2.SceneEditor.Plugin
         private const float EyeRotationMaxAngle = 90f;
 
         public const string HeadKeyDisabledMessage =
-            "タイムライン設定の「顔/瞳の固定化」を有効にしてください";
+            "表情ウィンドウの視線タブで「視線をキー化」を有効にしてください";
 
         /// <summary>
         /// タイムライン視線の注視先の選択肢。

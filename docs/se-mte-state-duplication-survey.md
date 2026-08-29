@@ -97,7 +97,7 @@ MTE 移植で採用されている正しいパターンは **アダプタ化** �
 A 分類(状態の奪い合い解消):
 
 - [x] A-1a: `MaidCache` の視線フィールド(`lookAtTargetType` / `lookAtTargetIndex` / `lookAtMaidPointType` / `eyeEulerAngle`)を `MaidLookController` へ委譲し、`UpdateHeadLook` / `UpdateLookAtTarget` を SE の適用経路へ合流させる
-- [ ] A-1b: 表情ウィンドウ視線タブの「視線」「タイムライン視線」を 1 セクションへ統合し、`TimelineSettingWindow` の「メイド目線」(`eyeMoveType`)と「顔/瞳の固定化」(`useHeadKey`)もそこへ集約する
+- [x] A-1b: 表情ウィンドウ視線タブの「視線」「タイムライン視線」を 1 セクションへ統合し、`TimelineSettingWindow` の「メイド目線」(`eyeMoveType`)と「顔/瞳の固定化」(`useHeadKey`)もそこへ集約する
 - [ ] A-1c: B-6 の解消確認 — 視線の所有者統合後、`ScenePresetLook` の保存→ロードで視線状態が欠落しないことを確認し、不足があればスキーマへ追加する
 - [ ] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
 - [ ] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
@@ -123,12 +123,25 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **視線そらしは向け先「無し」のときだけ効く**: `TBody` はそらし演出を `trsLookTarget == null` かつ `boLockHeadAndEye == false` のときだけ動かす。従来の `EyeToCamera` は「そらす」指定で無条件に向け先を null にしていたが、それは SE の設定を一方向に壊して戻せない(戻す経路が無い)ため踏襲しない。代わりに `UpdateLookAtTarget` の `LockHeadAndEye` と `UpdateEyeEulerAngle` がそらし指定時に手を引き、SE で向け先を「無し」にすればそらしが動くようにした
 - **`MaidCache.useHeadKey` プロパティを削除**: `trsLookTarget` を直接読み書きする所有権違反で、呼び出し元も無かった(`TimelineData.useHeadKey` とは別物)
 
+### A-1b の実装メモ
+
+表情ウィンドウ視線タブの「視線」「タイムライン視線」の 2 セクションを 1 セクションへ統合し、`TimelineSettingWindow` の「メイド目線」(`eyeMoveType`)と「顔/瞳の固定化」(`useHeadKey`)も同タブへ移した。
+
+- **「顔/瞳の固定化」は UI 上「視線をキー化」へ改称**: A-1a で向け先の所有者が SE に一本化されたため、このトグルの意味は「タイムラインが視線を持つか」に絞られた
+- **キー化中は SE の「向け先」コンボを無効化する**: 向け先はタイムラインの「注視先」行が駆動するため、2 つの入口を並べず操作を譲る。キー化していないときは従来どおり SE の向け先・顔向き・注視対象を操作する
+- **`TimelineSettingWindow` からは 2 行を削除**: 未使用になった目線種別コンボも撤去した
+- **`TimelineLookRowDrawer.HeadKeyDisabledMessage` の文言を更新**: 設定の所在が変わったため、`EyesItemInspector` の案内も新しい場所を指す
+- A-1b は UI の再配置のみで純粋ロジックの追加が無いため、単体テストは追加していない(判定に使う `ResolveLookMode` は A-1a で網羅済み)
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- A-1b: 視線タブで「視線をキー化」を切り替えると、同じ描画のうちに「向け先」コンボと顔向きスライダーの活性が切り替わること
+- A-1b: キー化 ON のとき「注視先」を変えると向け先が追従し、OFF に戻すと SE の向け先設定がそのまま残ること
+- A-1b: 瞳レイヤーの項目表示(`EyesItemInspector`)の案内文が新しい設定場所(視線タブ)を指していること
 - A-1a: `UpdateHeadLook` のたびに「顔を向ける」「目を向ける」トグルが `eyeMoveType` 由来の値へ揃うこと(従来の `EyeToCamera` と同じ挙動だが、A-1b で UI を統合する際の前提になる)
 
 ## 参照
