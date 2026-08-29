@@ -436,6 +436,7 @@
     <Compile Include="Timeline\TimelineData.cs" />
     <Compile Include="Timeline\TimelineHistoryEntry.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
+    <Compile Include="Timeline\TimelineSelectionBridge.cs" />
     <Compile Include="Timeline\BGGround.cs" />
     <Compile Include="Timeline\TimelineLayer\AnimationTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BGColorTimelineLayer.cs" />

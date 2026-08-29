@@ -49,6 +49,8 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TimelineTextManager.instance,
                 MTEP.TimelineHistoryManager.instance,
                 MTEP.TimelineTemplateManager.instance,
+                // メニュー項目選択と Inspector の双方向同期 (SE 固有)
+                TimelineSelectionBridge.instance,
             };
 
             public void Init()
