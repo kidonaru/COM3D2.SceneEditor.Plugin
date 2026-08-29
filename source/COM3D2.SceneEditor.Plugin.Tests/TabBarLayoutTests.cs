@@ -57,11 +57,38 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(1, r2.firstVisible);
         }
 
+        // 末尾まで来たら最後のタブを右端へ揃え、手前を見切れさせる
+        [Fact]
+        public void RightAlignsAtLastTab()
+        {
+            // active=7 (最終タブ) → firstVisible=4。
+            // 4枚ぶんの幅 246 に対しタブ領域は 264 なので 18 余る
+            var r = TabBarLayout.Calc(8, 300f, 0, 7);
+            Assert.Equal(4, r.firstVisible);
+            // 余りぶん右へ寄せ、左は手前の 1 枚を見切れさせて埋める
+            Assert.Equal(3, r.firstDrawIndex);
+            Assert.Equal(18f - (TabBarLayout.MIN_TAB_WIDTH + 2f), r.drawOriginX);
+            Assert.Equal(7, r.lastDrawIndex);
+        }
+
+        // 途中までのスクロールでは左詰めのまま、末尾側だけ見切れさせる
+        [Fact]
+        public void DrawsOneExtraTabWhileScrolling()
+        {
+            var r = TabBarLayout.Calc(8, 300f, 1, -1);
+            Assert.Equal(1, r.firstVisible);
+            Assert.Equal(1, r.firstDrawIndex);
+            Assert.Equal(0f, r.drawOriginX);
+            Assert.Equal(5, r.lastDrawIndex);
+        }
+
         [Fact]
         public void EmptyReturnsZeroVisible()
         {
             var r = TabBarLayout.Calc(0, 300f, 0, -1);
             Assert.Equal(0, r.visibleCount);
+            // ループが 1 周も回らないよう -1 を返す
+            Assert.Equal(-1, r.lastDrawIndex);
         }
 
         // ヘッダー幅→利用可能幅: フレーム*2 + 閉じる(20+2*2) + ロック(20+2) を除く
