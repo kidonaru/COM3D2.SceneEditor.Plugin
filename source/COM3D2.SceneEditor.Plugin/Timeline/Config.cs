@@ -54,7 +54,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int version = 0;
 
         // 動作設定
-        public bool pluginEnabled = true;
         public bool isEasyEdit = false;
         public bool isCameraSync = true;
         public bool isFixedFoV = false;
@@ -73,8 +72,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float voiceMaxLength = 20.0f;
         public bool disablePoseHistory = true;
         public int historyLimit = 20;
-        public float keyRepeatTimeFirst = 0.15f;
-        public float keyRepeatTime = 1f / 30f;
         public string videoShaderName = "CM3D2/Unlit_Texture_Photo_MyObject";
         public bool dofHighResolution = false;
         public bool dofNearBlur = false;
@@ -112,10 +109,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int gridCount = 4;
         public float gridAlpha = 0.3f;
         public float gridLineWidth = 1.0f;
-        public int gridCountInWorld = 20;
-        public float gridAlphaInWorld = 0.3f;
-        public float gridLineWidthInWorld = 1.0f;
-        public float gridCellSize = 0.5f;
 
         // 色設定
         public Color timelineBgColor1 = new Color(0 / 255f, 0 / 255f, 0 / 255f);
@@ -133,9 +126,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // タイムライン下部カーブエディタの開閉状態とペイン高さ
         public bool isCurveEditorOpen = false;
         public int curveEditorHeight = 150;
-        public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
-        public Color gridColorInDisplay = new Color(1, 1, 1);
-        public Color gridColorInWorld = new Color(1, 1, 1);
         public Color gridColorInVideo = new Color(1, 1, 1);
         public Color bpmLineColor = new Color(1f, 47f / 51f, 0.015686275f, 0.5f);
 
@@ -298,7 +288,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool GetKeyDownRepeat(KeyBindType keyBindType)
         {
             if (!isKeyInputEnabled) return false;
-            return keyBinds[keyBindType].GetKeyDownRepeat(keyRepeatTimeFirst, keyRepeatTime);
+            // キーリピートの間隔は SE の設定 (SceneEditor.xml) が唯一の持ち主
+            var seConfig = SceneEditor.Plugin.ConfigManager.instance.config;
+            return keyBinds[keyBindType].GetKeyDownRepeat(
+                seConfig.keyRepeatTimeFirst, seConfig.keyRepeatTime);
         }
 
         public bool GetKeyUp(KeyBindType keyBindType)
