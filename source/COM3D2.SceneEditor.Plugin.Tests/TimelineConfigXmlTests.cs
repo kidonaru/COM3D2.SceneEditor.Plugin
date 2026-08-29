@@ -27,6 +27,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 + "<pluginEnabled>false</pluginEnabled>"
                 + "<keyRepeatTime>0.5</keyRepeatTime>"
                 + "<gridCellSize>2.5</gridCellSize>"
+                + "<useHSVColor>true</useHSVColor>"
                 + "<windowHoverColor><r>1</r><g>0</g><b>0</b><a>1</a></windowHoverColor>"
                 + "<historyLimit>50</historyLimit>"
                 + "<voiceMaxLength>12.5</voiceMaxLength>"

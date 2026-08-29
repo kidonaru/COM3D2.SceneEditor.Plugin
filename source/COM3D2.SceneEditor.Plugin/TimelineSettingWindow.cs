@@ -847,12 +847,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawToggle("色をHSVで指定", timelineConfig.useHSVColor, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
-                {
-                    timelineConfig.useHSVColor = newValue;
-                    timelineConfig.dirty = true;
-                });
-
                 view.DrawToggle("処理時間出力", timelineConfig.outputElapsedTime, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
                 {
                     timelineConfig.outputElapsedTime = newValue;

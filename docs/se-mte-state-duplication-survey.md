@@ -107,7 +107,7 @@ A 分類(状態の奪い合い解消):
 B 分類(二重管理の整理):
 
 - [x] B-1: `Timeline/Config.cs` の読み手が無い重複フィールド(grid 系 / `windowHoverColor` / `keyRepeat*` 等 13 個のうち死んでいるもの)を削除する。あわせて `Timeline.xml` の後方互換(未知フィールドの読み飛ばし)を確認する
-- [ ] B-2: `TimelineSettingWindow` の「色をHSVで指定」トグルを SE 側 `config.useHSVColor` へ接続するか、トグル自体を撤去する(SE の設定ウィンドウに同項目があるなら撤去を優先)
+- [x] B-2: `TimelineSettingWindow` の「色をHSVで指定」トグルを SE 側 `config.useHSVColor` へ接続するか、トグル自体を撤去する(SE の設定ウィンドウに同項目があるなら撤去を優先)
 - [ ] B-3: `TimelineHistoryManager` を撤去する(`Timeline/IKHoldEntity.cs` 撤去と同じ扱い。`TimelineSettingWindow`「ポーズ履歴無効」も併せて整理)。調査の結果 SE の `HistoryManager` へ統合できる見込みが立つならそちらを優先し、判断理由を本書へ追記する
 
 B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は音源が別で機能が異なり、B-5 は静的プリセット vs アニメーションの役割分担が妥当なため、本 loop では扱わない。
@@ -209,12 +209,20 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 
 `Timeline.xml` の後方互換は A-3 / A-4 と同じく未知要素の読み飛ばしで吸収し、削除した項目を `TimelineConfigXmlTests` の XML へ追加した。
 
+### B-2 の実装メモ
+
+`TimelineSettingWindow` の「色をHSVで指定」トグルと `Timeline/Config.useHSVColor` を撤去した。
+
+- **接続ではなく撤去を選んだ理由**: SE の設定ウィンドウには同項目が無いが、`MTEUtils/ColorPickerWindow` のカラーピッカー内に RGB/HSV を切り替えるボタンがあり、そこが `GUIView.option.useHSVColor`(= SE 側 `config.useHSVColor`)を読み書きしている。使う場所に生きた導線があるため、設定ウィンドウ側の入口は要らない
+- `docs-site/guide/configuration.md` の `useHSVColor` は `SceneEditor.xml` の項目(SE 側)の説明なので、そのまま残す
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- B-2: タイムライン設定から「色をHSVで指定」が消えていること、カラーピッカーの RGB/HSV 切り替えボタンは従来どおり効き、`SceneEditor.xml` に保存されること
 - B-1: `SceneEditor.xml` の `keyRepeatTime` / `keyRepeatTimeFirst` を変更すると、タイムラインのフレーム送り(←→ キー長押し)のリピート間隔にも反映されること
 - B-1: 既存の `Timeline.xml` を読んでも他の設定が既定へ戻らないこと
 - A-5: CRC 顔でジト目(`eyeclose3`)をスライダー最大にしたときの見た目が、タイムラインで同じ値をキーにしたときと一致すること

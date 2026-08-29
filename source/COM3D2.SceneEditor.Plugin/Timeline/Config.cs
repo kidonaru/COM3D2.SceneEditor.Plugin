@@ -82,7 +82,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool psylliumAreaCopyIgnoreTransform = false;
         public float videoPrebufferTime = 0.5f;
         public bool outputElapsedTime = false;
-        public bool useHSVColor = false;
         public bool autoResisterBackgroundCustom = true;
         public string backgroundCustomCategoryName = "MotionTimelineEditor";
         // レイヤー編集の拡縮行の XYZ 連動 (1 軸の編集を比率で全軸へ反映)
