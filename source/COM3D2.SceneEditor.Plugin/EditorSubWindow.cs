@@ -414,7 +414,8 @@ namespace COM3D2.SceneEditor.Plugin
                 windowId, _tabTitles, _tabActiveIndex,
                 FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, HEADER_HEIGHT, available,
                 ref scrollX,
-                (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos));
+                (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos),
+                index => TabGroupManager.instance.ActivateTabIndex(this, index));
             if (tabGroup != null)
             {
                 tabGroup.tabScrollX = scrollX;
