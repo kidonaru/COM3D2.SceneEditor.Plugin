@@ -282,11 +282,18 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawDropHighlight();
 
-            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)
-            if (!isLocked)
+            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)。
+            // タブ切替メニュー表示中も、メニュー外の押下がウィンドウ移動を始めないよう止める
+            // (メニューは最後に描くため、この判定を先に通すと押下を先取りできない)
+            if (!isLocked && !TabBarDrawer.IsContextMenuOpen(windowId))
             {
                 HandleDragInput(closeRect);
             }
+
+            // タブ切替メニューは全コントロールの後に描いて最前面へ出す
+            TabBarDrawer.DrawContextMenu(
+                windowId, _tabTitles, _tabActiveIndex,
+                index => TabGroupManager.instance.ActivateTabIndex(this, index));
         }
 
         /// <summary>
@@ -402,7 +409,7 @@ namespace COM3D2.SceneEditor.Plugin
             var available = TabBarLayout.CalcAvailableWidth(_windowRect.width);
 
             TabBarDrawer.Draw(
-                _tabTitles, _tabActiveIndex,
+                windowId, _tabTitles, _tabActiveIndex,
                 FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, available,
                 ref _tabScrollOffset,
                 (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos));

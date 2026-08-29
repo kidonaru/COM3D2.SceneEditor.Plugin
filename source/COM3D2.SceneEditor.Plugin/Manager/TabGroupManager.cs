@@ -80,6 +80,20 @@ namespace COM3D2.SceneEditor.Plugin
             OnTabMouseDown(target, grabOffset);
         }
 
+        /// <summary>
+        /// メニュー選択によるアクティブ化。押下由来ではないためドラッグ候補は記録しない
+        /// (記録すると次フレームの UpdateTabDrag がタブを分離してしまう)
+        /// </summary>
+        public void ActivateTabIndex(IDockableWindow member, int tabIndex)
+        {
+            var group = member.group;
+            if (group == null || tabIndex < 0 || tabIndex >= group.windows.Count)
+            {
+                return;
+            }
+            group.SetActive(group.windows[tabIndex]);
+        }
+
         public bool IsDropTarget(IDockableWindow window)
         {
             var dragged = draggedWindow;

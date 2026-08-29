@@ -165,6 +165,21 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// ゲストのメニュー選択によるタブアクティブ化。tabIndex はグループ内 index。
+        /// ActivateTab と違い自窓以外も指定でき、NotifyTabMouseDown と違い
+        /// つまみドラッグ候補は記録しない (メニュー選択はドラッグではない)
+        /// </summary>
+        public static void ActivateTabIndex(object handle, int tabIndex)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            if (adapter == null)
+            {
+                return;
+            }
+            TabGroupManager.instance.ActivateTabIndex(adapter, tabIndex);
+        }
+
+        /// <summary>
         /// ヘッダー/空き領域の左押下通知。ドラッグスナップ追跡の起点になる。
         /// これを呼ぶゲストだけがドラッグスナップ対象になる契約
         /// (呼ばない旧ゲストは GUI.DragWindow を抑止できず吸着位置と喧嘩するため巻き込まない)
