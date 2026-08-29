@@ -60,6 +60,7 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(CameraWindow.instance);
             AddWindow(BackgroundWindow.instance);
             AddWindow(BgmWindow.instance);
+            AddWindow(SoundWindow.instance);
             AddWindow(LightWindow.instance);
             AddWindow(PngPlacementWindow.instance);
             AddWindow(PresetWindow.instance);

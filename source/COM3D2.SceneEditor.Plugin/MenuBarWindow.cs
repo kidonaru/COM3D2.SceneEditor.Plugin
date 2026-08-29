@@ -126,6 +126,7 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("Camera", CameraWindow.instance),
                         CreateWindowItem("背景", BackgroundWindow.instance),
                         CreateWindowItem("BGM", BgmWindow.instance),
+                        CreateWindowItem("サウンド", SoundWindow.instance),
                         CreateWindowItem("ライト", LightWindow.instance),
                         CreateWindowItem("PNG配置", PngPlacementWindow.instance),
                         CreateWindowItem("プリセット", PresetWindow.instance),

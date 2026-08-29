@@ -191,6 +191,13 @@ namespace COM3D2.SceneEditor.Plugin
         public int timelineHeight = 480;
         public bool timelineVisible = false;
 
+        // サウンドウィンドウ
+        public int soundPosX = -1;
+        public int soundPosY = -1;
+        public int soundWidth = 400;
+        public int soundHeight = 320;
+        public bool soundVisible = false;
+
         // タイムライン操作ウィンドウ
         public int timelineControlPosX = -1;
         public int timelineControlPosY = -1;
