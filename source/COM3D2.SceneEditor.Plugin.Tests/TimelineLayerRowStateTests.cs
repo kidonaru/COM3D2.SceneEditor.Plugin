@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using COM3D2.SceneEditor.Plugin;
 using Xunit;
 
@@ -17,23 +17,23 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void アクティブレイヤーは未トグルでも表示扱い()
+        public void 未トグルのレイヤーは表示扱い()
         {
             Assert.True(_state.IsVisible("A", "A"));
-            Assert.False(_state.IsVisible("B", "A"));
+            Assert.True(_state.IsVisible("B", "A"));
         }
 
         [Fact]
         public void トグルで表示のオンオフが切り替わる()
         {
             _state.ToggleVisible("B", "A");
-            Assert.True(_state.IsVisible("B", "A"));
-            _state.ToggleVisible("B", "A");
             Assert.False(_state.IsVisible("B", "A"));
+            _state.ToggleVisible("B", "A");
+            Assert.True(_state.IsVisible("B", "A"));
         }
 
         [Fact]
-        public void アクティブレイヤーの非表示トグルは無視される()
+        public void アクティブレイヤーの非表示トグルは無視される_既定表示のまま()
         {
             _state.ToggleVisible("A", "A");
             Assert.True(_state.IsVisible("A", "A"));
@@ -42,11 +42,12 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 折りたたみトグルが切り替わる()
         {
-            Assert.False(_state.IsCollapsed("A"));
-            _state.ToggleCollapsed("A");
+            // 未トグルのレイヤーは折りたたみ状態から始まる
             Assert.True(_state.IsCollapsed("A"));
             _state.ToggleCollapsed("A");
             Assert.False(_state.IsCollapsed("A"));
+            _state.ToggleCollapsed("A");
+            Assert.True(_state.IsCollapsed("A"));
         }
 
         [Fact]
@@ -55,14 +56,19 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             _state.ToggleVisible("B", "A");
             _state.ToggleCollapsed("B");
             _state.Prune(new List<string> { "A" });
-            Assert.False(_state.IsVisible("B", "A"));
-            Assert.False(_state.IsCollapsed("B"));
+            // 非表示指定も捨てられ、既定の表示へ戻る
+            Assert.True(_state.IsVisible("B", "A"));
+            // 展開状態も捨てられ、既定の折りたたみへ戻る
+            Assert.True(_state.IsCollapsed("B"));
         }
 
         [Fact]
         public void BuildRowsは表示レイヤーごとにカテゴリ行とアイテム行を積む()
         {
-            _state.ToggleVisible("B", "A");
+            // C だけ非表示にする
+            _state.ToggleVisible("C", "A");
+            _state.ToggleCollapsed("A");
+            _state.ToggleCollapsed("B");
             var rows = new List<LayerRow<string, string>>();
             _state.BuildRows(new List<string> { "A", "B", "C" }, "A", CollectItems, rows);
 
@@ -79,7 +85,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 折りたたみ中はカテゴリ行だけ残る()
         {
-            _state.ToggleCollapsed("A");
+            // 既定が折りたたみなのでトグルせずそのまま組み立てる
             var rows = new List<LayerRow<string, string>>();
             _state.BuildRows(new List<string> { "A" }, "A", CollectItems, rows);
 
@@ -92,15 +98,15 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             var layers = new List<string> { "A", "B", "C" };
 
-            _state.SetAllVisible(layers, true);
-            Assert.True(_state.IsVisible("B", "A"));
-            Assert.True(_state.IsVisible("C", "A"));
-
             // 一括非表示でもアクティブレイヤーは残る
             _state.SetAllVisible(layers, false);
             Assert.True(_state.IsVisible("A", "A"));
             Assert.False(_state.IsVisible("B", "A"));
             Assert.False(_state.IsVisible("C", "A"));
+
+            _state.SetAllVisible(layers, true);
+            Assert.True(_state.IsVisible("B", "A"));
+            Assert.True(_state.IsVisible("C", "A"));
         }
 
         [Fact]
@@ -108,17 +114,19 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             var layers = new List<string> { "A", "B" };
 
-            Assert.False(_state.AreAllVisible(layers, "A"));
-            _state.ToggleVisible("B", "A");
             Assert.True(_state.AreAllVisible(layers, "A"));
+            _state.ToggleVisible("B", "A");
+            Assert.False(_state.AreAllVisible(layers, "A"));
         }
 
         [Fact]
         public void SetAllCollapsedは表示中のレイヤーだけを対象にする()
         {
             var layers = new List<string> { "A", "B" };
+            // B を非表示にしたうえで展開しておき、一括操作の対象外であることを見る
+            _state.ToggleVisible("B", "A");
+            _state.ToggleCollapsed("B");
 
-            // B は非表示なので畳まれない
             _state.SetAllCollapsed(layers, "A", true);
             Assert.True(_state.IsCollapsed("A"));
             Assert.False(_state.IsCollapsed("B"));
@@ -131,29 +139,30 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void AreAllCollapsedは表示中のレイヤーが全て畳まれたときだけ真になる()
         {
             var layers = new List<string> { "A", "B" };
-            _state.ToggleVisible("B", "A");
 
-            Assert.False(_state.AreAllCollapsed(layers, "A"));
+            // 既定は全て折りたたみ
+            Assert.True(_state.AreAllCollapsed(layers, "A"));
             _state.ToggleCollapsed("A");
             Assert.False(_state.AreAllCollapsed(layers, "A"));
-            _state.ToggleCollapsed("B");
+            _state.ToggleCollapsed("A");
             Assert.True(_state.AreAllCollapsed(layers, "A"));
         }
 
         [Fact]
-        public void 非表示レイヤーの折りたたみはAreAllCollapsedに影響しない()
+        public void 非表示レイヤーの展開はAreAllCollapsedに影響しない()
         {
             var layers = new List<string> { "A", "B" };
-            _state.ToggleCollapsed("B");
 
-            // B は非表示なので、A を畳めば表示中は全て畳まれた扱い
-            _state.ToggleCollapsed("A");
+            // B は非表示なので、展開しても表示中は全て畳まれた扱い
+            _state.ToggleVisible("B", "A");
+            _state.ToggleCollapsed("B");
             Assert.True(_state.AreAllCollapsed(layers, "A"));
         }
 
         [Fact]
         public void BuildRowsは呼ぶたびに結果をクリアして詰め直す()
         {
+            _state.ToggleCollapsed("A");
             var rows = new List<LayerRow<string, string>>();
             _state.BuildRows(new List<string> { "A" }, "A", CollectItems, rows);
             _state.BuildRows(new List<string> { "A" }, "A", CollectItems, rows);

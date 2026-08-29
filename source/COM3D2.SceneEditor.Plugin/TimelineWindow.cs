@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
@@ -25,12 +25,21 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int MAX_MENU_WIDTH = 300;
         /// <summary>フレーム番号バーの高さ</summary>
         private static readonly int FRAME_LABEL_HEIGHT = 20;
-        /// <summary>レイヤー操作ボタン (削除 / 追加コンボ / 一括操作) の幅</summary>
+        /// <summary>レイヤー操作ボタン (削除 / 追加コンボ) の幅</summary>
         private static readonly int LAYER_BUTTON_WIDTH = 20;
         /// <summary>レイヤーカテゴリ行に対するボーンメニュー行の字下げ幅</summary>
         private static readonly int MENU_INDENT_WIDTH = 10;
         /// <summary>折りたたみトグルの列幅。記号と後ろの文字が離れないよう記号幅に詰めている</summary>
         private static readonly int FOLD_TOGGLE_WIDTH = 14;
+        /// <summary>折りたたみ一括操作ボタンのサイズ (文字ラベルが収まる幅)</summary>
+        private static readonly int FOLD_ALL_BUTTON_WIDTH = 70;
+        private static readonly int FOLD_ALL_BUTTON_HEIGHT = 20;
+        /// <summary>メニュー幅が狭いときでもボタンが潰れないための下限幅</summary>
+        private static readonly int FOLD_ALL_BUTTON_MIN_WIDTH = 20;
+        /// <summary>レイヤーの区切り線の太さ</summary>
+        private static readonly int LAYER_SEPARATOR_HEIGHT = 1;
+        /// <summary>ボーンメニュー右下のメニュー幅変更ボタンのサイズ</summary>
+        private static readonly int RESIZE_BUTTON_SIZE = 20;
         // 折りたたみトグルの記号。開いた状態の ▼ を右へ回した ▶ で閉じた状態を示す
         private static readonly string FOLD_OPEN = "▼";
         private static readonly string FOLD_CLOSED = "▶";
@@ -90,9 +99,16 @@ namespace COM3D2.SceneEditor.Plugin
             showArrow = false,
         };
 
-        /// <summary>表示レイヤー集合と折りたたみ集合 (セッション内のみ保持)</summary>
+        /// <summary>レイヤーの非表示集合と展開集合 (セッション内のみ保持)</summary>
         private readonly TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem> _rowState
             = new TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>();
+
+        /// <summary>
+        /// 今フレームの操作対象レイヤー (他メイドのレイヤーを除いたもの)。DrawBody で詰め直す。
+        /// レイヤーごとの表示トグル (_rowState) とは別の軸なので「表示」の語は使わない
+        /// </summary>
+        private readonly List<MTEP.ITimelineLayer> _targetLayers
+            = new List<MTEP.ITimelineLayer>(32);
 
         /// <summary>今フレームの表示行 (カテゴリ行 + ボーンメニュー行)。DrawBody で再構築する</summary>
         private readonly List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>> _rows
@@ -165,9 +181,16 @@ namespace COM3D2.SceneEditor.Plugin
             MaidDragBoneTracker.onDragCompleted += OnDragCompleted;
 
             // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
-            _displayLayerComboBox.getName = (layer, _) => GetLayerDisplayName(layer);
+            // ドロップダウンは操作対象で絞った一覧なのでメイド名は省く
+            _displayLayerComboBox.getName = (layer, _) => GetLayerDisplayName(layer, false);
             _displayLayerComboBox.getChecked = (layer, _) => _rowState.IsVisible(layer, currentLayer);
             _displayLayerComboBox.onToggle = (layer, _) => _rowState.ToggleVisible(layer, currentLayer);
+            _displayLayerComboBox.getHeaderName = () => "全て表示";
+            _displayLayerComboBox.getHeaderChecked =
+                () => _rowState.AreAllVisible(_targetLayers, currentLayer);
+            _displayLayerComboBox.onHeader = () => _rowState.SetAllVisible(
+                _targetLayers,
+                !_rowState.AreAllVisible(_targetLayers, currentLayer));
         }
 
         // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能、既定 OFF)
@@ -525,7 +548,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             bool guiEnabled = contentView.focusedComboBox == null;
 
-            // タイムラインが差し替わったら表示状態を初期化 (アクティブのみ表示・全展開)
+            // タイムラインが差し替わったら表示状態を初期化 (全表示・全折りたたみ)
             if (timeline != _lastTimeline)
             {
                 _lastTimeline = timeline;
@@ -542,6 +565,7 @@ namespace COM3D2.SceneEditor.Plugin
                     _lastLayerCount = timelineManager.layers.Count;
                     _rowState.Prune(timelineManager.layers);
                 }
+                BuildTargetLayers();
                 BuildRows();
             }
 
@@ -552,6 +576,26 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTimeline(local, editEnabled, guiEnabled);
             DrawBoneMenu(local, editEnabled, guiEnabled);
+        }
+
+        /// <summary>
+        /// タイムラインに出すレイヤーを詰め直す。メイドに紐づくレイヤーは
+        /// タイムライン操作ウィンドウで選んだ操作対象のものだけに絞る
+        /// (スロットを持たないカメラ・背景等は常に対象)
+        /// </summary>
+        private void BuildTargetLayers()
+        {
+            _targetLayers.Clear();
+
+            var slotNo = maidManager.maidSlotNo;
+            foreach (var layer in timelineManager.layers)
+            {
+                // アクティブレイヤーは操作対象と食い違っても常に出す (行が消えて編集不能になるのを防ぐ)
+                if (!layer.hasSlotNo || layer.slotNo == slotNo || layer == currentLayer)
+                {
+                    _targetLayers.Add(layer);
+                }
+            }
         }
 
         /// <summary>表示行リストを組み立てる。簡易表示時は従来どおり単一レイヤーでカテゴリ行なし</summary>
@@ -571,7 +615,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _rowState.BuildRows(timelineManager.layers, currentLayer, CollectVisibleItems, _rows);
+            _rowState.BuildRows(_targetLayers, currentLayer, CollectVisibleItems, _rows);
         }
 
         private void CollectVisibleItems(MTEP.ITimelineLayer layer, List<MTEP.IBoneMenuItem> result)
@@ -685,14 +729,17 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var row = _rows[i];
 
-                // カテゴリ行はドープシート側ではキーを持たない帯として塗る
+                // カテゴリ行はキーを持たないので塗りつぶさず、レイヤーの境目だけ区切り線で示す
                 if (row.isHeader)
                 {
-                    view.DrawTexture(
-                        texWhite,
-                        viewWidth,
-                        frameHeight,
-                        timelineLabelBgColor);
+                    if (i > 0)
+                    {
+                        view.DrawTexture(
+                            texWhite,
+                            viewWidth,
+                            LAYER_SEPARATOR_HEIGHT,
+                            tc.timelineLineColor1);
+                    }
                     continue;
                 }
 
@@ -1026,10 +1073,11 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 全レイヤーの表示・折りたたみを一括で切り替えるボタン。
-        /// アイコンはカテゴリ行の ▼/▶ と同じく今の状態を示し、押すと反対の状態へ移る。
+        /// 全レイヤーの折りたたみを一括で切り替えるボタン。
+        /// アイコンでは意味が伝わりにくいため、押したときに起きることを文字で示す。
         /// スクロールビュー下端の空き帯 (右端の幅変更ボタンの左側) に置く。
         /// 簡易表示はレイヤー行を持たないため出さない
+        /// (表示・非表示の一括操作はレイヤー選択ドロップダウンの先頭行が担う)
         /// </summary>
         private void DrawRowStateControls(GUIView view, MTEP.Config tc)
         {
@@ -1038,25 +1086,19 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var layers = timelineManager.layers;
-            var buttonY = curvePaneTop - LAYER_BUTTON_WIDTH;
+            var layers = _targetLayers;
+            var allCollapsed = _rowState.AreAllCollapsed(layers, currentLayer);
 
             view.currentPos.x = 0;
-            view.currentPos.y = buttonY;
-            var allVisible = _rowState.AreAllVisible(layers, currentLayer);
-            var visibleIcon = ToolbarIcons.GetTexture(
-                allVisible ? ToolbarIcons.Kind.Show : ToolbarIcons.Kind.Hide);
-            if (view.DrawTextureButton(visibleIcon, LAYER_BUTTON_WIDTH, LAYER_BUTTON_WIDTH, 3f))
-            {
-                _rowState.SetAllVisible(layers, !allVisible);
-            }
-
-            view.currentPos.x = LAYER_BUTTON_WIDTH;
-            view.currentPos.y = buttonY;
-            var allCollapsed = _rowState.AreAllCollapsed(layers, currentLayer);
-            var foldIcon = ToolbarIcons.GetTexture(
-                allCollapsed ? ToolbarIcons.Kind.Collapse : ToolbarIcons.Kind.Expand);
-            if (view.DrawTextureButton(foldIcon, LAYER_BUTTON_WIDTH, LAYER_BUTTON_WIDTH, 3f))
+            view.currentPos.y = curvePaneTop - FOLD_ALL_BUTTON_HEIGHT;
+            // メニュー幅が狭いときは右端の幅変更ボタンに重ならないよう詰める (潰れない下限も設ける)
+            var buttonWidth = Mathf.Max(
+                FOLD_ALL_BUTTON_MIN_WIDTH,
+                Mathf.Min(FOLD_ALL_BUTTON_WIDTH, tc.menuWidth - RESIZE_BUTTON_SIZE));
+            if (view.DrawButton(
+                    allCollapsed ? "全て展開" : "全て畳む",
+                    buttonWidth,
+                    FOLD_ALL_BUTTON_HEIGHT))
             {
                 _rowState.SetAllCollapsed(layers, currentLayer, !allCollapsed);
             }
@@ -1065,12 +1107,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// レイヤーインスタンスの表示名。スロット付きレイヤーはメイド名を併記して
         /// 同型レイヤーのインスタンスを区別できるようにする
+        /// (操作対象で絞り込み済みの一覧では withMaidName = false で省く)
         /// </summary>
-        private string GetLayerDisplayName(MTEP.ITimelineLayer layer)
+        private string GetLayerDisplayName(MTEP.ITimelineLayer layer, bool withMaidName = true)
         {
             var info = timelineManager.GetLayerInfo(layer.layerType);
             var name = info != null ? info.displayName : layer.layerName;
-            if (layer.hasSlotNo)
+            if (withMaidName && layer.hasSlotNo)
             {
                 var maidCache = layer.maidCache;
                 var maidName = maidCache != null && !string.IsNullOrEmpty(maidCache.fullName)
@@ -1096,9 +1139,9 @@ namespace COM3D2.SceneEditor.Plugin
             var comboWidth = Mathf.Max(LAYER_BUTTON_WIDTH, menuWidth - LAYER_BUTTON_WIDTH * 2);
 
             _displayLayerComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
-            _displayLayerComboBox.items = timelineManager.layers;
+            _displayLayerComboBox.items = _targetLayers;
             // DrawListView のアクセント色でアクティブレイヤーを示す
-            _displayLayerComboBox.currentIndex = timelineManager.layers.IndexOf(timelineManager.currentLayer);
+            _displayLayerComboBox.currentIndex = _targetLayers.IndexOf(timelineManager.currentLayer);
             _displayLayerComboBox.defaultName = GetLayerComboLabel();
             _displayLayerComboBox.DrawButton(view);
 
@@ -1131,7 +1174,7 @@ namespace COM3D2.SceneEditor.Plugin
         private string GetLayerComboLabel()
         {
             var visibleCount = 0;
-            foreach (var layer in timelineManager.layers)
+            foreach (var layer in _targetLayers)
             {
                 if (_rowState.IsVisible(layer, currentLayer))
                 {
@@ -1139,7 +1182,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            var name = GetLayerDisplayName(currentLayer);
+            var name = GetLayerDisplayName(currentLayer, false);
             return visibleCount > 1 ? name + " 他" + (visibleCount - 1) : name;
         }
 
@@ -1206,6 +1249,15 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     var headerColor = isActiveLayerRow ? tc.timelineMenuSelectTextColor : Color.white;
                     var headerLayer = row.layer;
+
+                    // ドープシート側と同じ位置にレイヤーの区切り線を引く
+                    if (i > 0)
+                    {
+                        view.currentPos.x = 0;
+                        view.DrawTexture(
+                            texWhite, menuWidth, LAYER_SEPARATOR_HEIGHT, tc.timelineLineColor1);
+                        view.currentPos.y = i * frameHeight;
+                    }
 
                     view.currentPos.x = 0;
                     view.DrawLabel(
@@ -1322,14 +1374,14 @@ namespace COM3D2.SceneEditor.Plugin
             DrawRowStateControls(view, tc);
 
             // メニュー幅の変更ボタン (下のカーブツールバーと重ならないようボーンメニュー下端に置く)
-            view.currentPos.x = view.viewRect.width - 20;
-            view.currentPos.y = curvePaneTop - 20;
+            view.currentPos.x = view.viewRect.width - RESIZE_BUTTON_SIZE;
+            view.currentPos.y = curvePaneTop - RESIZE_BUTTON_SIZE;
 
-            var buttonRect = view.GetDrawRect(20, 20);
+            var buttonRect = view.GetDrawRect(RESIZE_BUTTON_SIZE, RESIZE_BUTTON_SIZE);
             if (buttonRect.Contains(Event.current.mousePosition) ||
                 _menuWidthDraggableInfo.isDragging)
             {
-                view.DrawDraggableButton("□", 20, 20,
+                view.DrawDraggableButton("□", RESIZE_BUTTON_SIZE, RESIZE_BUTTON_SIZE,
                     _menuWidthDraggableInfo,
                     new Vector2(tc.menuWidth, 0f),
                     null,

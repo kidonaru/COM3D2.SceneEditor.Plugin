@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -17,7 +17,7 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// タイムラインの複数レイヤー表示状態 (表示集合・折りたたみ集合) と行リスト構築。
+    /// タイムラインの複数レイヤー表示状態 (非表示集合・展開集合) と行リスト構築。
     /// セッション内のみのビュー状態で、永続化しない。
     /// Unity 非依存のジェネリックにしてユニットテスト可能にしている
     /// </summary>
@@ -25,14 +25,18 @@ namespace COM3D2.SceneEditor.Plugin
         where TLayer : class
         where TItem : class
     {
-        private readonly HashSet<TLayer> _visibleLayers = new HashSet<TLayer>();
-        private readonly HashSet<TLayer> _collapsedLayers = new HashSet<TLayer>();
+        // 表示は既定 ON。表示した側ではなく隠した側を持つことで、
+        // セッション開始直後や新規レイヤーが自動的に表示状態になる
+        private readonly HashSet<TLayer> _hiddenLayers = new HashSet<TLayer>();
+        // 折りたたみは既定 ON。畳んだ側ではなく展開した側を持つことで、
+        // セッション開始直後や新規レイヤーが自動的に折りたたみ状態になる
+        private readonly HashSet<TLayer> _expandedLayers = new HashSet<TLayer>();
         private readonly List<TItem> _itemBuffer = new List<TItem>(128);
 
         /// <summary>アクティブレイヤーは常に表示対象</summary>
         public bool IsVisible(TLayer layer, TLayer currentLayer)
         {
-            return layer == currentLayer || _visibleLayers.Contains(layer);
+            return layer == currentLayer || !_hiddenLayers.Contains(layer);
         }
 
         public void ToggleVisible(TLayer layer, TLayer currentLayer)
@@ -40,44 +44,45 @@ namespace COM3D2.SceneEditor.Plugin
             // アクティブレイヤーは非表示にできない
             if (layer == currentLayer)
             {
-                _visibleLayers.Add(layer);
+                _hiddenLayers.Remove(layer);
                 return;
             }
 
-            if (!_visibleLayers.Remove(layer))
+            if (!_hiddenLayers.Remove(layer))
             {
-                _visibleLayers.Add(layer);
+                _hiddenLayers.Add(layer);
             }
         }
 
         public bool IsCollapsed(TLayer layer)
         {
-            return _collapsedLayers.Contains(layer);
+            return !_expandedLayers.Contains(layer);
         }
 
         public void ToggleCollapsed(TLayer layer)
         {
-            if (!_collapsedLayers.Remove(layer))
+            if (!_expandedLayers.Remove(layer))
             {
-                _collapsedLayers.Add(layer);
+                _expandedLayers.Add(layer);
             }
         }
 
         /// <summary>
-        /// 全レイヤーの表示を一括で切り替える。
+        /// 渡したレイヤーの表示を一括で切り替える (絞り込み済みの一覧を渡せばその範囲だけが対象)。
         /// 一括非表示にしてもアクティブレイヤーは IsVisible の判定で表示扱いのまま残る
         /// </summary>
         public void SetAllVisible(IList<TLayer> layers, bool visible)
         {
-            _visibleLayers.Clear();
-            if (!visible)
-            {
-                return;
-            }
-
             for (var i = 0; i < layers.Count; i++)
             {
-                _visibleLayers.Add(layers[i]);
+                if (visible)
+                {
+                    _hiddenLayers.Remove(layers[i]);
+                }
+                else
+                {
+                    _hiddenLayers.Add(layers[i]);
+                }
             }
         }
 
@@ -109,11 +114,11 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (collapsed)
                 {
-                    _collapsedLayers.Add(layer);
+                    _expandedLayers.Remove(layer);
                 }
                 else
                 {
-                    _collapsedLayers.Remove(layer);
+                    _expandedLayers.Add(layer);
                 }
             }
         }
@@ -133,15 +138,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void Reset()
         {
-            _visibleLayers.Clear();
-            _collapsedLayers.Clear();
+            _hiddenLayers.Clear();
+            _expandedLayers.Clear();
         }
 
         /// <summary>タイムライン再構築等で消えたレイヤー参照を掃除する</summary>
         public void Prune(IList<TLayer> aliveLayers)
         {
-            _visibleLayers.RemoveWhere(layer => !aliveLayers.Contains(layer));
-            _collapsedLayers.RemoveWhere(layer => !aliveLayers.Contains(layer));
+            _hiddenLayers.RemoveWhere(layer => !aliveLayers.Contains(layer));
+            _expandedLayers.RemoveWhere(layer => !aliveLayers.Contains(layer));
         }
 
         /// <summary>
