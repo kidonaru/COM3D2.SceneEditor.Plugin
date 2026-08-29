@@ -135,6 +135,29 @@ namespace COM3D2.SceneEditor.Plugin
             return -1;
         }
 
+        /// <summary>モーフ名から定義を全カテゴリ横断で引く。該当なしは null</summary>
+        public static FaceMorphDef FindDef(string name)
+        {
+            foreach (var defs in MorphDefs.Values)
+            {
+                foreach (var def in defs)
+                {
+                    if (def.name == name)
+                    {
+                        return def;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>対象メイドの顔にこのモーフが存在するか</summary>
+        public static bool IsAvailable(Maid maid, FaceMorphDef def)
+        {
+            var morph = GetFaceMorph(maid);
+            return morph != null && ResolveMorphIndex(morph, def.name) >= 0;
+        }
+
         /// <summary>対象メイドの顔に存在するモーフだけ返す</summary>
         public static IEnumerable<FaceMorphDef> GetAvailableMorphs(
             Maid maid, FaceMorphCategory category)
