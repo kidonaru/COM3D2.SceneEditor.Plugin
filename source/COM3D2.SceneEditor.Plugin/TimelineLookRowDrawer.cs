@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
@@ -32,7 +32,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// タイムライン視線がキー化される状態か。
         /// 参照するのは TimelineData 側のフラグ。
-        /// MaidCache.useHeadKey は trsLookTarget を書き換える副作用付きの別物。
         /// タイムライン未読込 (timeline == null) も false を返すため、
         /// 「固定化が無効」と案内する呼び出し側は timeline が非 null であることを
         /// 事前に保証すること (未読込と固定化オフで案内文が混ざらないようにするため)

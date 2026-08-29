@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -10,12 +10,21 @@ namespace COM3D2.SceneEditor.Plugin
         マウス,
         方向指定,
         オブジェクト,
+
+        /// <summary>
+        /// 向け先を置かない (trsLookTarget = null)。
+        /// TBody は頭ボーンの正面 (offsetLookTarget) を見る。
+        /// 視線そらし・タイムラインの瞳回転はこの状態でだけ効く。
+        /// 既存プリセットの互換のため末尾に足す (列挙値のずれを避ける)
+        /// </summary>
+        無し,
     }
 
     /// <summary>
     /// 視線の向け先をメイド別に保持する。
     /// TBody.trsLookTarget が null だと頭ボーンの正面 (offsetLookTarget) を見るため、
-    /// どのモードでも実体のある Transform を与えて向きを決める。
+    /// 「無し」以外のモードでは実体のある Transform を与えて向きを決める
+    /// (「無し」は意図的に null を返し、TBody の既定挙動へ委ねる)。
     ///
     /// Maid.EyeToTargetObject は boHeadToCam / boEyeToCam / boEyeSorashi を無条件に
     /// 書き換えてしまい、ウィンドウのトグルと食い違うため使わない
@@ -212,6 +221,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static Transform ResolveLookTarget(Maid maid, Entry entry)
         {
+            if (entry.mode == MaidLookMode.無し)
+            {
+                return null;
+            }
+
             if (entry.mode == MaidLookMode.カメラ)
             {
                 var camera = GameMain.Instance.MainCamera;

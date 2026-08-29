@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,8 @@ using System.Reflection;
 using RootMotion.FinalIK;
 using UnityEngine;
 using UnityEngine.Events;
+// SE 側とは Config / MaidManager など同名の型が多いため、別名で読み込んで衝突を避ける
+using SEP = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -176,12 +178,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public bool useHeadKey
-        {
-            get => maid.body0.trsLookTarget == null;
-            set => maid.body0.trsLookTarget = value ? null : PluginUtils.MainCamera.transform;
-        }
-        
         public Transform trsEyeL
         {
             get => maid != null ? maid.body0.trsEyeL : null;
@@ -505,7 +501,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            maid.EyeToCamera(timeline.eyeMoveType, 0f);
+            // Maid.EyeToCamera は目線種別のフラグと同時に trsLookTarget をカメラへ
+            // 書き換えてしまう。向け先の所有者は SE の MaidLookController なのでフラグだけ写す
+            SEP.MaidLookBridge.ApplyEyeMoveType(maid, timeline.eyeMoveType);
             maid.LockHeadAndEye(false);
 
             if (timeline.useHeadKey)
@@ -519,16 +517,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateLookAtTarget();
         }
 
+        /// <summary>
+        /// 注視先を SE の MaidLookController へ反映する。
+        /// trsLookTarget を直接書かず、向け先の所有者をコントローラに一本化する
+        /// </summary>
         public void UpdateLookAtTarget()
         {
-            if (maid == null || timeline == null || !timeline.useHeadKey)
+            if (maid == null || timeline == null)
             {
                 return;
             }
 
             var lookAtTarget = GetLookAtTarget();
-            maid.LockHeadAndEye(lookAtTarget == null);
-            maid.body0.trsLookTarget = lookAtTarget;
+            var lookMode = SEP.MaidLookBridge.ResolveLookMode(
+                timeline.useHeadKey, lookAtTargetType, lookAtTarget != null);
+            if (lookMode == null)
+            {
+                return;
+            }
+
+            SEP.MaidLookBridge.ApplyLookMode(maid, lookMode.Value, lookAtTarget);
+
+            // 固定化中に向け先が無いときだけ、瞳回転を TBody に上書きされないよう固定する。
+            // 視線そらしはロック中は動かないため、そらし指定なら TBody の演出を優先する
+            maid.LockHeadAndEye(
+                lookMode.Value == SEP.MaidLookMode.無し
+                && !SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType));
         }
 
         public void UpdateEyeEulerAngle()
@@ -538,7 +552,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var lookAtTarget = GetLookAtTarget();
+            // 視線そらし中の瞳は TBody の演出が動かす。固定値で上書きすると演出が潰れる
+            if (SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType))
+            {
+                return;
+            }
+
+            // 向け先の実体は MaidLookController が決めるため、TBody の現在値を見る
+            var lookAtTarget = maid.body0.trsLookTarget;
             if (lookAtTarget == null)
             {
                 maid.body0.SetEyeEulerAngle(eyeEulerAngle);

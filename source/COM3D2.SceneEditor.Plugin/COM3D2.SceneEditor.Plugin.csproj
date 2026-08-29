@@ -345,6 +345,7 @@
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
     <Compile Include="MTEUtils\MPNUtils.cs" />
     <Compile Include="Timeline\BoneData.cs" />
+    <Compile Include="Timeline\MaidLookBridge.cs" />
     <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />

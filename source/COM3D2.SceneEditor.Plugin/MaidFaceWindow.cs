@@ -62,6 +62,7 @@ namespace COM3D2.SceneEditor.Plugin
             MaidLookMode.マウス,
             MaidLookMode.方向指定,
             MaidLookMode.オブジェクト,
+            MaidLookMode.無し,
         };
 
         private static MaidLookController lookController
