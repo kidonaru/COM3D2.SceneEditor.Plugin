@@ -27,7 +27,6 @@ namespace COM3D2.SceneEditor.Plugin
         // 1px ドラッグあたりの増減量
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
-        private const float ScaleSensitivity = 0.01f;
 
         // ボーンのフォーカス範囲の一辺 (Renderer を持たないため PluginUtils の既定と同じ大きさにする)
         private const float BoneFocusBoundsSize = 0.5f;
@@ -64,9 +63,9 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(200, 300),
         };
 
-        // 回転はオイラー角をキャッシュして編集する。Transform から毎フレーム読み直すと
-        // quaternion との変換で 180 度付近の表現が入れ替わり、ドラッグ中に値が飛ぶため
-        private readonly EulerOffsetCache _eulerCache = new EulerOffsetCache();
+        /// <summary>Object の Transform 行。タイムライン項目表示と共有する</summary>
+        private readonly ObjectTransformRowDrawer _objectTransformRowDrawer =
+            new ObjectTransformRowDrawer();
 
         private static InspectorWindow _instance = null;
         public static InspectorWindow instance
@@ -217,38 +216,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                 DrawHeader(_view, go);
 
-                var t = go.transform;
-                // ギズモの Local/Global 切替に合わせて表示・編集する座標系も切り替える
-                var useLocal = GizmoRenderer.useLocalSpace;
-
-                DrawVector3Row("位置", PositionSensitivity,
-                    useLocal ? t.localPosition : t.position,
-                    value =>
-                    {
-                        RecordObjectEdit(go);
-                        SetPosition(t, value, useLocal);
-                    },
-                    () =>
-                    {
-                        RecordObjectEdit(go);
-                        SetPosition(t, Vector3.zero, useLocal);
-                    });
-
-                DrawVector3Row("回転", RotationSensitivity,
-                    _eulerCache.GetOffset(t, Quaternion.identity, useLocal),
-                    value =>
-                    {
-                        RecordObjectEdit(go);
-                        ApplyEulerAngles(t, value, useLocal);
-                    },
-                    () =>
-                    {
-                        RecordObjectEdit(go);
-                        ApplyEulerAngles(t, Vector3.zero, useLocal);
-                    });
-
-                // ワールドスケールは Transform に書き戻せないため拡縮は常にローカル
-                DrawObjectScaleRow(go, t);
+                _objectTransformRowDrawer.Draw(
+                    _view, go, LabelWidth, ScaleLabelWidth, RowHeight);
 
                 // PNG 配置は Transform に続けて固有パラメータも編集させる
                 PngPlacementInspector.Draw(_view, go);
@@ -270,11 +239,9 @@ namespace COM3D2.SceneEditor.Plugin
             var point = selectionManager.selectedIKPoint;
             var maid = point.maid;
 
-            // 退避中は表示に戻す際に上書きされるため操作させない (DrawBoneContent と同じ理由)
-            if (!maidManager.IsVisible(maid))
+            if (HiddenMaidGuard.DrawWarningIfHidden(
+                    _view, maid, "非表示中はポーズを操作できません", RowHeight))
             {
-                _view.DrawLabel("非表示中はポーズを操作できません", -1, RowHeight,
-                    textColor: Color.yellow);
                 return;
             }
 
@@ -361,11 +328,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var maid = selectionManager.selectedBoneMaid;
 
-            // 退避中は表示に戻す際に上書きされるため操作させない
-            if (!maidManager.IsVisible(maid))
+            if (HiddenMaidGuard.DrawWarningIfHidden(
+                    _view, maid, "非表示中はポーズを操作できません", RowHeight))
             {
-                _view.DrawLabel("非表示中はポーズを操作できません", -1, RowHeight,
-                    textColor: Color.yellow);
                 return;
             }
 
@@ -420,11 +385,10 @@ namespace COM3D2.SceneEditor.Plugin
             var maid = isModel ? null : maidManager.targetMaid;
             var bone = boneEditManager.selectedBone;
 
-            // 退避中は表示に戻す際に上書きされるため操作させない (DrawBoneContent と同じ理由)
-            if (!isModel && !maidManager.IsVisible(maid))
+            // モデルのボーンはメイドの退避と無関係なので対象外
+            if (!isModel && HiddenMaidGuard.DrawWarningIfHidden(
+                    _view, maid, "非表示中はボーンを操作できません", RowHeight))
             {
-                _view.DrawLabel("非表示中はボーンを操作できません", -1, RowHeight,
-                    textColor: Color.yellow);
                 return;
             }
 
@@ -508,7 +472,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ボーンの拡縮行。リセットは編集前の元値へ戻す</summary>
         private void DrawSlotBoneScaleRow(Maid maid, Transform bone)
         {
-            DrawScaleRow(boneEditManager.GetSelectedBoneScale(maid),
+            ScaleRowDrawer.Draw(_view, boneEditManager.GetSelectedBoneScale(maid),
+                ScaleLabelWidth, RowHeight,
                 value =>
                 {
                     BeginSlotBoneEdit(maid, bone);
@@ -645,7 +610,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawToggle(go.activeSelf, HeaderToggleWidth, RowHeight, value =>
                 {
-                    RecordObjectEdit(go);
+                    ObjectTransformRowDrawer.RecordEdit(go);
                     go.SetActive(value);
                 });
                 view.DrawLabel(go.name, labelWidth, RowHeight);
@@ -689,84 +654,6 @@ namespace COM3D2.SceneEditor.Plugin
             return new Rect(viewRect.x, top, viewRect.width, Mathf.Max(0f, viewRect.yMax - top));
         }
 
-        /// <summary>Object 行の編集を操作履歴へ記録する (ドラッグ中の連続変更は 1 件に集約される)</summary>
-        private static void RecordObjectEdit(GameObject go)
-        {
-            HistoryManager.instance.BeforeEdit(
-                go.GetComponent<Maid>(), HistoryScope.Object,
-                "オブジェクト編集: " + go.name, new[] { go.transform });
-        }
-
-        private static void SetPosition(Transform t, Vector3 value, bool useLocal)
-        {
-            if (useLocal)
-            {
-                t.localPosition = value;
-            }
-            else
-            {
-                t.position = value;
-            }
-        }
-
-        private void ApplyEulerAngles(Transform t, Vector3 eulerAngles, bool useLocal)
-        {
-            if (useLocal)
-            {
-                t.localEulerAngles = eulerAngles;
-            }
-            else
-            {
-                t.eulerAngles = eulerAngles;
-            }
-            _eulerCache.Store(t, Quaternion.identity, eulerAngles, useLocal);
-        }
-
-        /// <summary>Object の拡縮行。リセットは等倍へ戻す</summary>
-        private void DrawObjectScaleRow(GameObject go, Transform t)
-        {
-            DrawScaleRow(t.localScale,
-                value =>
-                {
-                    RecordObjectEdit(go);
-                    t.localScale = value;
-                },
-                () =>
-                {
-                    RecordObjectEdit(go);
-                    t.localScale = Vector3.one;
-                });
-        }
-
-        /// <summary>
-        /// 拡縮行の共通描画。連動トグルの状態は Object・ボーンで共有する
-        /// (連動の計算は GUIView 側に集約済み)
-        /// </summary>
-        private void DrawScaleRow(
-            Vector3 value,
-            System.Action<Vector3> onChanged,
-            System.Action onReset)
-        {
-            _view.DrawVector3Row(new GUIView.Vector3RowOption
-            {
-                label = "拡縮",
-                labelWidth = ScaleLabelWidth,
-                height = RowHeight,
-                dragSensitivity = ScaleSensitivity,
-                value = value,
-                onChanged = onChanged,
-                onReset = onReset,
-                linkIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Link),
-                linked = config.inspectorScaleLinked,
-                onLinkChanged = OnScaleLinkChanged,
-            });
-        }
-
-        private static void OnScaleLinkChanged(bool on)
-        {
-            config.inspectorScaleLinked = on;
-            config.dirty = true;
-        }
 
         /// <summary>ラベル + XYZ (ドラッグラベル + 数値入力) + リセットボタンの 1 行</summary>
         private void DrawVector3Row(

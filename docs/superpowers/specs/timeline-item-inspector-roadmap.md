@@ -92,7 +92,7 @@ public interface ITimelineItemInspector
 
 #### S0 で見送った改善 (S1 以降で対応)
 
-- **非表示中ガードの重複**: 「退避中は表示に戻す際に上書きされるため操作させない」判定 + 警告ラベルが `InspectorWindow` に 3 箇所、`MotionItemInspector` に 1 箇所の計 4 箇所へ複製されている。共有ヘルパーへ集約する (既存 3 箇所の同時改修を伴うため S0 のスコープ外とした)
+- ~~**非表示中ガードの重複**: 「退避中は表示に戻す際に上書きされるため操作させない」判定 + 警告ラベルが `InspectorWindow` に 3 箇所、`MotionItemInspector` に 1 箇所の計 4 箇所へ複製されている。共有ヘルパーへ集約する~~ → S1 の MoveTimelineLayer 対応で `HiddenMaidGuard` へ集約済み (5 箇所目を足す機会に実施)
 
 ### Phase S1: メイド系レイヤー
 
@@ -191,7 +191,7 @@ Phase S1(メイド系):
 - [x] EyesTimelineLayer(視線・瞳回転 / MaidFaceWindow 視線タブ / 逆方向なし)
 - [x] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
 - [x] UndressTimelineLayer(スロット表示トグル / レイヤー固有: DressSlotID 単位のため脱衣ウィンドウの行とは非対応 / 逆方向なし)
-- [ ] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
+- [x] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
 - [ ] DressTimelineLayer(簡易表示・レイヤー固有 / 逆方向なし)
 
 Phase S1 実機確認項目(loop 中に追記):
@@ -214,6 +214,14 @@ Phase S1 実機確認項目(loop 中に追記):
 - [ ] 何も装着していないスロットのトグルが無効化されている
 - [ ] Inspector で切り替えた状態がそのままキーフレームに載る(脱衣ウィンドウのカテゴリ操作とは粒度が違う点の確認)
 - [ ] マスクモード(Nude 等)が有効なときの Inspector トグルの効き方(レイヤー再生時と同じ挙動になるか。差があれば MaskMode の扱いを再検討する)
+- [ ] 移動レイヤーで「移動」行を選択 → Inspector にメイドの位置/回転/拡縮が出て編集できる
+- [ ] ギズモの Local/Global を切り替えると Inspector の表示座標系も切り替わる(Object 表示と同じ)
+- [ ] メイドをビューポート/Hierarchy で選択 → 移動レイヤーの「移動」行が選択される(ループしない)
+- [ ] Object 表示(通常のオブジェクト選択)の位置/回転/拡縮・拡縮連動トグル・アクティブトグルの履歴記録に退行が無い(抽出リファクタリングの確認)
+- [ ] ボーン表示の拡縮行と拡縮連動トグルに退行が無い(ScaleRowDrawer 切り出しの確認)
+- [ ] 退避(非表示)中のメイドでは Inspector に「非表示中は移動を操作できません」が出て編集できない
+- [ ] IK・ボーン・ポーズの各表示で従来どおり非表示中の警告が出る(HiddenMaidGuard 集約の確認)
+- [ ] 移動レイヤーを開いている間はメイドのルート選択が常に項目表示へ切り替わる(仕様どおりだが操作感に問題が無いか確認する)
 
 Phase S2(モデル系):
 

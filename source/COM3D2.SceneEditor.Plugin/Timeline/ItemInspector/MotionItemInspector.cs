@@ -26,11 +26,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 退避中は表示に戻す際に上書きされるため操作させない (InspectorWindow と同じ理由)
-            if (!MaidManipulateManager.instance.IsVisible(maid))
+            if (HiddenMaidGuard.DrawWarningIfHidden(
+                    view, maid, "非表示中はポーズを操作できません", RowHeight))
             {
-                view.DrawLabel("非表示中はポーズを操作できません", -1, RowHeight,
-                    textColor: Color.yellow);
                 return;
             }
 
