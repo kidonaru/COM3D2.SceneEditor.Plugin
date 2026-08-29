@@ -122,13 +122,6 @@ namespace COM3D2.SceneEditor.Plugin
         public int backgroundHeight = 400;
         public bool backgroundVisible = false;
 
-        // BGMウィンドウ (-1 は未初期化)
-        public int bgmPosX = -1;
-        public int bgmPosY = -1;
-        public int bgmWidth = 300;
-        public int bgmHeight = 400;
-        public bool bgmVisible = false;
-
         public int maidUndressPosX = -1;
         public int maidUndressPosY = -1;
         public int maidUndressWidth = 300;
@@ -202,7 +195,7 @@ namespace COM3D2.SceneEditor.Plugin
         public int soundPosX = -1;
         public int soundPosY = -1;
         public int soundWidth = 400;
-        public int soundHeight = 320;
+        public int soundHeight = 420;
         public bool soundVisible = false;
 
         // タイムライン操作ウィンドウ

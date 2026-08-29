@@ -286,7 +286,6 @@
     <Compile Include="BackgroundUtils.cs" />
     <Compile Include="BackgroundWindow.cs" />
     <Compile Include="BgmUtils.cs" />
-    <Compile Include="BgmWindow.cs" />
     <Compile Include="CameraWindow.cs" />
     <Compile Include="PngPlacementInspector.cs" />
     <Compile Include="PngPlacementWindow.cs" />
