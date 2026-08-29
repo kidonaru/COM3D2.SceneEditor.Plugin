@@ -152,3 +152,83 @@ public interface ITimelineItemInspector
 
 - 抽出した行描画ヘルパー・逆引きマッピングなど純粋ロジックは `source/COM3D2.SceneEditor.Plugin.Tests` へ単体テストを追加
 - UI 配線はビルド(COM3D2 / COM3D25 両構成)+ 実機確認(各 Phase 末尾。ゲーム起動中は DLL 差し替え不可のためまとめて実施可)
+
+## 7. Loop 実行プロトコル(S1〜S4 自走用)
+
+S0 の基盤(Registry / Bridge / InspectorWindow 分岐)は実装済み。残りのレイヤー対応を `/loop` で 1 反復ずつ進めるための手順。
+
+### 反復単位
+
+**1 反復 = 下記チェックリストの未完了項目 1 つ**(基本は 1 レイヤー。共有元ウィンドウが同じレイヤー群は 1 項目にまとめてある)。上から順に消化する。
+
+### 1 反復の手順
+
+1. チェックリストから最初の未完了項目を選ぶ
+2. **調査**: 対象レイヤーのボーンメニュー構造(項目名の形式・セット行の有無)と、共有元ウィンドウの該当行描画コードを読む。S0 の実装(`Timeline/ItemInspector/` 配下の既存プロバイダ、`FaceMorphRowDrawer` / `BoneSliderRowDrawer`)を参照パターンとする
+3. **実装**:
+   - 共有元ウィンドウの行描画を `〜RowDrawer` へ抽出(純リファクタリング。変更追跡・履歴・まばたき停止等の編集ロジックも含めて移す。ラベル幅・スライダー幅は呼び出し側から調整可能にする)
+   - `Timeline/ItemInspector/` に 1 レイヤー 1 ファイルでプロバイダを追加し、Registry へ登録
+   - 逆方向同期「あり」の項目は `FindItemName` を実装(なしの項目は null 返却)
+   - レイヤー本体(MTE 逐語コピー)には手を入れない
+4. **テスト**: 抽出ヘルパー・逆引きマッピング等の純粋ロジックに単体テストを追加し、テストを実行して通す
+5. **ビルド**: COM3D2 / COM3D25 両構成を MSBuild 直接実行で確認(ゲーム停止中に `debug.bat` を使わない)
+6. **コードレビュー**: code-review スキルを実行し、妥当な指摘を取り込む
+7. **spec 更新**: チェックリストの当該項目を `[x]` にし、その Phase の「実機確認項目」へ確認すべき観点を追記する(実機確認はユーザー操作待ちのため loop では行わない)
+8. **コミット**: commit スキルでコミット
+9. 全項目完了なら loop を停止して S5(実機通し確認)待ちであることを報告する
+
+### 反復ごとの注意
+
+- 判断に迷う仕様差(共有元が無い「レイヤー固有」表示の粒度など)は、§4 の表の「Inspector 表示」列を仕様とし、最小構成で実装する。過剰な作り込みはしない
+- ビルド・テストが通らない状態でチェックを付けない・コミットしない
+- 実機でしか確認できない挙動はブロッカーにせず、実機確認項目に積んで先へ進む
+
+### 進行チェックリスト
+
+Phase S1(メイド系):
+
+- [ ] EyesTimelineLayer(視線・瞳回転 / MaidFaceWindow 視線タブ / 逆方向なし)
+- [ ] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
+- [ ] UndressTimelineLayer(スロット表示トグル / MaidUndressWindow `DrawCategoryList` / 逆方向なし)
+- [ ] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
+- [ ] DressTimelineLayer(簡易表示・レイヤー固有 / 逆方向なし)
+
+Phase S1 実機確認項目(loop 中に追記):
+
+- (なし)
+
+Phase S2(モデル系):
+
+- [ ] ModelTimelineLayer / BGModelTimelineLayer(モデル Transform / 逆方向あり: `Select(モデルGameObject)`)
+- [ ] ModelBoneTimelineLayer(モデルボーン Transform / BoneEditWindow `DrawModelContent` / 逆方向あり: ボーン GameObject 選択)
+- [ ] ModelShapeKeyTimelineLayer(ブレンドシェイプ重み / ShapeKeyEditWindow `DrawModelContent` / 逆方向なし)
+- [ ] MaidMaterialTimelineLayer / ModelMaterialTimelineLayer / BGModelMaterialTimelineLayer(マテリアルプロパティ / MaterialEditWindow / 逆方向なし)
+
+Phase S2 実機確認項目(loop 中に追記):
+
+- (なし)
+
+Phase S3(カメラ・ライト・背景):
+
+- [ ] CameraTimelineLayer(カメラ位置/回転/距離/FoV / CameraWindow `DrawMainCameraContent` / 逆方向なし)
+- [ ] SubCameraTimelineLayer(サブカメラ設定・レイヤー固有 / 逆方向なし)
+- [ ] LightTimelineLayer(ライト Transform・色・強度 / LightWindow / 逆方向あり: `Select(ライトGameObject)`)
+- [ ] BGTimelineLayer(背景 Transform / BackgroundWindow / 逆方向あり: 背景オブジェクト選択)
+- [ ] BGColorTimelineLayer(背景色・地面設定 / BackgroundWindow `DrawBgColorRow` / 逆方向なし)
+
+Phase S3 実機確認項目(loop 中に追記):
+
+- (なし)
+
+Phase S4(サウンド・演出系):
+
+- [ ] VoiceTimelineLayer / SeTimelineLayer(再生パラメータ / SoundWindow / 逆方向なし)
+- [ ] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
+- [ ] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし)
+- [ ] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
+- [ ] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向は要調査: 不可なら実装せず理由を追記)
+- [ ] AnimationTimelineLayer(アニメブレンド設定・レイヤー固有 / 逆方向なし)
+
+Phase S4 実機確認項目(loop 中に追記):
+
+- (なし)
