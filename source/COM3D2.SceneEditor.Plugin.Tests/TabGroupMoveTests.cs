@@ -30,11 +30,21 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
         private static TabGroup MakeGroup(out List<FakeWindow> wins)
         {
+            return MakeGroup(out wins, 3, 0f);
+        }
+
+        /// <summary>幅を持つグループ。スクロールが絡む検証用</summary>
+        private static TabGroup MakeGroup(out List<FakeWindow> wins, int count, float width)
+        {
             var group = new TabGroup();
             wins = new List<FakeWindow>();
-            for (var i = 0; i < 3; i++)
+            for (var i = 0; i < count; i++)
             {
-                var w = new FakeWindow { tabWindowId = i };
+                var w = new FakeWindow
+                {
+                    tabWindowId = i,
+                    windowRect = new Rect(0f, 0f, width, 100f),
+                };
                 wins.Add(w);
                 group.Add(w, activate: false);
             }
@@ -59,6 +69,23 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             group.Move(wins[2], 0);
             Assert.Same(wins[2], group.activeWindow);
             Assert.Equal(0, wins[0].lastActiveIndex);
+        }
+
+        // アクティブ窓が入れ替わったのに index が同じケース (先頭タブを閉じた場合) でも
+        // 見切れたタブへの寄せが走る
+        [Fact]
+        public void PushScrollsWhenActiveWindowChangesAtSameIndex()
+        {
+            var group = MakeGroup(out var wins, 8, 300f);
+            group.SetActive(wins[0]);
+            // 右の方まで手動スクロールしてある状態にする
+            group.tabScrollX = 200f;
+
+            group.Remove(wins[0]);
+
+            // 別の窓が同じ index 0 のアクティブになる。寄せを飛ばすと 200 のまま取り残される
+            Assert.Same(wins[1], group.activeWindow);
+            Assert.Equal(0f, group.tabScrollX);
         }
 
         [Fact]

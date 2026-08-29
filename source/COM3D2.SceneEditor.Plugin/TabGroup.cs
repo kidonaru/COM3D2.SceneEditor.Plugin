@@ -24,8 +24,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public float tabScrollX;
 
-        /// <summary>最後に push したアクティブ index。アクティブ切替の検出に使う</summary>
-        private int _lastPushedActiveIndex = -1;
+        /// <summary>
+        /// 最後に push したアクティブウィンドウ。アクティブ切替の検出に使う。
+        /// index で比べると、先頭タブを閉じて次の窓が同じ index 0 に来た場合など
+        /// 「別の窓に切り替わったのに index が一致する」ケースを取りこぼす
+        /// </summary>
+        private IDockableWindow _lastPushedActiveWindow;
 
         public bool Contains(IDockableWindow window)
         {
@@ -144,9 +148,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
             var activeIndex = _activeWindow != null ? windows.IndexOf(_activeWindow) : -1;
 
-            if (activeIndex != _lastPushedActiveIndex)
+            if (_activeWindow != _lastPushedActiveWindow)
             {
-                _lastPushedActiveIndex = activeIndex;
+                _lastPushedActiveWindow = _activeWindow;
                 if (_activeWindow != null)
                 {
                     // アクティブになったタブが見切れていたら見える位置まで寄せる

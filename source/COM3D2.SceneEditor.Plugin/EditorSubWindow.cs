@@ -404,7 +404,13 @@ namespace COM3D2.SceneEditor.Plugin
         {
             // タブ列がヘッダー右のボタン (閉じる + ロック) へ食い込まないよう、
             // 利用可能幅の算出は TabBarLayout へ集約している
-            var available = TabBarLayout.CalcAvailableWidth(_windowRect.width);
+            var geo = new TabBarDrawer.Geometry
+            {
+                x = FRAME,
+                y = (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f,
+                headerHeight = HEADER_HEIGHT,
+                availableWidth = TabBarLayout.CalcAvailableWidth(_windowRect.width),
+            };
 
             // スクロール位置はグループの状態。タブバーを描くのはアクティブな窓だけなので、
             // 窓ごとに持つとタブ切替のたびに別の窓が覚えていた位置へ飛ぶ
@@ -412,14 +418,15 @@ namespace COM3D2.SceneEditor.Plugin
             var before = tabGroup != null ? tabGroup.tabScrollX : 0f;
             var scrollX = before;
             TabBarDrawer.Draw(
-                windowId, _tabTitles, _tabActiveIndex,
-                FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, HEADER_HEIGHT, available,
+                windowId, _tabTitles, _tabActiveIndex, geo,
                 ref scrollX,
                 (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos),
                 index => TabGroupManager.instance.ActivateTabIndex(this, index));
 
             // 描画中のコールバック (タブ切替) がグループ側を書き換えていたらそちらが新しい。
-            // 無条件に書き戻すと、切替に伴う「見切れたタブへの寄せ」を古い位置で潰してしまう
+            // 無条件に書き戻すと、切替に伴う「見切れたタブへの寄せ」を古い位置で潰してしまう。
+            // この比較が成立するのは、コールバック (OnTabPressed / ActivateTabIndex) が
+            // Draw の中から同期的に TabGroup.PushTabBarState まで到達するため
             if (tabGroup != null && tabGroup.tabScrollX == before)
             {
                 tabGroup.tabScrollX = scrollX;
