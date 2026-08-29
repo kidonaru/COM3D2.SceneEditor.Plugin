@@ -32,6 +32,10 @@ namespace COM3D2.SceneEditor.Plugin
         private Vector2 _tabGrabOffset;
         private bool _tabDetached;
 
+        // タブ並び替えの追跡。押下時点の X を基準に、タブ幅ぶん動くたびに隣へ移す
+        private float _tabReorderBaseX;
+        private bool _tabReordered;
+
         private static TabGroupManager _instance = null;
         public static TabGroupManager instance
         {
@@ -62,6 +66,8 @@ namespace COM3D2.SceneEditor.Plugin
             _tabDragWindow = window;
             _tabGrabOffset = grabOffset;
             _tabDetached = false;
+            _tabReorderBaseX = InputRemapper.rawGuiPosition.x;
+            _tabReordered = false;
         }
 
         /// <summary>
@@ -165,6 +171,34 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            // ヘッダー内に留まっている間の横ドラッグはグループ内の並び替えとして扱う。
+            // 押下タブの表示位置やスクロール位置はウィンドウ側にしか無いため、
+            // 絶対座標へのマッピングではなく「タブ 1 枚ぶん動くたびに隣とスワップ」で追う
+            if (!_tabDetached && _tabDragWindow.group != null)
+            {
+                var group = _tabDragWindow.group;
+                // タブ幅は描画側と同じレイアウト計算 (TabBarLayout に集約) で求める
+                var available = TabBarLayout.CalcAvailableWidth(group.activeWindow.headerRect.width);
+                var layout = TabBarLayout.Calc(group.windows.Count, available, 0, -1);
+                var step = layout.tabWidth + TabBarDrawer.TAB_MARGIN;
+
+                var dx = guiPos.x - _tabReorderBaseX;
+                while (Mathf.Abs(dx) >= step)
+                {
+                    var index = group.windows.IndexOf(_tabDragWindow);
+                    var newIndex = dx > 0 ? index + 1 : index - 1;
+                    if (newIndex < 0 || newIndex >= group.windows.Count)
+                    {
+                        break;
+                    }
+                    group.Move(_tabDragWindow, newIndex);
+                    _tabReordered = true;
+                    // 基準点を 1 枚ぶん進めて次のスワップ判定へ (往復ドラッグでも破綻しない)
+                    _tabReorderBaseX += dx > 0 ? step : -step;
+                    dx = guiPos.x - _tabReorderBaseX;
+                }
+            }
+
             if (_tabDetached)
             {
                 // つまんだ位置がヘッダー上に来るよう追従させる
@@ -192,6 +226,12 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         _tabDragWindow.SavePlacement();
                     }
+                }
+                if (_tabReordered)
+                {
+                    // 並び順も config (tabGroups) の一部なので保存する
+                    MarkGroupsDirty();
+                    _tabReordered = false;
                 }
                 _tabDragWindow = null;
                 _tabDetached = false;

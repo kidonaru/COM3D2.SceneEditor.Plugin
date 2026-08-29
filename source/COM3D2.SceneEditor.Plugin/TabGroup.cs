@@ -53,6 +53,23 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// タブの並び順を変更する。アクティブウィンドウは変えず、並びだけ動かして push する
+        /// (タブドラッグ並び替え用。範囲外・非メンバー・同位置は何もしない)
+        /// </summary>
+        public void Move(IDockableWindow window, int newIndex)
+        {
+            var oldIndex = windows.IndexOf(window);
+            if (oldIndex < 0 || newIndex < 0 || newIndex >= windows.Count || newIndex == oldIndex)
+            {
+                return;
+            }
+
+            windows.RemoveAt(oldIndex);
+            windows.Insert(newIndex, window);
+            PushTabBarState();
+        }
+
         /// <summary>グループから外す。アクティブタブが抜けたら先頭をアクティブにする</summary>
         public void Remove(IDockableWindow window)
         {
