@@ -74,18 +74,32 @@ namespace COM3D2.SceneEditor.Plugin
         private Rect areaDragRect = new Rect();
         private readonly GUIView.DragInfo _menuWidthDraggableInfo = new GUIView.DragInfo();
 
-        /// <summary>使用中レイヤーの選択コンボ。ボーンメニュー上部に置く</summary>
-        private readonly GUIComboBox<MTEP.TimelineLayerInfo> _layerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
+        /// <summary>表示レイヤーの複数選択コンボ。ボーンメニュー上部に置く</summary>
+        private readonly GUIMultiSelectComboBox<MTEP.ITimelineLayer> _displayLayerComboBox
+            = new GUIMultiSelectComboBox<MTEP.ITimelineLayer>
         {
-            getName = (layerInfo, index) => layerInfo.displayName,
-            onSelected = (layerInfo, index) =>
-            {
-                timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
-            },
-            contentSize = new Vector2(150, 300),
+            contentSize = new Vector2(200, 300),
             // menuWidth (100〜300px) に収めるため前後送りの矢印は省略する
             showArrow = false,
         };
+
+        /// <summary>表示レイヤー集合と折りたたみ集合 (セッション内のみ保持)</summary>
+        private readonly TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem> _rowState
+            = new TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>();
+
+        /// <summary>今フレームの表示行 (カテゴリ行 + ボーンメニュー行)。DrawBody で再構築する</summary>
+        private readonly List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>> _rows
+            = new List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>>(256);
+
+        /// <summary>タイムライン差し替え検知用。別インスタンスになったら表示状態をリセットする</summary>
+        private MTEP.TimelineData _lastTimeline = null;
+
+        /// <summary>レイヤー数の変化検知用。Prune を毎フレーム走らせないためのガード</summary>
+        private int _lastLayerCount = -1;
+
+        /// <summary>追加コンボ用の「現在のメイドで未使用の型」一覧バッファ (毎フレーム詰め直す)</summary>
+        private readonly List<MTEP.TimelineLayerInfo> _addableLayerInfoList
+            = new List<MTEP.TimelineLayerInfo>(32);
 
         /// <summary>未使用レイヤーの追加コンボ。選択と同時にアクティブ化する</summary>
         private readonly GUIComboBox<MTEP.TimelineLayerInfo> _addLayerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
@@ -142,6 +156,11 @@ namespace COM3D2.SceneEditor.Plugin
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
             SelectionManager.instance.onSelectionChanged += OnSelectionChanged;
             MaidDragBoneTracker.onDragCompleted += OnDragCompleted;
+
+            // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
+            _displayLayerComboBox.getName = (layer, _) => GetLayerDisplayName(layer);
+            _displayLayerComboBox.getChecked = (layer, _) => _rowState.IsVisible(layer, currentLayer);
+            _displayLayerComboBox.onToggle = (layer, _) => _rowState.ToggleVisible(layer, currentLayer);
         }
 
         // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能、既定 OFF)
@@ -499,6 +518,25 @@ namespace COM3D2.SceneEditor.Plugin
 
             bool guiEnabled = contentView.focusedComboBox == null;
 
+            // タイムラインが差し替わったら表示状態を初期化 (アクティブのみ表示・全展開)
+            if (timeline != _lastTimeline)
+            {
+                _lastTimeline = timeline;
+                _rowState.Reset();
+            }
+
+            if (editEnabled)
+            {
+                // レイヤーの追加・削除は必ず数の変化を伴うため、Prune は数が変わったときだけで足りる
+                // (同一フレームでの入れ替えで数が同じ場合、残った死に参照は layers に無いので描画されず無害)
+                if (timelineManager.layers.Count != _lastLayerCount)
+                {
+                    _lastLayerCount = timelineManager.layers.Count;
+                    _rowState.Prune(timelineManager.layers);
+                }
+                BuildRows();
+            }
+
             if (texTimelineBG == null && editEnabled)
             {
                 UpdateTexture();
@@ -506,6 +544,31 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTimeline(local, editEnabled, guiEnabled);
             DrawBoneMenu(local, editEnabled, guiEnabled);
+        }
+
+        /// <summary>表示行リストを組み立てる。簡易表示時は従来どおり単一レイヤーでカテゴリ行なし</summary>
+        private void BuildRows()
+        {
+            if (timelineConfig.isEasyEdit)
+            {
+                _rows.Clear();
+                foreach (var item in boneMenuManager.GetVisibleItems())
+                {
+                    _rows.Add(new LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>
+                    {
+                        layer = currentLayer,
+                        menuItem = item,
+                    });
+                }
+                return;
+            }
+
+            _rowState.BuildRows(timelineManager.layers, currentLayer, CollectVisibleItems, _rows);
+        }
+
+        private void CollectVisibleItems(MTEP.ITimelineLayer layer, List<MTEP.IBoneMenuItem> result)
+        {
+            boneMenuManager.GetVisibleItems(layer, result);
         }
 
         private void DrawTimeline(Rect local, bool editEnabled, bool guiEnabled)
@@ -913,6 +976,25 @@ namespace COM3D2.SceneEditor.Plugin
         /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
         /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
         /// </summary>
+        /// <summary>
+        /// レイヤーインスタンスの表示名。スロット付きレイヤーはメイド名を併記して
+        /// 同型レイヤーのインスタンスを区別できるようにする
+        /// </summary>
+        private string GetLayerDisplayName(MTEP.ITimelineLayer layer)
+        {
+            var info = timelineManager.GetLayerInfo(layer.layerType);
+            var name = info != null ? info.displayName : layer.layerName;
+            if (layer.hasSlotNo)
+            {
+                var maidCache = layer.maidCache;
+                var maidName = maidCache != null && !string.IsNullOrEmpty(maidCache.fullName)
+                    ? maidCache.fullName
+                    : "メイド" + (layer.slotNo + 1);
+                name += " (" + maidName + ")";
+            }
+            return name;
+        }
+
         private void DrawLayerControls(GUIView view, int menuWidth)
         {
             var layerType = currentLayer.layerType;
@@ -923,10 +1005,12 @@ namespace COM3D2.SceneEditor.Plugin
             // メニュー幅が極端に狭くてもボタンが負座標へ回り込まないよう下限を設ける
             var comboWidth = Mathf.Max(LAYER_BUTTON_WIDTH, menuWidth - LAYER_BUTTON_WIDTH * 2);
 
-            _layerComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
-            _layerComboBox.currentItem = timelineManager.GetLayerInfo(layerType);
-            _layerComboBox.items = timelineManager.usingLayerInfoList;
-            _layerComboBox.DrawButton(view);
+            _displayLayerComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
+            _displayLayerComboBox.items = timelineManager.layers;
+            // DrawListView のアクセント色でアクティブレイヤーを示す
+            _displayLayerComboBox.currentIndex = timelineManager.layers.IndexOf(timelineManager.currentLayer);
+            _displayLayerComboBox.defaultName = GetLayerComboLabel();
+            _displayLayerComboBox.DrawButton(view);
 
             view.currentPos.x = comboWidth;
             view.currentPos.y = 0;
@@ -939,8 +1023,34 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos.x = comboWidth + LAYER_BUTTON_WIDTH;
             view.currentPos.y = 0;
             _addLayerComboBox.currentIndex = -1;
-            _addLayerComboBox.items = timelineManager.unusingLayerInfoList;
+            // 現在のメイドでまだ使っていない型を列挙する (スロット無しレイヤーは存在チェックのみ)。
+            // 旧レイヤーコンボが担っていた「型選択で現在メイドのインスタンスを自動生成する」導線の代替
+            _addableLayerInfoList.Clear();
+            foreach (var info in timelineManager.layerInfoList)
+            {
+                if (timelineManager.GetLayer(info.layerType, maidManager.maidSlotNo) == null)
+                {
+                    _addableLayerInfoList.Add(info);
+                }
+            }
+            _addLayerComboBox.items = _addableLayerInfoList;
             _addLayerComboBox.DrawButton(view);
+        }
+
+        /// <summary>コンボのボタン面ラベル。アクティブレイヤー名 + 他に表示中があれば「他N」</summary>
+        private string GetLayerComboLabel()
+        {
+            var visibleCount = 0;
+            foreach (var layer in timelineManager.layers)
+            {
+                if (_rowState.IsVisible(layer, currentLayer))
+                {
+                    visibleCount++;
+                }
+            }
+
+            var name = GetLayerDisplayName(currentLayer);
+            return visibleCount > 1 ? name + " 他" + (visibleCount - 1) : name;
         }
 
         private void DrawBoneMenu(Rect local, bool editEnabled, bool guiEnabled)
