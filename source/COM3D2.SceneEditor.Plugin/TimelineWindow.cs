@@ -25,8 +25,15 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int MAX_MENU_WIDTH = 300;
         /// <summary>フレーム番号バーの高さ</summary>
         private static readonly int FRAME_LABEL_HEIGHT = 20;
-        /// <summary>レイヤー行の削除ボタン / 追加コンボの幅</summary>
+        /// <summary>レイヤー操作ボタン (削除 / 追加コンボ / 一括操作) の幅</summary>
         private static readonly int LAYER_BUTTON_WIDTH = 20;
+        /// <summary>レイヤーカテゴリ行に対するボーンメニュー行の字下げ幅</summary>
+        private static readonly int MENU_INDENT_WIDTH = 10;
+        /// <summary>折りたたみトグルの列幅。記号と後ろの文字が離れないよう記号幅に詰めている</summary>
+        private static readonly int FOLD_TOGGLE_WIDTH = 14;
+        // 折りたたみトグルの記号。開いた状態の ▼ を右へ回した ▶ で閉じた状態を示す
+        private static readonly string FOLD_OPEN = "▼";
+        private static readonly string FOLD_CLOSED = "▶";
 
         private static TimelineWindow _instance = null;
         public static TimelineWindow instance
@@ -1019,6 +1026,43 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 全レイヤーの表示・折りたたみを一括で切り替えるボタン。
+        /// アイコンはカテゴリ行の ▼/▶ と同じく今の状態を示し、押すと反対の状態へ移る。
+        /// スクロールビュー下端の空き帯 (右端の幅変更ボタンの左側) に置く。
+        /// 簡易表示はレイヤー行を持たないため出さない
+        /// </summary>
+        private void DrawRowStateControls(GUIView view, MTEP.Config tc)
+        {
+            if (tc.isEasyEdit)
+            {
+                return;
+            }
+
+            var layers = timelineManager.layers;
+            var buttonY = curvePaneTop - LAYER_BUTTON_WIDTH;
+
+            view.currentPos.x = 0;
+            view.currentPos.y = buttonY;
+            var allVisible = _rowState.AreAllVisible(layers, currentLayer);
+            var visibleIcon = ToolbarIcons.GetTexture(
+                allVisible ? ToolbarIcons.Kind.Show : ToolbarIcons.Kind.Hide);
+            if (view.DrawTextureButton(visibleIcon, LAYER_BUTTON_WIDTH, LAYER_BUTTON_WIDTH, 3f))
+            {
+                _rowState.SetAllVisible(layers, !allVisible);
+            }
+
+            view.currentPos.x = LAYER_BUTTON_WIDTH;
+            view.currentPos.y = buttonY;
+            var allCollapsed = _rowState.AreAllCollapsed(layers, currentLayer);
+            var foldIcon = ToolbarIcons.GetTexture(
+                allCollapsed ? ToolbarIcons.Kind.Collapse : ToolbarIcons.Kind.Expand);
+            if (view.DrawTextureButton(foldIcon, LAYER_BUTTON_WIDTH, LAYER_BUTTON_WIDTH, 3f))
+            {
+                _rowState.SetAllCollapsed(layers, currentLayer, !allCollapsed);
+            }
+        }
+
+        /// <summary>
         /// レイヤーインスタンスの表示名。スロット付きレイヤーはメイド名を併記して
         /// 同型レイヤーのインスタンスを区別できるようにする
         /// </summary>
@@ -1141,6 +1185,9 @@ namespace COM3D2.SceneEditor.Plugin
             var scrollPosition = view.scrollPosition;
             timelineView.scrollPosition.y = scrollPosition.y;
 
+            // 簡易表示はカテゴリ行を持たないため字下げしない
+            var indent = tc.isEasyEdit ? 0 : MENU_INDENT_WIDTH;
+
             for (int i = 0; i < _rows.Count; i++)
             {
                 var row = _rows[i];
@@ -1162,8 +1209,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                     view.currentPos.x = 0;
                     view.DrawLabel(
-                        _rowState.IsCollapsed(headerLayer) ? "＋" : "ー",
-                        20,
+                        _rowState.IsCollapsed(headerLayer) ? FOLD_CLOSED : FOLD_OPEN,
+                        FOLD_TOGGLE_WIDTH,
                         20,
                         headerColor,
                         null,
@@ -1173,16 +1220,16 @@ namespace COM3D2.SceneEditor.Plugin
                         }
                     );
 
-                    view.currentPos.x = 20;
+                    view.currentPos.x = FOLD_TOGGLE_WIDTH;
                     view.DrawLabel(
-                        "■ " + GetLayerDisplayName(headerLayer),
-                        menuWidth - 20,
+                        GetLayerDisplayName(headerLayer),
+                        menuWidth - FOLD_TOGGLE_WIDTH,
                         20,
                         headerColor
                     );
 
                     view.InvokeActionOnEvent(
-                        menuWidth - 40,
+                        menuWidth - FOLD_TOGGLE_WIDTH - 20,
                         20,
                         EventType.MouseDown,
                         (pos) =>
@@ -1202,13 +1249,13 @@ namespace COM3D2.SceneEditor.Plugin
                 // 選択ハイライトはアクティブレイヤーの行にだけ意味を持つ
                 var isSelected = isActiveLayerRow && menuItem.isSelectedMenu;
 
-                view.currentPos.x = 0;
+                view.currentPos.x = indent;
 
                 if (menuItem.isSetMenu)
                 {
                     view.DrawLabel(
-                        menuItem.isOpenMenu ? "ー" : "＋",
-                        20,
+                        menuItem.isOpenMenu ? FOLD_OPEN : FOLD_CLOSED,
+                        FOLD_TOGGLE_WIDTH,
                         20,
                         isSelected ? tc.timelineMenuSelectTextColor : Color.white,
                         null,
@@ -1219,17 +1266,17 @@ namespace COM3D2.SceneEditor.Plugin
                     );
                 }
 
-                view.currentPos.x = 20;
+                view.currentPos.x = indent + FOLD_TOGGLE_WIDTH;
 
                 view.DrawLabel(
                     diplayName,
-                    menuWidth - 20,
+                    menuWidth - FOLD_TOGGLE_WIDTH - indent,
                     20,
                     isSelected ? tc.timelineMenuSelectTextColor : Color.white
                 );
 
                 view.InvokeActionOnEvent(
-                    menuWidth - 40,
+                    menuWidth - FOLD_TOGGLE_WIDTH - indent - 20,
                     20,
                     EventType.MouseDown,
                     (pos) =>
@@ -1271,6 +1318,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             view.EndScrollView();
+
+            DrawRowStateControls(view, tc);
 
             // メニュー幅の変更ボタン (下のカーブツールバーと重ならないようボーンメニュー下端に置く)
             view.currentPos.x = view.viewRect.width - 20;

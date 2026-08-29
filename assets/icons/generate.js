@@ -17,7 +17,8 @@ const { Resvg } = require('../cursors/node_modules/@resvg/resvg-js');
 const SIZE = 32;
 
 // ToolbarIcons.Kind と対応させること
-const ICONS = ['Bg', 'Maid', 'Gizmo', 'Ortho', 'Change', 'Link', 'Home', 'Focus', 'Global'];
+const ICONS = ['Bg', 'Maid', 'Gizmo', 'Ortho', 'Change', 'Link', 'Home', 'Focus', 'Global',
+    'Show', 'Hide', 'Expand', 'Collapse'];
 
 // ギアメニュー用アイコン。ドキュメントサイトの favicon を唯一の原本として共用する
 // (出力先の PluginIcon.png はこのフォルダ、貼り付け先は PluginInfo.Icon)

@@ -88,6 +88,70 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void SetAllVisibleで全レイヤーの表示を一括で切り替える()
+        {
+            var layers = new List<string> { "A", "B", "C" };
+
+            _state.SetAllVisible(layers, true);
+            Assert.True(_state.IsVisible("B", "A"));
+            Assert.True(_state.IsVisible("C", "A"));
+
+            // 一括非表示でもアクティブレイヤーは残る
+            _state.SetAllVisible(layers, false);
+            Assert.True(_state.IsVisible("A", "A"));
+            Assert.False(_state.IsVisible("B", "A"));
+            Assert.False(_state.IsVisible("C", "A"));
+        }
+
+        [Fact]
+        public void AreAllVisibleは全レイヤーが表示中のときだけ真になる()
+        {
+            var layers = new List<string> { "A", "B" };
+
+            Assert.False(_state.AreAllVisible(layers, "A"));
+            _state.ToggleVisible("B", "A");
+            Assert.True(_state.AreAllVisible(layers, "A"));
+        }
+
+        [Fact]
+        public void SetAllCollapsedは表示中のレイヤーだけを対象にする()
+        {
+            var layers = new List<string> { "A", "B" };
+
+            // B は非表示なので畳まれない
+            _state.SetAllCollapsed(layers, "A", true);
+            Assert.True(_state.IsCollapsed("A"));
+            Assert.False(_state.IsCollapsed("B"));
+
+            _state.SetAllCollapsed(layers, "A", false);
+            Assert.False(_state.IsCollapsed("A"));
+        }
+
+        [Fact]
+        public void AreAllCollapsedは表示中のレイヤーが全て畳まれたときだけ真になる()
+        {
+            var layers = new List<string> { "A", "B" };
+            _state.ToggleVisible("B", "A");
+
+            Assert.False(_state.AreAllCollapsed(layers, "A"));
+            _state.ToggleCollapsed("A");
+            Assert.False(_state.AreAllCollapsed(layers, "A"));
+            _state.ToggleCollapsed("B");
+            Assert.True(_state.AreAllCollapsed(layers, "A"));
+        }
+
+        [Fact]
+        public void 非表示レイヤーの折りたたみはAreAllCollapsedに影響しない()
+        {
+            var layers = new List<string> { "A", "B" };
+            _state.ToggleCollapsed("B");
+
+            // B は非表示なので、A を畳めば表示中は全て畳まれた扱い
+            _state.ToggleCollapsed("A");
+            Assert.True(_state.AreAllCollapsed(layers, "A"));
+        }
+
+        [Fact]
         public void BuildRowsは呼ぶたびに結果をクリアして詰め直す()
         {
             var rows = new List<LayerRow<string, string>>();

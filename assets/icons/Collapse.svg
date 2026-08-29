@@ -1,0 +1,14 @@
+<!--
+  「すべて折りたたみ」アイコン (32x32)。中央へ閉じる二つの山形。
+  白地に黒縁取りで、明るい背景でも暗い背景でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="none" stroke="#000000" stroke-width="4.4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M 8 5 L 16 13 L 24 5" />
+    <path d="M 8 27 L 16 19 L 24 27" />
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M 8 5 L 16 13 L 24 5" />
+    <path d="M 8 27 L 16 19 L 24 27" />
+  </g>
+</svg>

@@ -63,6 +63,74 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 全レイヤーの表示を一括で切り替える。
+        /// 一括非表示にしてもアクティブレイヤーは IsVisible の判定で表示扱いのまま残る
+        /// </summary>
+        public void SetAllVisible(IList<TLayer> layers, bool visible)
+        {
+            _visibleLayers.Clear();
+            if (!visible)
+            {
+                return;
+            }
+
+            for (var i = 0; i < layers.Count; i++)
+            {
+                _visibleLayers.Add(layers[i]);
+            }
+        }
+
+        public bool AreAllVisible(IList<TLayer> layers, TLayer currentLayer)
+        {
+            for (var i = 0; i < layers.Count; i++)
+            {
+                if (!IsVisible(layers[i], currentLayer))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 折りたたみを一括で切り替える。画面に出ている行に対する操作なので、
+        /// 非表示レイヤーは対象外にしてそれぞれの状態を保つ
+        /// </summary>
+        public void SetAllCollapsed(IList<TLayer> layers, TLayer currentLayer, bool collapsed)
+        {
+            for (var i = 0; i < layers.Count; i++)
+            {
+                var layer = layers[i];
+                if (!IsVisible(layer, currentLayer))
+                {
+                    continue;
+                }
+
+                if (collapsed)
+                {
+                    _collapsedLayers.Add(layer);
+                }
+                else
+                {
+                    _collapsedLayers.Remove(layer);
+                }
+            }
+        }
+
+        public bool AreAllCollapsed(IList<TLayer> layers, TLayer currentLayer)
+        {
+            for (var i = 0; i < layers.Count; i++)
+            {
+                var layer = layers[i];
+                if (IsVisible(layer, currentLayer) && !IsCollapsed(layer))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public void Reset()
         {
             _visibleLayers.Clear();
