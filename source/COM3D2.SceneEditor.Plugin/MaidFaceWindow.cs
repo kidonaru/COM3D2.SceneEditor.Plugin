@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -53,37 +52,8 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 100),
         };
 
-        /// <summary>瞳回転スライダー (-1〜1) の両端に対応する回転角</summary>
-        private const float EYE_ROTATION_MAX_ANGLE = 90f;
-
-        /// <summary>タイムライン視線の注視先コンボ。書き込み先は MaidCache</summary>
-        private readonly GUIComboBox<MTEP.LookAtTargetType> _lookAtTargetTypeComboBox =
-            new GUIComboBox<MTEP.LookAtTargetType>
-            {
-                getName = (type, index) => MTEP.TransformDataLookAtTarget.TargetTypeNames[index],
-            };
-
-        private readonly GUIComboBox<MTEP.MaidCache> _lookAtMaidComboBox =
-            new GUIComboBox<MTEP.MaidCache>
-            {
-                getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
-            };
-
-        private readonly GUIComboBox<MTEP.MaidPointType> _lookAtMaidPointComboBox =
-            new GUIComboBox<MTEP.MaidPointType>
-            {
-                items = Enum.GetValues(typeof(MTEP.MaidPointType))
-                    .Cast<MTEP.MaidPointType>().ToList(),
-                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
-            };
-
-        /// <summary>
-        /// タイムライン視線の注視先の選択肢。
-        /// モデル注視は StudioModelManager 未移植のため除外する (レイヤー側の扱いに合わせる)
-        /// </summary>
-        private static readonly List<MTEP.LookAtTargetType> LOOK_AT_TARGET_TYPES =
-            Enum.GetValues(typeof(MTEP.LookAtTargetType)).Cast<MTEP.LookAtTargetType>()
-                .Where(type => type != MTEP.LookAtTargetType.Model).ToList();
+        /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
+        private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
 
         /// <summary>視線モードの選択肢。列挙の再生成を避けて使い回す</summary>
         private static readonly List<MaidLookMode> LOOK_MODES = new List<MaidLookMode>
@@ -375,81 +345,21 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.DrawLabel("タイムライン視線", -1, ROW_HEIGHT);
 
-            // 参照するのは TimelineData 側のフラグ。
-            // MaidCache.useHeadKey は trsLookTarget を書き換える副作用付きの別物
-            if (!timeline.useHeadKey)
+            if (!TimelineLookRowDrawer.IsHeadKeyEnabled)
             {
-                view.DrawLabel("タイムライン設定の「顔/瞳の固定化」を有効にしてください",
+                view.DrawLabel(TimelineLookRowDrawer.HeadKeyDisabledMessage,
                     -1, ROW_HEIGHT, textColor: Color.yellow);
                 return;
             }
 
-            // 選択肢から除外した Model が既存データに残っている場合は手動 (None) へ丸める
-            var targetTypeIndex = (int) maidCache.lookAtTargetType;
-            if (targetTypeIndex >= LOOK_AT_TARGET_TYPES.Count)
-            {
-                targetTypeIndex = (int) MTEP.LookAtTargetType.None;
-            }
-
-            _lookAtTargetTypeComboBox.items = LOOK_AT_TARGET_TYPES;
-            _lookAtTargetTypeComboBox.currentIndex = targetTypeIndex;
-            _lookAtTargetTypeComboBox.onSelected =
-                (type, _) => maidCache.lookAtTargetType = type;
-            DrawLabeledComboBox("注視先", _lookAtTargetTypeComboBox);
-
-            if (_lookAtTargetTypeComboBox.currentItem == MTEP.LookAtTargetType.Maid)
-            {
-                _lookAtMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
-                _lookAtMaidComboBox.currentIndex = maidCache.lookAtTargetIndex;
-                _lookAtMaidComboBox.onSelected =
-                    (_, index) => maidCache.lookAtTargetIndex = index;
-                DrawLabeledComboBox("メイド", _lookAtMaidComboBox);
-
-                _lookAtMaidPointComboBox.currentIndex = (int) maidCache.lookAtMaidPointType;
-                _lookAtMaidPointComboBox.onSelected =
-                    (type, _) => maidCache.lookAtMaidPointType = type;
-                DrawLabeledComboBox("ポイント", _lookAtMaidPointComboBox);
-            }
-
-            // 瞳回転は注視先が手動のときだけ効く (レイヤー側の活性条件と同じ)
-            view.SetEnabled(maidCache.lookAtTargetType == MTEP.LookAtTargetType.None);
-
-            var eyeEulerAngle = maidCache.eyeEulerAngle;
-            DrawTimelineLookSlider(view, "瞳回転左右", eyeEulerAngle.x / EYE_ROTATION_MAX_ANGLE,
-                value => maidCache.eyeEulerAngle =
-                    new Vector3(value * EYE_ROTATION_MAX_ANGLE, 0f, eyeEulerAngle.z));
-            DrawTimelineLookSlider(view, "瞳回転上下", eyeEulerAngle.z / EYE_ROTATION_MAX_ANGLE,
-                value => maidCache.eyeEulerAngle =
-                    new Vector3(eyeEulerAngle.x, 0f, value * EYE_ROTATION_MAX_ANGLE));
-
-            view.SetEnabled(true);
+            _timelineLookRowDrawer.DrawLookAtTargetRows(view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
+            _timelineLookRowDrawer.DrawEyeRotationRows(view, maidCache, LABEL_WIDTH);
 
             if (view.DrawButton("タイムライン視線を初期化", 190, ROW_HEIGHT))
             {
                 maidCache.eyeEulerAngle = Vector3.zero;
                 maidCache.lookAtTargetType = MTEP.LookAtTargetType.None;
             }
-        }
-
-        /// <summary>
-        /// タイムライン視線のスライダー 1 本。値域はレイヤー側に合わせて -1〜1。
-        /// 書き込み先の MaidCache はどのスナップショットにも含まれないため履歴は記録しない
-        /// </summary>
-        private void DrawTimelineLookSlider(
-            GUIView view, string label, float value, Action<float> onChanged)
-        {
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = -1f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = value,
-                onChanged = onChanged,
-            });
         }
 
         /// <summary>顔向きスライダー 1 本。値域はフォトモードに合わせて -1〜1</summary>

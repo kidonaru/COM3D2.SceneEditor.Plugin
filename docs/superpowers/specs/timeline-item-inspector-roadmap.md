@@ -187,7 +187,7 @@ S0 の基盤(Registry / Bridge / InspectorWindow 分岐)は実装済み。残り
 
 Phase S1(メイド系):
 
-- [ ] EyesTimelineLayer(視線・瞳回転 / MaidFaceWindow 視線タブ / 逆方向なし)
+- [x] EyesTimelineLayer(視線・瞳回転 / MaidFaceWindow 視線タブ / 逆方向なし)
 - [ ] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
 - [ ] UndressTimelineLayer(スロット表示トグル / MaidUndressWindow `DrawCategoryList` / 逆方向なし)
 - [ ] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
@@ -195,7 +195,14 @@ Phase S1(メイド系):
 
 Phase S1 実機確認項目(loop 中に追記):
 
-- (なし)
+- [ ] 瞳レイヤーで「視線」行を選択 → Inspector に瞳回転左右/上下スライダーが出て編集できる
+- [ ] 瞳レイヤーで「注視」行を選択 → Inspector に注視先コンボが出る。メイド選択時はメイド・ポイントのコンボも続けて出る
+- [ ] 注視先を手動 (None) 以外にすると瞳回転スライダーが非活性になる(表情ウィンドウと同じ)
+- [ ] 「顔/瞳の固定化」が無効なときは Inspector に有効化を促す警告が出る
+- [ ] 瞳位置・瞳サイズの行を選択 → 「(未対応)」表示になる(意図した制約)
+- [ ] Inspector のコンボが正しく開閉し、表情ウィンドウのコンボと干渉しない
+- [ ] 表情ウィンドウ視線タブのタイムライン視線セクションに退行が無い(抽出リファクタリングの確認)
+- [ ] ラベル + コンボ行を持つ既存ウィンドウ(表情・シェイプキー・マテリアル・ボーン等)のコンボ幅に退行が無い(LabeledComboRow 抽出の確認)
 
 Phase S2(モデル系):
 
