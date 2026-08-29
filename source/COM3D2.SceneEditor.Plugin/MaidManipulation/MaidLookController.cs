@@ -89,6 +89,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             /// <summary>解決済みの頭ボーン。詳細は GetHeadBone のコメントを参照</summary>
             public Transform headBone;
+
+            /// <summary>メイドモードの注視対象。Transform はボディ読み直しで破棄されるため保持しない</summary>
+            public Maid targetMaid;
+
+            /// <summary>メイドモードで見る部位</summary>
+            public MTEP.MaidPointType maidPointType = MTEP.MaidPointType.Head;
         }
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
@@ -156,12 +162,46 @@ namespace COM3D2.SceneEditor.Plugin
             Apply(maid);
         }
 
+        public Maid GetTargetMaid(Maid maid)
+        {
+            var entry = Find(maid);
+            return entry != null ? entry.targetMaid : null;
+        }
+
+        public MTEP.MaidPointType GetMaidPointType(Maid maid)
+        {
+            var entry = Find(maid);
+            return entry != null ? entry.maidPointType : MTEP.MaidPointType.Head;
+        }
+
+        /// <summary>メイドモードの注視対象と部位。対象と部位は必ず対で変わるためまとめて受ける</summary>
+        public void SetMaidTarget(Maid maid, Maid targetMaid, MTEP.MaidPointType pointType)
+        {
+            var entry = GetOrCreate(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.targetMaid = targetMaid;
+            entry.maidPointType = pointType;
+            Apply(maid);
+        }
+
+        /// <summary>メイド注視の指定を変えずに状態を差し替える (従来の呼び出し向け)</summary>
+        public void SetState(Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target)
+        {
+            SetState(maid, mode, lookX, lookY, target,
+                GetTargetMaid(maid), GetMaidPointType(maid));
+        }
+
         /// <summary>
         /// 状態をまとめて差し替える。個別セッターを重ねると Apply が状態ごとに走り、
         /// 途中の中途半端な組み合わせで注視点を計算してしまうため、
         /// Undo・プリセット復元のような一括復元はこちらを使う
         /// </summary>
-        public void SetState(Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target)
+        public void SetState(
+            Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target,
+            Maid targetMaid, MTEP.MaidPointType maidPointType)
         {
             var entry = GetOrCreate(maid);
             if (entry == null)
@@ -172,6 +212,8 @@ namespace COM3D2.SceneEditor.Plugin
             entry.lookX = lookX;
             entry.lookY = lookY;
             entry.target = target;
+            entry.targetMaid = targetMaid;
+            entry.maidPointType = maidPointType;
             Apply(maid);
         }
 
@@ -246,6 +288,16 @@ namespace COM3D2.SceneEditor.Plugin
                 return PlaceMousePoint(maid, entry);
             }
 
+            if (entry.mode == MaidLookMode.メイド)
+            {
+                // 対象が退去・未設定なら方向指定の注視点で代用する (オブジェクトモードと同じ扱い)
+                var point = GetMaidPointTransform(entry.targetMaid, entry.maidPointType);
+                if (point != null)
+                {
+                    return point;
+                }
+            }
+
             if (entry.mode == MaidLookMode.オブジェクト && entry.target != null)
             {
                 return entry.target;
@@ -295,6 +347,35 @@ namespace COM3D2.SceneEditor.Plugin
             entry.mousePoint.position = Vector3.Lerp(
                 entry.mousePoint.position, targetPos, lerpRate);
             return entry.mousePoint;
+        }
+
+        /// <summary>
+        /// メイドの注視ポイントを引く。
+        /// タイムラインの MaidCache.GetPointTransform もここへ委譲し、
+        /// 「メイドのどこを見るか」の解決を SE 側の 1 か所に保つ
+        /// </summary>
+        public static Transform GetMaidPointTransform(Maid maid, MTEP.MaidPointType type)
+        {
+            if (maid == null || maid.body0 == null)
+            {
+                return null;
+            }
+
+            switch (type)
+            {
+                case MTEP.MaidPointType.Head:
+                    return maid.body0.trsHead;
+                case MTEP.MaidPointType.Chest:
+                    return maid.body0.Spine1a;
+                case MTEP.MaidPointType.Crotch:
+                    return maid.body0.Pelvis;
+                case MTEP.MaidPointType.Hip:
+                    return maid.body0.Hip_R;
+                case MTEP.MaidPointType.Bip01:
+                    return maid.body0.trBip;
+                default:
+                    return null;
+            }
         }
 
         /// <summary>

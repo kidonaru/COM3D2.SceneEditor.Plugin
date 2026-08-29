@@ -109,7 +109,14 @@ namespace COM3D2.SceneEditor.Plugin
                 case MTEP.LookAtTargetType.Camera:
                     return MaidLookMode.カメラ;
                 case MTEP.LookAtTargetType.Maid:
+                    // メイド注視は SE 側にも同じ概念があるためそのまま写す
+                    if (hasTarget)
+                    {
+                        return MaidLookMode.メイド;
+                    }
+                    return ResolveNoTargetMode(isEyeSorashi);
                 case MTEP.LookAtTargetType.Model:
+                    // モデルは SE 側に対応する概念が無いため任意オブジェクトとして扱う
                     if (hasTarget)
                     {
                         return MaidLookMode.オブジェクト;
@@ -188,14 +195,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 向け先モードを SE のコントローラへ反映する。
-        /// オブジェクトモード以外では既存の注視対象を残す
-        /// (タイムライン側の都合で SE が覚えている対象を消さないため)。
-        /// 方向指定のときだけ顔向きキーの指定値で lookX/lookY を駆動し、
-        /// それ以外では SE が覚えている顔向きを残す
+        /// モードに関係しない指定 (注視対象・メイド指定・顔向き) は
+        /// SE が覚えている値を残す (タイムライン側の都合で消さないため)。
+        /// 方向指定のときだけ顔向きキーの指定値で lookX/lookY を駆動する
         /// </summary>
         /// <param name="lookDirection">顔向きキーの指定値 (lookX/lookY、-1〜1)</param>
+        /// <param name="targetMaid">注視先がメイドのときの対象</param>
+        /// <param name="maidPointType">注視先がメイドのときの部位</param>
         public static void ApplyLookMode(
-            Maid maid, MaidLookMode mode, Transform target, Vector2 lookDirection)
+            Maid maid, MaidLookMode mode, Transform target, Vector2 lookDirection,
+            Maid targetMaid, MTEP.MaidPointType maidPointType)
         {
             if (maid == null)
             {
@@ -204,12 +213,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = lookController;
             var isDirection = mode == MaidLookMode.方向指定;
+            var isMaid = mode == MaidLookMode.メイド;
             controller.SetState(
                 maid,
                 mode,
                 isDirection ? lookDirection.x : controller.GetLookX(maid),
                 isDirection ? lookDirection.y : controller.GetLookY(maid),
-                mode == MaidLookMode.オブジェクト ? target : controller.GetTarget(maid));
+                mode == MaidLookMode.オブジェクト ? target : controller.GetTarget(maid),
+                isMaid ? targetMaid : controller.GetTargetMaid(maid),
+                isMaid ? maidPointType : controller.GetMaidPointType(maid));
         }
     }
 }

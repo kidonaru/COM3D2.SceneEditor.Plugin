@@ -559,8 +559,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // メイド注視は Transform ではなく「対象メイド + 部位」で渡し、
+            // 実際の Transform は SE のコントローラが適用のたびに引き直す
+            var targetMaidCache = lookAtTargetType == LookAtTargetType.Maid
+                ? maidManager.GetMaidCache(lookAtTargetIndex) : null;
+            var targetMaid = targetMaidCache != null ? targetMaidCache.maid : null;
+
             SEP.MaidLookBridge.ApplyLookMode(
-                maid, lookMode.Value, lookAtTarget, _lookDirection);
+                maid, lookMode.Value, lookAtTarget, _lookDirection,
+                targetMaid, lookAtMaidPointType);
 
             // そらし演出は trsLookTarget == null かつ非ロックが条件のため、常にロックを解く
             maid.LockHeadAndEye(false);
@@ -800,34 +807,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return null;
         }
 
+        /// <summary>
+        /// メイドの注視ポイント。解決の実装は SE の MaidLookController に一本化しているため、
+        /// ここでは委譲だけを行う (キー化の有無で同じ部位を指すようにするため)
+        /// </summary>
         public Transform GetPointTransform(MaidPointType type)
         {
-            if (maid == null || maid.body0 == null)
-            {
-                return null;
-            }
-
-            Transform result = null;
-            switch (type)
-            {
-                case MaidPointType.Head:
-                    result = maid.body0.trsHead;
-                    break;
-                case MaidPointType.Chest:
-                    result = maid.body0.Spine1a;
-                    break;
-                case MaidPointType.Crotch:
-                    result = maid.body0.Pelvis;
-                    break;
-                case MaidPointType.Hip:
-                    result = maid.body0.Hip_R;
-                    break;
-                case MaidPointType.Bip01:
-                    result = maid.body0.trBip;
-                    break;
-            }
-
-            return result;
+            return SEP.MaidLookController.GetMaidPointTransform(maid, type);
         }
 
         public static readonly List<string> MaidPointTypeNames = new List<string>

@@ -9,7 +9,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Theory]
         [InlineData(MTEP.LookAtTargetType.Camera, true, MaidLookMode.カメラ)]
         [InlineData(MTEP.LookAtTargetType.Camera, false, MaidLookMode.カメラ)]
-        [InlineData(MTEP.LookAtTargetType.Maid, true, MaidLookMode.オブジェクト)]
+        [InlineData(MTEP.LookAtTargetType.Maid, true, MaidLookMode.メイド)]
         [InlineData(MTEP.LookAtTargetType.Model, true, MaidLookMode.オブジェクト)]
         [InlineData(MTEP.LookAtTargetType.None, false, MaidLookMode.方向指定)]
         public void ResolveLookMode_キー化中は注視先種別を向け先モードへ写す(
