@@ -847,12 +847,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawToggle("自動揺れボーン", timelineConfig.isAutoYureBone, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
-                {
-                    timelineConfig.isAutoYureBone = newValue;
-                    timelineConfig.dirty = true;
-                });
-
                 view.DrawToggle("常にIKを表示", timelineConfig.alwaysShowIK, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
                 {
                     timelineConfig.alwaysShowIK = newValue;

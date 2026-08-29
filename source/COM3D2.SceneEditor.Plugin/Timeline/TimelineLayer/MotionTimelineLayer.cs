@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -92,8 +92,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private List<string> _extendSlotNames = new List<string>();
-
         private MotionTimelineLayer(int slotNo) : base(slotNo)
         {
         }
@@ -138,7 +136,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected override void InitMenuItems()
         {
             _allMenuItems.Clear();
-            _extendSlotNames.Clear();
 
             var setMenuItemMap = new Dictionary<BoneSetMenuType, BoneSetMenuItem>(12);
 
@@ -199,8 +196,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 setMenuItem.AddChild(menuItem);
             }
-
-            _extendSlotNames.AddRange(slotMenuItemMap.Keys);
 
             // 保存互換のため、タイムライン側の拡張ボーン一覧は追跡集合から作り直す。
             // ソース・オブ・トゥルースはボーンウィンドウのチェック側
@@ -608,18 +603,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             this.isAnmPlaying = isAnmPlaying;
             maidCache.playingFrameNoFloat = playingFrameNoFloat;
-
-            if (config.isAutoYureBone)
-            {
-                foreach (var slotName in maidCache.extendBoneCache.yureSlotNames)
-                {
-                    var yureState = !_extendSlotNames.Contains(slotName);
-                    if (yureState != maidCache.GetYureState(slotName))
-                    {
-                        maidCache.SetYureState(slotName, yureState);
-                    }
-                }
-            }
 
             var stopwatch = new StopwatchDebug();
             ApplyPlayData();

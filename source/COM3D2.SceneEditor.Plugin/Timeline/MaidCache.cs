@@ -789,21 +789,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return Vector3.zero;
         }
 
-        public bool IsYureSlot(string slotName)
-        {
-            return extendBoneCache != null && extendBoneCache.IsYureSlot(slotName);
-        }
-
-        // PartsEdit 連携は未移植のため、揺れ状態の取得・設定は無効化している
-        public bool GetYureState(string slotName)
-        {
-            return false;
-        }
-
-        public void SetYureState(string slotName, bool state)
-        {
-        }
-
         public void UpdateMaterials()
         {
             materialMap.Clear();

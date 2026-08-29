@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
@@ -73,7 +73,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // 今は動画メッシュの位置と被写界深度のピント距離だけが参照する
         public float positionRange = 5.0f;
         public float voiceMaxLength = 20.0f;
-        public bool isAutoYureBone = true;
         public bool disablePoseHistory = true;
         public int historyLimit = 20;
         public float keyRepeatTimeFirst = 0.15f;

@@ -24,7 +24,7 @@ MTE 移植で採用されている正しいパターンは **アダプタ化** �
 |---|---|---|---|---|
 | A-1 | **視線・注視先** | `MaidLookController`（向け先モード / 顔向き XY / 注視オブジェクト）＋ `MaidFaceWindow` の `boHeadToCam` / `boEyeToCam` トグル（:276-288） | `MaidCache.lookAtTargetType` / `lookAtTargetIndex` / `lookAtMaidPointType` / `eyeEulerAngle`、`UpdateHeadLook`（MaidCache.cs:501）が毎回 `maid.EyeToCamera(timeline.eyeMoveType)` と `LockHeadAndEye` を実行 | 同じ `body0.trsLookTarget` を奪い合う。表情ウィンドウ視線タブに「視線」と「タイムライン視線」の 2 セクションが並ぶ（MaidFaceWindow.cs:330-335 に既知として明記）。さらに `TimelineSettingWindow` の「メイド目線」（`eyeMoveType`, :253）と「顔/瞳の固定化」（`useHeadKey`, :258）が 3 箇所目の入口になっている |
 | A-2 | **胸の揺れ物理** | `MaidMuneYureController`（`SetMuneYure*WithEnable` / `MuneYureL/R`）＋ InspectorWindow の胸揺れトグル（:304） | `MaidCache.UpdateMuneYure`（:490）が `timeline.useMuneKeyL/R` から `MuneYureL/R` と `jbMuneL/R.enabled` を直接上書き。入口は `TimelineSettingWindow`「胸(左/右)の物理無効」（:265-270） | `TimelineData.useMuneKeyL/R` の setter（TimelineData.cs:292/309）が発火するたび SE のトグル状態を無視して書き換える。`SceneEditorHack.useMuneKeyL/R` は空実装（:121-129）なので逆方向の同期も無い |
-| A-3 | **スロット揺れボーンの ON/OFF** | `SlotYureUtil.SetYureState` ＋ InspectorWindow の揺れトグル（:507-538）、`BoneEditManager` のボーン掴み時の自動 OFF（:540-542） | `MotionTimelineLayer`（:612-622）が `config.isAutoYureBone` 有効時、anm 構築のたび全揺れスロットの状態を `_extendSlotNames` 基準で総入れ替え | タイムラインでキーを打つたびに Inspector で切った揺れ設定が復活／消滅する。設定は `TimelineSettingWindow`「自動揺れボーン」（:875）にのみ存在 |
+| A-3 | **スロット揺れボーンの ON/OFF** | `SlotYureUtil.SetYureState` ＋ InspectorWindow の揺れトグル（:507-538）、`BoneEditManager` のボーン掴み時の自動 OFF（:540-542） | `MotionTimelineLayer`（:612-622）が `config.isAutoYureBone` 有効時、anm 構築のたび全揺れスロットの状態を `_extendSlotNames` 基準で総入れ替え | **調査時の記述は誤り（A-3 で判明）**。この経路が呼ぶ `MaidCache.GetYureState` は常に false、`SetYureState` は空実装（PartsEdit 連携が未移植）で、上書きは実際には起きていなかった。設定 `TimelineSettingWindow`「自動揺れボーン」も効果を持っていなかった |
 | A-4 | **ボーン／IK の表示** | `MaidManipulateManager.isBoneVisible`（BoneEditWindow「ボーン表示」:363、MenuBarWindow:223） | `StudioHackManager.isPoseEditing` の setter（:31）が `isIKVisible = value && canIKVisible` を書き込み、`canIKVisible` は選択中レイヤー種別と `config.alwaysShowIK`（:37）で決まる | 編集モードを切り替えるたび、選択中のタイムラインレイヤーによって SE のボーン表示トグルが勝手に落ちる。`alwaysShowIK` は `TimelineSettingWindow`「常にIKを表示」（:881）にしか無い |
 | A-5 | **表情モーフの読み書き** | `MaidFaceMorphController`（TMorph 直接操作。CRC 顔のサフィックス解決を独自実装） | `TimelineFaceManager`（:30-70。`CheckMorph` / `GetRatio` で別実装の名前解決・倍率換算）。`MorphTimelineLayer` が `SetMabatakiOff` + `SetMorphValue` を適用 | 同じ TMorph に対する名前解決・値スケールの実装が 2 本。片方だけ直すと表情ウィンドウとタイムライン再生で値がずれる |
 
@@ -100,7 +100,7 @@ A 分類(状態の奪い合い解消):
 - [x] A-1b: 表情ウィンドウ視線タブの「視線」「タイムライン視線」を 1 セクションへ統合し、`TimelineSettingWindow` の「メイド目線」(`eyeMoveType`)と「顔/瞳の固定化」(`useHeadKey`)もそこへ集約する
 - [x] A-1c: B-6 の解消確認 — 視線の所有者統合後、`ScenePresetLook` の保存→ロードで視線状態が欠落しないことを確認し、不足があればスキーマへ追加する
 - [x] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
-- [ ] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
+- [x] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
 - [ ] A-4: `StudioHackManager.isPoseEditing` setter の `canIKVisible` による `isIKVisible` / `isIkBoxVisibleRoot/Body` 上書きを廃し、SE 側のトグルを唯一の入口にする(`alwaysShowIK` の扱いも整理。`isBoneVisible` 自体はアダプタ化済みで対象外)
 - [ ] A-5: `TimelineFaceManager` の名前解決・倍率換算を `MaidFaceMorphController` へ一本化する(表情プリセット・モーフ追跡への影響が広いため差分を丁寧に確認する)
 
@@ -156,12 +156,24 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **`!maid.boMAN` ガードの削除**: `Reapply` は記録の無いメイドへ何もせず、記録は胸の揺れトグルを操作したメイドにしか作られないため不要
 - 新規の純粋ロジックは反転 1 つのみで、`Maid` / `TBody` 依存のため単体テストは追加していない
 
+### A-3 の実装メモ
+
+**調査時の症状の記述が実装と食い違っていた。** `MotionTimelineLayer` の一括上書きが呼ぶ `MaidCache.GetYureState` は常に false を返し、`SetYureState` は空実装だった(「PartsEdit 連携は未移植のため無効化している」とコメントあり)。つまりこのブロックは効果の無い死んだ経路で、Inspector の揺れ設定が潰される事象は起きていなかった。A 表の該当行を修正済み。
+
+方針「一括上書きをやめ、`SlotYureUtil` を唯一の真実にする」は、死んだ経路の削除という形で達成した(挙動変更なし)。
+
+- **削除したもの**: `MotionTimelineLayer` の `isAutoYureBone` ブロック、呼び出し元が無くなった `MaidCache.IsYureSlot` / `GetYureState` / `SetYureState`、効果の無い設定 `Config.isAutoYureBone` と「自動揺れボーン」トグル、ブロック専用だった `_extendSlotNames`
+- **`Timeline.xml` の後方互換**: `XmlSerializer` は未知要素を読み飛ばすため、既存ファイルに残る `<isAutoYureBone>` は無害。`TimelineConfigXmlTests` で固定した(B-1 でフィールドを削除する際の前提にもなる)
+- **残したもの**: `ExtendBoneCache.yureSlotNames` / `IsYureSlot`(拡張ボーンキャッシュのデータ)、`PartsEditHackBase` の同名メンバー(未移植の PartsEdit 連携側で別階層)
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- A-3: タイムライン設定から「自動揺れボーン」が消えていること、既存の `Timeline.xml` を読んでも他の設定が既定へ戻らないこと
+- A-3: タイムラインでキーを打っても、Inspector で切ったスロット揺れの設定が変化しないこと
 - A-2: Inspector で胸の揺れを止めた後にタイムラインを再生しても、揺れが復活しないこと
 - A-2: タイムライン設定の「胸(左/右)の物理無効」を切り替えると、呼出済み全メイドの Inspector トグルが追従すること
 - A-2: 「物理無効」が有効なタイムラインを読み込むと、その時点の SE 側トグルが一括で上書きされること(全体設定として意図した挙動)
