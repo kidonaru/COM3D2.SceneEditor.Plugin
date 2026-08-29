@@ -7,10 +7,11 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ボイス・効果音の編集ウィンドウ。
-    /// タイムラインのメイドボイス/効果音レイヤーから編集 UI を委譲された受け皿。
-    /// 値はライブ状態 (maidCache / TimelineSeManager) を直接編集するため、
-    /// キーフレーム登録はタイムライン操作ウィンドウ側で行えばそのままキー化される
+    /// BGM・ボイス・効果音の編集ウィンドウ。
+    /// ボイス/効果音タブはタイムラインのメイドボイス/効果音レイヤーから編集 UI を
+    /// 委譲された受け皿で、値はライブ状態 (maidCache / TimelineSeManager) を直接
+    /// 編集するため、キーフレーム登録はタイムライン操作ウィンドウ側で行えばそのまま
+    /// キー化される。BGM タブはタイムラインに依存せず単独で利用できる
     /// </summary>
     public class SoundWindow : MaidWindowBase
     {
@@ -78,6 +79,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         protected override bool showMaidSelector => false;
 
+        // showMaidSelector が false のため target は使わない。対象は DrawVoice 内で取り直す
         protected override void DrawMaidContent(Maid target)
         {
             _tabType = DrawInnerTabs(_tabType, 50);
@@ -107,7 +109,7 @@ namespace COM3D2.SceneEditor.Plugin
         private string _bgmSearchText = "";
 
         /// <summary>
-        /// BGM ウィンドウから統合した BGM の一覧表示・再生・停止。
+        /// BGM の一覧表示・再生・停止。
         /// 一覧はフォトモードの PhotoSoundData、再生は SoundMgr.PlayBGM の同一経路を使う
         /// </summary>
         private void DrawBgm(GUIView view)
