@@ -56,24 +56,6 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (material, _) => material.displayName,
         };
 
-        /// <summary>
-        /// チェック行の描画に必要な、対象ごとの引き当て。
-        /// 背景タブは対象のタイムラインレイヤーと対象集合が食い違うため既定値 (追跡なし) を渡す
-        /// </summary>
-        private struct MaterialTrackTarget
-        {
-            /// <summary>表示判定用。まだ 1 つもチェックしていない対象のストアを作らないため FindStore を使う</summary>
-            public Func<EditTargetStore> findStore;
-
-            /// <summary>操作時のストア。遅延生成する</summary>
-            public Func<EditTargetStore> getStore;
-
-            /// <summary>記録する生名。メイドは ModelMaterial.name、モデルは displayName</summary>
-            public Func<MTEP.ModelMaterial, string> getKey;
-
-            public bool isEnabled => findStore != null && getStore != null && getKey != null;
-        }
-
         private static MaterialEditWindow _instance = null;
         public static MaterialEditWindow instance
         {
@@ -307,122 +289,20 @@ namespace COM3D2.SceneEditor.Plugin
             DrawMaterialProperties(material, track);
         }
 
-        /// <summary>
-        /// マテリアル 1 件の色 / 数値プロパティを並べる。
-        /// 対象種別によらず中身は同じなので 3 系統で共用する
-        /// </summary>
+        /// <summary>マテリアル 1 件の色 / 数値プロパティを並べる</summary>
         private void DrawMaterialProperties(MTEP.ModelMaterial material, MaterialTrackTarget track)
         {
-            var defaultTrans = MTEP.TransformDataModelMaterial.defaultTrans;
-
+            // 区切り線とコンボ操作中の入力抑止はマテリアル選択行とセットのこのウィンドウ固有の
+            // 都合なので、共有ドロワー (MaterialPropertyRowsDrawer) には含めない
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
             view.SetEnabled(view.focusedComboBox == null);
 
-            var trackKey = track.isEnabled ? track.getKey(material) : null;
-
-            // 編集されたマテリアルは自動で追跡対象にする
-            Action markTracked = () =>
-            {
-                if (trackKey != null)
-                {
-                    track.getStore().Mark(trackKey);
-                }
-            };
-
             view.BeginScrollView();
             {
-                if (trackKey != null)
-                {
-                    var store = track.findStore();
-                    var isModified = store != null && store.IsModified(trackKey);
-
-                    // 変更追跡チェック。ON=タイムラインの表示とキー書き込みの対象。
-                    // 手動 OFF は「未編集へ戻す」操作なので値も初期値へ戻す
-                    Action<bool> onCheckChanged = newChecked =>
-                    {
-                        if (newChecked)
-                        {
-                            track.getStore().Mark(trackKey);
-                        }
-                        else
-                        {
-                            material.Reset();
-                            track.getStore().Unmark(trackKey);
-                        }
-                    };
-
-                    view.DrawTrackedLabel(isModified, onCheckChanged, material.displayName, -1, ROW_HEIGHT);
-                }
-
-                if (view.DrawButton("初期化", 80, ROW_HEIGHT))
-                {
-                    material.Reset();
-                    // 初期値へ戻したのだから追跡からも外す (チェック OFF と同じ意味)
-                    if (trackKey != null)
-                    {
-                        track.getStore().Unmark(trackKey);
-                    }
-                }
-
-                foreach (var propertyType in MTEP.ModelMaterial.ColorPropertyTypes)
-                {
-                    if (!material.HasColor(propertyType))
-                    {
-                        continue;
-                    }
-
-                    var color = material.GetColor(propertyType);
-                    var initialColor = material.GetInitialColor(propertyType);
-
-                    // ColorPickerWindow はラベル文字列で編集対象を同定するため、
-                    // 行ごとに一意なプロパティ名を渡す (空文字だと全行が「編集中」扱いになり、
-                    // ピッカーの反映先も最後の行へ化ける)。ラベル描画は DrawColor 内で行われる
-                    var cache = view.GetColorFieldCache(propertyType.ToString(), true);
-
-                    view.DrawColor(cache, color, initialColor,
-                        newColor =>
-                        {
-                            material.SetColor(propertyType, newColor);
-                            markTracked();
-                        });
-                }
-
-                foreach (var propertyType in MTEP.ModelMaterial.ValuePropertyTypes)
-                {
-                    if (!material.HasValue(propertyType))
-                    {
-                        continue;
-                    }
-
-                    var value = material.GetValue(propertyType);
-                    var initialValue = material.GetInitialValue(propertyType);
-                    var info = defaultTrans.GetCustomValueInfo(propertyType);
-
-                    // _OutlineWidth は 0.001 前後の極小値のため桁数を増やす
-                    var fieldType = propertyType == MTEP.ModelMaterial.ValuePropertyType._OutlineWidth
-                        ? FloatFieldType.F4
-                        : FloatFieldType.Float;
-
-                    view.DrawLabel($"{propertyType} ({info.name})", -1, ROW_HEIGHT);
-
-                    view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        fieldType = fieldType,
-                        width = -1,
-                        min = info.min,
-                        max = info.max,
-                        step = info.step,
-                        defaultValue = initialValue,
-                        value = value,
-                        onChanged = newValue =>
-                        {
-                            material.SetValue(propertyType, newValue);
-                            markTracked();
-                        },
-                    });
-                }
+                // 1 マテリアルしか出さないので接頭辞は不要
+                MaterialPropertyRowsDrawer.Draw(view, material, track, ROW_HEIGHT, null);
             }
             view.EndScrollView();
         }

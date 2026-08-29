@@ -233,7 +233,7 @@ Phase S2(モデル系):
 - [x] ModelTimelineLayer / BGModelTimelineLayer(モデル Transform / 逆方向あり: `Select(モデルGameObject)`)
 - [x] ModelBoneTimelineLayer(モデルボーン Transform / 共有元は BoneEditManager の差分ストア経由の編集 / 逆方向あり: ボーン GameObject 選択)
 - [x] ModelShapeKeyTimelineLayer(ブレンドシェイプ重み / ShapeKeyEditWindow `DrawModelContent` / 逆方向なし)
-- [ ] MaidMaterialTimelineLayer / ModelMaterialTimelineLayer / BGModelMaterialTimelineLayer(マテリアルプロパティ / MaterialEditWindow / 逆方向なし)
+- [x] MaidMaterialTimelineLayer / ModelMaterialTimelineLayer / BGModelMaterialTimelineLayer(マテリアルプロパティ / MaterialEditWindow / 逆方向なし)
 
 Phase S2 実機確認項目(loop 中に追記):
 
@@ -253,6 +253,12 @@ Phase S2 実機確認項目(loop 中に追記):
 - [ ] 追跡チェックを OFF にすると重みが 0 に戻る(ウィンドウ側と同じ挙動)
 - [ ] シェイプキーウィンドウのモデルタブ(一覧・検索)に退行が無い(抽出リファクタリングの確認)
 - [ ] 同名シェイプキー / 同名ボーンを持つモデルを複数選択しても、見出しのモデル名で行を区別できる
+- [ ] メイド / モデル / 背景モデルの各マテリアルレイヤーで項目を選択 → Inspector に色・数値プロパティが出て編集できる
+- [ ] 色ピッカーが行ごとに正しい対象へ反映される(複数マテリアルを同時選択したときも混ざらない。Inspector 側は色行のラベルにマテリアル名を付けてキーを一意化している)
+- [ ] 編集すると変更追跡チェックが自動で ON になり、マテリアルウィンドウの表示と一致する
+- [ ] 「初期化」ボタンで初期値へ戻り、追跡からも外れる
+- [ ] 背景モデルのマテリアルには追跡チェックが出ない(ウィンドウ側と同じ)
+- [ ] マテリアルウィンドウの 3 タブに退行が無い(抽出リファクタリングの確認)
 
 Phase S3(カメラ・ライト・背景):
 
