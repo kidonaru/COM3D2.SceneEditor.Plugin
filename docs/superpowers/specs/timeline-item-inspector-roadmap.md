@@ -62,6 +62,7 @@ public interface ITimelineItemInspector
 - 変更追跡チェック(`FaceEditManager` 等)・履歴(`HistoryManager`)・まばたき停止などの編集ロジックは行描画ヘルパー側に含めて抽出する。Inspector 経由の編集がウィンドウ経由と挙動差を持ってはならない
 - Inspector の横幅はウィンドウより狭い場合がある。抽出ヘルパーはラベル幅・スライダー幅を呼び出し側から調整できる形にする
 - 順方向でメニュー項目を選択したまま別レイヤーへ切り替えた場合、選択集合はレイヤーごとに独立しているため、ブリッジは「現在レイヤーの選択集合」だけを見る
+- **脱衣の MaskMode 非対称** (S1 で確認): 脱衣ウィンドウの `MaidUndressController.SetUndressed` は MaskMode (Nude 等) が効いていると個別マスクと干渉するため事前に `SetMaskMode(None)` するが、レイヤーの書き込み経路 `DressUtils.SetSlotVisible` にはその正規化が無い。Inspector はレイヤーと経路を揃える判断をしたため同じ制約を持つ。解消するならレイヤー側 (`DressUtils`) に入れるべきで、Inspector 単体では直さない
 
 ## 4. フェーズ分割
 
@@ -189,7 +190,7 @@ Phase S1(メイド系):
 
 - [x] EyesTimelineLayer(視線・瞳回転 / MaidFaceWindow 視線タブ / 逆方向なし)
 - [x] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
-- [ ] UndressTimelineLayer(スロット表示トグル / MaidUndressWindow `DrawCategoryList` / 逆方向なし)
+- [x] UndressTimelineLayer(スロット表示トグル / レイヤー固有: DressSlotID 単位のため脱衣ウィンドウの行とは非対応 / 逆方向なし)
 - [ ] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
 - [ ] DressTimelineLayer(簡易表示・レイヤー固有 / 逆方向なし)
 
@@ -208,6 +209,11 @@ Phase S1 実機確認項目(loop 中に追記):
 - [ ] 追跡チェックを OFF にすると重みが 0 に戻る(ウィンドウ側と同じ挙動)
 - [ ] 着替えなどで対象 morph を失ったシェイプキーは「(このメイドには存在しません)」表示になる
 - [ ] シェイプキーウィンドウの一覧表示・検索・更新ボタンに退行が無い(抽出リファクタリングの確認)
+- [ ] 脱衣レイヤーでスロット行を選択 → Inspector に表示トグルが出て切り替えられる
+- [ ] セット行(衣装 / 頭部衣装 / アクセ / めくれ)を選択 → 配下スロットのトグルがまとめて出る
+- [ ] 何も装着していないスロットのトグルが無効化されている
+- [ ] Inspector で切り替えた状態がそのままキーフレームに載る(脱衣ウィンドウのカテゴリ操作とは粒度が違う点の確認)
+- [ ] マスクモード(Nude 等)が有効なときの Inspector トグルの効き方(レイヤー再生時と同じ挙動になるか。差があれば MaskMode の扱いを再検討する)
 
 Phase S2(モデル系):
 

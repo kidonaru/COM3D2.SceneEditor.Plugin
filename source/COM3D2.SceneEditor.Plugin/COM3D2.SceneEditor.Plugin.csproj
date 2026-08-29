@@ -340,6 +340,7 @@
     <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MorphItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MotionItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
