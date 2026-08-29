@@ -473,6 +473,7 @@
     <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
+    <Compile Include="Timeline\TimelineLayerRowState.cs" />
     <Compile Include="Timeline\TimelineLayerXml.cs" />
     <Compile Include="Timeline\TimelineXml.cs" />
     <Compile Include="Timeline\TrackData.cs" />
