@@ -595,10 +595,8 @@ namespace COM3D2.SceneEditor.Plugin
             var frameHeight = tc.frameHeight;
             var halfFrameWidth = frameWidth * 0.5f;
 
-            var menuItems = boneMenuManager.GetVisibleItems();
-
             var contentWidth = timeline.maxFrameCount * frameWidth;
-            var contentHeight = menuItems.Count * frameHeight;
+            var contentHeight = _rows.Count * frameHeight;
             var viewWidth = _contentWidth - menuWidth;
             var viewHeight = timelineViewHeight;
             var scrollContentRect = new Rect(0, 0, contentWidth, contentHeight);
@@ -631,7 +629,7 @@ namespace COM3D2.SceneEditor.Plugin
             var bgColor = Color.white;
             bgColor.a = tc.timelineBgAlpha;
 
-            for (var i = 0; i < menuItems.Count; i += 2)
+            for (var i = 0; i < _rows.Count; i += 2)
             {
                 view.currentPos.y = i * frameHeight;
                 if (view.currentPos.y < scrollPosition.y - frameHeight * 2)
@@ -668,7 +666,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 選択中のメニュー背景表示
             view.currentPos.x = scrollPosition.x;
 
-            for (var i = 0; i < menuItems.Count; i++)
+            for (var i = 0; i < _rows.Count; i++)
             {
                 view.currentPos.y = i * frameHeight;
                 if (view.currentPos.y < scrollPosition.y ||
@@ -677,8 +675,21 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                var menuItem = menuItems[i];
-                if (menuItem.isSelectedMenu)
+                var row = _rows[i];
+
+                // カテゴリ行はドープシート側ではキーを持たない帯として塗る
+                if (row.isHeader)
+                {
+                    view.DrawTexture(
+                        texWhite,
+                        viewWidth,
+                        frameHeight,
+                        timelineLabelBgColor);
+                    continue;
+                }
+
+                // 選択ハイライトはアクティブレイヤーの行のみ
+                if (row.layer == timelineManager.currentLayer && row.menuItem.isSelectedMenu)
                 {
                     view.DrawTexture(
                         texWhite,
@@ -727,96 +738,128 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos.y = 0;
             view.DrawTexture(texWhite, 2, -1, Color.green);
 
-            // キーフレーム表示
-            var frames = currentLayer.keyFrames;
+            // キーフレーム表示。行リストを同一レイヤーの連続ブロックごとに走査する
             var adjustY = (frameHeight - frameWidth) / 2;
-            foreach (var frame in frames)
+            var blockStart = 0;
+            while (blockStart < _rows.Count)
             {
-                var frameNo = frame.frameNo;
-
-                view.currentPos.x = frameNo * frameWidth;
-                if (view.currentPos.x < scrollPosition.x ||
-                    view.currentPos.x > scrollPosition.x + viewWidth)
+                var blockLayer = _rows[blockStart].layer;
+                var blockEnd = blockStart;
+                while (blockEnd < _rows.Count && _rows[blockEnd].layer == blockLayer)
                 {
+                    blockEnd++;
+                }
+
+                // 折りたたみ中 (カテゴリ行のみでアイテム行なし) は keyFrames 走査ごとスキップする
+                if (blockEnd - blockStart == 1 && _rows[blockStart].isHeader)
+                {
+                    blockStart = blockEnd;
                     continue;
                 }
 
-                for (var i = 0; i < menuItems.Count; i++)
+                var isActiveLayer = blockLayer == timelineManager.currentLayer;
+
+                foreach (var frame in blockLayer.keyFrames)
                 {
-                    var menuItem = menuItems[i];
+                    var frameNo = frame.frameNo;
 
-                    view.currentPos.y = i * frameHeight + adjustY;
-                    if (view.currentPos.y < scrollPosition.y ||
-                        view.currentPos.y > scrollPosition.y + viewHeight - 20)
+                    view.currentPos.x = frameNo * frameWidth;
+                    if (view.currentPos.x < scrollPosition.x ||
+                        view.currentPos.x > scrollPosition.x + viewWidth)
                     {
                         continue;
                     }
 
-                    if (!menuItem.HasVisibleBone(frame))
+                    for (var i = blockStart; i < blockEnd; i++)
                     {
-                        continue;
-                    }
+                        var row = _rows[i];
+                        if (row.isHeader)
+                        {
+                            continue;
+                        }
 
-                    bool isSelected = menuItem.IsSelectedFrame(frame);
+                        var menuItem = row.menuItem;
 
-                    var keyFrameRect = new Rect(
-                            view.currentPos.x,
-                            view.currentPos.y,
+                        view.currentPos.y = i * frameHeight + adjustY;
+                        if (view.currentPos.y < scrollPosition.y ||
+                            view.currentPos.y > scrollPosition.y + viewHeight - 20)
+                        {
+                            continue;
+                        }
+
+                        if (!menuItem.HasVisibleBone(frame))
+                        {
+                            continue;
+                        }
+
+                        // 選択状態はアクティブレイヤーにしか存在しない
+                        bool isSelected = isActiveLayer && menuItem.IsSelectedFrame(frame);
+
+                        var keyFrameRect = new Rect(
+                                view.currentPos.x,
+                                view.currentPos.y,
+                                frameWidth,
+                                frameWidth);
+
+                        // エリア選択範囲内のキーフレームを選択 (アクティブレイヤーのみ)
+                        if (isActiveLayer && areaDragInfo.isDragging)
+                        {
+                            if (areaDragRect.Overlaps(keyFrameRect))
+                            {
+                                if (!isSelected)
+                                {
+                                    menuItem.SelectFrame(frame, true);
+                                }
+                            }
+                            else
+                            {
+                                if (isSelected && !isMultiSelect)
+                                {
+                                    menuItem.SelectFrame(frame, true);
+                                }
+                            }
+                        }
+
+                        // フレームのドラッグ開始。非アクティブレイヤーはまずアクティブ化してから選択する
+                        if (!areaDragInfo.isDragging && !frameDragInfo.isDragging)
+                        {
+                            view.InvokeActionOnDragStart(
+                                keyFrameRect,
+                                frameDragInfo,
+                                view.currentPos,
+                                newPos =>
+                                {
+                                    if (row.layer != timelineManager.currentLayer)
+                                    {
+                                        timelineManager.SetCurrentLayer(row.layer);
+                                    }
+                                    menuItem.SelectFrame(frame, isMultiSelect);
+                                    frameDragBoneData = timelineManager.selectedBones
+                                        .Where(bone => bone.frameNo == frameNo)
+                                        .FirstOrDefault();
+
+                                    // 消費しないと GUI.DragWindow が拾ってウィンドウごと動いてしまう
+                                    Event.current.Use();
+                                }
+                            );
+                        }
+
+                        var keyFrameColor = isSelected ? Color.red : Color.white;
+
+                        if (!menuItem.IsFullBones(frame))
+                        {
+                            keyFrameColor *= Color.gray;
+                        }
+
+                        view.DrawTexture(
+                            texKeyFrame,
                             frameWidth,
-                            frameWidth);
-
-                    // エリア選択範囲内のキーフレームを選択
-                    if (areaDragInfo.isDragging)
-                    {
-                        if (areaDragRect.Overlaps(keyFrameRect))
-                        {
-                            if (!isSelected)
-                            {
-                                menuItem.SelectFrame(frame, true);
-                            }
-                        }
-                        else
-                        {
-                            if (isSelected && !isMultiSelect)
-                            {
-                                menuItem.SelectFrame(frame, true);
-                            }
-                        }
+                            frameWidth,
+                            keyFrameColor);
                     }
-
-                    // フレームのドラッグ開始
-                    if (!areaDragInfo.isDragging && !frameDragInfo.isDragging)
-                    {
-                        view.InvokeActionOnDragStart(
-                            keyFrameRect,
-                            frameDragInfo,
-                            view.currentPos,
-                            newPos =>
-                            {
-                                menuItem.SelectFrame(frame, isMultiSelect);
-                                frameDragBoneData = timelineManager.selectedBones
-                                    .Where(bone => bone.frameNo == frameNo)
-                                    .FirstOrDefault();
-
-                                // 消費しないと GUI.DragWindow が拾ってウィンドウごと動いてしまう
-                                Event.current.Use();
-                            }
-                        );
-                    }
-
-                    var keyFrameColor = isSelected ? Color.red : Color.white;
-
-                    if (!menuItem.IsFullBones(frame))
-                    {
-                        keyFrameColor *= Color.gray;
-                    }
-
-                    view.DrawTexture(
-                        texKeyFrame,
-                        frameWidth,
-                        frameWidth,
-                        keyFrameColor);
                 }
+
+                blockStart = blockEnd;
             }
 
             // フレームのドラッグ中処理
