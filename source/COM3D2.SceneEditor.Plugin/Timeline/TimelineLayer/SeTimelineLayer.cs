@@ -68,8 +68,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 ApplyPlayData();
             }
-
-            UpdateSe();
         }
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
@@ -77,54 +75,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (indexUpdated)
             {
                 var start = motion.start as TransformDataSe;
-                PlaySe(start.fileName, start.interval, start.isLoop);
-            }
-        }
-
-        private string _currentSeName = "";
-        private float _currentInterval = 0f;
-        private bool _currentIsLoop = false;
-        private float _currentTime = 0f;
-
-        private void PlaySe(string fileName, float interval, bool isLoop)
-        {
-            if (fileName == "")
-            {
-                seManager.StopSe();
-            }
-            else
-            {
-                seManager.PlaySe(fileName, isLoop);
-            }
-
-            _currentSeName = fileName;
-            _currentInterval = interval;
-            _currentIsLoop = isLoop;
-            _currentTime = 0f;
-        }
-
-        /// <summary>再生間隔が指定されている非ループ SE を一定間隔で鳴らし直す</summary>
-        private void UpdateSe()
-        {
-            if (_currentSeName == "" || _currentInterval <= 0f || _currentIsLoop)
-            {
-                return;
-            }
-
-            _currentTime += Time.deltaTime;
-            if (_currentTime >= _currentInterval)
-            {
-                seManager.PlaySe(_currentSeName, _currentIsLoop);
-                _currentTime = 0f;
+                seManager.PlaySe(start.fileName, start.interval, start.isLoop);
             }
         }
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
             var trans = frame.GetOrCreateTransformData<TransformDataSe>(SeBoneName);
-            trans.fileName = _currentSeName;
-            trans.interval = _currentInterval;
-            trans.isLoop = _currentIsLoop;
+            trans.fileName = seManager.currentSeName;
+            trans.interval = seManager.currentInterval;
+            trans.isLoop = seManager.currentIsLoop;
         }
 
         // DCM 連携は未移植のため出力しない
@@ -170,13 +130,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var updated = false;
 
             _seNameComboBox.items = _seNames;
-            if (_seNameComboBox.currentItem != _currentSeName)
+            if (_seNameComboBox.currentItem != seManager.currentSeName)
             {
-                _seNameComboBox.currentIndex = _seNameComboBox.items.IndexOf(_currentSeName);
+                _seNameComboBox.currentIndex = _seNameComboBox.items.IndexOf(seManager.currentSeName);
             }
             _seNameComboBox.onSelected = (seName, _) =>
             {
-                _currentSeName = seName;
+                seManager.currentSeName = seName;
                 updated = true;
             };
 
@@ -191,13 +151,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     max = config.voiceMaxLength,
                     step = 0.01f,
                     defaultValue = 0f,
-                    value = _currentInterval,
-                    onChanged = value => _currentInterval = value,
+                    value = seManager.currentInterval,
+                    onChanged = value => seManager.currentInterval = value,
                 });
 
-            view.DrawToggle("ループ", _currentIsLoop, 80, 20, newValue =>
+            view.DrawToggle("ループ", seManager.currentIsLoop, 80, 20, newValue =>
             {
-                _currentIsLoop = newValue;
+                seManager.currentIsLoop = newValue;
                 updated = true;
             });
 
@@ -210,7 +170,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 if (view.DrawButton("初期化", 100, 20))
                 {
-                    PlaySe("", 0f, false);
+                    seManager.PlaySe("", 0f, false);
                 }
             }
             view.EndLayout();
@@ -218,7 +178,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (updated)
             {
                 seManager.StopSe();
-                PlaySe(_currentSeName, _currentInterval, _currentIsLoop);
+                seManager.PlaySe(seManager.currentSeName, seManager.currentInterval, seManager.currentIsLoop);
             }
         }
 

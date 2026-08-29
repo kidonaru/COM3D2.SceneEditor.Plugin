@@ -75,5 +75,47 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             GameMain.Instance.SoundMgr.StopSe();
         }
+
+        // 現在編集・再生中の SE 状態。ウィンドウとレイヤー (キー書き込み) が共有する
+        public string currentSeName = "";
+        public float currentInterval = 0f;
+        public bool currentIsLoop = false;
+        private float _currentTime = 0f;
+
+        /// <summary>SE を再生し、間欠再生用の現在状態を更新する</summary>
+        public void PlaySe(string fileName, float interval, bool isLoop)
+        {
+            if (fileName == "")
+            {
+                StopSe();
+            }
+            else
+            {
+                PlaySe(fileName, isLoop);
+            }
+
+            currentSeName = fileName;
+            currentInterval = interval;
+            currentIsLoop = isLoop;
+            _currentTime = 0f;
+        }
+
+        /// <summary>再生間隔が指定されている非ループ SE を一定間隔で鳴らし直す</summary>
+        public override void Update()
+        {
+            base.Update();
+
+            if (currentSeName == "" || currentInterval <= 0f || currentIsLoop)
+            {
+                return;
+            }
+
+            _currentTime += UnityEngine.Time.deltaTime;
+            if (_currentTime >= currentInterval)
+            {
+                PlaySe(currentSeName, currentIsLoop);
+                _currentTime = 0f;
+            }
+        }
     }
 }
