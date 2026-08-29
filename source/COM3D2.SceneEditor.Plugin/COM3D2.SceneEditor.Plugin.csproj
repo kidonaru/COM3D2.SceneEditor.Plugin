@@ -159,6 +159,7 @@
     <Compile Include="MTEUtils\NaturalStringComparer.cs" />
     <Compile Include="MTEUtils\ResizeCursor.cs" />
     <Compile Include="MTEUtils\TabBarDrawer.cs" />
+    <Compile Include="MTEUtils\TabBarLayout.cs" />
     <Compile Include="MTEUtils\TexturePickerWindow.cs" />
     <Compile Include="MTEUtils\TextureUtils.cs" />
     <Compile Include="MTEUtils\TransformCache.cs" />
