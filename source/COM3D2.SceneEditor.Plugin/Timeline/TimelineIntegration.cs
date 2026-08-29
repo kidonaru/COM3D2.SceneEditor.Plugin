@@ -261,6 +261,8 @@ namespace COM3D2.SceneEditor.Plugin
             // メニュー項目選択 → Inspector 表示のプロバイダ (spec: timeline-item-inspector-roadmap.md)
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.MorphTimelineLayer), new MorphItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.MotionTimelineLayer), new MotionItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,

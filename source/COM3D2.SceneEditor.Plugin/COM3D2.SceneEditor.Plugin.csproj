@@ -336,6 +336,7 @@
     <Compile Include="Timeline\BoneData.cs" />
     <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MorphItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\MotionItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
