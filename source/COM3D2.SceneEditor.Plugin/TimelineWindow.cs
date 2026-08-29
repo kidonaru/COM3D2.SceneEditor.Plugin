@@ -527,8 +527,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (editEnabled)
             {
-                // レイヤーの追加・削除は必ず数の変化を伴うため、Prune は数が変わったときだけで足りる
-                // (同一フレームでの入れ替えで数が同じ場合、残った死に参照は layers に無いので描画されず無害)
+                // レイヤーの追加・削除は必ず数の変化を伴うため、Prune は数が変わったときだけで足りる。
+                // 同一フレームで削除と追加が同数起きた場合は死に参照が残るが、layers に無いので
+                // 誤描画はしない (掃除されるまで表示状態集合が旧インスタンスを参照し続ける点のみ許容)
                 if (timelineManager.layers.Count != _lastLayerCount)
                 {
                     _lastLayerCount = timelineManager.layers.Count;
@@ -738,7 +739,9 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos.y = 0;
             view.DrawTexture(texWhite, 2, -1, Color.green);
 
-            // キーフレーム表示。行リストを同一レイヤーの連続ブロックごとに走査する
+            // キーフレーム表示。行リストを同一レイヤーの連続ブロックごとに走査する。
+            // ループ内の SetCurrentLayer で描画途中にアクティブが変わると、そのフレームは
+            // 処理済みブロックだけ旧アクティブ基準の色のままになるが、次フレームで収束する
             var adjustY = (frameHeight - frameWidth) / 2;
             var blockStart = 0;
             while (blockStart < _rows.Count)
@@ -801,7 +804,7 @@ namespace COM3D2.SceneEditor.Plugin
                                 frameWidth,
                                 frameWidth);
 
-                        // エリア選択範囲内のキーフレームを選択 (アクティブレイヤーのみ)
+                        // エリア選択範囲内のキーフレームを選択
                         if (isActiveLayer && areaDragInfo.isDragging)
                         {
                             if (areaDragRect.Overlaps(keyFrameRect))

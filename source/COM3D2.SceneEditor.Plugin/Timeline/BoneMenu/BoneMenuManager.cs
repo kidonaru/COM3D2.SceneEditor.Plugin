@@ -54,27 +54,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             _visibleItems.Clear();
-
-            foreach (var setMenuItem in allMenuItems)
-            {
-                if (setMenuItem.isVisibleMenu)
-                {
-                    _visibleItems.Add(setMenuItem);
-                }
-
-                if (setMenuItem.children == null)
-                {
-                    continue;
-                }
-
-                foreach (var menuItem in setMenuItem.children)
-                {
-                    if (menuItem.isVisibleMenu)
-                    {
-                        _visibleItems.Add(menuItem);
-                    }
-                }
-            }
+            CollectVisibleItems(allMenuItems, _visibleItems);
             return _visibleItems;
         }
 
@@ -84,7 +64,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public void GetVisibleItems(ITimelineLayer layer, List<IBoneMenuItem> result)
         {
-            foreach (var setMenuItem in layer.allMenuItems)
+            CollectVisibleItems(layer.allMenuItems, result);
+        }
+
+        /// <summary>ボーンセットとその子から可視項目だけを result へ追記する</summary>
+        private static void CollectVisibleItems(
+            List<IBoneMenuItem> source, List<IBoneMenuItem> result)
+        {
+            foreach (var setMenuItem in source)
             {
                 if (setMenuItem.isVisibleMenu)
                 {
