@@ -69,6 +69,38 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(0, r2.firstDrawIndex);
         }
 
+        // アクティブ化時の寄せ: 見えているなら動かさない
+        [Fact]
+        public void ScrollToShowKeepsPositionWhenVisible()
+        {
+            // 窓は [70, 334]。index 3 は [186, 246] なので全部見えている
+            Assert.Equal(70f, TabBarLayout.ScrollToShow(8, 300f, 70f, 3));
+        }
+
+        // 左へ隠れているタブは左端を合わせる
+        [Fact]
+        public void ScrollToShowMovesLeftWhenClipped()
+        {
+            Assert.Equal(0f, TabBarLayout.ScrollToShow(8, 300f, 70f, 0));
+            // index 1 は [62, 122]。scrollX 70 だと左が 8px 欠けるので 62 まで戻す
+            Assert.Equal(STEP, TabBarLayout.ScrollToShow(8, 300f, 70f, 1));
+        }
+
+        // 右へはみ出しているタブは右端を合わせる
+        [Fact]
+        public void ScrollToShowMovesRightWhenClipped()
+        {
+            // index 5 は [310, 370]。窓 [0, 264] からはみ出すので 370-264 まで送る
+            Assert.Equal(370f - SCROLL_AREA_WIDTH, TabBarLayout.ScrollToShow(8, 300f, 0f, 5));
+        }
+
+        // 全部収まっているときは寄せる必要がない
+        [Fact]
+        public void ScrollToShowIsNoOpWithoutScroll()
+        {
+            Assert.Equal(0f, TabBarLayout.ScrollToShow(3, 300f, 0f, 2));
+        }
+
         [Fact]
         public void EmptyDrawsNothing()
         {

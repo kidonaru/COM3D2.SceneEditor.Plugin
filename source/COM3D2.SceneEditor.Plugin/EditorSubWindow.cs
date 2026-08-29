@@ -85,14 +85,26 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void SetTabBarState(string[] titles, int activeIndex)
         {
+            var activeChanged = activeIndex != _tabActiveIndex;
             _tabTitles = titles;
             _tabActiveIndex = activeIndex;
+
             if (titles == null)
             {
                 // グループ離脱時は次回加入へスクロール位置を持ち越さない。
                 // タブバーを描かなくなるとメニューを閉じる機会も失うのでここで閉じる
                 _tabScrollX = 0f;
                 TabBarDrawer.CloseContextMenu(windowId);
+                return;
+            }
+
+            if (activeChanged)
+            {
+                // アクティブになったタブが見切れていたら見える位置まで寄せる
+                // (収まっているならスクロール位置は動かさない)
+                _tabScrollX = TabBarLayout.ScrollToShow(
+                    titles.Length, TabBarLayout.CalcAvailableWidth(_windowRect.width),
+                    _tabScrollX, activeIndex);
             }
         }
 
