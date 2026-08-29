@@ -14,7 +14,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class SoundWindow : MaidWindowBase
     {
-        public static readonly int WINDOW_ID = 8903392;
+        // 統合前の BGM ウィンドウの ID を引き継ぐ。ロック状態は ID 単位で永続化されるため
+        public static readonly int WINDOW_ID = 8903374;
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "サウンド";
