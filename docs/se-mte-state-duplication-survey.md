@@ -132,7 +132,7 @@ D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実
 
 - [x] D-3: `TimelineFaceManager.SetMabatakiOff` の `boMabataki` 直書きをやめ、`MaidFaceMorphController.SetMabataki` を唯一の書き手にする。表情レイヤー有効中は SE トグルを無効化する親スイッチ設計(A-1b と同じ形)を含む
 - [x] D-5: `MoveTimelineLayer` の `maid.transform` 直書きを SE の配置系(`MaidVisibilityController` の退避・`SetRestorePosition`)と調停する。退避中メイドの引き戻し・退避座標 `(100,0,0)` のキー焼き込みを防ぐ
-- [ ] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
+- [x] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
 - [ ] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
 - [ ] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
 - [ ] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する(軽度。実害が確認できなければ現状維持の判断も可)
@@ -316,7 +316,21 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - **対象外**: `TimelineManager.OnPoseEditUpdated/End` と `MotionTimelineLayer` にある transform 退避・復元は「自分で保存した値を戻す」対称ペアで、SE 状態との奪い合いではない
 - 新規ロジックは `Maid`/マネージャ依存のため単体テストは追加していない(A-2 と同じ判断)
 
+### D-4 の実装メモ(モーション再生状態の整合)
+
+「停止の真実」の食い違いを、SE 側の再生中判定の精緻化と、MTE の停止・シーク経路からの SE 後始末呼び出しで解消した。
+
+- **`MaidMotionState.IsPlaying` を「実際に動いているか」に精緻化**: タイムラインの一時停止は `AnimationState.enabled` のまま `speed=0` にする方式で、`Animation.isPlaying` は true のままになる。再生中クリップの `speed > 0` を見ることで、タイムライン停止後に SE が「再生中」と誤認してポーズ編集(ボーンスライダー・停止ボタン)を塞ぐ症状を解消。SE 自身の停止(`anim.Stop()`)の判定は従来どおり
+- **`CaptureBasePose` の呼び直しを MTE 経路へ追加**: `MaidCache.isAnmPlaying` の停止側(speed=0)と、`motionSliderRate` の停止・一時停止中シークの後で、SE のボーンスライダー基準を取り直す(SE の `StopMotion` / `SetPlaybackTime` と同じ後始末)。`CaptureBasePose` は毎フレーム呼び出し前提の設計(既存辞書を使い回す)で、シークドラッグ中の連続呼び出しも問題ない
+- **`MaidCache` の `AnimationState` 直書き(速度・時刻・enabled)自体は撤去しない**: タイムライン再生機構の中核で、SE の `MaidMotionState` はゲーム側モーション(クリップ名ベース)の停止・再開・リセットを担う別レイヤー。共有する状態は「今動いているか」と「ボーンスライダーの基準」だけで、そこだけを接続した
+- **停止記録(`_resetClipNames`)とタイムライン再生の相互作用は現状維持**: MTE は再生前に `SceneEditorHack.isAnmEnabled`(委譲済み)経由で SE の停止を解除して再生する既存経路があり、タイムラインの anm 差し替え(`PlayAnm`)が SE の記録を勝手に消すことはしない
+- 新規ロジックは `Animation`/`Maid` 依存のため単体テストは追加していない(A-2 と同じ判断)
+
 ### 実機確認項目(loop 中に追記)
+
+- D-4: タイムラインを再生→一時停止した直後、SE のポーズウィンドウの再生ボタンが「■(再生中)」のままにならず、ボーンスライダーが操作できること。スライダー操作の起点が停止時のポーズになっている(ポーズが飛ばない)こと
+- D-4: タイムライン停止中にフレームをシークした後、ボーンスライダーを操作してもシーク前のポーズへ飛ばないこと
+- D-4: SE 側のモーション停止・再生・リセット(ポーズウィンドウ)が従来どおり動くこと
 
 - D-5: メイドを非表示にしたままメイド移動レイヤー入りタイムラインを再生しても、メイドが画面に現れないこと。再表示すると再生位置(タイムラインの最新の位置)に出ること
 - D-5: 非表示中にキーを打っても退避座標 `(100,0,0)` ではなく見かけの位置が記録されること

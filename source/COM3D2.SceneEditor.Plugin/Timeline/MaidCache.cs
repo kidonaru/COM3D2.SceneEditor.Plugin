@@ -100,6 +100,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         animation.Sample();
                         animationState.enabled = false;
                     }
+
+                    if (!isAnmEnabled || animationState.speed == 0f)
+                    {
+                        // 停止・一時停止中のシークはポーズを確定的に変えるため、
+                        // SE のボーンスライダーの基準を取り直す (SE の SetPlaybackTime と同じ)
+                        SEP.MaidBoneSliderController.CaptureBasePose(maid);
+                    }
                 }
             }
         }
@@ -174,6 +181,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 else
                 {
                     anmSpeed = 0f;
+                    // 停止直後のポーズを SE のボーンスライダーの基準に取り直す
+                    // (SE の StopMotion と同じ後始末。speed=0 停止は SE の停止経路を通らない)
+                    SEP.MaidBoneSliderController.CaptureBasePose(maid);
                 }
             }
         }
