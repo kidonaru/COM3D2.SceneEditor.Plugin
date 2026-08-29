@@ -178,7 +178,7 @@ namespace COM3D2.SceneEditor.Plugin
             return sub ? prevBone.transform.subEulerAngles : prevBone.transform.eulerAngles;
         }
 
-        private readonly GUIComboBox<StageLightController> _controllerComboBox = new GUIComboBox<StageLightController>
+        private readonly GUIComboBox<StageLightController> _lightControllerComboBox = new GUIComboBox<StageLightController>
         {
             getName = (light, index) => light.displayName,
             labelWidth = 70,
@@ -266,10 +266,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _controllerComboBox.items = controllers;
-            _controllerComboBox.DrawButton("操作対象", view);
+            _lightControllerComboBox.items = controllers;
+            _lightControllerComboBox.DrawButton("操作対象", view);
 
-            var controller = _controllerComboBox.currentItem;
+            var controller = _lightControllerComboBox.currentItem;
             if (controller == null)
             {
                 view.DrawLabel("コントローラーを選択してください", 200, 20);
@@ -519,10 +519,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _controllerComboBox.items = controllers;
-            _controllerComboBox.DrawButton("操作対象", view);
+            _lightControllerComboBox.items = controllers;
+            _lightControllerComboBox.DrawButton("操作対象", view);
 
-            var controller = _controllerComboBox.currentItem;
+            var controller = _lightControllerComboBox.currentItem;
             if (controller == null)
             {
                 view.DrawLabel("コントローラーを選択してください", 200, 20);

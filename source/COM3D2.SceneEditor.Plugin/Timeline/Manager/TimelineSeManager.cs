@@ -100,6 +100,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _currentTime = 0f;
         }
 
+        /// <summary>
+        /// タイムラインの作成・読込で再生状態を初期化する。
+        /// 旧実装ではレイヤーが作り直されるたびに状態が消えていたため、
+        /// マネージャへ移管した現在は明示的に戻さないと前のタイムラインの SE が鳴り続ける
+        /// </summary>
+        public override void OnLoad()
+        {
+            base.OnLoad();
+
+            PlaySe("", 0f, false);
+        }
+
         /// <summary>再生間隔が指定されている非ループ SE を一定間隔で鳴らし直す</summary>
         public override void Update()
         {

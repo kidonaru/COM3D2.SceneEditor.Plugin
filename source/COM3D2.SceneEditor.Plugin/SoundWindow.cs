@@ -213,8 +213,12 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (seName, index) => seName,
         };
 
+        /// <summary>_seNames を構築した時点のタイムライン。切替の検出用に実体で持つ</summary>
+        private MTEP.TimelineData _seNamesTimeline = null;
+
         private void UpdateSeNames(MTEP.TimelineData timeline)
         {
+            _seNamesTimeline = timeline;
             _seNames.Clear();
             _seNames.AddRange(timeline.additionalSeNames);
             _seNames.AddRange(seManager.seNames);
@@ -226,8 +230,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             var updated = false;
 
-            // 追加 SE はタイムラインの切替・編集で増減するため、件数が変わったら引き直す
-            if (_seNames.Count != timeline.additionalSeNames.Count + seManager.seNames.Count)
+            // 追加 SE はタイムラインごとの内容。切替時と件数の増減時に引き直す
+            if (_seNamesTimeline != timeline ||
+                _seNames.Count != timeline.additionalSeNames.Count + seManager.seNames.Count)
             {
                 UpdateSeNames(timeline);
             }
