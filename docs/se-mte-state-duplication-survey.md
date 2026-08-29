@@ -34,7 +34,7 @@ MTE 移植で採用されている正しいパターンは **アダプタ化** �
 |---|---|---|
 | B-1 | **Config が 2 ファイル** | `Config.cs`（`SceneEditor.xml`）と `Timeline/Config.cs`（`Timeline.xml`）。**フィールド名が重複しているのは 13 個**: `pluginEnabled` / `historyLimit` / `keyRepeatTime` / `keyRepeatTimeFirst` / `useHSVColor` / `windowHoverColor` / `gridCountInWorld` / `gridAlphaInWorld` / `gridLineWidthInWorld` / `gridCellSize` / `gridColorInWorld` / `gridColorInDisplay` / `dirty`。うち grid 系・`windowHoverColor`・`pluginEnabled` の読み手は **すべて SE 側**（`GridRenderer` / `SettingWindow` / `COM3D2.SceneEditor.Plugin.cs`）で、MTE 側の同名フィールドは死んでいる。**`keyRepeat*` は誤り（B-1 で判明）**: `Timeline/Config.GetKeyDownRepeat` が読んでおり、タイムラインのフレーム送りで現役だった |
 | B-2 | **「色をHSVで指定」トグルが無効** | `TimelineSettingWindow`（:891）は `timelineConfig.useHSVColor` を書くが、実際に参照されるのは `GUIView.option.useHSVColor` ←`COM3D2.SceneEditor.Plugin.cs:14-19` 経由の **SE 側** `config.useHSVColor`。タイムライン設定側のトグルは押しても何も起きない |
-| B-3 | **Undo/Redo が 2 系統** | SE の `HistoryManager`（Ctrl+Z、`HistoryWindow`、`historyLimit`）と MTE の `TimelineHistoryManager`（TimelineXml のスナップショット、`Timeline/Config.historyLimit`）。**MTE 側は UI に接続されておらず `Undo()` / `Redo()` の呼び出し元が無い** — 履歴を積むだけのメモリ消費になっている。`TimelineSettingWindow`「ポーズ履歴無効」（:865）だけがその存在を露出している |
+| B-3 | **Undo/Redo が 2 系統** | SE の `HistoryManager`（Ctrl+Z、`HistoryWindow`、`historyLimit`）と MTE の `TimelineHistoryManager`（TimelineXml のスナップショット、`Timeline/Config.historyLimit`）。**調査時の記述は不正確（B-3 で判明）**。SE の `HistoryManager` への統合は `TimelineHistoryEntry` 経由で既に済んでおり、Ctrl+Z も履歴ウィンドウもそこを通る。死んでいたのは MTE が並行して積んでいた**もう一本の履歴スタック**（`historyList` に `TimelineXml` を溜めるが `Undo()` / `Redo()` に呼び出し元が無い）の方 |
 | B-4 | **BGM の入口が 2 箇所** | `SoundWindow` の BGM タブ（`BgmUtils`、ゲーム内蔵 BGM の再生）と `TimelineSettingWindow` の BGM 設定（`BGMManager`、外部音声ファイルをタイムライン同期再生）。音源が違うので機能は別だが、UI 上は「BGM」が 2 箇所にあり同時再生の調停も無い |
 | B-5 | **シーン状態の永続化が 2 系統** | `ScenePresetData`（camera / background / light / undress / gravity / png / IK / boneEdit / slotYure / morph / material / modelShapeKey / look / motion）と `TimelineXml`。ほぼ同じ状態空間を別スキーマで保存する。静的プリセット vs アニメーションという役割分担自体は妥当だが、**片方にしか無い項目が実害を生む**（B-6） |
 | B-6 | **シーンプリセットがタイムライン視線を保存しない**（A-1c で解消済み） | `ScenePresetLook`（ScenePresetData.cs:448-484）は `MaidLookMode` / `lookX/Y` / `boHeadToCam` / `boEyeToCam` / 注視対象しか持たない。A-1 の MTE 側状態（`lookAtTargetType` / `eyeEulerAngle`）はプリセットに入らないため、保存→ロードで消える |
@@ -108,7 +108,7 @@ B 分類(二重管理の整理):
 
 - [x] B-1: `Timeline/Config.cs` の読み手が無い重複フィールド(grid 系 / `windowHoverColor` / `keyRepeat*` 等 13 個のうち死んでいるもの)を削除する。あわせて `Timeline.xml` の後方互換(未知フィールドの読み飛ばし)を確認する
 - [x] B-2: `TimelineSettingWindow` の「色をHSVで指定」トグルを SE 側 `config.useHSVColor` へ接続するか、トグル自体を撤去する(SE の設定ウィンドウに同項目があるなら撤去を優先)
-- [ ] B-3: `TimelineHistoryManager` を撤去する(`Timeline/IKHoldEntity.cs` 撤去と同じ扱い。`TimelineSettingWindow`「ポーズ履歴無効」も併せて整理)。調査の結果 SE の `HistoryManager` へ統合できる見込みが立つならそちらを優先し、判断理由を本書へ追記する
+- [x] B-3: `TimelineHistoryManager` を撤去する(`Timeline/IKHoldEntity.cs` 撤去と同じ扱い。`TimelineSettingWindow`「ポーズ履歴無効」も併せて整理)。調査の結果 SE の `HistoryManager` へ統合できる見込みが立つならそちらを優先し、判断理由を本書へ追記する
 
 B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は音源が別で機能が異なり、B-5 は静的プリセット vs アニメーションの役割分担が妥当なため、本 loop では扱わない。
 
@@ -216,12 +216,23 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **接続ではなく撤去を選んだ理由**: SE の設定ウィンドウには同項目が無いが、`MTEUtils/ColorPickerWindow` のカラーピッカー内に RGB/HSV を切り替えるボタンがあり、そこが `GUIView.option.useHSVColor`(= SE 側 `config.useHSVColor`)を読み書きしている。使う場所に生きた導線があるため、設定ウィンドウ側の入口は要らない
 - `docs-site/guide/configuration.md` の `useHSVColor` は `SceneEditor.xml` の項目(SE 側)の説明なので、そのまま残す
 
+### B-3 の実装メモ
+
+**調査時の記述は不正確だった**。SE の `HistoryManager` への統合は `Timeline/TimelineHistoryEntry.cs`(before/after の `TimelineXml` を持つ `IHistoryEntry`)経由で既に済んでおり、`AddHistory` はそこへエントリを積んでいた。死んでいたのは MTE が並行して積んでいたもう一本の履歴スタックの方で、そこだけを撤去した。B 表の該当行も訂正済み。
+
+- **撤去したもの**: `historyList` / `historyIndex` / `historyListInv` / `Undo` / `Redo` / `RestoreHistory` / `TimelineHistoryData`、および読み手が無くなった `Timeline/Config.historyLimit`
+- **残したもの**: `lastCommittedXml`(積むエントリの before)と `AddHistory` / `ClearHistory`。クラスの責務は「SE 履歴への橋渡し」だけになった
+- **仕様変更**: `Timeline.xml` の `historyLimit` を 0 にしてタイムライン操作だけ履歴から外す、という使い方はできなくなった。履歴の有効・無効は SE の設定(`SceneEditor.xml` の `historyLimit`、設定ウィンドウから編集可)に一本化される。この項目は UI に接続されておらず、XML を直接編集した場合にのみ効いていた
+- **「ポーズ履歴無効」は対象外**: `Config.disablePoseHistory` は別フィールドで、ポーズ編集中の履歴登録を抑える現役の設定(`TimelineManager` が参照)
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- B-3: タイムラインを編集して Ctrl+Z / 履歴ウィンドウで元に戻せること、カーブエディタの操作も履歴に乗ること
+- B-3: `SceneEditor.xml` の `historyLimit` を 0 にすると、タイムライン操作も履歴に積まれなくなること
 - B-2: タイムライン設定から「色をHSVで指定」が消えていること、カラーピッカーの RGB/HSV 切り替えボタンは従来どおり効き、`SceneEditor.xml` に保存されること
 - B-1: `SceneEditor.xml` の `keyRepeatTime` / `keyRepeatTimeFirst` を変更すると、タイムラインのフレーム送り(←→ キー長押し)のリピート間隔にも反映されること
 - B-1: 既存の `Timeline.xml` を読んでも他の設定が既定へ戻らないこと

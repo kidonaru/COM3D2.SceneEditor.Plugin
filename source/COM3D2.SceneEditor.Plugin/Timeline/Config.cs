@@ -71,7 +71,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float positionRange = 5.0f;
         public float voiceMaxLength = 20.0f;
         public bool disablePoseHistory = true;
-        public int historyLimit = 20;
         public string videoShaderName = "CM3D2/Unlit_Texture_Photo_MyObject";
         public bool dofHighResolution = false;
         public bool dofNearBlur = false;

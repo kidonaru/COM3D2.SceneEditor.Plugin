@@ -31,6 +31,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 + "<windowHoverColor><r>1</r><g>0</g><b>0</b><a>1</a></windowHoverColor>"
                 + "<historyLimit>50</historyLimit>"
                 + "<voiceMaxLength>12.5</voiceMaxLength>"
+                + "<detailTransformCount>8</detailTransformCount>"
                 + "</Config>";
 
             var serializer = new XmlSerializer(typeof(MTEP.Config));
@@ -38,8 +39,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 var config = (MTEP.Config) serializer.Deserialize(reader);
 
-                Assert.Equal(50, config.historyLimit);
                 Assert.Equal(12.5f, config.voiceMaxLength);
+                Assert.Equal(8, config.detailTransformCount);
             }
         }
     }
