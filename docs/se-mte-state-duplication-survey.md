@@ -135,7 +135,7 @@ D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実
 - [x] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
 - [x] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
 - [x] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
-- [ ] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する(軽度。実害が確認できなければ現状維持の判断も可)
+- [x] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する → **調査の結果、現状維持で確定**(下記実装メモ参照)
 - [ ] D-7: 視線の「向け先」「注視先」の概念統合(キー化の有無で意味が変わらない共通の注視先表現の設計)。UI を 1 系統へ畳む設計判断が要るため最後
 
 B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は音源が別で機能が異なり、B-5 は静的プリセット vs アニメーションの役割分担が妥当なため、本 loop では扱わない。
@@ -346,6 +346,14 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - **削除・残置**: `MotionTimelineLayer` の `GetBaseFinger` 系 3 メソッドを撤去。`MTEUtils/Extensions` の `FingerBlend` 向けリフレクション拡張(`SetValueOpenOnly` 等)は呼び出し元が無くなったが、MTEUtils は逐語コピー方針のため残置
 - **ゲームの IKManager 生成(`PoseEditWindow.GetMaidIKManager`)は残る**: `MaidCache.ikManager` は IK ドラッグ等で現役。指ブレンドだけが SE 経路へ移った
 - 新規ロジックはボーン/ゲーム型依存のため単体テストは追加していない(A-2 と同じ判断)
+
+### D-6 の判断メモ(メインカメラ・現状維持で確定)
+
+調査の結果、**状態の二重化は存在しない**と確認し、現状維持で確定した。
+
+- `CameraWindow` はステートレスで、`CameraMain.GetTargetPos/SetTargetPos` 等を読み書きするだけ。`CameraMain` は内部で `UltimateOrbitCamera` へ委譲しており、`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩きと**同じ実体**へ到達する
+- ロールも両者とも同じ `Camera` transform(`SetRotationZ` 拡張)を書き、SE 側にロールの持ち分は無い
+- つまり「2 つの API 表面が 1 つのゲーム状態を指す」だけで、A-1〜D-5 のような影の状態・上書き経路は無い。奪い合いは「再生中にカメラウィンドウを操作すると再生値に負ける」だが、これはタイムラインの再生が値を駆動する以上避けられない仕様で、他レイヤー(移動等)と同じ振る舞い
 
 ### 実機確認項目(loop 中に追記)
 
