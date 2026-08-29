@@ -134,7 +134,7 @@ D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実
 - [x] D-5: `MoveTimelineLayer` の `maid.transform` 直書きを SE の配置系(`MaidVisibilityController` の退避・`SetRestorePosition`)と調停する。退避中メイドの引き戻し・退避座標 `(100,0,0)` のキー焼き込みを防ぐ
 - [x] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
 - [x] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
-- [ ] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
+- [x] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
 - [ ] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する(軽度。実害が確認できなければ現状維持の判断も可)
 - [ ] D-7: 視線の「向け先」「注視先」の概念統合(キー化の有無で意味が変わらない共通の注視先表現の設計)。UI を 1 系統へ畳む設計判断が要るため最後
 
@@ -335,7 +335,24 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - **片側のみの要素は現状維持**: SE の衣装タイプ(めくれ等は `MaidCostumeChangeController` 経由で別経路)、MTE のずらし/めくれキー化(`DressUtils` の Shift 系。`mekureController` 経由で同じゲーム API に乗る)
 - 新規ロジックは `TBody` 依存のため単体テストは追加していない(A-2 と同じ判断)
 
+### D-2 の実装メモ(指ブレンドの書き手一本化)
+
+タイムラインの指ブレンドキーの適用・記録を、ゲームの `FingerBlend.BaseFinger`(リフレクション経由)から SE の `MaidFingerBlendController` へ差し替えた。指ボーンの書き手と値表現は SE の一本になった。
+
+- **値表現は元々同型だった**: どちらも「開き/握り + 指ごとのロック(固定 open/fist 対)」で、`TimelineXml` のキー(`LockValueN` の Vector2 = open/fist)は SE の `lockOpen/lockFist` にそのまま対応する。**保存データのスキーマ変更なし**
+- **適用**: `TransformDataFingerBlend.ApplyUnit` が SE ユニットへロック・値を書き `Apply()`(テンプレート補間でボーン直書き)。旧経路のような「値だけ書いて適用はゲーム任せ(1 フレーム遅れ)」が無くなった。`timeline.fingerBlendEnabled` の gate は適用側の早期 return へ移動(旧実装はゲーム側 `enabled_` を折っていた)
+- **記録**: `UpdateFromUnit` が SE ユニットの現在値を読む。SE のスライダーとタイムラインキーが同じ値を指す
+- **適用対象は編集対象メイドのみ**: SE コントローラはアクティブメイドのユニットしか持たない。旧実装も `maidManager.ikManager`(現在のメイド)にしか適用していなかったため挙動は同等(むしろ別スロットのキーを現在のメイドへ適用しうる取り違えが直った)
+- **削除・残置**: `MotionTimelineLayer` の `GetBaseFinger` 系 3 メソッドを撤去。`MTEUtils/Extensions` の `FingerBlend` 向けリフレクション拡張(`SetValueOpenOnly` 等)は呼び出し元が無くなったが、MTEUtils は逐語コピー方針のため残置
+- **ゲームの IKManager 生成(`PoseEditWindow.GetMaidIKManager`)は残る**: `MaidCache.ikManager` は IK ドラッグ等で現役。指ブレンドだけが SE 経路へ移った
+- 新規ロジックはボーン/ゲーム型依存のため単体テストは追加していない(A-2 と同じ判断)
+
 ### 実機確認項目(loop 中に追記)
+
+- D-2: ポーズ編集中に指ブレンドキーを打ったフレームへシークすると、SE の指ウィンドウのスライダー・ロック表示がキーの値へ追従すること
+- D-2: SE の指ウィンドウで開き/握り・ロックを操作してキーを打つと、その値がキーに記録され再シークで再現されること(旧タイムラインのキーも同じ見た目で再生されること)
+- D-2: 「TL:ブレンド有効」を OFF にするとタイムラインの指キーが適用されなくなり、SE のスライダー操作は従来どおり効くこと
+- D-2: 足指のキー(3 本ロック)も手指(5 本)と同様に適用・記録できること
 
 - D-1: MaskMode が Nude 系の状態(スタジオ等から引き継いだ場合)で脱衣レイヤーのキーを打つ/再生すると、個別制御へ解除されてスロット表示が指定どおりになること。このとき操作対象外のスロットが一旦表示へ戻るのは公式(`SetMaskMode(None)`)と同じ仕様であること
 - D-1: 脱衣ウィンドウのカテゴリトグルと脱衣レイヤーのスロットトグルを交互に操作しても、互いの表示状態が正しく追従すること

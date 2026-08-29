@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using SEP = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -307,78 +308,95 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => LockValue4Values.FromVector2(value);
         }
 
-        public void UpdateFromArmFinger(FingerBlend.ArmFinger armFinger)
+        private bool GetLockEnabled(int index)
         {
-            if (armFinger == null)
+            switch (index)
+            {
+                case 0: return LockEnabled0;
+                case 1: return LockEnabled1;
+                case 2: return LockEnabled2;
+                case 3: return LockEnabled3;
+                case 4: return LockEnabled4;
+                default: return false;
+            }
+        }
+
+        private void SetLockEnabled(int index, bool value)
+        {
+            switch (index)
+            {
+                case 0: LockEnabled0 = value; break;
+                case 1: LockEnabled1 = value; break;
+                case 2: LockEnabled2 = value; break;
+                case 3: LockEnabled3 = value; break;
+                case 4: LockEnabled4 = value; break;
+            }
+        }
+
+        private Vector2 GetLockValue(int index)
+        {
+            switch (index)
+            {
+                case 0: return LockValue0;
+                case 1: return LockValue1;
+                case 2: return LockValue2;
+                case 3: return LockValue3;
+                case 4: return LockValue4;
+                default: return Vector2.zero;
+            }
+        }
+
+        private void SetLockValue(int index, Vector2 value)
+        {
+            switch (index)
+            {
+                case 0: LockValue0 = value; break;
+                case 1: LockValue1 = value; break;
+                case 2: LockValue2 = value; break;
+                case 3: LockValue3 = value; break;
+                case 4: LockValue4 = value; break;
+            }
+        }
+
+        /// <summary>
+        /// SE の指ブレンドユニットへキー値を適用する。
+        /// 指ボーンの書き手はゲームの FingerBlend ではなく SE のコントローラに一本化する
+        /// (LockValue の x/y はゲームの lock_value と同じ open/fist)
+        /// </summary>
+        public void ApplyUnit(SEP.FingerBlendUnit unit)
+        {
+            if (unit == null)
             {
                 return;
             }
 
-            ValueOpen = armFinger.value_open;
-            ValueFist = armFinger.value_fist;
+            for (var i = 0; i < unit.digitCount; i++)
+            {
+                var lockValue = GetLockValue(i);
+                unit.SetLockState(i, GetLockEnabled(i), lockValue.x, lockValue.y);
+            }
 
-            LockEnabled0 = armFinger.lock_enabled0;
-            LockEnabled1 = armFinger.lock_enabled1;
-            LockEnabled2 = armFinger.lock_enabled2;
-            LockEnabled3 = armFinger.lock_enabled3;
-            LockEnabled4 = armFinger.lock_enabled4;
-
-            LockValue0 = armFinger.lock_value0;
-            LockValue1 = armFinger.lock_value1;
-            LockValue2 = armFinger.lock_value2;
-            LockValue3 = armFinger.lock_value3;
-            LockValue4 = armFinger.lock_value4;
+            unit.valueOpen = ValueOpen;
+            unit.valueFist = ValueFist;
+            unit.Apply();
         }
 
-        public void UpdateFromLegFinger(FingerBlend.LegFinger legFinger)
+        /// <summary>SE の指ブレンドユニットから現在値を読む (キーフレーム記録用)</summary>
+        public void UpdateFromUnit(SEP.FingerBlendUnit unit)
         {
-            if (legFinger == null)
+            if (unit == null)
             {
                 return;
             }
 
-            ValueOpen = legFinger.value_open;
-            ValueFist = legFinger.value_fist;
+            ValueOpen = unit.valueOpen;
+            ValueFist = unit.valueFist;
 
-            LockEnabled0 = legFinger.lock_enabled0;
-            LockEnabled1 = legFinger.lock_enabled1;
-            LockEnabled2 = legFinger.lock_enabled2;
-
-            LockValue0 = legFinger.lock_value0;
-            LockValue1 = legFinger.lock_value1;
-            LockValue2 = legFinger.lock_value2;
-        }
-
-        public void ApplyArmFinger(FingerBlend.ArmFinger armFinger)
-        {
-            armFinger.lock_enabled0 = LockEnabled0;
-            armFinger.lock_enabled1 = LockEnabled1;
-            armFinger.lock_enabled2 = LockEnabled2;
-            armFinger.lock_enabled3 = LockEnabled3;
-            armFinger.lock_enabled4 = LockEnabled4;
-
-            armFinger.lock_value0 = LockValue0;
-            armFinger.lock_value1 = LockValue1;
-            armFinger.lock_value2 = LockValue2;
-            armFinger.lock_value3 = LockValue3;
-            armFinger.lock_value4 = LockValue4;
-
-            armFinger.SetValueOpenOnly(ValueOpen);
-            armFinger.SetValueFistOnly(ValueFist);
-        }
-
-        public void ApplyLegFinger(FingerBlend.LegFinger legFinger)
-        {
-            legFinger.lock_enabled0 = LockEnabled0;
-            legFinger.lock_enabled1 = LockEnabled1;
-            legFinger.lock_enabled2 = LockEnabled2;
-
-            legFinger.lock_value0 = LockValue0;
-            legFinger.lock_value1 = LockValue1;
-            legFinger.lock_value2 = LockValue2;
-
-            legFinger.SetValueOpenOnly(ValueOpen);
-            legFinger.SetValueFistOnly(ValueFist);
+            for (var i = 0; i < unit.digitCount; i++)
+            {
+                SetLockEnabled(i, unit.IsLock(i));
+                SetLockValue(i, new Vector2(unit.GetLockOpen(i), unit.GetLockFist(i)));
+            }
         }
     }
 }

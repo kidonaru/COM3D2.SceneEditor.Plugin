@@ -387,28 +387,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private void ApplyFingerBlendMotion(MotionData motion)
         {
             // 指ブレンドはポーズ編集中のみ反映
-            if (!studioHackManager.isPoseEditing)
+            if (!studioHackManager.isPoseEditing || !timeline.fingerBlendEnabled)
             {
                 return;
             }
 
-            var boneName = motion.name;
-            var blendType = ConvertToFingerBlendType(boneName);
+            var blendType = ConvertToFingerBlendType(motion.name);
             var trans = motion.start as TransformDataFingerBlend;
-
-            //MTEUtils.LogDebug("ApplyFingerBlendMotion: type={0} stFrame={1}", motion.row.type, motion.stFrame);
-
-            switch (blendType)
-            {
-                case WindowPartsFingerBlend.Type.RightArm:
-                case WindowPartsFingerBlend.Type.LeftArm:
-                    trans.ApplyArmFinger(GetArmFinger(blendType));
-                    break;
-                case WindowPartsFingerBlend.Type.RightLeg:
-                case WindowPartsFingerBlend.Type.LeftLeg:
-                    trans.ApplyLegFinger(GetLegFinger(blendType));
-                    break;
-            }
+            trans.ApplyUnit(GetFingerBlendUnit(blendType));
         }
 
         public override void OnMaidChanged(Maid maid)
@@ -539,37 +525,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             foreach (var name in FingerBlendBoneNames)
             {
-                var blendType = ConvertToFingerBlendType(name);
-
-                if (blendType == WindowPartsFingerBlend.Type.RightArm ||
-                    blendType == WindowPartsFingerBlend.Type.LeftArm)
+                var unit = GetFingerBlendUnit(ConvertToFingerBlendType(name));
+                if (unit == null)
                 {
-                    var fingerBlend = GetBaseFinger(blendType) as FingerBlend.ArmFinger;
-                    if (fingerBlend == null)
-                    {
-                        continue;
-                    }
-
-                    var trans = CreateTransformData<TransformDataFingerBlend>(name);
-                    trans.UpdateFromArmFinger(fingerBlend);
-
-                    var bone = frame.CreateBone(trans);
-                    frame.UpdateBone(bone);
+                    continue;
                 }
-                else
-                {
-                    var fingerBlend = GetBaseFinger(blendType) as FingerBlend.LegFinger;
-                    if (fingerBlend == null)
-                    {
-                        continue;
-                    }
 
-                    var trans = CreateTransformData<TransformDataFingerBlend>(name);
-                    trans.UpdateFromLegFinger(fingerBlend);
+                var trans = CreateTransformData<TransformDataFingerBlend>(name);
+                trans.UpdateFromUnit(unit);
 
-                    var bone = frame.CreateBone(trans);
-                    frame.UpdateBone(bone);
-                }
+                var bone = frame.CreateBone(trans);
+                frame.UpdateBone(bone);
             }
         }
 
@@ -884,43 +850,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return FingerBlendBoneTypeMap.ContainsKey(boneName);
         }
 
-        private FingerBlend.BaseFinger GetBaseFinger(WindowPartsFingerBlend.Type type)
+        /// <summary>
+        /// SE の指ブレンドユニット。指ボーンの書き手はゲームの FingerBlend ではなく
+        /// SE の MaidFingerBlendController に一本化する。
+        /// コントローラは編集対象 (アクティブメイド。TimelineSelectionBridge で MTE の選択と同期)
+        /// のユニットしか持たないため、このレイヤーのメイドが対象でないときは null を返す
+        /// </summary>
+        private FingerBlendUnit GetFingerBlendUnit(WindowPartsFingerBlend.Type type)
         {
-            var finger_blend = maidManager.ikManager.finger_blend;
-            FingerBlend.BaseFinger result = null;
-            if (type == WindowPartsFingerBlend.Type.RightArm)
+            var controller = MaidManipulateManager.instance.fingerBlendController;
+            if (controller.maid == null || controller.maid != maid)
             {
-                result = finger_blend.right_arm_finger;
-            }
-            else if (type == WindowPartsFingerBlend.Type.LeftArm)
-            {
-                result = finger_blend.left_arm_finger;
-            }
-            else if (type == WindowPartsFingerBlend.Type.RightLeg)
-            {
-                result = finger_blend.right_leg_finger;
-            }
-            else if (type == WindowPartsFingerBlend.Type.LeftLeg)
-            {
-                result = finger_blend.left_leg_finger;
+                return null;
             }
 
-            if (result.enabled != timeline.fingerBlendEnabled)
-            {
-                result.SetEnabledOnly(timeline.fingerBlendEnabled);
-            }
-
-            return result;
-        }
-
-        private FingerBlend.ArmFinger GetArmFinger(WindowPartsFingerBlend.Type type)
-        {
-            return GetBaseFinger(type) as FingerBlend.ArmFinger;
-        }
-
-        private FingerBlend.LegFinger GetLegFinger(WindowPartsFingerBlend.Type type)
-        {
-            return GetBaseFinger(type) as FingerBlend.LegFinger;
+            // 列挙順は WindowPartsFingerBlend.Type と FingerBlendType で一致している
+            return controller.GetUnit((FingerBlendType)type);
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
