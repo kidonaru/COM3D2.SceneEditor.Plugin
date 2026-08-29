@@ -355,7 +355,14 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// まばたき自動更新の切り替え。オフにしないと eyeclose が毎フレーム上書きされる
+        /// タイムライン表情レイヤーによるまばたき抑止の退避値。
+        /// キーはメイド、値は抑止前のユーザー設定 (boMabataki)。抑止解除時に復元する
+        /// </summary>
+        private static readonly Dictionary<Maid, bool> _mabatakiSuppressStates = new Dictionary<Maid, bool>();
+
+        /// <summary>
+        /// まばたき自動更新の切り替え。オフにしないと eyeclose が毎フレーム上書きされる。
+        /// 抑止中はユーザー設定 (退避値) だけを書き換え、実体は抑止解除時に反映する
         /// </summary>
         public static void SetMabataki(Maid maid, bool enabled)
         {
@@ -364,7 +371,55 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            if (_mabatakiSuppressStates.ContainsKey(maid))
+            {
+                _mabatakiSuppressStates[maid] = enabled;
+                return;
+            }
+
             maid.boMabataki = enabled;
+        }
+
+        /// <summary>
+        /// タイムライン表情レイヤーによるまばたき抑止。
+        /// 抑止中はゲーム側が立て直した boMabataki も毎回落とし、
+        /// ユーザー設定は退避して解除時に復元する
+        /// </summary>
+        public static void SetMabatakiSuppressed(Maid maid, bool suppressed)
+        {
+            if (maid == null)
+            {
+                // 破棄済みメイド (Unity の null 化) の退避値は復元先が無いため捨てる。
+                // Dictionary のキー比較は参照ベースで Unity の == と異なり破棄済みでも引ける。
+                // 真の null (ReferenceEquals) だけは Remove が例外になるため除外する
+                if (!suppressed && !ReferenceEquals(maid, null))
+                {
+                    _mabatakiSuppressStates.Remove(maid);
+                }
+                return;
+            }
+
+            bool stored;
+            var isSuppressed = _mabatakiSuppressStates.TryGetValue(maid, out stored);
+
+            if (suppressed)
+            {
+                if (!isSuppressed)
+                {
+                    _mabatakiSuppressStates[maid] = maid.boMabataki;
+                }
+                maid.boMabataki = false;
+            }
+            else if (isSuppressed)
+            {
+                _mabatakiSuppressStates.Remove(maid);
+                maid.boMabataki = stored;
+            }
+        }
+
+        public static bool IsMabatakiSuppressed(Maid maid)
+        {
+            return maid != null && _mabatakiSuppressStates.ContainsKey(maid);
         }
 
         /// <summary>現在の表情ブレンドセット名 (Maid.FaceAnime のタグ)。未設定なら空文字</summary>
@@ -418,9 +473,21 @@ namespace COM3D2.SceneEditor.Plugin
                 || morph.dicBlendSet.ContainsKey(blendSetName + "〓通常");
         }
 
+        /// <summary>ユーザー設定としてのまばたき。抑止中は実体ではなく退避値を返す</summary>
         public static bool GetMabataki(Maid maid)
         {
-            return maid != null && maid.boMabataki;
+            if (maid == null)
+            {
+                return false;
+            }
+
+            bool stored;
+            if (_mabatakiSuppressStates.TryGetValue(maid, out stored))
+            {
+                return stored;
+            }
+
+            return maid.boMabataki;
         }
     }
 }

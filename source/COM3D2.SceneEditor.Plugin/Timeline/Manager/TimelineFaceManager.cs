@@ -60,17 +60,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             morph.FixBlendValues_Face();
         }
 
-        /// <summary>まばたきを止める (タイムラインの目閉じ値が毎フレーム上書きされるのを防ぐ)</summary>
-        public void SetMabatakiOff(Maid maid)
+        /// <summary>
+        /// まばたきの抑止を切り替える (タイムラインの目閉じ値が毎フレーム上書きされるのを防ぐ)。
+        /// boMabataki の書き換えは SE 側コントローラへ委譲し、ユーザー設定は解除時に復元される
+        /// </summary>
+        public void SetMabatakiSuppressed(Maid maid, bool suppressed)
         {
-            var morph = GetFaceMorph(maid);
-            if (morph == null)
-            {
-                return;
-            }
+            SEP.MaidFaceMorphController.SetMabatakiSuppressed(maid, suppressed);
 
-            maid.boMabataki = false;
-            morph.EyeMabataki = 0f;
+            if (suppressed)
+            {
+                var morph = GetFaceMorph(maid);
+                if (morph != null)
+                {
+                    // 進行中のまばたきの目閉じ量が残らないようにする
+                    morph.EyeMabataki = 0f;
+                }
+            }
         }
 
         private static TMorph GetFaceMorph(Maid maid)

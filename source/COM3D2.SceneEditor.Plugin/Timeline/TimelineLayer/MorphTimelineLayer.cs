@@ -33,6 +33,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private Dictionary<string, float> _applyMorphMap = new Dictionary<string, float>();
 
+        /// <summary>現在まばたきを抑止しているメイド。未抑止なら null</summary>
+        private Maid _mabatakiSuppressedMaid;
+
         private MorphTimelineLayer(int slotNo) : base(slotNo)
         {
         }
@@ -96,6 +99,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 ApplyPlayData();
             }
+            else
+            {
+                // ポーズ編集中は適用を止めるため、まばたきの操作を SE 側へ返す
+                UpdateMabatakiSuppression(null);
+            }
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            UpdateMabatakiSuppression(null);
+        }
+
+        public override void OnPluginDisable()
+        {
+            base.OnPluginDisable();
+            UpdateMabatakiSuppression(null);
+        }
+
+        /// <summary>
+        /// まばたき抑止の対象を差し替える (null で解除)。
+        /// 実体の書き換えと復元は SE 側コントローラが行う
+        /// </summary>
+        private void UpdateMabatakiSuppression(Maid maid)
+        {
+            // Unity の fake-null (破棄済みメイド) でも解除を呼び、SE 側の退避エントリを掃除させる
+            if (!ReferenceEquals(_mabatakiSuppressedMaid, null) && !ReferenceEquals(_mabatakiSuppressedMaid, maid))
+            {
+                faceManager.SetMabatakiSuppressed(_mabatakiSuppressedMaid, false);
+            }
+            _mabatakiSuppressedMaid = maid;
+
+            if (maid != null)
+            {
+                // 抑止中もゲーム側が boMabataki を立て直すため毎フレーム呼ぶ
+                faceManager.SetMabatakiSuppressed(maid, true);
+            }
         }
 
         protected override void ApplyPlayData()
@@ -103,6 +143,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var maid = this.maid;
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
             {
+                UpdateMabatakiSuppression(null);
                 return;
             }
 
@@ -110,7 +151,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             base.ApplyPlayData();
 
-            faceManager.SetMabatakiOff(maid);
+            UpdateMabatakiSuppression(maid);
             faceManager.SetMorphValue(maid, _applyMorphMap);
         }
 

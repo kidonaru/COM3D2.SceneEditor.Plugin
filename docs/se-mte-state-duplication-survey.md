@@ -128,6 +128,16 @@ B 分類(二重管理の整理):
 - [x] B-2: `TimelineSettingWindow` の「色をHSVで指定」トグルを SE 側 `config.useHSVColor` へ接続するか、トグル自体を撤去する(SE の設定ウィンドウに同項目があるなら撤去を優先)
 - [x] B-3: `TimelineHistoryManager` を撤去する(`Timeline/IKHoldEntity.cs` 撤去と同じ扱い。`TimelineSettingWindow`「ポーズ履歴無効」も併せて整理)。調査の結果 SE の `HistoryManager` へ統合できる見込みが立つならそちらを優先し、判断理由を本書へ追記する
 
+D 分類(追加調査分。優先度の所感に沿い、最小コスト → 実害大 → 統合効果大 → 低優先の順):
+
+- [x] D-3: `TimelineFaceManager.SetMabatakiOff` の `boMabataki` 直書きをやめ、`MaidFaceMorphController.SetMabataki` を唯一の書き手にする。表情レイヤー有効中は SE トグルを無効化する親スイッチ設計(A-1b と同じ形)を含む
+- [ ] D-5: `MoveTimelineLayer` の `maid.transform` 直書きを SE の配置系(`MaidVisibilityController` の退避・`SetRestorePosition`)と調停する。退避中メイドの引き戻し・退避座標 `(100,0,0)` のキー焼き込みを防ぐ
+- [ ] D-4: `MaidCache` のモーション再生系(`anmSpeed` / `motionSliderRate` / `PlayAnm`)を `MaidMotionState` と調停し、停止の真実を一本化する(`CaptureBasePose` の呼び直しを含む)
+- [ ] D-1: `Timeline/DressUtils` の `TBody` マスク直書きを `MaidUndressController` 経由へアダプタ化する(`MaskMode` リセットの保証、`DressSlotID` ↔ `UndressCategory` の対応設計を含む。片側のみの要素は残す)
+- [ ] D-2: `MotionTimelineLayer` の `FingerBlend.BaseFinger` 書き込みと `MaidFingerBlendController` の自前実装を調停し、指ボーンの書き手・値表現を一本化する
+- [ ] D-6: メインカメラ操作(`CameraTimelineLayer` の `UltimateOrbitCamera` 直叩き)と `CameraWindow` の API を調停する(軽度。実害が確認できなければ現状維持の判断も可)
+- [ ] D-7: 視線の「向け先」「注視先」の概念統合(キー化の有無で意味が変わらない共通の注視先表現の設計)。UI を 1 系統へ畳む設計判断が要るため最後
+
 B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は音源が別で機能が異なり、B-5 は静的プリセット vs アニメーションの役割分担が妥当なため、本 loop では扱わない。
 
 ### 視線の統合後仕様(A-1 まとめ)
@@ -285,7 +295,22 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - **仕様変更**: `Timeline.xml` の `historyLimit` を 0 にしてタイムライン操作だけ履歴から外す、という使い方はできなくなった。履歴の有効・無効は SE の設定(`SceneEditor.xml` の `historyLimit`、設定ウィンドウから編集可)に一本化される。この項目は UI に接続されておらず、XML を直接編集した場合にのみ効いていた
 - **「ポーズ履歴無効」は対象外**: `Config.disablePoseHistory` は別フィールドで、ポーズ編集中の履歴登録を抑える現役の設定(`TimelineManager` が参照)
 
+### D-3 の実装メモ(まばたきの抑止化)
+
+`TimelineFaceManager.SetMabatakiOff` の `boMabataki` 直書きをやめ、SE の `MaidFaceMorphController` に「抑止(サプレス)」概念を追加して委譲した。所有者は SE 側の一本になった。
+
+- **抑止の意味**: `SetMabatakiSuppressed(maid, true)` は現在のユーザー設定(`boMabataki`)を退避してから false を書き、解除時に退避値を復元する。抑止中の `SetMabataki` / `GetMabataki` は退避値の読み書きになるため、表情プリセット・`FaceSnapshot`・シーンプリセットの保存/復元は抑止中でもユーザー設定として正しく往復する(復元の実効は抑止解除時)
+- **抑止のライフサイクルは `MorphTimelineLayer` が管理**: 適用中(`ApplyPlayData`)は毎フレーム抑止を主張(ゲーム側が `boMabataki` を立て直すため)。ポーズ編集中・メイド未ロード・`Dispose` / `OnPluginDisable` で解除する。対象メイドは `_mabatakiSuppressedMaid` で追跡し、差し替え時に旧メイドを解除する
+- **親スイッチ(A-1b と同じ形)**: 表情ウィンドウの「強制上書き」トグルは抑止中 `SetEnabled(false)` で編集不可にする(値の表示はユーザー設定のまま)
+- **`EyeMabataki = 0f`(進行中のまばたきの目閉じ量リセット)は MTE 側に残置**: タイムライン適用のフレームでだけ必要な後始末で、状態の所有ではないため
+- **破棄済みメイドの後始末**: Unity の null 化で復元先が無い場合は退避エントリを捨てる(辞書リーク防止)。レイヤー側の解除判定は Unity の `==`(fake-null)ではなく `ReferenceEquals` で行い、破棄済みでも解除経路が必ず走るようにした(レビュー指摘の取り込み)
+- 新規ロジックは `Maid` 依存のため単体テストは追加していない(A-2 と同じ判断)
+
 ### 実機確認項目(loop 中に追記)
+
+- D-3: 表情レイヤーがあるタイムラインの再生中、表情ウィンドウの「強制上書き」トグルが編集不可になり、ポーズ編集モードへ入る(または表情レイヤーを削除する)と復帰すること
+- D-3: 「強制上書き」OFF(=まばたき有効)の状態でタイムラインを再生→停止・ポーズ編集へ戻すと、まばたきが再開すること(従来は false のまま潰れていた)
+- D-3: 再生中にシーンプリセット/履歴(Ctrl+Z)で表情を復元しても例外なく動き、抑止解除後にまばたき設定が復元値と一致すること
 
 - A-1 追補: 旧タイムライン(EyesRot キー入り)を読み込むと「顔向き」行として再生され、キーの左右/上下の向きが従来の瞳の向きと一致すること(**符号が逆なら `EyesTimelineLayer.ApplyEyes` / `GetEyesValue` で反転を入れる**)
 - A-1 追補: キー化 ON・注視先「なし」で顔向きスライダーを動かすと頭と瞳が同じ方向を向き、キーとして記録・再生されること
