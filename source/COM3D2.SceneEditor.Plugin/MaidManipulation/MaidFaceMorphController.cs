@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
+using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -102,37 +103,106 @@ namespace COM3D2.SceneEditor.Plugin
             },
         };
 
-        private static TMorph GetFaceMorph(Maid maid)
+        /// <summary>顔の TMorph。ボディ未ロードなら null</summary>
+        public static TMorph GetFaceMorph(Maid maid)
         {
             return maid?.body0?.Face?.morph;
         }
 
         /// <summary>
-        /// モーフ名をインデックスに解決する。素の名前 → CRC 顔のサフィックス付きの順で探す。
-        /// 見つからないときは -1
+        /// CRC 顔 (COM3D2.5 の新ボディ) か。
+        /// ゲーム側 WindowPartsFaceMorph.GetBlendIdx と同じ PartsVersion で判定する。
+        /// GetFaceTypeGP01FB は旧顔でも NORMAL を返すため、顔タイプでは判定できない
         /// </summary>
-        private static int ResolveMorphIndex(TMorph morph, string name)
+        private static bool IsCrcFace(TMorph morph)
         {
+            return morph.bodyskin != null && CRC_FACE_PARTS_VERSION <= morph.bodyskin.PartsVersion;
+        }
+
+        /// <summary>CRC 顔として扱う PartsVersion の下限 (ゲーム側の判定値)</summary>
+        private const int CRC_FACE_PARTS_VERSION = 120;
+
+        /// <summary>
+        /// モーフ名をインデックスに解決する。素の名前 → CRC 顔のサフィックス付きの順で探す。
+        /// 見つからないときは -1。
+        ///
+        /// ゲーム側 (WindowPartsFaceMorph.GetBlendIdx) はサフィックス探索を eyeclose 系に
+        /// 限定しているが、こちらは名前を問わず試す。サフィックス付きのキーを持つのは
+        /// eyeclose 系と itome だけなので結果は変わらず、itome を扱えるぶん広い
+        /// </summary>
+        public static int ResolveMorphIndex(TMorph morph, string name)
+        {
+            if (morph == null)
+            {
+                return -1;
+            }
+
             var index = morph.hash[name];
             if (index != null)
             {
                 return (int)index;
             }
 
-            var faceType = morph.GetFaceTypeGP01FB();
-            if (faceType != TMorph.GP01FB_FACE_TYPE.MAX)
+            if (!IsCrcFace(morph))
             {
-                // CRC 顔では素の eyeclose に相当するモーフが eyeclose1 になる
-                // （ゲーム側 WindowPartsFaceMorph.GetBlendIdx と同じ補正）
-                var baseName = name == "eyeclose" ? "eyeclose1" : name;
-                index = morph.hash[baseName + TMorph.crcFaceTypesStr[(int)faceType]];
-                if (index != null)
-                {
-                    return (int)index;
-                }
+                return -1;
             }
 
-            return -1;
+            index = morph.hash[
+                GetCrcMorphName(name, (int)morph.GetFaceTypeGP01FB())];
+            return index != null ? (int)index : -1;
+        }
+
+        /// <summary>
+        /// CRC 顔でのモーフ名。eyeclose / itome などは目型ごとにサフィックスが付き、
+        /// 素の eyeclose に相当するモーフは eyeclose1 になる
+        /// (ゲーム側 WindowPartsFaceMorph.GetBlendIdx と同じ規則)。
+        /// 目型が想定外でも配列外参照にならないよう丸める
+        /// </summary>
+        public static string GetCrcMorphName(string name, int faceTypeIndex)
+        {
+            var index = Mathf.Clamp(faceTypeIndex, 0, TMorph.crcFaceTypesStr.Length - 1);
+            var baseName = name == "eyeclose" ? "eyeclose1" : name;
+            return baseName + TMorph.crcFaceTypesStr[index];
+        }
+
+        /// <summary>
+        /// CRC 顔で値域が 3 倍あるモーフか。
+        /// ジト目だけ 0〜3 で、UI の 0〜1 のままだと 1/3 までしか効かない
+        /// </summary>
+        public static bool IsTripleRangeMorph(string name)
+        {
+            return name == "eyeclose3";
+        }
+
+        /// <summary>UI で扱う値 (0〜1) と TMorph のブレンド値の倍率</summary>
+        public static float GetMorphRatio(TMorph morph, string name)
+        {
+            return morph != null && IsCrcFace(morph) && IsTripleRangeMorph(name) ? 3f : 1f;
+        }
+
+        /// <summary>
+        /// 名前指定でモーフ値を UI 値として読む。存在しないモーフは 0。
+        /// 生の TMorph 値が要る場合は GetBlendValues を直接使うこと
+        /// </summary>
+        public static float GetMorphValueByName(TMorph morph, string name)
+        {
+            var index = ResolveMorphIndex(morph, name);
+            return index < 0 ? 0f : morph.GetBlendValues(index) / GetMorphRatio(morph, name);
+        }
+
+        /// <summary>
+        /// 名前指定でモーフ値を UI 値として書く。存在しなければ何もしない。
+        /// FixBlendValues_Face は呼ばないため、まとめて書く側が最後に 1 回呼ぶこと
+        /// (単発で書くなら SetMorphValue(Maid, FaceMorphDef, float) を使う)
+        /// </summary>
+        public static void SetMorphValueByName(TMorph morph, string name, float value)
+        {
+            var index = ResolveMorphIndex(morph, name);
+            if (index >= 0)
+            {
+                morph.SetBlendValues(index, value * GetMorphRatio(morph, name));
+            }
         }
 
         /// <summary>モーフ名から定義を全カテゴリ横断で引く。該当なしは null</summary>
@@ -177,18 +247,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>スライダーが扱う UI 値 (0〜1) で読む</summary>
         public static float GetMorphValue(Maid maid, FaceMorphDef def)
         {
-            var morph = GetFaceMorph(maid);
-            if (morph == null)
-            {
-                return 0f;
-            }
-
-            var index = ResolveMorphIndex(morph, def.name);
-            return index < 0 ? 0f : morph.GetBlendValues(index);
+            return GetMorphValueByName(GetFaceMorph(maid), def.name);
         }
 
+        /// <summary>スライダーが扱う UI 値 (0〜1) で書き、その場で顔へ反映する</summary>
         public static void SetMorphValue(Maid maid, FaceMorphDef def, float value)
         {
             var morph = GetFaceMorph(maid);
@@ -197,6 +262,26 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            SetMorphValueByName(morph, def.name, value);
+            morph.FixBlendValues_Face();
+        }
+
+        /// <summary>
+        /// 保存用に TMorph の生の値で読む。
+        /// プリセットや履歴は倍率を掛けない生値で記録してきたため、
+        /// 既存ファイルと解釈を揃えるにはこちらを使う
+        /// </summary>
+        public static float GetStoredMorphValue(Maid maid, FaceMorphDef def)
+        {
+            var morph = GetFaceMorph(maid);
+            var index = ResolveMorphIndex(morph, def.name);
+            return index < 0 ? 0f : morph.GetBlendValues(index);
+        }
+
+        /// <summary>保存された生の値を書き戻す。GetStoredMorphValue の対</summary>
+        public static void SetStoredMorphValue(Maid maid, FaceMorphDef def, float value)
+        {
+            var morph = GetFaceMorph(maid);
             var index = ResolveMorphIndex(morph, def.name);
             if (index < 0)
             {

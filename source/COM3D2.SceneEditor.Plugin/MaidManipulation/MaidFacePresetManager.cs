@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -170,7 +170,7 @@ namespace COM3D2.SceneEditor.Plugin
                         data.morphs.Add(new FacePresetMorph
                         {
                             name = def.name,
-                            value = MaidFaceMorphController.GetMorphValue(maid, def),
+                            value = MaidFaceMorphController.GetStoredMorphValue(maid, def),
                         });
                     }
                 }
@@ -199,7 +199,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         value = 0f;
                     }
-                    MaidFaceMorphController.SetMorphValue(maid, def, value);
+                    MaidFaceMorphController.SetStoredMorphValue(maid, def, value);
                 }
             }
 

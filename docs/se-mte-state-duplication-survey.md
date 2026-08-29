@@ -102,7 +102,7 @@ A 分類(状態の奪い合い解消):
 - [x] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
 - [x] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
 - [x] A-4: `StudioHackManager.isPoseEditing` setter の `canIKVisible` による `isIKVisible` / `isIkBoxVisibleRoot/Body` 上書きを廃し、SE 側のトグルを唯一の入口にする(`alwaysShowIK` の扱いも整理。`isBoneVisible` 自体はアダプタ化済みで対象外)
-- [ ] A-5: `TimelineFaceManager` の名前解決・倍率換算を `MaidFaceMorphController` へ一本化する(表情プリセット・モーフ追跡への影響が広いため差分を丁寧に確認する)
+- [x] A-5: `TimelineFaceManager` の名前解決・倍率換算を `MaidFaceMorphController` へ一本化する(表情プリセット・モーフ追跡への影響が広いため差分を丁寧に確認する)
 
 B 分類(二重管理の整理):
 
@@ -174,12 +174,34 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **削除したもの**: `canIKVisible`、`StudioHackBase` の `hasIkBoxVisible` / `isIkBoxVisibleRoot` / `isIkBoxVisibleBody`(このリポジトリでは `hasIkBoxVisible` が常に false で当該分岐は死んでいた)、上書きの消滅で呼び出し元を失った `isIKVisible`(`SceneEditorHack` の実装ごと)、設定 `isIkBoxVisibleRoot` / `isIkBoxVisibleBody` / `alwaysShowIK`、「常にIKを表示」トグル
 - **`Timeline.xml` の後方互換**: A-3 と同じく未知要素の読み飛ばしで吸収。削除した 3 項目を `TimelineConfigXmlTests` の XML へ追加した
 
+### A-5 の実装メモ
+
+モーフ名の解決と倍率換算を `MaidFaceMorphController` へ一本化し、`TimelineFaceManager` の独自実装(`CheckMorph` / `CheckMorphFB` / `IsFBFace` / `GetRatio`)を削除した。
+
+ゲーム側(`WindowPartsFaceMorph.GetBlendIdx` / `TMorph`)で裏取りして直した点:
+
+- **CRC 顔の判定を `PartsVersion >= 120` に統一**。SE 側の旧判定 `GetFaceTypeGP01FB() != MAX` は、`GetFaceTypeGP01FB` が MAX を返さないため常に真だった(旧顔でも無駄なサフィックス探索をしていた)
+- **サフィックス探索は eyeclose 系に限定しない**。ゲーム側は eyeclose 系限定だが、`TMorph` の初期化を見るとサフィックス付きのキーを持つのは eyeclose 系と `itome` の 2 系統。名前を問わず試す方が `itome` まで扱えて広く、衝突するキーも無い
+- **目型のインデックスを丸める**。`crcFaceTypesStr` は 3 要素しかないため、想定外の値でも配列外参照にならないようにした
+
+**値スケールの扱い(重要)**: 倍率(CRC 顔のジト目 `eyeclose3` だけ 3 倍)は「UI 値 ↔ TMorph 値」の換算であって保存形式ではない。そこで API を 2 系統に分けた。
+
+| 用途 | API | 単位 |
+|---|---|---|
+| 表情ウィンドウのスライダー・タイムライン | `GetMorphValue` / `SetMorphValue`(+`*ByName`) | UI 値 (0〜1)。倍率を適用 |
+| プリセット・履歴スナップショット | `GetStoredMorphValue` / `SetStoredMorphValue` | TMorph の生値。倍率なし |
+
+保存経路が従来どおり生値のままなので、**既存のマイ表情プリセット・シーンプリセットの解釈は変わらない**(当初は保存経路にも倍率を通す実装にしていたが、既存ファイルが 3 倍で読まれるためレビュー指摘を受けて分離した)。これで表情ウィンドウとタイムラインの見え方も揃う。
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- A-5: CRC 顔でジト目(`eyeclose3`)をスライダー最大にしたときの見た目が、タイムラインで同じ値をキーにしたときと一致すること
+- A-5: 既存のマイ表情プリセット / シーンプリセットを読み込んで、表情が保存時と同じであること(特にジト目)
+- A-5: タレ目・ツリ目の顔で目閉じ・ウィンクが従来どおり効くこと(サフィックス解決の変更点)
 - A-4: 編集モードを何度か出入りしても、SE の「ボーン表示」トグルが勝手に落ちないこと
 - A-4: 編集モードに入ってもボーンが自動表示されないこと自体は仕様。手動でトグルを ON にすれば従来どおり編集できること
 - A-4: タイムライン設定から「常にIKを表示」が消えていること、既存の `Timeline.xml` を読んでも他の設定が既定へ戻らないこと

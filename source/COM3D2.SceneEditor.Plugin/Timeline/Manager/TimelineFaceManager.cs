@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using SEP = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -30,18 +31,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float GetMorphValue(Maid maid, string morphName)
         {
             var morph = GetFaceMorph(maid);
-            if (morph == null)
-            {
-                return 0f;
-            }
-
-            var resolvedName = CheckMorph(morph, morphName);
-            if (string.IsNullOrEmpty(resolvedName))
-            {
-                return 0f;
-            }
-
-            return morph.GetBlendValues((int)morph.hash[resolvedName]) / GetRatio(morph, morphName);
+            return morph != null ? SEP.MaidFaceMorphController.GetMorphValueByName(morph, morphName) : 0f;
         }
 
         /// <summary>
@@ -85,22 +75,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static TMorph GetFaceMorph(Maid maid)
         {
-            if (maid == null || maid.body0 == null || maid.body0.Face == null)
-            {
-                return null;
-            }
-            return maid.body0.Face.morph;
+            return SEP.MaidFaceMorphController.GetFaceMorph(maid);
         }
 
+        /// <summary>-1 は「このフレームでは触らない」を表す番兵</summary>
         private void SetBlendValues(TMorph morph, string morphName, float value)
         {
-            var resolvedName = CheckMorph(morph, morphName);
-            if (string.IsNullOrEmpty(resolvedName) || value == -1f || !morph.hash.ContainsKey(resolvedName))
+            if (value == -1f)
             {
                 return;
             }
 
-            morph.SetBlendValues((int)morph.hash[resolvedName], value * GetRatio(morph, morphName));
+            SEP.MaidFaceMorphController.SetMorphValueByName(morph, morphName, value);
         }
 
         /// <summary>
@@ -173,62 +159,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SetBlendValues(morph, "eyeclose8", winkR2);
         }
 
-        /// <summary>ウィンク系モーフを持たない顔では補正しないよう 0 を返す</summary>
+        /// <summary>
+        /// 目閉じ補正に使う現在値 (TMorph の生の値)。
+        /// ウィンク系モーフを持たない顔では補正しないよう 0 を返す
+        /// </summary>
         private float GetAdjustValue(Maid maid, TMorph morph, string morphName)
         {
-            if (string.IsNullOrEmpty(CheckMorph(morph, "eyeclose5")))
+            if (SEP.MaidFaceMorphController.ResolveMorphIndex(morph, "eyeclose5") < 0)
             {
                 return 0f;
             }
-            return GetMorphValue(maid, morphName) * GetRatio(morph, morphName);
+
+            var index = SEP.MaidFaceMorphController.ResolveMorphIndex(morph, morphName);
+            return index < 0 ? 0f : morph.GetBlendValues(index);
         }
 
         private static float GetLimitValue(float value)
         {
             return Mathf.Max(1f - value, 0f);
-        }
-
-        /// <summary>モーフ名を実際の TMorph のキーへ解決する。解決できなければ空文字</summary>
-        private string CheckMorph(TMorph morph, string morphName)
-        {
-            if (morph.hash.ContainsKey(morphName))
-            {
-                return morphName;
-            }
-            if (IsFBFace(morph))
-            {
-                return CheckMorphFB(morph, morphName);
-            }
-            return "";
-        }
-
-        /// <summary>FB 顔 (COM3D2.5 の CRC ボディ) は目型ごとに接尾辞が付く</summary>
-        private string CheckMorphFB(TMorph morph, string morphName)
-        {
-            var faceType = Mathf.Min((int)morph.GetFaceTypeGP01FB(), 2);
-
-            if (morphName == "eyeclose")
-            {
-                morphName = "eyeclose1";
-            }
-            morphName += TMorph.crcFaceTypesStr[faceType];
-
-            return morph.hash.ContainsKey(morphName) ? morphName : "";
-        }
-
-        private static bool IsFBFace(TMorph morph)
-        {
-            return morph.bodyskin != null && 120 <= morph.bodyskin.PartsVersion;
-        }
-
-        /// <summary>FB 顔のジト目だけ値域が 3 倍なので換算する</summary>
-        private static float GetRatio(TMorph morph, string morphName)
-        {
-            if (IsFBFace(morph) && morphName == "eyeclose3")
-            {
-                return 3f;
-            }
-            return 1f;
         }
     }
 }

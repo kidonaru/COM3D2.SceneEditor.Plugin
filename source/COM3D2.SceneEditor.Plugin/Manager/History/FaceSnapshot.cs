@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,7 +24,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
                 {
-                    snapshot._morphs[def] = MaidFaceMorphController.GetMorphValue(maid, def);
+                    snapshot._morphs[def] = MaidFaceMorphController.GetStoredMorphValue(maid, def);
                 }
             }
             snapshot._mabataki = MaidFaceMorphController.GetMabataki(maid);
@@ -45,7 +45,7 @@ namespace COM3D2.SceneEditor.Plugin
             MaidFaceMorphController.SetMabataki(maid, _mabataki);
             foreach (var pair in _morphs)
             {
-                MaidFaceMorphController.SetMorphValue(maid, pair.Key, pair.Value);
+                MaidFaceMorphController.SetStoredMorphValue(maid, pair.Key, pair.Value);
             }
             FaceEditManager.instance.GetStore(maid).SetNames(_modifiedNames);
         }

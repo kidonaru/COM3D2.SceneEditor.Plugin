@@ -1043,7 +1043,7 @@ namespace COM3D2.SceneEditor.Plugin
                         state.morphs.Add(new ScenePresetMorph
                         {
                             name = def.name,
-                            value = MaidFaceMorphController.GetMorphValue(maid, def),
+                            value = MaidFaceMorphController.GetStoredMorphValue(maid, def),
                         });
                     }
                 }
@@ -2676,7 +2676,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         value = 0f;
                     }
-                    MaidFaceMorphController.SetMorphValue(maid, def, value);
+                    MaidFaceMorphController.SetStoredMorphValue(maid, def, value);
                 }
             }
 
