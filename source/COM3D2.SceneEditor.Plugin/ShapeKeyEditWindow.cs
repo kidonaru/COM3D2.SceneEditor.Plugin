@@ -189,10 +189,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
-            // 表示判定用。まだ 1 つもチェックしていないメイドのストアを作らないよう FindStore を使う
-            // (操作側のコールバックは GetStore で遅延生成する)
-            var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(target);
-
             var matchedCount = 0;
 
             view.BeginScrollView();
@@ -205,54 +201,15 @@ namespace COM3D2.SceneEditor.Plugin
                     }
 
                     var blendShape = maidCache.GetBlendShape(tag);
-                    if (blendShape == null || blendShape.entities.Count == 0)
+                    if (!MaidShapeKeyRowDrawer.IsEditable(blendShape))
                     {
                         continue;
                     }
 
                     matchedCount++;
 
-                    var weight = blendShape.weight;
-                    // クロージャがループ変数を掴まないよう写しておく
-                    var tagName = tag;
-                    var isModified = shapeKeyStore != null && shapeKeyStore.IsModified(tagName);
-
-                    // 変更追跡チェック。ON=プリセット保存とタイムラインのキーフレーム対象。
-                    // 手動 OFF は「未編集へ戻す」操作なので値も 0 に戻す
-                    Action<bool> onCheckChanged = newChecked =>
-                    {
-                        if (newChecked)
-                        {
-                            MaidShapeKeyEditManager.instance.GetStore(target).Mark(tagName);
-                        }
-                        else
-                        {
-                            blendShape.weight = 0f;
-                            maidCache.FixBlendValues(new string[] { tagName });
-                            MaidShapeKeyEditManager.instance.GetStore(target).Unmark(tagName);
-                        }
-                    };
-
-                    view.DrawTrackedLabel(isModified, onCheckChanged, tagName, -1, ROW_HEIGHT);
-
-                    var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        width = -1,
-                        min = 0f,
-                        max = 2f,
-                        step = 0.01f,
-                        defaultValue = 0f,
-                        value = weight,
-                        onChanged = x => weight = x,
-                    });
-
-                    if (updateTransform)
-                    {
-                        blendShape.weight = weight;
-                        maidCache.FixBlendValues(new string[] { tagName });
-                        // 編集したシェイプキーは自動で追跡対象にする
-                        MaidShapeKeyEditManager.instance.GetStore(target).Mark(tagName);
-                    }
+                    MaidShapeKeyRowDrawer.Draw(
+                        view, target, maidCache, tag, blendShape, ROW_HEIGHT);
                 }
 
                 if (matchedCount == 0)

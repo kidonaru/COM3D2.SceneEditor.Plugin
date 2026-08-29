@@ -188,7 +188,7 @@ S0 の基盤(Registry / Bridge / InspectorWindow 分岐)は実装済み。残り
 Phase S1(メイド系):
 
 - [x] EyesTimelineLayer(視線・瞳回転 / MaidFaceWindow 視線タブ / 逆方向なし)
-- [ ] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
+- [x] ShapeKeyTimelineLayer(シェイプキー重み / ShapeKeyEditWindow `DrawMaidShapeKeys` / 逆方向なし)
 - [ ] UndressTimelineLayer(スロット表示トグル / MaidUndressWindow `DrawCategoryList` / 逆方向なし)
 - [ ] MoveTimelineLayer(メイド Transform / `DrawVector3Row` / 逆方向あり: `Select(maidのGameObject)`)
 - [ ] DressTimelineLayer(簡易表示・レイヤー固有 / 逆方向なし)
@@ -203,6 +203,11 @@ Phase S1 実機確認項目(loop 中に追記):
 - [ ] Inspector のコンボが正しく開閉し、表情ウィンドウのコンボと干渉しない
 - [ ] 表情ウィンドウ視線タブのタイムライン視線セクションに退行が無い(抽出リファクタリングの確認)
 - [ ] ラベル + コンボ行を持つ既存ウィンドウ(表情・シェイプキー・マテリアル・ボーン等)のコンボ幅に退行が無い(LabeledComboRow 抽出の確認)
+- [ ] メイドシェイプレイヤーでシェイプキー行を選択 → Inspector に重みスライダー(0〜2)が出て編集できる
+- [ ] Inspector 側で重みを変えると変更追跡チェックが自動で ON になり、シェイプキーウィンドウの表示と一致する
+- [ ] 追跡チェックを OFF にすると重みが 0 に戻る(ウィンドウ側と同じ挙動)
+- [ ] 着替えなどで対象 morph を失ったシェイプキーは「(このメイドには存在しません)」表示になる
+- [ ] シェイプキーウィンドウの一覧表示・検索・更新ボタンに退行が無い(抽出リファクタリングの確認)
 
 Phase S2(モデル系):
 

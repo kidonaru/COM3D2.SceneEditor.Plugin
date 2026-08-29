@@ -265,6 +265,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.MotionTimelineLayer), new MotionItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.EyesTimelineLayer), new EyesItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.ShapeKeyTimelineLayer), new ShapeKeyItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
