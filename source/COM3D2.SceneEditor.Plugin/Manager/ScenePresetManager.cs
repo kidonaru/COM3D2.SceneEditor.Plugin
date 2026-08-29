@@ -1230,7 +1230,31 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            CaptureTimelineLook(maid, look);
+
             state.look = look;
+        }
+
+        /// <summary>
+        /// タイムライン視線の指定値を記録する。
+        /// 向け先そのものは lookController 側 (mode / target) に写っているため、
+        /// ここで残すのはキー化の元になる注視先種別と瞳回転だけ。
+        /// タイムライン未読込などで MaidCache が無いときは未記録のままにする
+        /// </summary>
+        private static void CaptureTimelineLook(Maid maid, ScenePresetLook look)
+        {
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            look.timelineTargetType = maidCache.lookAtTargetType.ToString();
+            look.timelineTargetIndex = maidCache.lookAtTargetIndex;
+            look.timelineMaidPointType = maidCache.lookAtMaidPointType.ToString();
+            look.eyeAngleX = maidCache.eyeEulerAngle.x;
+            look.eyeAngleY = maidCache.eyeEulerAngle.y;
+            look.eyeAngleZ = maidCache.eyeEulerAngle.z;
         }
 
         /// <summary>
@@ -1667,6 +1691,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             maidManager.lookController.SetState(maid, mode, look.lookX, look.lookY, target);
 
+            // TBody に依存しないため、追従トグルの防御的ガードより前に戻す
+            // (未ロードのメイドでも指定値だけは欠落させない)
+            ApplyTimelineLook(maid, look);
+
             // 追従トグルは lookController の管轄外なので TBody へ直接戻す。
             // ウィンドウのトグルと同じく割合 (HeadToCamPer) は触らず、ゲーム側のフェードに任せる。
             // ここはロード完了後に呼ばれるためボディは揃っている想定だが、
@@ -1684,6 +1712,46 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 body.boEyeToCam = look.eyeToCam;
             }
+        }
+
+        /// <summary>
+        /// タイムライン視線の指定値を戻す。
+        /// 3 つのセッターはいずれも UpdateLookAtTarget を呼ぶため、先に番号・ポイントを
+        /// 確定させ、最後に種別を入れて最終の呼び出しで正しい組み合わせに解決させる。
+        ///
+        /// この指定値が向け先へ波及するかは、復元先のタイムラインの
+        /// 「視線をキー化」(useHeadKey) が決める。プリセットはこのフラグを持たないため、
+        /// 保存時と復元時で設定が違うと、直前に戻した mode が上書きされることがある
+        /// </summary>
+        private static void ApplyTimelineLook(Maid maid, ScenePresetLook look)
+        {
+            if (string.IsNullOrEmpty(look.timelineTargetType))
+            {
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            MTEP.LookAtTargetType targetType;
+            MTEP.MaidPointType maidPointType;
+            // XML は外部入力のため、未知の名前は復元せず既定のままにする
+            if (!TryParseEnum(look.timelineTargetType, out targetType)
+                || !TryParseEnum(look.timelineMaidPointType, out maidPointType))
+            {
+                MTEUtils.LogWarning("タイムライン視線の設定が不明です: {0} / {1}",
+                    look.timelineTargetType, look.timelineMaidPointType);
+                return;
+            }
+
+            maidCache.eyeEulerAngle = new Vector3(
+                look.eyeAngleX, look.eyeAngleY, look.eyeAngleZ);
+            maidCache.lookAtTargetIndex = look.timelineTargetIndex;
+            maidCache.lookAtMaidPointType = maidPointType;
+            maidCache.lookAtTargetType = targetType;
         }
 
         /// <summary>

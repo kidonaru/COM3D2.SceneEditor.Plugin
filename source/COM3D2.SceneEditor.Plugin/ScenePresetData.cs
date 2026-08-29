@@ -481,6 +481,34 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メイド以外を注視している場合の、シーンルートからの階層パス</summary>
         [XmlAttribute]
         public string targetPath;
+
+        /// <summary>
+        /// タイムラインの注視先種別 (MaidCache.lookAtTargetType の名前)。
+        /// v25 以前のプリセットや、タイムライン未読込で保存した場合は null になり、
+        /// 適用時にタイムライン側の視線へ触らない。
+        /// 向け先そのものは mode 側で復元されるため、ここはキー化の指定値だけを持つ
+        /// </summary>
+        [XmlAttribute]
+        public string timelineTargetType;
+
+        /// <summary>
+        /// 注視先がメイドまたはモデルのときの相対番号。
+        /// TimelineXml のキーと同じく番号で持つため、並びが変わると別の対象を指す
+        /// </summary>
+        [XmlAttribute]
+        public int timelineTargetIndex;
+
+        /// <summary>注視先がメイドのときのポイント種別 (MaidPointType の名前)</summary>
+        [XmlAttribute]
+        public string timelineMaidPointType;
+
+        /// <summary>MaidCache.eyeEulerAngle。注視先が手動のときの瞳の向き</summary>
+        [XmlAttribute]
+        public float eyeAngleX;
+        [XmlAttribute]
+        public float eyeAngleY;
+        [XmlAttribute]
+        public float eyeAngleZ;
     }
 
     /// <summary>
@@ -674,7 +702,10 @@ namespace COM3D2.SceneEditor.Plugin
         //      構造変更なし。旧データは記載タグ (=非 0 保存分) を適用時にチェック済みへ復元する
         // v25: maid に ikAnimes（IK 固定のアニメ指定）を追加。
         //      旧形式は一覧が空 = 全 OFF として読める
-        public static readonly int CurrentVersion = 25;
+        // v26: look にタイムライン視線の指定値（timelineTargetType / timelineTargetIndex /
+        //      timelineMaidPointType / eyeAngle*）を追加。
+        //      旧形式は timelineTargetType が null = 未記録として読み飛ばす
+        public static readonly int CurrentVersion = 26;
 
         [XmlAttribute]
         public int version = CurrentVersion;

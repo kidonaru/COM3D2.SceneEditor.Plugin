@@ -37,7 +37,7 @@ MTE 移植で採用されている正しいパターンは **アダプタ化** �
 | B-3 | **Undo/Redo が 2 系統** | SE の `HistoryManager`（Ctrl+Z、`HistoryWindow`、`historyLimit`）と MTE の `TimelineHistoryManager`（TimelineXml のスナップショット、`Timeline/Config.historyLimit`）。**MTE 側は UI に接続されておらず `Undo()` / `Redo()` の呼び出し元が無い** — 履歴を積むだけのメモリ消費になっている。`TimelineSettingWindow`「ポーズ履歴無効」（:865）だけがその存在を露出している |
 | B-4 | **BGM の入口が 2 箇所** | `SoundWindow` の BGM タブ（`BgmUtils`、ゲーム内蔵 BGM の再生）と `TimelineSettingWindow` の BGM 設定（`BGMManager`、外部音声ファイルをタイムライン同期再生）。音源が違うので機能は別だが、UI 上は「BGM」が 2 箇所にあり同時再生の調停も無い |
 | B-5 | **シーン状態の永続化が 2 系統** | `ScenePresetData`（camera / background / light / undress / gravity / png / IK / boneEdit / slotYure / morph / material / modelShapeKey / look / motion）と `TimelineXml`。ほぼ同じ状態空間を別スキーマで保存する。静的プリセット vs アニメーションという役割分担自体は妥当だが、**片方にしか無い項目が実害を生む**（B-6） |
-| B-6 | **シーンプリセットがタイムライン視線を保存しない** | `ScenePresetLook`（ScenePresetData.cs:448-484）は `MaidLookMode` / `lookX/Y` / `boHeadToCam` / `boEyeToCam` / 注視対象しか持たない。A-1 の MTE 側状態（`lookAtTargetType` / `eyeEulerAngle`）はプリセットに入らないため、保存→ロードで消える |
+| B-6 | **シーンプリセットがタイムライン視線を保存しない**（A-1c で解消済み） | `ScenePresetLook`（ScenePresetData.cs:448-484）は `MaidLookMode` / `lookX/Y` / `boHeadToCam` / `boEyeToCam` / 注視対象しか持たない。A-1 の MTE 側状態（`lookAtTargetType` / `eyeEulerAngle`）はプリセットに入らないため、保存→ロードで消える |
 
 ## C. 片側にしか無い（統合ではなく穴埋めの候補）
 
@@ -98,7 +98,7 @@ A 分類(状態の奪い合い解消):
 
 - [x] A-1a: `MaidCache` の視線フィールド(`lookAtTargetType` / `lookAtTargetIndex` / `lookAtMaidPointType` / `eyeEulerAngle`)を `MaidLookController` へ委譲し、`UpdateHeadLook` / `UpdateLookAtTarget` を SE の適用経路へ合流させる
 - [x] A-1b: 表情ウィンドウ視線タブの「視線」「タイムライン視線」を 1 セクションへ統合し、`TimelineSettingWindow` の「メイド目線」(`eyeMoveType`)と「顔/瞳の固定化」(`useHeadKey`)もそこへ集約する
-- [ ] A-1c: B-6 の解消確認 — 視線の所有者統合後、`ScenePresetLook` の保存→ロードで視線状態が欠落しないことを確認し、不足があればスキーマへ追加する
+- [x] A-1c: B-6 の解消確認 — 視線の所有者統合後、`ScenePresetLook` の保存→ロードで視線状態が欠落しないことを確認し、不足があればスキーマへ追加する
 - [ ] A-2: `MaidCache.UpdateMuneYure` を `MaidMuneYureController` 経由へ差し替え、`useMuneKeyL/R` を SE トグルの別名にする(`SceneEditorHack.useMuneKeyL/R` の空実装も解消)
 - [ ] A-3: `MotionTimelineLayer` の `isAutoYureBone` 一括上書きをやめ、`SlotYureUtil` の状態を唯一の真実にする(`BoneEditManager` の自動 OFF と同じ経路へ)
 - [ ] A-4: `StudioHackManager.isPoseEditing` setter の `canIKVisible` による `isIKVisible` / `isIkBoxVisibleRoot/Body` 上書きを廃し、SE 側のトグルを唯一の入口にする(`alwaysShowIK` の扱いも整理。`isBoneVisible` 自体はアダプタ化済みで対象外)
@@ -133,12 +133,25 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 - **`TimelineLookRowDrawer.HeadKeyDisabledMessage` の文言を更新**: 設定の所在が変わったため、`EyesItemInspector` の案内も新しい場所を指す
 - A-1b は UI の再配置のみで純粋ロジックの追加が無いため、単体テストは追加していない(判定に使う `ResolveLookMode` は A-1a で網羅済み)
 
+### A-1c の実装メモ (B-6 の解消)
+
+確認の結果、向け先そのもの(`mode` / `lookX` / `lookY` / 注視対象 / `boHeadToCam` / `boEyeToCam`)は既存スキーマで往復できていたが、`MaidCache` に残したキーフレームの指定値が欠落していたため `ScenePresetLook` へ追加した(プリセット v26)。
+
+- **追加した項目**: `timelineTargetType` / `timelineTargetIndex` / `timelineMaidPointType` / `eyeAngleX/Y/Z`
+- **旧プリセット互換**: `timelineTargetType` が空なら未記録として `MaidCache` へ触らない
+- **番号で持つ理由**: `timelineTargetIndex` は `TimelineXml` のキー(`TransformDataLookAtTarget.targetIndex`)と同じ相対番号。並びが変わると別の対象を指すが、既存のデータモデルの慣習に合わせた
+- **復元順**: 3 つのセッターがいずれも `UpdateLookAtTarget` を呼ぶため、番号・ポイントを先に入れて種別を最後にする
+- **既知の前提**: プリセットは「視線をキー化」(`useHeadKey`)を保存しない。保存時と復元時でこの設定が違うと、指定値の復元が `mode` の復元を上書きしうる。所在をコードのコメントに明記した
+- **B-6 の扱い**: 上記により解消。B 表の B-6 は本項目で閉じる
+
 ### 実機確認項目(loop 中に追記)
 
 - A-1a: 表情ウィンドウの向け先「無し」を選ぶと正面(頭ボーンの `offsetLookTarget`)を向くこと
 - A-1a: タイムライン設定「顔/瞳の固定化」を ON にして注視先(カメラ/メイド)を切り替えると、表情ウィンドウの「向け先」表示が追従すること
 - A-1a: 「メイド目線」を「顔をそらす」「目だけそらす」にし、かつ表情ウィンドウの向け先を「無し」にしたとき、実際に視線そらしが動くこと(向け先が「無し」以外ならそらしは動かないのが仕様)
 - A-1a: タイムライン再生(`PlayAnm`)の後も、SE 側で設定した向け先(マウス/方向指定/オブジェクト)が維持されること(固定化が無効の場合)
+- A-1c: 「視線をキー化」ON で注視先・瞳回転を設定 → シーンプリセット保存 → ロードで指定値が戻ること
+- A-1c: v25 以前の既存プリセットをロードしても、視線まわりで例外・値の飛びが出ないこと
 - A-1b: 視線タブで「視線をキー化」を切り替えると、同じ描画のうちに「向け先」コンボと顔向きスライダーの活性が切り替わること
 - A-1b: キー化 ON のとき「注視先」を変えると向け先が追従し、OFF に戻すと SE の向け先設定がそのまま残ること
 - A-1b: 瞳レイヤーの項目表示(`EyesItemInspector`)の案内文が新しい設定場所(視線タブ)を指していること
