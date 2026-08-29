@@ -1072,8 +1072,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             var frameHeight = tc.frameHeight;
 
-            var menuItems = boneMenuManager.GetVisibleItems();
-
             DrawLayerControls(view, menuWidth);
 
             // ボーンメニューの表示
@@ -1083,7 +1081,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.scrollPosition.y = timelineView.scrollPosition.y;
             var contentWidth = menuWidth;
-            var contentHeight = menuItems.Count * frameHeight;
+            var contentHeight = _rows.Count * frameHeight;
             var viewWidth = menuWidth;
             var viewHeight = timelineViewHeight - 20;
             var scrollContentRect = new Rect(0, 0, contentWidth, contentHeight);
@@ -1097,9 +1095,9 @@ namespace COM3D2.SceneEditor.Plugin
             var scrollPosition = view.scrollPosition;
             timelineView.scrollPosition.y = scrollPosition.y;
 
-            for (int i = 0; i < menuItems.Count; i++)
+            for (int i = 0; i < _rows.Count; i++)
             {
-                var menuItem = menuItems[i];
+                var row = _rows[i];
 
                 view.currentPos.y = i * frameHeight;
                 if (view.currentPos.y < scrollPosition.y ||
@@ -1108,8 +1106,55 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
+                var isActiveLayerRow = row.layer == timelineManager.currentLayer;
+
+                // レイヤーカテゴリ行: 折りたたみトグル + レイヤー名 (クリックでアクティブ化)
+                if (row.isHeader)
+                {
+                    var headerColor = isActiveLayerRow ? tc.timelineMenuSelectTextColor : Color.white;
+                    var headerLayer = row.layer;
+
+                    view.currentPos.x = 0;
+                    view.DrawLabel(
+                        _rowState.IsCollapsed(headerLayer) ? "＋" : "ー",
+                        20,
+                        20,
+                        headerColor,
+                        null,
+                        () =>
+                        {
+                            _rowState.ToggleCollapsed(headerLayer);
+                        }
+                    );
+
+                    view.currentPos.x = 20;
+                    view.DrawLabel(
+                        "■ " + GetLayerDisplayName(headerLayer),
+                        menuWidth - 20,
+                        20,
+                        headerColor
+                    );
+
+                    view.InvokeActionOnEvent(
+                        menuWidth - 40,
+                        20,
+                        EventType.MouseDown,
+                        (pos) =>
+                        {
+                            if (headerLayer != timelineManager.currentLayer)
+                            {
+                                timelineManager.SetCurrentLayer(headerLayer);
+                            }
+                        });
+
+                    continue;
+                }
+
+                var menuItem = row.menuItem;
+
                 var diplayName = menuItem.displayName;
-                var isSelected = menuItem.isSelectedMenu;
+                // 選択ハイライトはアクティブレイヤーの行にだけ意味を持つ
+                var isSelected = isActiveLayerRow && menuItem.isSelectedMenu;
 
                 view.currentPos.x = 0;
 
@@ -1143,10 +1188,16 @@ namespace COM3D2.SceneEditor.Plugin
                     EventType.MouseDown,
                     (pos) =>
                     {
+                        // 非アクティブレイヤーの行はまずアクティブ化してから選択する
+                        if (row.layer != timelineManager.currentLayer)
+                        {
+                            timelineManager.SetCurrentLayer(row.layer);
+                        }
                         menuItem.SelectMenu(isMultiSelect);
                     });
 
-                if (studioHackManager.isPoseEditing)
+                // A/D ボタンはアクティブレイヤーの行のみ (編集はアクティブレイヤーに束縛)
+                if (studioHackManager.isPoseEditing && isActiveLayerRow)
                 {
                     view.InvokeActionOnMouse(
                         menuWidth - 20,
