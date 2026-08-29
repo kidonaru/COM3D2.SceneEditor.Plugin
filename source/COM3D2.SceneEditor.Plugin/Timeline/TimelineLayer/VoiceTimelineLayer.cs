@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
-using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -104,88 +103,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void DrawWindow(GUIView view)
         {
-            if (maidCache == null)
-            {
-                view.DrawLabel("メイドを配置してください", -1, 20);
-                return;
-            }
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "開始",
-                labelWidth = 30,
-                min = 0f,
-                max = config.voiceMaxLength,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = maidCache.oneShotVoiceStartTime,
-                onChanged = value => maidCache.oneShotVoiceStartTime = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "長さ",
-                labelWidth = 30,
-                min = 0f,
-                max = config.voiceMaxLength,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = maidCache.oneShotVoiceLength,
-                onChanged = value => maidCache.oneShotVoiceLength = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "Fade",
-                labelWidth = 30,
-                min = 0f,
-                max = config.voiceMaxLength,
-                step = 0.01f,
-                defaultValue = 0.1f,
-                value = maidCache.voiceFadeTime,
-                onChanged = value => maidCache.voiceFadeTime = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "音程",
-                labelWidth = 30,
-                min = 0f,
-                max = 2f,
-                step = 0.01f,
-                defaultValue = 1f,
-                value = maidCache.voicePitch,
-                onChanged = value => maidCache.voicePitch = value,
-            });
-
-            view.DrawTextField(new GUIView.TextFieldOption
-            {
-                label = "ボイス名",
-                labelWidth = 75,
-                value = maidCache.oneShotVoiceName,
-                onChanged = value => maidCache.oneShotVoiceName = value,
-            });
-
-            view.DrawTextField(new GUIView.TextFieldOption
-            {
-                label = "ループボイス",
-                labelWidth = 75,
-                value = maidCache.loopVoiceName,
-                onChanged = value => maidCache.loopVoiceName = value,
-            });
-
-            if (view.DrawButton("再生", 100, 20))
-            {
-                maidCache.PlayOneShotVoice();
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-
-            view.DrawHorizontalLine(Color.gray);
-
-            // ボイス一覧出力 UI は ScriptLoader (DCM 系) 未移植のため省略
+            // ボイスの編集 UI はサウンドウィンドウに委譲する (レイヤー UI 非接続方針)
+            view.DrawLabel("ボイスの編集はサウンドウィンドウで行ってください", -1, 20);
         }
 
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
