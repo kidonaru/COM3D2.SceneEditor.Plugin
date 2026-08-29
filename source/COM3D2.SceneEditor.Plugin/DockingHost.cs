@@ -302,7 +302,12 @@ namespace COM3D2.SceneEditor.Plugin
                 else if (adapter.group == null && adapter.autoDockRetryFrames > 0)
                 {
                     adapter.autoDockRetryFrames--;
-                    TabGroupManager.instance.MergeIfHeaderMatches(adapter);
+                    // まず config の保存構成による確実な復元を試し、
+                    // 保存エントリの無い窓は従来どおりヘッダー位置一致で復帰させる
+                    if (!TabGroupManager.instance.TryRestoreExternal(adapter))
+                    {
+                        TabGroupManager.instance.MergeIfHeaderMatches(adapter);
+                    }
                     if (adapter.group != null)
                     {
                         // 成立したら残りフレームを捨てる。残したままだと直後に手動で

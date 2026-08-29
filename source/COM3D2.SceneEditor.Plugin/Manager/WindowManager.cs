@@ -180,6 +180,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 表示状態を復元してからでないと、非表示ウィンドウをグループへ入れてしまう
+            // 外部窓は登録がまだのため RestoreGroups では復元できない。
+            // 遅延復元 (TryRestoreExternal) 用に復元前の構成を控えておく
+            TabGroupManager.instance.CaptureRestoreSnapshot();
             TabGroupManager.instance.RestoreGroups();
             WindowConnectManager.instance.RestoreGroups();
         }
