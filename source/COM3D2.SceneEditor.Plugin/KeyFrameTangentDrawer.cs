@@ -17,7 +17,6 @@ namespace COM3D2.SceneEditor.Plugin
     {
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
-        private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.ITimelineLayer currentLayer => timelineManager.currentLayer;
         private static HashSet<MTEP.BoneData> selectedBones => timelineManager.selectedBones;
 
@@ -76,16 +75,22 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.DrawLabel("補間曲線", 100, RowHeight);
 
-            // MTE 原典 (KeyFrameUI.DrawTangent) と同じく、数値編集列は親レイアウトに参加しない
-            // 独立 GUIView としてテクスチャの右に置く (BeginSubView/EndSubView は EndSubView が
-            // 親の NextElement を呼んで縦に二重の高さを消費するため使わない)。
-            // 行送りは最後の view.DrawTexture(_tangentTex) の 1 回だけに任せる
-            var subView = new GUIView(
+            // 数値編集列は親レイアウトに参加しない独立 GUIView としてテクスチャの右に置く。
+            // BeginSubView/EndSubView は EndSubView が親の NextElement を呼び縦の高さを
+            // 二重消費するため使わない。行送りは最後の view.DrawTexture の 1 回に任せる
+            // 矩形は親の GetDrawRect で求める (親のビュー位置と padding が加算される)。
+            // 求めた時点で絶対座標なので、subView 側は BeginSubView と同じく padding を 0 にする
+            var subViewRect = view.GetDrawRect(
                 view.currentPos.x + CurveTexSize + ColumnSpacing,
                 view.currentPos.y,
-                view.viewRect.width - view.currentPos.x - CurveTexSize - ColumnSpacing * 2,
+                view.viewRect.width - view.padding.x * 2
+                    - view.currentPos.x - CurveTexSize - ColumnSpacing,
                 CurveTexSize);
-            subView.parent = view;
+            var subView = new GUIView(subViewRect)
+            {
+                parent = view,
+                padding = Vector2.zero,
+            };
             DrawTangentFields(subView);
 
             view.DrawTexture(_tangentTex);
@@ -337,7 +342,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             MTEUtils.LogDebug(description);
             currentLayer.ApplyCurrentFrame(true);
-            MTEP.TimelineHistoryManager.instance.AddHistory(timeline, description);
+            // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
+            timelineManager.RequestHistory(description);
         }
 
         /// <summary>
