@@ -301,6 +301,9 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
             DrawLookKeyToggleRow(view, timeline);
 
             // キー化トグルの反映は同じ描画中に起きるため、以降の行はトグル後の値で決める
@@ -317,6 +320,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             DrawEyesPosSection(view, target, timeline);
+
+            view.EndScrollView();
         }
 
         /// <summary>
