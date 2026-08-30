@@ -3,6 +3,13 @@
 調査日: 2026-08-27
 目的: レイヤー編集ウィンドウ（`TimelineLayerWindow`）内で各 `TimelineLayer.DrawWindow` が描画する編集 UI と、SceneEditor の個別ウィンドウ群の機能被りを洗い出し、レイヤー編集ウィンドウ側の描画削除の判断材料にする。
 
+> **2026-08-30: レイヤー編集ウィンドウは撤去済み。** 本書は撤去に至るまでの分類記録として残す。
+> 残っていた未代替機能の移設先は `docs/timeline-layer-window-removal-survey.md` の総括表を参照。
+> 以下の記述のうち「対象外」としていた 5 点は、その後すべて移設して解消した:
+> BGModelMaterial（A 分類）/ サブカメラ（B 分類）/ モデル・背景モデルの操作タブ（C 分類）/
+> AnimationTimelineLayer（C 分類。Inspector が `DrawAnimeLayer` を再利用）/
+> テキスト・ポストエフェクト（C 分類。編集は RowDrawer、数とコピーは設定ウィンドウ / Inspector へ）。
+
 ## 前提となる仕組み
 
 - レイヤー編集ウィンドウ: `TimelineLayerWindow.cs`
@@ -81,9 +88,10 @@
    - ライブ演出系の UI は `TimelineLayerBase` の protected ヘルパ（`DrawPosition` / `DrawEulerAngles`）に依存していたため、インスタンス状態を持たないものを `public static` へ開放して共有している。直前キーの角度を参照する部分（`GetPrevBone`）はレイヤー固有のため、ウィンドウ側で `TimelineManager.GetLayer<T>()` 経由に解決し、レイヤー未追加時は初期値へフォールバックする。
    - 両ウィンドウともタイムライン未ロード時は案内ラベルを出して編集を禁じる。ライブ演出側はアセットバンドル（`TimelineBundleManager.IsValid()`）も前提とする。
 6. C 分類の残り（アニメブレンド / 衣装 / テキスト / ポストエフェクト / モデル操作タブ）はレイヤー編集ウィンドウにしか無い UI のため残す。
+7. **2026-08-30: 4. と 6. の残件をすべて移設し、レイヤー編集ウィンドウを撤去した。** `ITimelineLayer.DrawWindow` / `ResetDraw` の宣言ごと削除しているため、レイヤーは編集 UI を持たない。移設先の一覧は `docs/timeline-layer-window-removal-survey.md`。
 
 ## 参照
 
-- レイヤー側詳細: `Timeline/TimelineLayer/*.cs` の各 `DrawWindow`
+- レイヤー側詳細: 各 `DrawWindow` は撤去済み。移設先は `docs/timeline-layer-window-removal-survey.md`
 - 個別ウィンドウ詳細: リポジトリ直下 `source/COM3D2.SceneEditor.Plugin/*Window.cs`
 - 連携基盤: `TimelineControlWindow.cs`（キー登録）、`KeyFrameInspector.cs`（キー値編集）、各追跡ストア（`track.getStore().Mark/Unmark`）

@@ -170,6 +170,38 @@ MTE（MotionTimelineEditor）由来のタイムラインを SceneEditor 上で�
 
 **未確認**: 各編集 UI から実際に値を変更したときのキーフレーム登録・再生への反映、コンボポップアップの表示位置、内部スクロールを持たないレイヤー（SubCamera / Camera / PostEffect 等）での下部項目の到達性
 
+#### 2026-08-30: レイヤー編集ウィンドウを撤去（Phase W3 の巻き戻し）
+
+全 28 レイヤーの ItemInspector 対応が完了し、レイヤー編集ウィンドウにしか無い機能が管理系 8 件・編集系 3 件まで減ったため、それらを個別ウィンドウ / Inspector へ移設したうえで `TimelineLayerWindow` と `ITimelineLayer.DrawWindow` / `ResetDraw` を撤去した。調査は `docs/timeline-layer-window-removal-survey.md`、計画は `docs/superpowers/plans/2026-08-30-timeline-layer-window-removal.md`。
+
+移設先の要点:
+
+- 要素数（テキスト / パラフィン / 距離フォグ / リムライト / サブカメラ）とライト補間トグル 3 種 → `TimelineSettingWindow` の個別タブ
+- ポストエフェクトのコピーとトーンカーブ表示 → `PostEffectRowDrawer`
+- 衣装の初期化 / 初期値更新 → `DressItemInspector`
+- 瞳位置 / 瞳スケール → 新設 `EyesPosRowDrawer` を `MaidFaceWindow` 視線タブと `EyesItemInspector` で共有
+- モデルの管理操作（表示 / プラグイン / 複製 / 削除 / アタッチ）→ 新設 `ModelManageRowDrawer` を `ModelItemInspector` から。一覧性は HierarchyWindow が受け持つ
+- 背景モデルの配置管理 → `BackgroundWindow` の折りたたみセクション
+- 操作対象メイドの切替は `TimelineControlWindow` のメイドコンボが受け皿（既存）
+
+**実機確認項目（次回ゲーム起動時）**:
+
+- [ ] タイムライン設定: テキスト/パラフィン/フォグ/リムライト/サブカメラの数を増減できる
+- [ ] タイムライン設定: ライト補間トグル 3 種が機能する（保存値が反映される）
+- [ ] Inspector: パラフィン等のコピーが別インデックスへ反映される
+- [ ] Inspector: GTToneMap 項目でトーンカーブ画像が出る
+- [ ] Inspector: 衣装レイヤーの初期化 / 初期値更新が効く
+- [ ] 表情ウィンドウ視線タブ: 瞳位置ドラッグ・スライダー・初期化が効き、キー化される
+- [ ] Inspector: 瞳位置・瞳スケール項目が編集できる（「未対応」が消えている）
+- [ ] Inspector: モデル項目で visible / プラグイン / 複製 / 削除 / アタッチが操作できる
+- [ ] 背景ウィンドウ: 背景モデルの追加 / 削除ができ、レイヤーのキーと連動する
+- [ ] ライトウィンドウ: ライトの表示トグルが機能する
+- [ ] メニューバー / TimelineWindow に「レイヤー編集」への導線が残っていない
+- [ ] 旧 config.xml（timelineLayer* 設定入り）を読み込んでもエラーにならない
+- [ ] 要素数を減らしたとき、減った対象を選択中でも NRE にならない（項目なし表示へフォールバック）
+- [ ] Hierarchy でモデルを選択 → Inspector にモデルの管理行（visible/複製/削除/アタッチ）が出る
+- [ ] レイヤー切替・タイムライン閉鎖で NRE が出ない
+
 ---
 
 ### Phase W3-旧: レイヤー編集の受け皿整備（大物）— SE ネイティブ化（任意）
