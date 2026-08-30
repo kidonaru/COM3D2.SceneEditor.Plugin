@@ -11,7 +11,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// 選択キーフレームごとに折りたたみ可能なブロックを縦に並べ、
     /// Transform は標準 Inspector と同じ横並び行、その他のパラメータは
     /// ウィンドウ幅に合わせて折り返すドラッグ可能な数値入力で個別に編集する
-    /// (補間曲線の編集は TimelineCurveEditor が担当する)
+    /// (末尾に KeyFrameTangentDrawer のタンジェント曲線エディタを表示する。
+    /// 区間ごとの実値カーブ編集は TimelineCurveEditor が担当)
     /// </summary>
     public class KeyFrameInspector
     {
@@ -131,6 +132,9 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel(
                     string.Format("他 {0} 個は非表示", totalCount - drawCount), -1, RowHeight);
             }
+
+            // タンジェント曲線エディタ (選択キーフレーム全体が対象)
+            KeyFrameTangentDrawer.instance.Draw(view);
 
             // 一括開閉は表示中のブロックが対象なので、_sortedBones を捨てる前に反映する
             ProcessPendingFold(drawCount);
