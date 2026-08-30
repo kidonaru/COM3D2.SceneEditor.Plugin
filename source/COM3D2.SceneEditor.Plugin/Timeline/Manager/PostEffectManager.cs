@@ -69,6 +69,54 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public int depthOfFieldMaidSlotId = -1;
 
+        // タイムライン未読込時の各エフェクト数。プリセット復元をタイムライン非依存にするための自前の所有者。
+        // 既定値は TimelineData の既定値 (各 1) と揃える
+        private int _standaloneParaffinCount = 1;
+        private int _standaloneDistanceFogCount = 1;
+        private int _standaloneRimlightCount = 1;
+
+        /// <summary>パラフィン数。タイムライン読込中は timeline 側が正、未読込時は自前値で動く</summary>
+        public int paraffinCount
+        {
+            get => timeline != null ? timeline.paraffinCount : _standaloneParaffinCount;
+            set
+            {
+                _standaloneParaffinCount = value;
+                if (timeline != null)
+                {
+                    timeline.paraffinCount = value;
+                }
+            }
+        }
+
+        /// <summary>距離フォグ数。タイムライン読込中は timeline 側が正、未読込時は自前値で動く</summary>
+        public int distanceFogCount
+        {
+            get => timeline != null ? timeline.distanceFogCount : _standaloneDistanceFogCount;
+            set
+            {
+                _standaloneDistanceFogCount = value;
+                if (timeline != null)
+                {
+                    timeline.distanceFogCount = value;
+                }
+            }
+        }
+
+        /// <summary>リムライト数。タイムライン読込中は timeline 側が正、未読込時は自前値で動く</summary>
+        public int rimlightCount
+        {
+            get => timeline != null ? timeline.rimlightCount : _standaloneRimlightCount;
+            set
+            {
+                _standaloneRimlightCount = value;
+                if (timeline != null)
+                {
+                    timeline.rimlightCount = value;
+                }
+            }
+        }
+
         private PostEffectController _controller = null;
         public PostEffectController controller
         {
@@ -126,6 +174,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void InitPostEffects()
         {
+            if (timeline != null)
+            {
+                // タイムライン読込 (TimelineXml) で timeline 側だけ変わった場合に自前値を追随させる
+                _standaloneParaffinCount = timeline.paraffinCount;
+                _standaloneDistanceFogCount = timeline.distanceFogCount;
+                _standaloneRimlightCount = timeline.rimlightCount;
+            }
+
             InitParrifinEffect();
             InitDistanceFogEffect();
             InitRimlightEffect();
@@ -133,11 +189,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void InitParrifinEffect()
         {
-            while (postEffectManager.GetParaffinCount() < timeline.paraffinCount)
+            while (postEffectManager.GetParaffinCount() < paraffinCount)
             {
                 postEffectManager.AddParaffinData();
             }
-            while (postEffectManager.GetParaffinCount() > timeline.paraffinCount)
+            while (postEffectManager.GetParaffinCount() > paraffinCount)
             {
                 postEffectManager.RemoveParaffinData();
             }
@@ -145,11 +201,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void InitDistanceFogEffect()
         {
-            while (postEffectManager.GetDistanceFogCount() < timeline.distanceFogCount)
+            while (postEffectManager.GetDistanceFogCount() < distanceFogCount)
             {
                 postEffectManager.AddDistanceFogData();
             }
-            while (postEffectManager.GetDistanceFogCount() > timeline.distanceFogCount)
+            while (postEffectManager.GetDistanceFogCount() > distanceFogCount)
             {
                 postEffectManager.RemoveDistanceFogData();
             }
@@ -157,11 +213,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void InitRimlightEffect()
         {
-            while (postEffectManager.GetRimlightCount() < timeline.rimlightCount)
+            while (postEffectManager.GetRimlightCount() < rimlightCount)
             {
                 postEffectManager.AddRimlightData();
             }
-            while (postEffectManager.GetRimlightCount() > timeline.rimlightCount)
+            while (postEffectManager.GetRimlightCount() > rimlightCount)
             {
                 postEffectManager.RemoveRimlightData();
             }

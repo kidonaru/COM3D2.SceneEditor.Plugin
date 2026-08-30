@@ -70,6 +70,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private FreeTextSet[] _textData = new FreeTextSet[0];
         public FreeTextSet[] TextData => _textData;
 
+        /// <summary>
+        /// タイムライン未読込時のテキスト表示数。
+        /// プリセット復元をタイムライン非依存にするための自前の所有者
+        /// </summary>
+        private int _standaloneTextCount = 1;
+
+        /// <summary>
+        /// テキスト表示数。タイムライン読込中は timeline 側が正 (TimelineXml に保存されるため)、
+        /// 未読込時は自前値で動く
+        /// </summary>
+        public int textCount
+        {
+            get => timeline != null ? timeline.textCount : _standaloneTextCount;
+            set
+            {
+                _standaloneTextCount = value;
+                if (timeline != null)
+                {
+                    timeline.textCount = value;
+                }
+            }
+        }
+
         private GameObject _canvasObject = null;
         private GameObject _cameraObject = null;
         private Camera _camera = null;
@@ -95,17 +118,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ReleaseTexts();
         }
 
-        /// <summary>タイムラインのテキスト表示数に合わせてテキスト実体を作り直す</summary>
+        /// <summary>テキスト表示数に合わせてテキスト実体を作り直す</summary>
         public void InitTexts()
         {
-            if (timeline == null || _textData.Length == timeline.textCount)
+            if (timeline != null)
+            {
+                // タイムライン読込 (TimelineXml) で timeline 側だけ変わった場合に自前値を追随させる
+                _standaloneTextCount = timeline.textCount;
+            }
+
+            if (_textData.Length == textCount)
             {
                 return;
             }
 
             ReleaseTexts();
 
-            _textData = new FreeTextSet[timeline.textCount];
+            _textData = new FreeTextSet[textCount];
 
             for (var i = 0; i < _textData.Length; i++)
             {

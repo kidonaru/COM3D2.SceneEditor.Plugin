@@ -593,20 +593,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// サブカメラの管理タブ。台数の増減と選択したカメラの編集を行う。
-        /// サブカメラはタイムライン文脈でのみ生成・更新されるため、
-        /// タイムライン未読込時は使えない (SubCameraItemInspector と同じ制約)
+        /// タイムライン未読込時も台数の増減と編集ができる
         /// </summary>
         private void DrawSubCameraContent()
         {
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
-
-            if (timelineManager.timeline == null)
-            {
-                _view.DrawLabel("タイムライン読込後に使用できます", -1, ROW_HEIGHT,
-                    textColor: Color.yellow);
-                return;
-            }
 
             _view.SetEnabled(_view.focusedComboBox == null);
 
@@ -637,14 +629,16 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // 編集していない間はレイヤーが毎フレーム再生値を書き戻すため、
-            // 編集モードでないときは触らせない (レイヤー UI と同じ制約)
-            if (!studioHackManager.isPoseEditing)
+            // タイムライン読込中はレイヤーが毎フレーム再生値を書き戻すため編集モード中のみ、
+            // 未読込時はレイヤーが動かないため常時編集できる
+            var canEdit = timelineManager.timeline == null ||
+                studioHackManager.isPoseEditing;
+            if (!canEdit)
             {
                 _view.DrawLabel("編集モード中のみサブカメラを操作できます", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
             }
-            _view.SetEnabled(_view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            _view.SetEnabled(_view.focusedComboBox == null && canEdit);
 
             _subCameraRowDrawers.Get(cameraData.name)
                 .Draw(_view, cameraData, LABEL_WIDTH, ROW_HEIGHT);

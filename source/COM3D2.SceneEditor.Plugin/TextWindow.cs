@@ -9,8 +9,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// フリーテキストの管理ウィンドウ。
     /// 表示数の増減と選択したテキストの内容・スタイル・枠 Transform の編集を行う。
     /// 編集 UI の実体は TextRowDrawer (書き込み先は TimelineTextManager の FreeTextSet)。
-    /// テキストはタイムライン文脈でのみ生成・更新されるため、
-    /// タイムライン未読込時は使えない (TextItemInspector と同じ制約)
+    /// タイムライン未読込時も使用できる (実体はウィンドウ表示中に生成される)
     /// </summary>
     public class TextWindow : EditorSubWindow
     {
@@ -111,23 +110,25 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawBody()
         {
-            if (timeline == null)
-            {
-                _view.DrawLabel("タイムライン読込後に使用できます", -1, ROW_HEIGHT,
-                    textColor: Color.yellow);
-                return;
-            }
-
             _view.SetEnabled(_view.focusedComboBox == null);
 
             DrawTextCountRow();
 
-            _textIndex = Mathf.Clamp(_textIndex, 0, timeline.textCount - 1);
+            var textCount = textManager.textCount;
 
-            if (_textIndexItems.Count != timeline.textCount)
+            // タイムライン未読込時は実体を作る経路がレイヤーに無いため、ウィンドウ表示中に直接補う
+            // (テキストの初期値は空文字列なので、作られても画面には何も出ない)
+            if (timeline == null && textManager.TextData.Length != textCount)
+            {
+                textManager.InitTexts();
+            }
+
+            _textIndex = Mathf.Clamp(_textIndex, 0, textCount - 1);
+
+            if (_textIndexItems.Count != textCount)
             {
                 _textIndexItems.Clear();
-                for (var i = 0; i < timeline.textCount; i++)
+                for (var i = 0; i < textCount; i++)
                 {
                     _textIndexItems.Add(i);
                 }
@@ -150,14 +151,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // 編集していない間はレイヤーが毎フレーム再生値を書き戻すため、
-            // 編集モードでないときは触らせない (レイヤー UI と同じ制約)
-            if (!studioHackManager.isPoseEditing)
+            // タイムライン読込中はレイヤーが毎フレーム再生値を書き戻すため編集モード中のみ、
+            // 未読込時はレイヤーが動かないため常時編集できる
+            var canEdit = timeline == null || studioHackManager.isPoseEditing;
+            if (!canEdit)
             {
                 _view.DrawLabel("編集モード中のみテキストを操作できます", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
             }
-            _view.SetEnabled(_view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            _view.SetEnabled(_view.focusedComboBox == null && canEdit);
 
             // 直前キーの参照と色ピッカーの同定に使うため、レイヤーの項目名と同じ名前を渡す
             var boneName = MTEP.TextTimelineLayer.TextBoneName + _textIndex;
@@ -173,7 +175,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawTextCountRow()
         {
             CountRowDrawer.Draw(_view, "テキスト表示数", ROW_HEIGHT,
-                timeline.textCount, MinTextCount, MaxTextCount, SetTextCount);
+                textManager.textCount, MinTextCount, MaxTextCount, SetTextCount);
         }
 
         /// <summary>
@@ -181,11 +183,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// テキストレイヤーがあれば LateUpdate 側が実体とメニュー項目をまとめて作り直す。
         /// ここで先に InitTexts を呼ぶとその追随ガード
         /// (TextData.Length != textCount) が空振りしてメニュー項目が更新されないため、
-        /// レイヤー未追加のタイムラインでも反映されるよう実体の再生成だけを補う
+        /// レイヤーが無いとき (タイムライン未読込含む) だけ実体の再生成を補う
         /// </summary>
         private static void SetTextCount(int count)
         {
-            timeline.textCount = count;
+            textManager.textCount = count;
 
             if (timelineManager.FindLayers(typeof(MTEP.TextTimelineLayer)).Count == 0)
             {
