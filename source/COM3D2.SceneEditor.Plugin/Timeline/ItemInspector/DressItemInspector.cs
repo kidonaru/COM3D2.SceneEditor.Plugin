@@ -10,9 +10,8 @@ namespace COM3D2.SceneEditor.Plugin
     ///
     /// 衣装は「初期値からの差分」をキー化する仕組みで、値の編集はアイテム選択UI
     /// (ModItemExplorer 等) の領分になるため、Inspector では現在値の表示だけを行う。
-    /// 表示形式はレイヤー自身のウィンドウ (DressTimelineLayer.DrawDress) に合わせている
-    /// (レイヤー本体は MTE 逐語コピーで手を入れられないため共有はできず、同じ体裁を再現している)。
-    /// ただし対象外の部位は、一覧を流すレイヤー側と違って明示的な理由ラベルを出す
+    /// 表示形式は旧レイヤー編集ウィンドウの一覧を引き継いでいる。
+    /// ただし対象外の部位は、一覧を流していた旧 UI と違って明示的な理由ラベルを出す
     /// (項目を選んだのに何も出ないと壊れて見えるため)
     /// </summary>
     public class DressItemInspector : ITimelineItemInspector

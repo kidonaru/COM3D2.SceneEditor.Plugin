@@ -198,13 +198,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            // PNG 配置の編集 UI は SE の PngPlacementWindow に委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("PNG 配置の編集は PngPlacement ウィンドウで行ってください", -1, 20);
-        }
-
         public override TransformType GetTransformType(string name)
         {
             return TransformType.PngObject;

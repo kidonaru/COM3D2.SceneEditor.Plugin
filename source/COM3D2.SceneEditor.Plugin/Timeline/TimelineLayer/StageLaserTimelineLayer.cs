@@ -448,12 +448,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // ステージレーザーの編集 UI はライブ演出ウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("ステージレーザーの編集はライブ演出ウィンドウで行ってください", -1, 20);
-        }
-
         public override TransformType GetTransformType(string name)
         {
             if (name.StartsWith("StageLaserController", StringComparison.Ordinal))

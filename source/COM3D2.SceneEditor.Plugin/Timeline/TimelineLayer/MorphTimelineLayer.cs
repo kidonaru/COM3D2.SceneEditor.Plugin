@@ -225,18 +225,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            if (maid == null)
-            {
-                view.DrawLabel("メイドを配置してください", -1, 20);
-                return;
-            }
-
-            // 表情モーフの編集・追跡チェックは SE の表情ウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("表情の編集は表情ウィンドウで行ってください", -1, 20);
-        }
-
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
         {
             return SingleFrameType.None;

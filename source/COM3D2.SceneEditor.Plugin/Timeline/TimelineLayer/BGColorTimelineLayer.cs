@@ -166,12 +166,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // 背景色・地面の編集 UI は SE の BackgroundWindow に委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("背景色・地面の編集は 背景ウィンドウで行ってください", -1, 20);
-        }
-
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
         {
             return SingleFrameType.None;

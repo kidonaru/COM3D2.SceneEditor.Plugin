@@ -110,7 +110,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             distance = tempScale.x;
             viewAngle = tempScale.y;
 
-
             if (config.isFixedFoV && !isCurrent && studioHackManager.isPoseEditing)
             {
                 viewAngle = 35;
@@ -167,14 +166,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // DCM 連携は未移植のため出力しない
         public override void OutputDCM(XElement songElement)
         {
-        }
-
-        public override void DrawWindow(GUIView view)
-        {
-            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            // カメラの編集 UI は SE の CameraWindow に委譲する (レイヤー UI 非接続方針)
-            // 回転の 360 度跨ぎは GetAnmBinary の FixRotation が前キー基準で補正するため、UI 側の補正は不要
-            view.DrawLabel("カメラの編集は カメラウィンドウで行ってください", -1, 20);
         }
 
         public override TransformType GetTransformType(string name)

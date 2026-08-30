@@ -157,13 +157,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // メイド本体の Transform 編集は SE のインスペクタ / ギズモへ委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("メイドの移動はギズモ、またはインスペクタで編集してください", -1, 20);
-            view.DrawLabel("※キーの値はローカル座標で記録されます", -1, 20);
-        }
-
         public override TransformType GetTransformType(string name)
         {
             return TransformType.Move;

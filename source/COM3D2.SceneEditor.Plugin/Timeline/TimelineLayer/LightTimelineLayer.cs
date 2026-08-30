@@ -269,38 +269,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        private enum TabType
-        {
-            操作,
-            管理,
-        }
-
-        private static TabType _tabType = TabType.操作;
-
-        public override void DrawWindow(GUIView view)
-        {
-            _tabType = view.DrawTabs(_tabType, 50, 20);
-
-            switch (_tabType)
-            {
-                case TabType.操作:
-                    DrawLightEdit(view);
-                    break;
-                case TabType.管理:
-                    DrawLightManage(view);
-                    break;
-            }
-
-            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため
-            // view.DrawComboBox() は呼ばない
-        }
-
-        private void DrawLightEdit(GUIView view)
-        {
-            // ライトの編集 UI は SE の LightWindow に委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("ライトの編集は ライトウィンドウで行ってください", -1, 20);
-        }
-
         public override TransformType GetTransformType(string name)
         {
             return TransformType.Light;

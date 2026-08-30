@@ -74,12 +74,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // 効果音の編集 UI はサウンドウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("効果音の編集はサウンドウィンドウで行ってください", -1, 20);
-        }
-
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
         {
             return SingleFrameType.None;

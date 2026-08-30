@@ -10,10 +10,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// サブカメラ 1 台分の設定行 (有効 / 追従 / 位置・回転 / FoV / ビューポート)。
     ///
-    /// サブカメラには委譲先の個別ウィンドウが無いため、共有元はレイヤーの
-    /// SubCameraTimelineLayer.DrawWindow になる。レイヤー本体は MTE 逐語コピーで
-    /// 触らない方針のため、同じ書き込み先 (SubCameraData / MaidFollowSubCamera) へ
-    /// 同じ意味の編集を行う形でここに用意している。
+    /// サブカメラには委譲先の個別ウィンドウが無いため、旧レイヤー編集ウィンドウの
+    /// 編集 UI をここへ引き継いでいる (書き込み先は SubCameraData / MaidFollowSubCamera)。
     /// 書き込み先はどのスナップショットにも含まれないため履歴は記録しない
     /// (レイヤー側の UI も記録していない)。
     ///

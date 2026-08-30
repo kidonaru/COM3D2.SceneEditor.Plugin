@@ -104,12 +104,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // 脱衣の編集 UI は SE の脱衣ウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("脱衣の編集は脱衣ウィンドウで行ってください", -1, 20);
-        }
-
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
         {
             return SingleFrameType.None;

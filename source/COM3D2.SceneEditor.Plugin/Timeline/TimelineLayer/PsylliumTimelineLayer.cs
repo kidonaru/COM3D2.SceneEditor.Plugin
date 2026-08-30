@@ -742,12 +742,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // サイリウムの編集 UI はライブ演出ウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("サイリウムの編集はライブ演出ウィンドウで行ってください", -1, 20);
-        }
-
         public override SingleFrameType GetSingleFrameType(TransformType transformType)
         {
             return SingleFrameType.None;

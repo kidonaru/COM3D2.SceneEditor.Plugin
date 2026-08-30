@@ -132,12 +132,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // シェイプキーの編集・追跡チェックは SE のシェイプキー編集ウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("シェイプキーの編集はシェイプキーウィンドウで行ってください", -1, 20);
-        }
-
         public override TransformType GetTransformType(string name)
         {
             return TransformType.ShapeKey;

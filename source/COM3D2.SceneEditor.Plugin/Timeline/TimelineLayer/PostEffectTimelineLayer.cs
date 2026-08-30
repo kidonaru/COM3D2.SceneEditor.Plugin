@@ -205,56 +205,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private GUIComboBox<MaidCache> _maidComboBox = new GUIComboBox<MaidCache>
-        {
-            getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
-            buttonSize = new Vector2(100, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private ColorFieldCache _color1FieldValue = new ColorFieldCache("Color1", true);
-        private ColorFieldCache _color2FieldValue = new ColorFieldCache("Color2", true);
-
-        private enum TabType
-        {
-            被写界深度,
-            パラフィン,
-            距離フォグ,
-            リムライト,
-            GTToneMap,
-        }
-
-        private static TabType _tabType = TabType.被写界深度;
-
         // DCM 連携は未移植のため出力しない
         public override void OutputDCM(XElement songElement)
         {
-        }
-
-        public override void DrawWindow(GUIView view)
-        {
-            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            _tabType = view.DrawTabs(_tabType, 80, 20);
-
-            switch (_tabType)
-            {
-                case TabType.被写界深度:
-                    DrawDepthOfField(view);
-                    break;
-                case TabType.パラフィン:
-                    DrawParaffin(view);
-                    break;
-                case TabType.距離フォグ:
-                    DrawDistanceFog(view);
-                    break;
-                case TabType.リムライト:
-                    DrawRimlight(view);
-                    break;
-                case TabType.GTToneMap:
-                    DrawGTToneMap(view);
-                    break;
-            }
-
         }
 
         public override TransformType GetTransformType(string name)

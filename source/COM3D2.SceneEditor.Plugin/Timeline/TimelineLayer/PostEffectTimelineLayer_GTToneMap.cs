@@ -101,9 +101,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public partial class PostEffectTimelineLayer : TimelineLayerBase
     {
-        private Texture2D _gtToneMapTexture;
-        private GTToneMapData _gtToneMapTextureData;
-
         private void ApplyGTToneMap(MotionData motion, float t)
         {
             var start = motion.start as TransformDataGTToneMap;
@@ -114,89 +111,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var data = GTToneMapData.Lerp(start.data, end.data, lerpTime);
 
             postEffectManager.ApplyGTToneMap(data);
-        }
-
-        public void DrawGTToneMap(GUIView view)
-        {
-            view.SetEnabled(view.focusedComboBox == null);
-            view.DrawHorizontalLine(Color.gray);
-            view.AddSpace(5);
-
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
-
-            var data = postEffectManager.GetGTToneMapData();
-            var updateTransform = false;
-            var defaultTrans = TransformDataGTToneMap.defaultTrans;
-
-            view.DrawToggle("有効化", data.enabled, 80, 20, newValue =>
-            {
-                data.enabled = newValue;
-                updateTransform = true;
-            });
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.maxBrightnessInfo,
-                data.maxBrightness,
-                newValue => data.maxBrightness = newValue);
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.contrastInfo,
-                data.contrast,
-                newValue => data.contrast = newValue);
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.linearStartInfo,
-                data.linearStart,
-                newValue => data.linearStart = newValue);
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.linearLengthInfo,
-                data.linearLength,
-                newValue => data.linearLength = newValue);
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.blackTightnessInfo,
-                data.blackTightness,
-                newValue => data.blackTightness = newValue);
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.blackOffsetInfo,
-                data.blackOffset,
-                newValue => data.blackOffset = newValue);
-
-            if (updateTransform)
-            {
-                postEffectManager.ApplyGTToneMap(data);
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-            view.DrawHorizontalLine(Color.gray);
-
-            if (_gtToneMapTexture == null)
-            {
-                _gtToneMapTexture = new Texture2D(150, 150);
-                TextureUtils.ClearTexture(_gtToneMapTexture, config.curveBgColor);
-            }
-
-            if (!_gtToneMapTextureData.Equals(data))
-            {
-                _gtToneMapTextureData = data;
-
-                TextureUtils.ClearTexture(_gtToneMapTexture, config.curveBgColor);
-
-                GTToneMap.ApplyTexture(
-                    _gtToneMapTexture,
-                    config.curveLineColor,
-                    1,
-                    data.maxBrightness,
-                    data.contrast,
-                    data.linearStart,
-                    data.linearLength,
-                    data.blackTightness,
-                    data.blackOffset);
-            }
-
-            view.DrawTexture(_gtToneMapTexture);
         }
     }
 }

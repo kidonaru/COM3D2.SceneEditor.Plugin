@@ -268,26 +268,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            if (maidCache == null)
-            {
-                view.DrawLabel("メイドを配置してください", -1, 20);
-                return;
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-            view.BeginScrollView();
-
-            for (int layer = MinLayerIndex; layer <= MaxLayerIndex; layer++)
-            {
-                DrawAnimeLayer(view, layer);
-            }
-
-            view.SetEnabled(view.focusedComboBox == null);
-            view.EndScrollView();
-        }
-
         public void DrawAnimeLayer(GUIView view, int layer)
         {
             var info = maidCache.GetAnimationLayerInfo(layer);

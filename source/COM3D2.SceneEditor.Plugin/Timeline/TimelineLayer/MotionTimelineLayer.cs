@@ -798,16 +798,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // ボーン・IK・指の編集 UI は SE の各ウィンドウに委譲する (レイヤー UI 非接続方針)。
-            // キー書き込み (UpdateFrame) はいずれもライブ状態を読むため、
-            // 個別ウィンドウでの編集がそのままキー化される
-            view.DrawLabel("ボーンの編集はボーンウィンドウ・Inspectorで行ってください", -1, 20);
-            view.DrawLabel("IK固定・接地はIKウィンドウで行ってください", -1, 20);
-            view.DrawLabel("指の編集は指ウィンドウで行ってください", -1, 20);
-        }
-
         public static readonly string[] FingerBlendBoneNames = new string[]
         {
             "ArmFingerBlendR",

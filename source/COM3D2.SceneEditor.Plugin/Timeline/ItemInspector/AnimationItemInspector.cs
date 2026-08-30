@@ -47,7 +47,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // DrawAnimeLayer は編集モード判定で無効化したまま戻すため、ここで戻す
-            // (レイヤーの DrawWindow が描画の最後に行っているのと同じ)
             view.SetEnabled(view.focusedComboBox == null);
         }
 

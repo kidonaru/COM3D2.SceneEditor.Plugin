@@ -199,15 +199,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
-        public override void DrawWindow(GUIView view)
-        {
-            // SE ではコンボのポップアップ描画をホストウィンドウ側 (ComboBoxPopupWindow) が行うため view.DrawComboBox() は呼ばない
-            // マテリアルの編集・追跡チェックは SE のマテリアル編集ウィンドウに委譲する (レイヤー UI 非接続方針)
-            view.DrawLabel("マテリアルの編集はマテリアルウィンドウで行ってください", -1, 20);
-            view.DrawHorizontalLine(Color.gray);
-            DrawModelManage(view);
-        }
-
         public override TransformType GetTransformType(string name)
         {
             return TransformType.ModelMaterial;
