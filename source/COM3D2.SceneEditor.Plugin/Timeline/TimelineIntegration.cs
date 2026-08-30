@@ -288,6 +288,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.BGModelMaterialTimelineLayer), new BGModelMaterialItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.MaidMaterialTimelineLayer), new MaidMaterialItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.CameraTimelineLayer), new CameraItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,

@@ -286,6 +286,7 @@
     <Compile Include="ScaleRowDrawer.cs" />
     <Compile Include="Vector3RowDrawer.cs" />
     <Compile Include="MaidShapeKeyRowDrawer.cs" />
+    <Compile Include="MainCameraRowDrawer.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
@@ -363,6 +364,7 @@
     <Compile Include="Timeline\ItemInspector\MoveItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MorphItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MotionItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\CameraItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
