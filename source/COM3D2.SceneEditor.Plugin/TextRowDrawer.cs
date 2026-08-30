@@ -21,8 +21,8 @@ namespace COM3D2.SceneEditor.Plugin
     {
         private static MTEP.TimelineTextManager textManager => MTEP.TimelineTextManager.instance;
 
-        /// <summary>スライダーのラベル幅 (「サイズ」「行間」が収まる幅)</summary>
-        private const float SliderLabelWidth = 30f;
+        /// <summary>ドラッグラベルの幅 (「サイズ」「行間」「幅」「高さ」が収まる幅)</summary>
+        private const float ValueLabelWidth = 30f;
 
         /// <summary>テキスト入力の最大行数 (レイヤー UI と同じ)</summary>
         private const int TextMaxLines = 3;
@@ -30,6 +30,24 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ドラッグラベルの 1px あたりの増減量 (レイヤー UI と同じ値)</summary>
         private const float RectSensitivity = 1f;
         private const float ScaleSensitivity = 0.01f;
+
+        /// <summary>ドラッグ感度に GUIView の既定値を使わせる指定</summary>
+        private const float UseDefaultDragSensitivity = 0f;
+
+        /// <summary>枠サイズは範囲が広く、既定の 0.5/px ではドラッグで端まで届かない</summary>
+        private const float SizeDragSensitivity = 5f;
+
+        /// <summary>フォントサイズの既定値と上限 (TimelineTextManager.InitTexts と対)</summary>
+        private const int DefaultFontSize = 50;
+        private const int MaxFontSize = 200;
+
+        /// <summary>行間の既定値と上限 (TimelineTextManager.InitTexts と対)</summary>
+        private const int DefaultLineSpacing = 50;
+        private const int MaxLineSpacing = 200;
+
+        /// <summary>テキスト枠の幅・高さの既定値と上限 (TimelineTextManager.InitTexts と対)</summary>
+        private const int DefaultSize = 1000;
+        private const int MaxSize = 2000;
 
         private readonly GUIComboBox<string> _fontNameComboBox = new GUIComboBox<string>
         {
@@ -72,31 +90,20 @@ namespace COM3D2.SceneEditor.Plugin
 
             _fontNameComboBox.DrawButton("フォント", view);
 
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "サイズ",
-                labelWidth = SliderLabelWidth,
-                fieldType = FloatFieldType.Int,
-                min = 0,
-                max = 200,
-                step = 1,
-                defaultValue = 50,
-                value = text.fontSize,
-                onChanged = value => text.fontSize = (int)value,
-            });
+            var fieldWidth = GetPairedFieldWidth(view);
 
-            view.DrawSliderValue(new GUIView.SliderOption
+            view.BeginHorizontal();
             {
-                label = "行間",
-                labelWidth = SliderLabelWidth,
-                fieldType = FloatFieldType.Int,
-                min = 0,
-                max = 200,
-                step = 1,
-                defaultValue = 50,
-                value = text.lineSpacing,
-                onChanged = value => text.lineSpacing = value,
-            });
+                DrawValueField(view, "サイズ", rowHeight, fieldWidth,
+                    text.fontSize, MaxFontSize, DefaultFontSize, UseDefaultDragSensitivity,
+                    value => text.fontSize = value);
+
+                DrawValueField(view, "行間", rowHeight, fieldWidth,
+                    (int)text.lineSpacing, MaxLineSpacing, DefaultLineSpacing,
+                    UseDefaultDragSensitivity,
+                    value => text.lineSpacing = value);
+            }
+            view.EndLayout();
 
             _alignmentComboBox.currentIndex = (int)text.alignment;
             _alignmentComboBox.onSelected = (alignment, _) =>
@@ -106,19 +113,27 @@ namespace COM3D2.SceneEditor.Plugin
 
             _alignmentComboBox.DrawButton("整列", view);
 
-            DrawSizeSlider(view, "幅", rect.sizeDelta.x, value =>
+            view.BeginHorizontal();
             {
-                var sizeDelta = rect.sizeDelta;
-                sizeDelta.x = value;
-                rect.sizeDelta = sizeDelta;
-            });
+                DrawValueField(view, "幅", rowHeight, fieldWidth,
+                    (int)rect.sizeDelta.x, MaxSize, DefaultSize, SizeDragSensitivity,
+                    value =>
+                    {
+                        var sizeDelta = rect.sizeDelta;
+                        sizeDelta.x = value;
+                        rect.sizeDelta = sizeDelta;
+                    });
 
-            DrawSizeSlider(view, "高さ", rect.sizeDelta.y, value =>
-            {
-                var sizeDelta = rect.sizeDelta;
-                sizeDelta.y = value;
-                rect.sizeDelta = sizeDelta;
-            });
+                DrawValueField(view, "高さ", rowHeight, fieldWidth,
+                    (int)rect.sizeDelta.y, MaxSize, DefaultSize, SizeDragSensitivity,
+                    value =>
+                    {
+                        var sizeDelta = rect.sizeDelta;
+                        sizeDelta.y = value;
+                        rect.sizeDelta = sizeDelta;
+                    });
+            }
+            view.EndLayout();
 
             var colorFieldCache = view.GetColorFieldCache(colorLabel, true);
             view.DrawColor(colorFieldCache, text.color, Color.white, value => text.color = value);
@@ -164,22 +179,40 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>テキスト枠の幅・高さのスライダー 1 行</summary>
-        private static void DrawSizeSlider(
-            GUIView view, string label, float value, Action<float> onChanged)
+        /// <summary>
+        /// ドラッグラベル + 数値入力 1 個分。
+        /// サイズ・行間・幅・高さはいずれも 0 以上の整数として扱うため、
+        /// 元の型 (fontSize は int、lineSpacing と sizeDelta は float) を問わず int で描く
+        /// </summary>
+        private static void DrawValueField(
+            GUIView view, string label, float rowHeight, float fieldWidth,
+            int value, int maxValue, int defaultValue, float dragSensitivity,
+            Action<int> onChanged)
         {
-            view.DrawSliderValue(new GUIView.SliderOption
+            view.DrawDragIntField(new GUIView.DragIntFieldOption
             {
                 label = label,
-                labelWidth = SliderLabelWidth,
-                fieldType = FloatFieldType.Int,
-                min = 0,
-                max = 2000,
-                step = 1,
-                defaultValue = 1000,
+                labelWidth = ValueLabelWidth,
                 value = value,
+                minValue = 0,
+                maxValue = maxValue,
+                fieldWidth = fieldWidth,
+                height = rowHeight,
+                dragSensitivity = dragSensitivity,
                 onChanged = onChanged,
+                onReset = () => onChanged(defaultValue),
             });
+        }
+
+        /// <summary>
+        /// ドラッグラベル + 数値入力を 2 つ 1 行に詰めたときの、数値入力欄 1 個分の幅。
+        /// 1 要素は「ラベル + margin + 入力欄 + リセットボタン」を消費し、
+        /// 要素間にも margin が 1 つ入るので、その内訳から逆算する
+        /// </summary>
+        private static float GetPairedFieldWidth(GUIView view)
+        {
+            var available = view.viewRect.width - view.padding.x * 2 - view.margin;
+            return available / 2f - ValueLabelWidth - view.margin - GUIView.ResetButtonWidth;
         }
     }
 }
