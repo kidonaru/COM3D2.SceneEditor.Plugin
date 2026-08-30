@@ -27,6 +27,9 @@ namespace COM3D2.SceneEditor.Plugin
         private string _category = ALL_CATEGORY;
         private string _searchText = "";
 
+        /// <summary>背景モデルの配置管理を開いているか。既定は畳む</summary>
+        private bool _isBgModelExpanded = false;
+
         private readonly GUIComboBox<string> _categoryComboBox = new GUIComboBox<string>
         {
             getName = (name, _) => name,
@@ -142,7 +145,91 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.DrawHorizontalLine();
             DrawFilterRows();
+            DrawBgModelSection();
             DrawBgList(bgMgr);
+        }
+
+        /// <summary>
+        /// 背景モデルの配置管理。旧レイヤー編集ウィンドウ (BGModelTimelineLayerBase.DrawModelManage)
+        /// から移設。配置済みのモデルは背景モデルレイヤーのキーと連動する。
+        /// 下の背景一覧のスクロールを圧迫しないよう、既定は畳んでおく
+        /// </summary>
+        private void DrawBgModelSection()
+        {
+            if (MTEP.TimelineManager.instance.timeline == null)
+            {
+                return;
+            }
+
+            _view.DrawHorizontalLine();
+
+            Action toggle = () => _isBgModelExpanded = !_isBgModelExpanded;
+            _view.BeginHorizontal();
+            {
+                _view.DrawLabel(_isBgModelExpanded ? "▼" : "▶", 20, ROW_HEIGHT,
+                    onClickAction: toggle);
+                _view.DrawLabel("背景モデルの配置", 150, ROW_HEIGHT, onClickAction: toggle);
+            }
+            _view.EndLayout();
+
+            if (!_isBgModelExpanded)
+            {
+                return;
+            }
+
+            var bgModelManager = MTEP.BGModelManager.instance;
+            var infoList = bgModelManager.modelInfoList;
+            if (infoList.Count == 0)
+            {
+                _view.DrawLabel("背景モデルがありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _view.SetEnabled(_view.focusedComboBox == null
+                && MTEP.StudioHackManager.instance.isPoseEditing);
+
+            // 増減は一覧を作り替えるため、描画ループを回し切ってから 1 件だけ反映する
+            string addSourceName = null;
+            string deleteSourceName = null;
+
+            foreach (var info in infoList)
+            {
+                var models = bgModelManager.GetModels(info.sourceName);
+
+                _view.BeginHorizontal();
+                {
+                    var indent = new string(' ', info.depth);
+                    var name = indent + "└" + info.displayName;
+
+                    var labelWidth = _view.viewRect.width - _view.currentPos.x - 60 - 10;
+                    var labelColor = models.Count > 0 ? Color.green : Color.white;
+                    _view.DrawLabel(name, labelWidth, ROW_HEIGHT, labelColor);
+
+                    if (_view.DrawButton("-", 20, ROW_HEIGHT, models.Count > 0))
+                    {
+                        deleteSourceName = info.sourceName;
+                    }
+
+                    _view.DrawLabel(models.Count.ToString(), 20, ROW_HEIGHT);
+
+                    if (_view.DrawButton("+", 20, ROW_HEIGHT))
+                    {
+                        addSourceName = info.sourceName;
+                    }
+                }
+                _view.EndLayout();
+            }
+
+            _view.SetEnabled(_view.focusedComboBox == null);
+
+            if (deleteSourceName != null)
+            {
+                bgModelManager.DeleteModelBySourceName(deleteSourceName);
+            }
+            if (addSourceName != null)
+            {
+                bgModelManager.AddModelBySourceName(addSourceName);
+            }
         }
 
         /// <summary>
