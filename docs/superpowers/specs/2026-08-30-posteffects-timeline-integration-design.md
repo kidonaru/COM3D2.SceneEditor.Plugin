@@ -66,6 +66,19 @@ SceneEditor から呼ぶための公開 API。現行 SceneEditor `PostEffectMana
 - マスター有効フラグ: 系統ごとの enabled get/set
 - DoF のメイド追従スロット等、現行レイヤーが使う付帯 API も同等に公開する
 
+**実装時の追記: パラメータ構成の差分**
+
+パラフィン・リムライトの値クラスは、PostEffects.Plugin 側で深度マスクを廃し
+キャラマスク方式へ置き換えられていたため、タイムラインの値も実体へ揃えた:
+
+- パラフィン: `depthMin` / `depthMax` / `depthFade` を廃止し、`maskMode` を追加
+- リムライト: 上記 3 件と `edgeDepth` / `edgeRange` / `heightMin` を廃止し、
+  `maskMode` / `excludeFace` / `applyHair` を追加
+- 距離フォグ・DoF・GT トーンマップは差分なし
+
+廃止した値のスロットを新パラメータが引き継ぐため、旧タイムライン XML の
+`depthMin` の値が `maskMode` として読まれる (既定の 0 なら「マスクなし」になる)。
+
 **「タイムライン」タブ（MainWindow 追加）**
 
 - 対応 5 系統の既存描画（各 Controller の描画メソッド）を 1 タブに集約表示する
@@ -120,6 +133,9 @@ SceneEditor から呼ぶための公開 API。現行 SceneEditor `PostEffectMana
   （`debug.bat` は使わない）。SceneEditor の csproj は両構成とも
   `COM3D25.PostEffects.Plugin.dll` を参照する（アセンブリ名は構成共通と確認済み）
 - **xUnit**: v29 スキーマ変更に伴う `ScenePresetEffectsTests` の更新
+> 実装済み (2026-08-30、実装計画: `docs/superpowers/plans/2026-08-30-posteffects-timeline-integration.md`)。
+> 以下は次回ゲーム起動時の実機確認チェックリスト。
+
 - **実機確認**（次回ゲーム起動時チェックリスト）:
   - 併用時の二重掛かりが解消されている（パラフィン等が 1 実体）
   - タイムライン再生で PostEffects 側の値が動き、タイムラインタブに反映される
