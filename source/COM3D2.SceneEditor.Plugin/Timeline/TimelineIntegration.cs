@@ -1,4 +1,5 @@
-﻿using COM3D2.MotionTimelineEditor;
+﻿using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine.SceneManagement;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -22,7 +23,7 @@ namespace COM3D2.SceneEditor.Plugin
             private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
             private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
 
-            private readonly IManager[] _managers =
+            private readonly List<IManager> _managers = new List<IManager>
             {
                 MTEP.ConfigManager.instance,
                 // Init で簡易表示用のメニュー項目を生成する。未登録だと
@@ -41,7 +42,6 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.StageLightManager.instance,
                 MTEP.StageLaserManager.instance,
                 MTEP.PsylliumManager.instance,
-                MTEP.PostEffectManager.instance,
                 MTEP.PngObjectTimelineManager.instance,
                 MTEP.TimelineFaceManager.instance,
                 MTEP.TimelineSeManager.instance,
@@ -55,6 +55,21 @@ namespace COM3D2.SceneEditor.Plugin
                 // メニュー項目選択と Inspector の双方向同期 (SE 固有)
                 TimelineSelectionBridge.instance,
             };
+
+            public TimelineUpdateManager()
+            {
+                // PostEffectManager は静的初期化で PostEffects.Plugin の型を掴むため、
+                // 未導入環境では触れた時点で例外になる。リストへ入れる時点で弾く
+                // (フィールド初期化子に置くと Initialize 全体が巻き添えで中断する)
+                if (MTEP.PostEffectsBridge.isAvailable)
+                {
+                    // 破棄順に依存する並び (MovieManager → CameraManager 等) を崩さないよう、
+                    // 元の位置 (PsylliumManager の直後) へ差し込む
+                    _managers.Insert(
+                        _managers.IndexOf(MTEP.PsylliumManager.instance) + 1,
+                        MTEP.PostEffectManager.instance);
+                }
+            }
 
             public void Init()
             {

@@ -482,11 +482,6 @@ namespace COM3D2.SceneEditor.Plugin
                 rimlight.fadeExp,
                 newValue => rimlight.fadeExp = newValue);
 
-
-
-
-            
-
             view.DrawLabel("ブレンドモード", 100, 20);
 
             if (timeline.usePostEffectExtraBlend)

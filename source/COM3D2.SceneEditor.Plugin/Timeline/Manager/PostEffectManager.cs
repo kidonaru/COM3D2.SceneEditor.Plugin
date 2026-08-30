@@ -122,10 +122,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public int depthOfFieldMaidSlotId = -1;
 
-        // 各エフェクト数の上限。実体側 (PostEffects.Plugin) のシェーダーバッファ上限に従う
-        public static readonly int MaxParaffinCount = PEP.TimelineBridge.MaxParaffinCount;
-        public static readonly int MaxDistanceFogCount = PEP.TimelineBridge.MaxDistanceFogCount;
-        public static readonly int MaxRimlightCount = PEP.TimelineBridge.MaxRimlightCount;
+        // 各エフェクト数の上限。実体側 (PostEffects.Plugin) のシェーダーバッファ上限に従う。
+        // 静的フィールドにするとこのクラスへ触れただけで PEP の型ロードを誘発し、
+        // 未導入環境で isAvailable ガードを迲回してしまうためプロパティにする
+        public static int MaxParaffinCount => PEP.TimelineBridge.MaxParaffinCount;
+        public static int MaxDistanceFogCount => PEP.TimelineBridge.MaxDistanceFogCount;
+        public static int MaxRimlightCount => PEP.TimelineBridge.MaxRimlightCount;
 
         /// <summary>パラフィン数。実体は PostEffects.Plugin 側が所有する。
         /// タイムライン読込中は timeline 側 (TimelineXml に保存) と同期する</summary>
@@ -264,21 +266,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             studioHack.OnUpdateDepthOfField();
         }
 
-        public int GetParaffinCount()
-        {
-            return PEP.TimelineBridge.paraffinCount;
-        }
-
-        public void AddParaffinData()
-        {
-            PEP.TimelineBridge.paraffinCount++;
-        }
-
-        public void RemoveParaffinData()
-        {
-            PEP.TimelineBridge.paraffinCount--;
-        }
-
         public PEP.ColorParaffinData GetParaffinData(int index)
         {
             return PEP.TimelineBridge.GetParaffinData(index);
@@ -289,21 +276,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             PEP.TimelineBridge.ApplyParaffin(index, data);
         }
 
-        public int GetDistanceFogCount()
-        {
-            return PEP.TimelineBridge.distanceFogCount;
-        }
-
-        public void AddDistanceFogData()
-        {
-            PEP.TimelineBridge.distanceFogCount++;
-        }
-
-        public void RemoveDistanceFogData()
-        {
-            PEP.TimelineBridge.distanceFogCount--;
-        }
-
         public PEP.DistanceFogData GetDistanceFogData(int index)
         {
             return PEP.TimelineBridge.GetDistanceFogData(index);
@@ -312,21 +284,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void ApplyDistanceFog(int index, PEP.DistanceFogData data)
         {
             PEP.TimelineBridge.ApplyDistanceFog(index, data);
-        }
-
-        public int GetRimlightCount()
-        {
-            return PEP.TimelineBridge.rimlightCount;
-        }
-
-        public void AddRimlightData()
-        {
-            PEP.TimelineBridge.rimlightCount++;
-        }
-
-        public void RemoveRimlightData()
-        {
-            PEP.TimelineBridge.rimlightCount--;
         }
 
         public PEP.RimlightData GetRimlightData(int index)
