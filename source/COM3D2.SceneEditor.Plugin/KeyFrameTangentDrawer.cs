@@ -35,12 +35,25 @@ namespace COM3D2.SceneEditor.Plugin
         private const float TangentFieldWidth = 50f;
         /// <summary>ラベルドラッグ 1px あたりのタンジェント増減量</summary>
         private const float DragSensitivity = 0.01f;
+        /// <summary>ハンドル線の長さ (px)</summary>
+        private const float HandleLength = 30f;
+        /// <summary>ハンドル先端のマーカー一辺 (px)</summary>
+        private const float HandleMarkerSize = 6f;
+        /// <summary>ハンドルを掴める距離 (px)</summary>
+        private const float HandleHitRadius = 8f;
+        /// <summary>ハンドル線を描く点の間隔 (px)</summary>
+        private const float HandleSampleStep = 2f;
+        /// <summary>ハンドルの色 (曲線より手前に見せたいので不透明寄りの白)</summary>
+        private static readonly Color HandleColor = new Color(1f, 1f, 1f, 0.8f);
 
         private Texture2D _tangentTex;
         private Texture2D[] _presetTextures;
         private HashSet<MTEP.TangentPair> _cachedTangents = new HashSet<MTEP.TangentPair>();
         private readonly HashSet<MTEP.TangentPair> _workTangents = new HashSet<MTEP.TangentPair>();
         private MTEP.TangentValueType _tangentValueType = MTEP.TangentValueType.すべて;
+
+        /// <summary>ドラッグ中のハンドル (true=Out / false=In)。null ならドラッグしていない</summary>
+        private bool? _draggingIsOut = null;
 
         /// <summary>選択キーフレームが実際に持つ値種別だけを入れたコンボ候補</summary>
         private readonly List<MTEP.TangentValueType> _availableValueTypes
@@ -108,7 +121,7 @@ namespace COM3D2.SceneEditor.Plugin
             };
             DrawTangentFields(subView);
 
-            view.DrawTexture(_tangentTex);
+            DrawCurveArea(view);
 
             DrawPresets(view);
             return true;
@@ -307,6 +320,164 @@ namespace COM3D2.SceneEditor.Plugin
                 });
             }
             view.EndLayout();
+        }
+
+        /// <summary>曲線テクスチャと In/Out ハンドルを描き、ハンドルのドラッグを処理する</summary>
+        private void DrawCurveArea(GUIView view)
+        {
+            // テクスチャ左上のスクリーン座標。ハンドル位置とマウス位置の基準にする
+            var texRect = view.GetDrawRect(
+                view.currentPos.x, view.currentPos.y, CurveTexSize, CurveTexSize);
+            var texPos = view.currentPos;
+
+            view.DrawTexture(_tangentTex);
+
+            KeyFrameTangentLogic.GetUniformTangents(
+                _workTangents, out var outTangent, out var inTangent);
+
+            DrawHandle(view, texPos, true, outTangent);
+            DrawHandle(view, texPos, false, inTangent);
+
+            // ハンドル描画で currentPos を動かしたので、テクスチャの下へ戻す
+            view.currentPos = new Vector2(texPos.x, texPos.y + CurveTexSize + view.margin);
+
+            HandleCurveInput(texRect, view.focusedComboBox != null);
+        }
+
+        /// <summary>
+        /// ハンドル線と先端マーカーを小さな矩形の連続で描く
+        /// (TimelineCurveEditor.DrawChannelHandles と同じ方式)。
+        /// currentPos を直接動かすため、IsInCurveArea でテクスチャ矩形の外に出る点を落とし、
+        /// レイアウトの縦幅がハンドルで伸びないようにしている
+        /// </summary>
+        private void DrawHandle(GUIView view, Vector2 texPos, bool isOut, float normalizedValue)
+        {
+            var origin = isOut
+                ? new Vector2(0f, CurveTexSize)
+                : new Vector2(CurveTexSize, 0f);
+            var handlePos = KeyFrameTangentLogic.GetHandlePos(
+                isOut, normalizedValue, CurveTexSize, HandleLength);
+            var half = HandleMarkerSize * 0.5f;
+
+            var steps = Mathf.CeilToInt(HandleLength / HandleSampleStep);
+            for (var i = 1; i <= steps; i++)
+            {
+                var p = Vector2.Lerp(origin, handlePos, i / (float)steps);
+                if (!IsInCurveArea(p, 1f))
+                {
+                    continue;
+                }
+                view.currentPos = new Vector2(texPos.x + p.x - 1f, texPos.y + p.y - 1f);
+                view.DrawTexture(GUIView.texWhite, HandleSampleStep, HandleSampleStep, HandleColor);
+            }
+
+            if (IsInCurveArea(handlePos, half))
+            {
+                view.currentPos = new Vector2(
+                    texPos.x + handlePos.x - half, texPos.y + handlePos.y - half);
+                view.DrawTexture(GUIView.texWhite, HandleMarkerSize, HandleMarkerSize, HandleColor);
+            }
+        }
+
+        private static bool IsInCurveArea(Vector2 pos, float margin)
+        {
+            return pos.x >= margin && pos.x <= CurveTexSize - margin
+                && pos.y >= margin && pos.y <= CurveTexSize - margin;
+        }
+
+        /// <summary>ハンドルの掴み・ドラッグ・離しを処理する</summary>
+        private void HandleCurveInput(Rect texRect, bool comboBoxOpen)
+        {
+            var e = Event.current;
+            var mouse = e.mousePosition - new Vector2(texRect.x, texRect.y);
+
+            // 値種別コンボのポップアップは別ウィンドウとしてプレビューの上に重なりうるので、
+            // 展開中はハンドル操作を受け付けない
+            if (comboBoxOpen)
+            {
+                _draggingIsOut = null;
+                return;
+            }
+
+            if (_draggingIsOut != null)
+            {
+                if (!Input.GetMouseButton(0))
+                {
+                    _draggingIsOut = null;
+                    return;
+                }
+
+                var isOut = _draggingIsOut.Value;
+                if (KeyFrameTangentLogic.TryGetNormalizedTangent(
+                        isOut, mouse, CurveTexSize, out var newValue))
+                {
+                    ApplyTangent(isOut, newValue);
+                }
+                if (e.type == EventType.MouseDrag)
+                {
+                    e.Use();
+                }
+                return;
+            }
+
+            if (e.type != EventType.MouseDown || e.button != 0)
+            {
+                return;
+            }
+
+            KeyFrameTangentLogic.GetUniformTangents(
+                _workTangents, out var outTangent, out var inTangent);
+
+            for (var side = 0; side < 2; side++)
+            {
+                // 近接して重なった場合は Out を優先する
+                var isOut = side == 0;
+                var handlePos = KeyFrameTangentLogic.GetHandlePos(
+                    isOut, isOut ? outTangent : inTangent, CurveTexSize, HandleLength);
+                if (Vector2.Distance(handlePos, mouse) > HandleHitRadius)
+                {
+                    continue;
+                }
+
+                _draggingIsOut = isOut;
+                // 掴んだ押下だけ消費する。プレビュー上の空クリックまで消すと
+                // Inspector のスクロールドラッグができなくなる
+                e.Use();
+                return;
+            }
+        }
+
+        /// <summary>
+        /// ハンドルドラッグの結果を選択キーフレーム全体へ適用する。
+        /// Draw は 1 フレームに複数回呼ばれるので、値が変わっていないなら
+        /// ApplyCurrentFrame を呼ばない (TimelineCurveEditor.UpdateDrag と同じガード)
+        /// </summary>
+        private void ApplyTangent(bool isOut, float normalizedValue)
+        {
+            KeyFrameTangentLogic.GetUniformTangents(
+                _workTangents, out var currentOut, out var currentIn);
+            if (normalizedValue == (isOut ? currentOut : currentIn))
+            {
+                return;
+            }
+
+            if (isOut)
+            {
+                ForEachOutTangent(data =>
+                {
+                    data.normalizedValue = normalizedValue;
+                    data.isSmooth = false;
+                });
+            }
+            else
+            {
+                ForEachInTangent(data =>
+                {
+                    data.normalizedValue = normalizedValue;
+                    data.isSmooth = false;
+                });
+            }
+            ApplyAndRecord(isOut ? "タンジェント: Out 変更" : "タンジェント: In 変更");
         }
 
         private void DrawPresets(GUIView view)
