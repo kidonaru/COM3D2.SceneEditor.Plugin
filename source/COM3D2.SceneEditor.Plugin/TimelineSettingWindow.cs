@@ -311,19 +311,18 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// タイムライン上の要素数 (テキスト/ポストエフェクト/サブカメラ) の増減
+        /// タイムライン上の要素数 (ポストエフェクト系) の増減。
+        /// テキスト表示数はテキストウィンドウ、サブカメラ数はカメラウィンドウへ移設済み
         /// </summary>
         private void DrawElementCountSection(GUIView view)
         {
             view.DrawLabel("要素数", 100, ROW_HEIGHT);
 
-            DrawCountRow(view, "テキスト表示数", timeline.textCount, 1, 16,
-                x => timeline.textCount = x);
-            DrawCountRow(view, "パラフィン数", timeline.paraffinCount, 0, 8,
+            CountRowDrawer.Draw(view, "パラフィン数", ROW_HEIGHT, timeline.paraffinCount, 0, 8,
                 x => timeline.paraffinCount = x);
-            DrawCountRow(view, "距離フォグ数", timeline.distanceFogCount, 0, 4,
+            CountRowDrawer.Draw(view, "距離フォグ数", ROW_HEIGHT, timeline.distanceFogCount, 0, 4,
                 x => timeline.distanceFogCount = x);
-            DrawCountRow(view, "リムライト数", timeline.rimlightCount, 0, 8,
+            CountRowDrawer.Draw(view, "リムライト数", ROW_HEIGHT, timeline.rimlightCount, 0, 8,
                 x => timeline.rimlightCount = x);
         }
 
@@ -348,38 +347,6 @@ namespace COM3D2.SceneEditor.Plugin
                 timeline.isLightCompatibilityMode = newValue;
                 // SE では互換モードの実体がないためフラグの保存のみ行う
             });
-        }
-
-        /// <summary>整数値の増減行 (±ボタン付きの IntField)</summary>
-        private void DrawCountRow(
-            GUIView view, string label, int value, int min, int max, Action<int> onChanged)
-        {
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
-
-                view.DrawLabel(label, view.labelWidth, ROW_HEIGHT);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = value,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = ROW_HEIGHT,
-                    onChanged = x => onChanged(Mathf.Clamp(x, min, max)),
-                });
-
-                if (view.DrawButton("-", 20, ROW_HEIGHT, value > min))
-                {
-                    onChanged(value - 1);
-                }
-                if (view.DrawButton("+", 20, ROW_HEIGHT, value < max))
-                {
-                    onChanged(value + 1);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
         }
 
         /// <summary>BGM の読み込みと BPM ライン表示 (MTE TimelineSettingUI から移植)</summary>

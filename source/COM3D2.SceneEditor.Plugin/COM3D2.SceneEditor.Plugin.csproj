@@ -334,6 +334,8 @@
     <Compile Include="ShapeKeyEditWindow.cs" />
     <Compile Include="SoundWindow.cs" />
     <Compile Include="LiveEffectWindow.cs" />
+    <Compile Include="TextWindow.cs" />
+    <Compile Include="CountRowDrawer.cs" />
     <Compile Include="ProviderModelStat.cs" />
     <Compile Include="MaterialEditWindow.cs" />
     <Compile Include="TimelineLoadWindow.cs" />

@@ -10,7 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// カメラの構図を数値/スライダーで確認・編集するウィンドウ。
-    /// 操作対象は Main (CameraMain) と SceneView 用カメラから選べる。
+    /// 操作対象は Main (CameraMain) / SceneView 用カメラ / サブカメラから選べる。
     /// Main は注視点・距離・回転・FOV を UltimateOrbitCamera の API で編集し、
     /// SceneView も同じ構図モデルを SceneViewCameraController の API で編集する。
     /// 値は毎フレーム読み戻すため、マウス操作や他機能による変更もそのまま表示へ反映される
@@ -106,8 +106,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         // 回転オフセットのキャッシュとコンボ開閉状態をカメラごとに分けるため名前で引く
         // (台数上限 8 なので減った分の掃除はしない)
-        private readonly Dictionary<string, SubCameraRowDrawer> _subCameraRowDrawers =
-            new Dictionary<string, SubCameraRowDrawer>();
+        private readonly ItemRowDrawerCache<SubCameraRowDrawer> _subCameraRowDrawers =
+            new ItemRowDrawerCache<SubCameraRowDrawer>();
 
         private static CameraWindow _instance = null;
         public static CameraWindow instance
@@ -167,7 +167,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawSceneViewCameraContent();
             }
-            else
+            else if (_targetIndex == 2)
             {
                 DrawSubCameraContent();
             }
@@ -646,51 +646,21 @@ namespace COM3D2.SceneEditor.Plugin
             }
             _view.SetEnabled(_view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
-            SubCameraRowDrawer drawer;
-            if (!_subCameraRowDrawers.TryGetValue(cameraData.name, out drawer))
-            {
-                drawer = new SubCameraRowDrawer();
-                _subCameraRowDrawers[cameraData.name] = drawer;
-            }
-            drawer.Draw(_view, cameraData, LABEL_WIDTH, ROW_HEIGHT);
+            _subCameraRowDrawers.Get(cameraData.name)
+                .Draw(_view, cameraData, LABEL_WIDTH, ROW_HEIGHT);
 
             _view.SetEnabled(_view.focusedComboBox == null);
             _view.EndScrollView();
         }
 
-        /// <summary>サブカメラ台数の増減行 (TimelineSettingWindow の要素数行から移設)</summary>
+        /// <summary>サブカメラ台数の増減行</summary>
         private void DrawSubCameraCountRow()
         {
-            var count = subCameraManager.subCameras.Count;
-
-            _view.BeginHorizontal();
-            {
-                _view.margin = 0;
-
-                _view.DrawLabel("サブカメラ数", _view.labelWidth, ROW_HEIGHT);
-
-                _view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = count,
-                    width = _view.viewRect.width - (_view.labelWidth + 40 + _view.padding.x * 2),
-                    height = ROW_HEIGHT,
-                    onChanged = x => subCameraManager.SetCameraCount(x),
-                });
-
-                if (_view.DrawButton("-", 20, ROW_HEIGHT,
-                    count > MTEP.SubCameraManager.MinSubCameraCount))
-                {
-                    subCameraManager.SetCameraCount(count - 1);
-                }
-                if (_view.DrawButton("+", 20, ROW_HEIGHT,
-                    count < MTEP.SubCameraManager.MaxSubCameraCount))
-                {
-                    subCameraManager.SetCameraCount(count + 1);
-                }
-
-                _view.margin = GUIView.defaultMargin;
-            }
-            _view.EndLayout();
+            CountRowDrawer.Draw(_view, "サブカメラ数", ROW_HEIGHT,
+                subCameraManager.subCameras.Count,
+                MTEP.SubCameraManager.MinSubCameraCount,
+                MTEP.SubCameraManager.MaxSubCameraCount,
+                x => subCameraManager.SetCameraCount(x));
         }
     }
 }

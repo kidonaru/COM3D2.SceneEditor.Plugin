@@ -191,6 +191,13 @@ namespace COM3D2.SceneEditor.Plugin
         public int liveEffectHeight = 600;
         public bool liveEffectVisible = false;
 
+        // テキストウィンドウ
+        public int textPosX = -1;
+        public int textPosY = -1;
+        public int textWidth = 320;
+        public int textHeight = 600;
+        public bool textVisible = false;
+
         // サウンドウィンドウ
         public int soundPosX = -1;
         public int soundPosY = -1;
