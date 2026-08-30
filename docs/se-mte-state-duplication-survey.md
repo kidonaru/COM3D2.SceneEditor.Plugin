@@ -360,7 +360,7 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 書き込み経路は A-1 で一本化済みだったため、残っていたのは概念重複のみ。2026-08-30 に
 **統合列挙 + UI 1 行(保存形式は据え置き)** の方針で統合した。実装は次の 5 点。
 
-1. **統合列挙**: `MaidLookMode` の末尾へ `メイド` を追加し、「どこを見るか」の語彙を 1 本にした
+1. **統合列挙**: `MaidLookMode` の末尾へ `メイド` / `モデル` を追加し、「どこを見るか」の語彙を 1 本にした
 2. **双方向マップ**: `MaidLookBridge` の `ToLookMode` / `ToTargetType` / `GetSelectableModes` が
    統合列挙と `LookAtTargetType` を相互に写す。キー化中に選べない値(無し/マウス/オブジェクト)は
    表示時に「方向指定」へ丸め、キー化を戻せば SE 側の設定が残る
@@ -369,14 +369,15 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
    `TimelineLookRowDrawer.DrawLookAtTargetRows`)。行が入れ替わらなくなった
 4. **ポイント解決の一本化**: メイドの注視ポイントは
    `MaidLookController.GetMaidPointTransform` に集約し、`MaidCache.GetPointTransform` は委譲だけを行う
-5. **プリセット v27**: 向け先「メイド」の部位を `ScenePresetLook.maidPointType` へ記録する
-   (対象メイドは既存の `targetMaidGuid` を使い回す)。履歴(`PoseSnapshot`)も対象・部位を持つ
+5. **プリセット v27 / v28**: 向け先「メイド」の部位を `ScenePresetLook.maidPointType` へ記録する
+   (対象メイドは既存の `targetMaidGuid` を使い回す)。v28 で向け先「モデル」の対象モデル名を
+   `ScenePresetLook.targetModelName` へ足した。履歴(`PoseSnapshot`)も対象・部位・モデル名を持つ
 
 **統合前の状態**(着手時のコード確認結果)
 
 - 列挙が 2 本: `MaidLookMode`(カメラ/マウス/方向指定/オブジェクト/無し) と `LookAtTargetType`(None/Camera/Maid/Model)
 - キー化で行が入れ替わる: OFF は「向け先」コンボ、ON は「注視先 + メイド + ポイント」の 3 行(`MaidFaceWindow.DrawLookTargetRows` → `TimelineLookRowDrawer.DrawLookAtTargetRows`)
-- 片側にしか無い値: SE = マウス・任意 Transform(`SelectionManager` 選択)、MTE = メイドのポイント指定・モデル
+- 片側にしか無い値: SE = マウス・任意 Transform(`SelectionManager` 選択)、MTE = メイドのポイント指定
 
 **本質的な制約**: 任意 Transform はキーへ保存できず、マウスは再生に再現性が無い。よって「完全に 1 列挙」にはできず、**キー化可否で選択肢が変わる統合列挙**にした。
 
@@ -388,6 +389,7 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
    |---|---|---|---|
    | カメラ | `MaidLookController` | `Camera` | あり |
    | メイド(+ポイント) | 同上(新規) | `Maid` + `targetIndex` + `maidPointType` | あり |
+   | モデル | 同上(2026-08-30 追補。モデル名で保持) | `Model` + `targetIndex` | あり |
    | 方向指定 | 同上(顔向き `lookX/Y`) | `None` + `lookDirection` | あり |
    | 無し | 同上 | `None`(そらし時に自動フォールバック。現行どおり) | なし |
    | マウス | 同上 | — | なし |
@@ -400,12 +402,12 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 3. **メイドポイント解決を SE へ一本化**: `MaidCache.GetPointTransform`(`trsHead` / `Spine1a` / `Pelvis` / `Hip_R` / `trBip`)は `TBody` だけで解決でき MTE 依存が無いため SE 側ヘルパへ移し、`MaidCache` は委譲する(D-2 と同じ形)。`ScenePresetLook` が既に注視対象を「メイド guid + ボーン名」で持つため、SE 側のメイド注視は既存表現の昇格になる。
 4. **UI は「向け先」コンボ 1 本**: 現行の「注視先」「メイド」「ポイント」3 行を畳む。選択肢だけをキー化状態で切り替え(ON = カメラ/メイド/方向指定、OFF = ＋マウス/オブジェクト/無し)、追随行(メイド+ポイント / 注視対象 / 顔向きスライダー)は共通。**キー化を切っても同じ行・同じ語彙のまま**になり、書き込み先だけが `MaidLookController` ↔ `MaidCache` で変わる。
 5. **キー化不可の値の丸め**: キー化 ON へ切り替えた時点で SE 側がマウス/オブジェクトなら「方向指定」として表示する(`LookAtTargetType.None` 相当)。OFF に戻せば SE の設定はそのまま復帰(現行挙動を維持)。
-6. **モデル注視は除外を継続**: `StudioModelManager` 未接続のため選択肢に出さない(C 分類の解消が前提)。統合列挙の `オブジェクト` はキー化 OFF 専用なので `Model` と衝突しない。
+6. **モデル注視も統合列挙へ入れる**(2026-08-30 追補): 当初は「`StudioModelManager` 未移植」を根拠に除外していたが、**この根拠は誤り**だった。`StudioModelManager` は移植済みで `MaidCache.GetLookAtTarget` も `Model` を解決できていたため、UI から選べないだけの状態だった。`MaidLookMode.モデル` を末尾へ足して統合列挙へ入れ、キー化 ON/OFF のどちらでも選べるようにした。SE 側はモデル名で保持し、適用のたびに `StudioModelManager.GetModel(name)` で引き直す。あわせて `EyesTimelineLayer` にあった同じ誤った根拠のコメントごと、呼び出し元の無い `GetLookAtTarget` を削除した。統合列挙の `オブジェクト` はキー化 OFF 専用の「Hierarchy で選んだ任意 Transform」に意味が狭まった
 7. **プリセット v27**: SE 側の `メイド` モードを保存するため `ScenePresetLook` に `maidPointType` 属性を追加する。対象メイドは既存の `targetMaidGuid` を再利用。`timeline*` 属性(v26)は格納先を変えないため据え置き。旧プリセットは `mode` が「メイド」でない限り新属性を読まないので互換影響なし。
 
 **変更ファイル**: `MaidManipulation/MaidLookController.cs` / `Timeline/MaidLookBridge.cs` / `MaidFaceWindow.cs` / `TimelineLookRowDrawer.cs` / `Timeline/MaidCache.cs` / `ScenePresetData.cs` / `Manager/ScenePresetManager.cs`
 
-**実装計画**: `docs/superpowers/plans/2026-08-30-d7-look-target-unification.md`
+**実装計画**: `docs/superpowers/plans/2026-08-30-d7-look-target-unification.md`、追補は `docs/superpowers/plans/2026-08-30-d7b-model-look-target.md`
 
 **テスト**: 双方向マップ(統合列挙 ⇔ `LookAtTargetType`)は純粋ロジックのため `MaidLookBridgeTests.cs` へ追加。プリセット v27 の往復は `ScenePresetLookXmlTests.cs` へ追加。UI とボーン解決は実機確認項目で担保する。
 
@@ -419,6 +421,15 @@ A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装�
 - D-7: 向け先「メイド」のままシーンプリセットを保存 → ロードで対象メイドと部位が戻ること。v26 以前のプリセットをロードしても視線まわりで例外・値の飛びが出ないこと
 - D-7: 向け先「メイド」で対象・部位を変えた直後に Ctrl+Z すると、変更前の対象・部位へ戻ること
 - D-7: 瞳レイヤーの項目表示(EyesItemInspector)の注視先行が視線タブと同じ「向け先」語彙になっていること
+- D-7: キー化 OFF で向け先「モデル」を選び、配置したスタジオモデルを選ぶと視線が追従すること。モデルを動かすと視線も追従すること
+- D-7: キー化 ON で向け先「モデル」を選んだときの見た目が、OFF で同じモデルを選んだときと一致すること
+- D-7: 向け先「モデル」で対象モデルを削除すると方向指定の注視点へ落ち、例外が出ないこと。コンボの表示が「未選択」になること
+- D-7: 向け先「メイド」→「モデル」と切り替えたとき、キー化 ON でメイドの番号がモデル一覧の範囲外なら「未選択」表示になること
+- D-7: 向け先「モデル」のままシーンプリセットを保存 → ロードで対象モデルが戻ること。v27 以前のプリセットをロードしても視線まわりで例外が出ないこと
+- D-7: 向け先「モデル」で対象を変えた直後に Ctrl+Z すると、変更前の対象へ戻ること
+- D-7: v27 以前のプリセットで注視先がモデルだったデータをロードすると、「オブジェクト」ではなく「モデル」として復元されること(または従来どおり注視できていること)
+- D-7: モデル配置を含むシーンプリセットをロードしたとき、視線が「モデルが見つからない」の警告を出さずに対象モデルへ戻ること(視線の復元が外部プロバイダのモデル復元より後に走っていること)
+- D-7: プリセットロード後に他のメイドの視線・フォーカス・モデルボーン編集が従来どおり復元されること(FinishApply の順序変更の巻き添えが無いこと)
 
 - D-2: ポーズ編集中に指ブレンドキーを打ったフレームへシークすると、SE の指ウィンドウのスライダー・ロック表示がキーの値へ追従すること
 - D-2: SE の指ウィンドウで開き/握り・ロックを操作してキーを打つと、その値がキーに記録され再シークで再現されること(旧タイムラインのキーも同じ見た目で再生されること)
