@@ -330,7 +330,6 @@
     <Compile Include="SaveFingerPresetPopupWindow.cs" />
     <Compile Include="SaveBonePresetPopupWindow.cs" />
     <Compile Include="SceneViewWindow.cs" />
-    <Compile Include="TimelineLayerWindow.cs" />
     <Compile Include="TimelineTemplateWindow.cs" />
     <Compile Include="ShapeKeyEditWindow.cs" />
     <Compile Include="SoundWindow.cs" />

@@ -226,13 +226,6 @@ namespace COM3D2.SceneEditor.Plugin
         public int timelineLoadHeight = 420;
         public bool timelineLoadVisible = false;
 
-        // レイヤー編集ウィンドウ
-        public int timelineLayerPosX = -1;
-        public int timelineLayerPosY = -1;
-        public int timelineLayerWidth = 480;
-        public int timelineLayerHeight = 560;
-        public bool timelineLayerVisible = false;
-
         // タイムラインテンプレートウィンドウ
         public int timelineTemplatePosX = -1;
         public int timelineTemplatePosY = -1;

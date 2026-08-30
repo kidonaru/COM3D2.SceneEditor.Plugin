@@ -131,11 +131,6 @@ namespace COM3D2.SceneEditor.Plugin
             onSelected = (layerInfo, index) =>
             {
                 timelineManager.ChangeActiveLayer(layerInfo.layerType, maidManager.maidSlotNo);
-                // MTE では追加後にレイヤー情報サブウィンドウを開くため、対応する編集ウィンドウを開く
-                if (!TimelineLayerWindow.instance.isShowWnd)
-                {
-                    WindowManager.ToggleWindowVisible(TimelineLayerWindow.instance);
-                }
             },
             defaultName = "+",
             buttonSize = new Vector2(LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT),

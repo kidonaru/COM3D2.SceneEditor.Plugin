@@ -56,9 +56,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void ApplyCurrentFrame(bool motionUpdate);
         void OutputAnm();
         void OutputDCM(XElement songElement);
-        void ResetDraw(GUIView view);
-        void DrawWindow(GUIView view);
-
         void AddKeyFrameAll();
         void AddKeyFrameDiff();
         void AddKeyFrames(IEnumerable<string> boneNames);

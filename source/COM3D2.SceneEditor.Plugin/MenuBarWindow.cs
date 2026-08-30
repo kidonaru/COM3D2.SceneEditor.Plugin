@@ -134,7 +134,6 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("タイムライン操作", TimelineControlWindow.instance),
                         CreateWindowItem("タイムライン設定", TimelineSettingWindow.instance),
                         CreateWindowItem("タイムラインロード", TimelineLoadWindow.instance),
-                        CreateWindowItem("レイヤー編集", TimelineLayerWindow.instance),
                         CreateWindowItem("テンプレート", TimelineTemplateWindow.instance),
                         CreateWindowItem("操作履歴", HistoryWindow.instance),
                         CreateWindowItem("設定", SettingWindow.instance),

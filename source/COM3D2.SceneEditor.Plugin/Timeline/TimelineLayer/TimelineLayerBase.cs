@@ -481,16 +481,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 t);
         }
 
-        public virtual void ResetDraw(GUIView view)
-        {
-            // do nothing
-        }
-
-        public virtual void DrawWindow(GUIView view)
-        {
-            // do nothing
-        }
-
         public void AddKeyFrameAll()
         {
             studioHack.isAnmPlaying = false;
