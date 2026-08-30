@@ -314,6 +314,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PngPlacementTimelineLayer), new PngPlacementItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.AnimationTimelineLayer), new AnimationItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,

@@ -266,7 +266,7 @@ Phase S3(カメラ・ライト・背景):
 - [x] SubCameraTimelineLayer(サブカメラ設定・レイヤー固有 / 逆方向なし)
 - [x] LightTimelineLayer(ライト Transform・色・強度 / LightWindow / 逆方向あり: `Select(ライトGameObject)`)
 - [x] BGTimelineLayer(背景 Transform / BackgroundWindow / 逆方向あり: 背景オブジェクト選択)
-- [ ] BGColorTimelineLayer(背景色・地面設定 / BackgroundWindow `DrawBgColorRow` / 逆方向なし)
+- [x] BGColorTimelineLayer(背景色・地面設定 / BackgroundWindow `DrawBgColorRow` / 逆方向なし)
 
 Phase S3 実機確認項目(loop 中に追記):
 
@@ -315,7 +315,7 @@ Phase S4(サウンド・演出系):
 - [x] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし。パターン・移動回転は Inspector 対象外)
 - [x] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
 - [x] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向あり: PNG のルートオブジェクト選択。調査の結果 `PngObjectData.rootObject` で解決できた)
-- [ ] AnimationTimelineLayer(アニメブレンド設定・レイヤー固有 / 逆方向なし)
+- [x] AnimationTimelineLayer(アニメブレンド設定・レイヤー固有 / 逆方向なし)
 
 Phase S4 実機確認項目(loop 中に追記):
 
@@ -366,3 +366,8 @@ Phase S4 実機確認項目(loop 中に追記):
   0〜255 (= 1.0 相当) の byte で保存する。1.0 を超える明るさはキーフレームに載らない。
   Inspector・PNG ウィンドウ双方に共通する既存の非対称のため今回は変更していない。
   直すならレイヤー側のキー形式か、明るさスライダーの上限を 1.0 に揃えるかの判断が要る
+- [ ] アニメレイヤーで段の行を選択 → Inspector にループ/時間上書き/アニメ名/開始時間/重み/速度が出て編集できる
+- [ ] タイムラインのレイヤー UI と Inspector を同時に開いて同じ段を編集しても値が食い違わない
+      (同じ DrawAnimeLayer を 2 枚描くため、入力途中の見え方だけ差が出うる)
+- [ ] メイド未配置のときは「対象メイドが見つかりません」が出る
+- [ ] Inspector で編集した直後にアニメの再生位置が飛ばない(レイヤーの反映処理をそのまま使っている)
