@@ -265,7 +265,7 @@ Phase S3(カメラ・ライト・背景):
 - [x] CameraTimelineLayer(カメラ位置/回転/距離/FoV / CameraWindow `DrawMainCameraContent` / 逆方向なし)
 - [x] SubCameraTimelineLayer(サブカメラ設定・レイヤー固有 / 逆方向なし)
 - [x] LightTimelineLayer(ライト Transform・色・強度 / LightWindow / 逆方向あり: `Select(ライトGameObject)`)
-- [ ] BGTimelineLayer(背景 Transform / BackgroundWindow / 逆方向あり: 背景オブジェクト選択)
+- [x] BGTimelineLayer(背景 Transform / BackgroundWindow / 逆方向あり: 背景オブジェクト選択)
 - [ ] BGColorTimelineLayer(背景色・地面設定 / BackgroundWindow `DrawBgColorRow` / 逆方向なし)
 
 Phase S3 実機確認項目(loop 中に追記):
@@ -295,6 +295,11 @@ Phase S3 実機確認項目(loop 中に追記):
 - [ ] Inspector からの編集が履歴(Undo)に「ライト: ○○」として積まれる
 - [ ] ライトウィンドウの一覧・追加/削除・メイン/追加それぞれの編集欄に退行が無い(抽出リファクタリングの確認)
 - [ ] カメラ・ライト・ボーンの角度スライダーの表示に退行が無い(NormalizeAngle を AngleUtils へ統合した影響の確認)
+- [ ] 背景レイヤーで背景行を選択 → Inspector に背景のローカル位置/回転/拡縮とリセットが出て編集できる
+- [ ] 背景を切り替えると、前の背景のキーだけが残る行が「(現在の背景ではありません)」表示になる
+- [ ] 背景(またはその子メッシュ)をビューポートで選択 → 背景行が選択される(ループしない)
+- [ ] Inspector で編集した背景 Transform が Undo で戻る(Object スコープの履歴)
+- [ ] 背景ウィンドウの背景 Transform 行・Transformリセット・地面の位置/広さ/表示に退行が無い(抽出リファクタリングの確認)
 
 Phase S4(サウンド・演出系):
 

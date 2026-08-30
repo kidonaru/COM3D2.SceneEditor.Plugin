@@ -23,14 +23,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private const string ALL_CATEGORY = "すべて";
 
-        /// <summary>座標行（Inspector の座標行と同じ形式）のドラッグ感度</summary>
-        private const float PositionDragSensitivity = 0.01f;
-
-        // 背景 Transform のリセット既定値（BgMgr が背景を生成した直後と同じ値）
-        private static readonly Vector3 DefaultBgPosition = Vector3.zero;
-        private static readonly Vector3 DefaultBgEulerAngles = Vector3.zero;
-        private static readonly Vector3 DefaultBgScale = Vector3.one;
-
         /// <summary>選択中カテゴリ。ALL_CATEGORY なら全カテゴリ表示</summary>
         private string _category = ALL_CATEGORY;
         private string _searchText = "";
@@ -189,11 +181,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawBgTransformRows(bgMgr);
         }
 
-        /// <summary>
-        /// 背景モデルのローカル Transform 編集行。
-        /// 編集対象はタイムラインの背景レイヤーがキー化するのと同じ current_bg_object で、
-        /// Inspector に出る Parent の座標（ワールド値）とは別物
-        /// </summary>
+        /// <summary>背景モデルのローカル Transform 編集行。実体は BackgroundRowDrawer 側</summary>
         private void DrawBgTransformRows(BgMgr bgMgr)
         {
             var bgObject = bgMgr.current_bg_object;
@@ -207,59 +195,7 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawHorizontalLine();
             _view.DrawLabel("背景Transform (ローカル)", -1, ROW_HEIGHT);
 
-            DrawObjectVector3Row("位置", "背景Transform: 位置", transform.localPosition,
-                value => transform.localPosition = value,
-                () => transform.localPosition = DefaultBgPosition, transform);
-            DrawObjectVector3Row("回転", "背景Transform: 回転", transform.localEulerAngles,
-                value => transform.localEulerAngles = value,
-                () => transform.localEulerAngles = DefaultBgEulerAngles, transform);
-            DrawObjectVector3Row("拡縮", "背景Transform: 拡縮", transform.localScale,
-                value => transform.localScale = value,
-                () => transform.localScale = DefaultBgScale, transform);
-
-            if (_view.DrawButton("Transformリセット", 140, ROW_HEIGHT))
-            {
-                RecordObjectEdit("背景Transform: リセット", transform);
-                transform.localPosition = DefaultBgPosition;
-                transform.localEulerAngles = DefaultBgEulerAngles;
-                transform.localScale = DefaultBgScale;
-            }
-        }
-
-        /// <summary>ラベル + XYZ（ドラッグラベル + 数値入力）+ リセットボタンの 1 行</summary>
-        private void DrawObjectVector3Row(
-            string label, string historyLabel, Vector3 value,
-            Action<Vector3> onChanged, Action onReset, Transform target)
-        {
-            _view.DrawVector3Row(new GUIView.Vector3RowOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                height = ROW_HEIGHT,
-                dragSensitivity = PositionDragSensitivity,
-                value = value,
-                onChanged = newValue =>
-                {
-                    RecordObjectEdit(historyLabel, target);
-                    onChanged(newValue);
-                },
-                onReset = () =>
-                {
-                    RecordObjectEdit(historyLabel, target);
-                    onReset();
-                },
-            });
-        }
-
-        /// <summary>
-        /// オブジェクトの Transform 操作を履歴へ記録する。
-        /// Background スコープは Parent のワールド座標しか持たないため、
-        /// 対象 Transform を直接記録する Object スコープを使う
-        /// </summary>
-        private static void RecordObjectEdit(string description, Transform target)
-        {
-            HistoryManager.instance.BeforeEdit(null, HistoryScope.Object,
-                description, new[] { target });
+            BackgroundRowDrawer.DrawBgTransformRows(_view, transform, LABEL_WIDTH, ROW_HEIGHT);
         }
 
         /// <summary>
@@ -296,7 +232,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // 表示するまで実体を作らない（タイムラインを使わない間は生成しない）
                     var target = groundManager.GetOrCreate();
-                    RecordObjectEdit("地面: 表示", target.transform);
+                    BackgroundRowDrawer.RecordObjectEdit("地面: 表示", target.transform);
                     target.visible = value;
                 });
 
@@ -313,7 +249,8 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawColor(fieldCache, ground.color, MTEP.BGGround.DefaultColor,
                 value => ground.color = value);
 
-            DrawObjectVector3Row("位置", "地面: 位置", ground.position,
+            BackgroundRowDrawer.DrawObjectVector3Row(_view, "位置", "地面: 位置",
+                LABEL_WIDTH, ROW_HEIGHT, ground.position,
                 value => ground.position = value,
                 () => ground.position = MTEP.BGGround.DefaultPosition,
                 groundTransform);
@@ -342,7 +279,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = value,
                 onChanged = newValue =>
                 {
-                    RecordObjectEdit("地面: " + label, target);
+                    BackgroundRowDrawer.RecordObjectEdit("地面: " + label, target);
                     onChanged(newValue);
                 },
             });
