@@ -15,7 +15,9 @@ namespace COM3D2.SceneEditor.Plugin
             LookDirection,
             /// <summary>注視先 (LookAtTarget)</summary>
             LookAtTarget,
-            /// <summary>編集UIを持たない項目 (瞳の位置・サイズ)</summary>
+            /// <summary>瞳の位置・サイズ (EyesPos*/EyesSca*)</summary>
+            EyesPos,
+            /// <summary>編集UIを持たない項目</summary>
             Unsupported,
         }
 
@@ -24,12 +26,9 @@ namespace COM3D2.SceneEditor.Plugin
         private const float LabelWidth = 70f;
 
         private readonly TimelineLookRowDrawer _lookRowDrawer = new TimelineLookRowDrawer();
+        private readonly EyesPosRowDrawer _eyesPosRowDrawer = new EyesPosRowDrawer();
 
-        /// <summary>
-        /// メニュー項目名から編集UIの種別を求める。
-        /// 瞳の位置・サイズ (EyesPos*/EyesSca*) は対応する編集UIがどのウィンドウにも無く、
-        /// スライダーの値域も決められないため未対応として扱う
-        /// </summary>
+        /// <summary>メニュー項目名から編集UIの種別を求める</summary>
         public static RowKind ResolveRowKind(string itemName)
         {
             MTEP.MotionEyesType eyesType;
@@ -45,7 +44,8 @@ namespace COM3D2.SceneEditor.Plugin
                 case MTEP.MotionEyesType.LookAtTarget:
                     return RowKind.LookAtTarget;
                 default:
-                    return RowKind.Unsupported;
+                    return EyesPosRowDrawer.IsEyesPosType(eyesType)
+                        ? RowKind.EyesPos : RowKind.Unsupported;
             }
         }
 
@@ -62,15 +62,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 固定化が無効だと編集してもキー化されないため、表情ウィンドウと同じ案内を出す。
-            // タイムライン未読込の場合は TimelineItemInspector.ShouldDraw が
-            // ここへ到達させないため、この案内は固定化オフのときだけ出る
-            if (!TimelineLookRowDrawer.IsHeadKeyEnabled)
-            {
-                view.DrawLabel(TimelineLookRowDrawer.HeadKeyDisabledMessage,
-                    -1, RowHeight, textColor: Color.yellow);
-                return;
-            }
+            // 固定化が無効だと視線の編集はキー化されないため、表情ウィンドウと同じ案内を出す。
+            // 瞳の位置・サイズは固定化に依らずキー化されるため、この案内の対象外
+            var isHeadKeyEnabled = TimelineLookRowDrawer.IsHeadKeyEnabled;
 
             foreach (var item in items)
             {
@@ -84,6 +78,20 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 複数選択時にどの項目の行か分かるよう見出しを出す
                 view.DrawLabel(item.displayName, -1, RowHeight);
+
+                if (rowKind == RowKind.EyesPos)
+                {
+                    var eyesType = MTEP.EyesTimelineLayer.EyesTypeMap[item.name];
+                    _eyesPosRowDrawer.DrawEyesSliderRows(view, maidCache, eyesType);
+                    continue;
+                }
+
+                if (!isHeadKeyEnabled)
+                {
+                    view.DrawLabel(TimelineLookRowDrawer.HeadKeyDisabledMessage,
+                        -1, RowHeight, textColor: Color.yellow);
+                    continue;
+                }
 
                 if (rowKind == RowKind.LookDirection)
                 {

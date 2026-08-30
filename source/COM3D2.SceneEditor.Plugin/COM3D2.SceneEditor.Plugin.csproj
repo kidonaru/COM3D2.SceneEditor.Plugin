@@ -300,6 +300,7 @@
     <Compile Include="PostEffectRowDrawer.cs" />
     <Compile Include="TimelinePrevKeyUtils.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
+    <Compile Include="EyesPosRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
     <Compile Include="MaidFingerWindow.cs" />

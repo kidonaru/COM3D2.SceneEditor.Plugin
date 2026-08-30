@@ -82,6 +82,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
         private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
 
+        /// <summary>瞳位置・瞳サイズの行描画。Inspector の項目表示と共有する</summary>
+        private readonly EyesPosRowDrawer _eyesPosRowDrawer = new EyesPosRowDrawer();
+
         /// <summary>
         /// 目線種別。顔/瞳の追従トグルのプリセットで、書き込み先はタイムライン全体の設定。
         /// 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
@@ -311,6 +314,40 @@ namespace COM3D2.SceneEditor.Plugin
             if (isKeyed)
             {
                 DrawKeyedLookResetRow(view, target);
+            }
+
+            DrawEyesPosSection(view, target, timeline);
+        }
+
+        /// <summary>
+        /// 瞳位置・瞳サイズ。旧レイヤー編集ウィンドウから移設。
+        /// 書き込み先は瞳の Transform (MaidCache 経由) で「視線をキー化」には依らないため、
+        /// キー化の有無に関わらず出す
+        /// </summary>
+        private void DrawEyesPosSection(GUIView view, Maid target, MTEP.TimelineData timeline)
+        {
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
+            view.DrawLabel("瞳位置", -1, ROW_HEIGHT);
+
+            if (timeline == null)
+            {
+                view.DrawLabel("タイムライン未読込のため瞳位置はキー化されません",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+            }
+
+            _eyesPosRowDrawer.DrawEyesPosImage(view, maidCache);
+
+            foreach (var eyesType in EyesPosRowDrawer.AllEyesTypes)
+            {
+                _eyesPosRowDrawer.DrawLabeledEyesSliderRows(view, maidCache, eyesType);
             }
         }
 

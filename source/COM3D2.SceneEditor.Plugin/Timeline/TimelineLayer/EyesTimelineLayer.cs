@@ -150,6 +150,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             float horizon,
             float vertical)
         {
+            ApplyEyes(maidCache, eyesType, horizon, vertical);
+        }
+
+        /// <summary>
+        /// 瞳の位置・サイズ・顔向きの書き込み。
+        /// レイヤー外 (SE の EyesPosRowDrawer) からも同じ換算で書けるよう静的にしている
+        /// </summary>
+        public static void ApplyEyes(
+            MaidCache maidCache,
+            MotionEyesType eyesType,
+            float horizon,
+            float vertical)
+        {
+            if (maidCache == null)
+            {
+                return;
+            }
+
             switch (eyesType)
             {
                 case MotionEyesType.EyesPosL:
@@ -188,7 +206,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private Vector2 GetEyesValue(MotionEyesType eyesType)
         {
-            var maid = this.maid;
+            return GetEyesValue(maidCache, eyesType);
+        }
+
+        /// <summary>
+        /// 瞳の位置・サイズ・顔向きの現在値。
+        /// レイヤー外 (SE の EyesPosRowDrawer) からも同じ換算で読めるよう静的にしている
+        /// </summary>
+        public static Vector2 GetEyesValue(MaidCache maidCache, MotionEyesType eyesType)
+        {
+            var maid = maidCache != null ? maidCache.maid : null;
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
             {
                 return Vector2.zero;
