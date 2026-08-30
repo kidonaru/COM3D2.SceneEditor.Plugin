@@ -36,11 +36,14 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly HashSet<MTEP.TangentPair> _workTangents = new HashSet<MTEP.TangentPair>();
         private MTEP.TangentValueType _tangentValueType = MTEP.TangentValueType.すべて;
 
+        /// <summary>選択キーフレームが実際に持つ値種別だけを入れたコンボ候補</summary>
+        private readonly List<MTEP.TangentValueType> _availableValueTypes
+            = new List<MTEP.TangentValueType>();
+
+        // 候補は選択内容で変わるため、items は毎フレーム差し替える
         private readonly GUIComboBox<MTEP.TangentValueType> _valueTypeComboBox =
             new GUIComboBox<MTEP.TangentValueType>
             {
-                items = Enum.GetValues(typeof(MTEP.TangentValueType))
-                    .Cast<MTEP.TangentValueType>().ToList(),
                 getName = (type, index) => type.ToString(),
                 buttonSize = new Vector2(100, 20),
             };
@@ -69,6 +72,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public bool Draw(GUIView view)
         {
+            UpdateAvailableValueTypes();
+
             if (!CollectTangents())
             {
                 return false;
@@ -190,11 +195,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawTangentFields(GUIView subView)
         {
+            // 候補と enum 値の添字は一致しないので IndexOf で対応させる
+            _valueTypeComboBox.items = _availableValueTypes;
+            _valueTypeComboBox.currentIndex =
+                Mathf.Max(0, _availableValueTypes.IndexOf(_tangentValueType));
             _valueTypeComboBox.onSelected = (type, index) =>
             {
                 _tangentValueType = type;
             };
-            _valueTypeComboBox.currentIndex = (int)_tangentValueType;
             _valueTypeComboBox.DrawButton(subView);
 
             KeyFrameTangentLogic.GetUniformTangents(
@@ -325,6 +333,45 @@ namespace COM3D2.SceneEditor.Plugin
                     callback(data);
                 }
             }
+        }
+
+        /// <summary>
+        /// コンボ候補を選択キーフレームが実際に持つ値種別だけに絞る。
+        /// 「すべて」は常に候補に残し、選択中の種別が消えたらそこへ戻す
+        /// (TimelineCurveEditor.UpdateValueTypeFilter と同じ流儀)
+        /// </summary>
+        private void UpdateAvailableValueTypes()
+        {
+            _availableValueTypes.Clear();
+            _availableValueTypes.Add(MTEP.TangentValueType.すべて);
+
+            foreach (MTEP.TangentValueType valueType in
+                Enum.GetValues(typeof(MTEP.TangentValueType)))
+            {
+                if (valueType != MTEP.TangentValueType.すべて && HasValueType(valueType))
+                {
+                    _availableValueTypes.Add(valueType);
+                }
+            }
+
+            if (!_availableValueTypes.Contains(_tangentValueType))
+            {
+                _tangentValueType = MTEP.TangentValueType.すべて;
+            }
+        }
+
+        /// <summary>選択キーフレームのいずれかが指定種別の値を持つか</summary>
+        private static bool HasValueType(MTEP.TangentValueType valueType)
+        {
+            foreach (var bone in selectedBones)
+            {
+                var transform = bone.transform;
+                if (transform != null && transform.GetValueDataList(valueType).Length > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>選択キーフレーム側 (区間終点) の in タンジェントを走査する</summary>
