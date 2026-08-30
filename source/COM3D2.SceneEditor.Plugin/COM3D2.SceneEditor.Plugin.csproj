@@ -271,6 +271,7 @@
     <Compile Include="HistoryWindow.cs" />
     <Compile Include="InspectorWindow.cs" />
     <Compile Include="KeyFrameFlowLayout.cs" />
+    <Compile Include="KeyFrameTangentLogic.cs" />
     <Compile Include="KeyFrameInspector.cs" />
     <Compile Include="LightWindow.cs" />
     <Compile Include="MaidWindowBase.cs" />
