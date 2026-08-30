@@ -1579,8 +1579,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return null;
         }
 
+        // タイムライン未読込時の戻り値。呼び出し元は読み取りしかしない
+        // (書き換える側は ToList() でコピーを取る)
+        private static readonly List<ITimelineLayer> EmptyLayers = new List<ITimelineLayer>();
+
         public List<ITimelineLayer> FindLayers(Type type)
         {
+            // テキスト・サブカメラ等のウィンドウはタイムライン未読込でも描画され、
+            // 直前キーの参照でここへ来る。レイヤー無しとして返す
+            if (timeline == null)
+            {
+                return EmptyLayers;
+            }
             return timeline.FindLayers(type);
         }
 
