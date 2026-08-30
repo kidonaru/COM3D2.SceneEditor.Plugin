@@ -82,8 +82,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             _lookModeComboBox.items = KeyedLookModes;
             _lookModeComboBox.currentIndex = KeyedLookModes.IndexOf(mode);
-            _lookModeComboBox.onSelected =
-                (newMode, _) => maidCache.lookAtTargetType = MaidLookBridge.ToTargetType(newMode);
+            _lookModeComboBox.onSelected = (newMode, _) =>
+            {
+                // lookAtTargetIndex はメイドとモデルで共用のため、種別が変わったら未選択へ戻す。
+                // 残したままだと、選んでいない同じ番号の対象へその場で注視が飛んでしまう
+                var newTargetType = MaidLookBridge.ToTargetType(newMode);
+                if (newTargetType != maidCache.lookAtTargetType)
+                {
+                    maidCache.lookAtTargetIndex = -1;
+                }
+                maidCache.lookAtTargetType = newTargetType;
+            };
             LabeledComboRow.Draw(view, "向け先", _lookModeComboBox, labelWidth, rowHeight);
 
             if (_lookModeComboBox.currentItem == MaidLookMode.モデル)
@@ -107,8 +116,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _targetMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
-            _targetMaidComboBox.currentIndex = maidCache.lookAtTargetIndex;
+            var maidCaches = MTEP.MaidManager.instance.maidCaches;
+            _targetMaidComboBox.items = maidCaches;
+            // 未選択 (-1) と範囲外はボタン文字列が決まらないため既定名で埋める
+            var maidIndex = maidCache.lookAtTargetIndex >= 0
+                && maidCache.lookAtTargetIndex < maidCaches.Count
+                ? maidCache.lookAtTargetIndex : -1;
+            _targetMaidComboBox.defaultName = maidIndex >= 0 ? null : "未選択";
+            _targetMaidComboBox.currentIndex = maidIndex;
             _targetMaidComboBox.onSelected =
                 (_, index) => maidCache.lookAtTargetIndex = index;
             LabeledComboRow.Draw(view, "メイド", _targetMaidComboBox, labelWidth, rowHeight);
