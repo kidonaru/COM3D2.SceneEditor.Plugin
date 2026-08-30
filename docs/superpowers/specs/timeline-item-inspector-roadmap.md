@@ -312,7 +312,7 @@ Phase S4(サウンド・演出系):
 
 - [x] VoiceTimelineLayer / SeTimelineLayer(再生パラメータ / SoundWindow / 逆方向なし)
 - [x] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
-- [ ] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし)
+- [x] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし。パターン・移動回転は Inspector 対象外)
 - [ ] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
 - [ ] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向は要調査: 不可なら実装せず理由を追記)
 - [ ] AnimationTimelineLayer(アニメブレンド設定・レイヤー固有 / 逆方向なし)
@@ -334,3 +334,15 @@ Phase S4 実機確認項目(loop 中に追記):
 - [ ] Inspector のコンボを開いている間に他の行を触っても誤操作にならないか
       (レイヤー UI は SetEnabled で抑止しているが、Inspector 経路は全プロバイダ共通で未対応。
        問題があれば TimelineItemInspector.Draw 側で一括して掛ける)
+- [ ] ステージライトレイヤーでグループ行(コントローラー)を選択 → Inspector に一括設定が出て編集できる
+- [ ] 個別のライト行を選択 → そのライトのパラメータが出る
+- [ ] ステージレーザーも同様にコントローラー行・レーザー行が編集できる
+- [ ] サイリウムでグループ・バー設定・持ち手設定・エリアの各行が編集できる
+- [ ] サイリウムのパターン・移動回転の行は「ライブ演出ウィンドウで編集してください」表示になる
+      (ウィンドウ側が両手/右手/左手のタブで対象を切り替える構造のため Inspector 対象外)
+- [ ] 複数の対象を同時に選択しても色ピッカーが混ざらない(色欄のラベルを対象名で一意化している)
+- [ ] ライブ演出ウィンドウと Inspector で同じ対象の色を編集すると同じ実体に反映される
+- [ ] グループ・ライト・レーザー・エリアを減らした直後の項目が「(〜が見つかりません)」表示になる
+- [ ] 編集モードでないときは「編集モード中のみ〜操作できます」が出て編集行が出ない
+- [ ] ライブ演出ウィンドウの 3 タブ(一括/個別、サイリウムの各タブ)に退行が無い(抽出リファクタリングの確認)
+- [ ] 回転欄がキーフレーム間で飛ばない(直前キー参照を TimelinePrevKeyUtils へ統合した影響の確認)

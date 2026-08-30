@@ -294,6 +294,10 @@
     <Compile Include="VoiceRowDrawer.cs" />
     <Compile Include="SeRowDrawer.cs" />
     <Compile Include="TextRowDrawer.cs" />
+    <Compile Include="StageLightRowDrawer.cs" />
+    <Compile Include="StageLaserRowDrawer.cs" />
+    <Compile Include="PsylliumRowDrawer.cs" />
+    <Compile Include="TimelinePrevKeyUtils.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
@@ -379,6 +383,9 @@
     <Compile Include="Timeline\ItemInspector\VoiceItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\SeItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TextItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\StageLightItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\StageLaserItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\PsylliumItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
