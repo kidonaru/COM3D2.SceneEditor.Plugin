@@ -32,6 +32,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>逆引きの走査対象になるモデル一覧</summary>
         protected abstract List<TModel> models { get; }
 
+        /// <summary>
+        /// モデル 1 件分の管理行 (表示切替・複製・削除など)。
+        /// 旧レイヤー編集ウィンドウの管理タブの受け皿で、内容はモデルの種類ごとに変わる。
+        /// 一覧性はヒエラルキーが持つため、ここは選択中のモデルだけを対象にする
+        /// </summary>
+        protected virtual void DrawModelManageRows(GUIView view, TModel model)
+        {
+        }
+
+        /// <summary>選択から外れた項目のキャッシュを捨てる (派生先が持つ分)</summary>
+        protected virtual void PruneCaches(IList<MTEP.IBoneMenuItem> items)
+        {
+        }
+
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
         {
@@ -49,11 +63,13 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 複数選択時にどのモデルの行か分かるよう見出しを出す
                 view.DrawLabel(item.displayName, -1, RowHeight);
+                DrawModelManageRows(view, model);
                 _transformRowDrawers.Get(item.name).Draw(
                     view, transform.gameObject, LabelWidth, ScaleLabelWidth, RowHeight);
             }
 
             _transformRowDrawers.PruneExcept(items);
+            PruneCaches(items);
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)

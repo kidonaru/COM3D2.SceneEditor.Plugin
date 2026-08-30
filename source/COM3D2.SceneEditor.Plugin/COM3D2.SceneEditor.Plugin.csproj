@@ -280,6 +280,7 @@
     <Compile Include="LabeledComboRow.cs" />
     <Compile Include="ItemRowDrawerCache.cs" />
     <Compile Include="ModelBoneRowDrawer.cs" />
+    <Compile Include="ModelManageRowDrawer.cs" />
     <Compile Include="ModelShapeKeyRowDrawer.cs" />
     <Compile Include="MaterialPropertyRowsDrawer.cs" />
     <Compile Include="ObjectTransformRowDrawer.cs" />
