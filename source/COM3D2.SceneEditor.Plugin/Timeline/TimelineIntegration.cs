@@ -310,6 +310,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.StageLaserTimelineLayer), new StageLaserItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PsylliumTimelineLayer), new PsylliumItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,

@@ -313,7 +313,7 @@ Phase S4(サウンド・演出系):
 - [x] VoiceTimelineLayer / SeTimelineLayer(再生パラメータ / SoundWindow / 逆方向なし)
 - [x] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
 - [x] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし。パターン・移動回転は Inspector 対象外)
-- [ ] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
+- [x] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
 - [ ] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向は要調査: 不可なら実装せず理由を追記)
 - [ ] AnimationTimelineLayer(アニメブレンド設定・レイヤー固有 / 逆方向なし)
 
@@ -346,3 +346,13 @@ Phase S4 実機確認項目(loop 中に追記):
 - [ ] 編集モードでないときは「編集モード中のみ〜操作できます」が出て編集行が出ない
 - [ ] ライブ演出ウィンドウの 3 タブ(一括/個別、サイリウムの各タブ)に退行が無い(抽出リファクタリングの確認)
 - [ ] 回転欄がキーフレーム間で飛ばない(直前キー参照を TimelinePrevKeyUtils へ統合した影響の確認)
+- [ ] ポストエフェクトレイヤーで被写界深度・GTToneMap の行を選択 → Inspector にパラメータが出て編集できる
+- [ ] パラフィン・距離フォグ・リムライトの各行を選択 → その番号のエフェクトのパラメータが出る
+- [ ] 拡張色が無効なときに色1 を変えると色2 も追従し、A2 スライダーでアルファだけ変えられる
+      (レイヤー UI と同じ挙動。Inspector 側は共通ヘルパーに集約している)
+- [ ] リムライトの「ライト方向」がキーフレーム間で飛ばない
+      (レイヤー UI は直前キーを引けていないため、Inspector の方が連続性が良い。差異は意図したもの)
+- [ ] エフェクト数を減らした直後の項目が「(エフェクトが見つかりません)」表示になる
+- [ ] 複数のエフェクト行を同時に選択しても色ピッカーが混ざらない
+- [ ] Inspector から「デバッグ表示」等の共通設定を変えると設定として保存される(レイヤー UI と同じ)
+- [ ] コピー先への複製とトーンカーブのプレビューはレイヤー UI 側で行う(意図した制約)
