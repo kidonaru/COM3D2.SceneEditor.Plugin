@@ -62,17 +62,21 @@ namespace COM3D2.SceneEditor.Plugin
         {
         }
 
-        public void Draw(GUIView view)
+        /// <summary>
+        /// タンジェント編集 UI を描く。
+        /// 選択キーフレームにタンジェント対応の transform がひとつも無ければ
+        /// 何も描かずに false を返す (呼び出し側が代わりの案内を出す)
+        /// </summary>
+        public bool Draw(GUIView view)
         {
             if (!CollectTangents())
             {
-                return;
+                return false;
             }
 
             EnsureTextures();
             UpdateCurveTextureIfNeeded();
 
-            view.DrawHorizontalLine(Color.gray);
             view.DrawLabel("補間曲線", 100, RowHeight);
 
             // 数値編集列は親レイアウトに参加しない独立 GUIView としてテクスチャの右に置く。
@@ -96,6 +100,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTexture(_tangentTex);
 
             DrawPresets(view);
+            return true;
         }
 
         /// <summary>

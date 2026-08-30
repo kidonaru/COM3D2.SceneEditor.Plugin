@@ -11,7 +11,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// 選択キーフレームごとに折りたたみ可能なブロックを縦に並べ、
     /// Transform は標準 Inspector と同じ横並び行、その他のパラメータは
     /// ウィンドウ幅に合わせて折り返すドラッグ可能な数値入力で個別に編集する
-    /// (末尾に KeyFrameTangentDrawer のタンジェント曲線エディタを表示する。
+    /// (「補間曲線」タブに KeyFrameTangentDrawer のタンジェント曲線エディタを表示する。
     /// 区間ごとの実値カーブ編集は TimelineCurveEditor が担当)
     /// </summary>
     public class KeyFrameInspector
@@ -45,6 +45,16 @@ namespace COM3D2.SceneEditor.Plugin
         private const float ScaleSensitivity = 0.01f;
         private const float ColorSensitivity = 0.01f;
 
+        /// <summary>タブ 1 個の幅 (「補間曲線」が収まる幅)</summary>
+        private const float TabWidth = 70f;
+
+        /// <summary>キーフレーム詳細のタブ (列挙名がそのままタブ名になる)</summary>
+        private enum TabType
+        {
+            値,
+            補間曲線,
+        }
+
         /// <summary>一括開閉ボタンの要求</summary>
         private enum FoldAllRequest
         {
@@ -72,6 +82,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>描画ループ終了後に反映する一括開閉の要求</summary>
         private FoldAllRequest _pendingFoldAll = FoldAllRequest.None;
+
+        /// <summary>表示中のタブ (セッション中のみ有効。config へは永続化しない)</summary>
+        private TabType _tabType = TabType.値;
 
         private static KeyFrameInspector _instance = null;
         public static KeyFrameInspector instance
@@ -110,6 +123,27 @@ namespace COM3D2.SceneEditor.Plugin
             // Inspector 外の削除経路を通ると選択から外れた BoneData が残るため、ここで掃除する
             _collapsedBones.RemoveWhere(bone => !selectedBones.Contains(bone));
 
+            _tabType = view.DrawTabs(_tabType, TabWidth, RowHeight);
+            // DrawTabs 末尾の AddSpace(5) が縦レイアウトでは「スペース5px + margin」に
+            // なるため、通常の行間に合わせて詰める (BackgroundWindow と同じ流儀)
+            view.currentPos.y -= 5 + GUIView.defaultMargin;
+            view.DrawHorizontalLine(Color.gray);
+
+            if (_tabType == TabType.補間曲線)
+            {
+                if (!KeyFrameTangentDrawer.instance.Draw(view))
+                {
+                    view.DrawLabel("補間曲線を持つキーフレームが選択されていません", -1, RowHeight);
+                }
+                return;
+            }
+
+            DrawValues(view);
+        }
+
+        /// <summary>「値」タブ。選択キーフレームのブロックを縦に並べる</summary>
+        private void DrawValues(GUIView view)
+        {
             var maxCount = Mathf.Max(1, config.detailTransformCount);
             var totalCount = selectedBones.Count;
 
@@ -132,9 +166,6 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel(
                     string.Format("他 {0} 個は非表示", totalCount - drawCount), -1, RowHeight);
             }
-
-            // タンジェント曲線エディタ (選択キーフレーム全体が対象)
-            KeyFrameTangentDrawer.instance.Draw(view);
 
             // 一括開閉は表示中のブロックが対象なので、_sortedBones を捨てる前に反映する
             ProcessPendingFold(drawCount);
