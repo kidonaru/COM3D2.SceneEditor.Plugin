@@ -302,6 +302,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.VoiceTimelineLayer), new VoiceItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.SeTimelineLayer), new SeItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.TextTimelineLayer), new TextItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,

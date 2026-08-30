@@ -1,0 +1,142 @@
+using System;
+using System.Linq;
+using COM3D2.MotionTimelineEditor;
+using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
+
+namespace COM3D2.SceneEditor.Plugin
+{
+    /// <summary>
+    /// フリーテキスト 1 つ分の内容とスタイルの行
+    /// (テキスト / フォント / サイズ / 行間 / 整列 / 幅 / 高さ / 色)。
+    ///
+    /// 委譲先の個別ウィンドウが無いため、共有元はレイヤーの TextTimelineLayer.DrawWindow。
+    /// レイヤー本体は MTE 逐語コピーで触らない方針のため、同じ書き込み先
+    /// (TimelineTextManager の FreeTextSet) へ同じ意味の編集を別途ここに用意している
+    /// (書き込み先はどのスナップショットにも含まれないため、レイヤー側と同じく履歴は記録しない)。
+    /// スライダーの範囲・既定値はレイヤー UI と同じ値にすること。
+    ///
+    /// コンボボックスの開閉状態を持つため、テキストごと・描画するビューごとに
+    /// インスタンスを分ける
+    /// </summary>
+    public class TextRowDrawer
+    {
+        private static MTEP.TimelineTextManager textManager => MTEP.TimelineTextManager.instance;
+
+        /// <summary>スライダーのラベル幅 (「サイズ」「行間」が収まる幅)</summary>
+        private const float SliderLabelWidth = 30f;
+
+        /// <summary>テキスト入力の最大行数 (レイヤー UI と同じ)</summary>
+        private const int TextMaxLines = 3;
+
+        private readonly GUIComboBox<string> _fontNameComboBox = new GUIComboBox<string>
+        {
+            getName = (fontName, _) => fontName,
+        };
+
+        private readonly GUIComboBox<TextAnchor> _alignmentComboBox = new GUIComboBox<TextAnchor>
+        {
+            items = Enum.GetValues(typeof(TextAnchor)).Cast<TextAnchor>().ToList(),
+            getName = (alignment, _) => alignment.ToString(),
+        };
+
+        /// <param name="colorLabel">
+        /// 色行のラベル (= ピッカーの同定キー)。複数テキストを並べても
+        /// 対象が混ざらないよう、呼び出し側が一意な文字列を渡す
+        /// </param>
+        public void Draw(
+            GUIView view, MTEP.FreeTextSet freeTextSet, float rowHeight, string colorLabel)
+        {
+            var text = freeTextSet.text;
+            var rect = freeTextSet.rect;
+
+            view.DrawLabel("テキスト", -1, rowHeight);
+
+            view.DrawTextField(new GUIView.TextFieldOption
+            {
+                value = text.text,
+                onChanged = value => text.text = value,
+                maxLines = TextMaxLines,
+            });
+
+            _fontNameComboBox.items = MTEP.TimelineTextManager.fontNames;
+            _fontNameComboBox.currentIndex = MTEP.TimelineTextManager.fontNames.IndexOf(
+                text.font != null ? text.font.name : "");
+            _fontNameComboBox.onSelected = (fontName, _) =>
+            {
+                text.font = textManager.GetFont(fontName);
+            };
+
+            _fontNameComboBox.DrawButton("フォント", view);
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "サイズ",
+                labelWidth = SliderLabelWidth,
+                fieldType = FloatFieldType.Int,
+                min = 0,
+                max = 200,
+                step = 1,
+                defaultValue = 50,
+                value = text.fontSize,
+                onChanged = value => text.fontSize = (int)value,
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "行間",
+                labelWidth = SliderLabelWidth,
+                fieldType = FloatFieldType.Int,
+                min = 0,
+                max = 200,
+                step = 1,
+                defaultValue = 50,
+                value = text.lineSpacing,
+                onChanged = value => text.lineSpacing = value,
+            });
+
+            _alignmentComboBox.currentIndex = (int)text.alignment;
+            _alignmentComboBox.onSelected = (alignment, _) =>
+            {
+                text.alignment = alignment;
+            };
+
+            _alignmentComboBox.DrawButton("整列", view);
+
+            DrawSizeSlider(view, "幅", rect.sizeDelta.x, value =>
+            {
+                var sizeDelta = rect.sizeDelta;
+                sizeDelta.x = value;
+                rect.sizeDelta = sizeDelta;
+            });
+
+            DrawSizeSlider(view, "高さ", rect.sizeDelta.y, value =>
+            {
+                var sizeDelta = rect.sizeDelta;
+                sizeDelta.y = value;
+                rect.sizeDelta = sizeDelta;
+            });
+
+            var colorFieldCache = view.GetColorFieldCache(colorLabel, true);
+            view.DrawColor(colorFieldCache, text.color, Color.white, value => text.color = value);
+        }
+
+        /// <summary>テキスト枠の幅・高さのスライダー 1 行</summary>
+        private static void DrawSizeSlider(
+            GUIView view, string label, float value, Action<float> onChanged)
+        {
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = label,
+                labelWidth = SliderLabelWidth,
+                fieldType = FloatFieldType.Int,
+                min = 0,
+                max = 2000,
+                step = 1,
+                defaultValue = 1000,
+                value = value,
+                onChanged = onChanged,
+            });
+        }
+    }
+}

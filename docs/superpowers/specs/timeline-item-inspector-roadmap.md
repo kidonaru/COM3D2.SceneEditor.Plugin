@@ -311,7 +311,7 @@ Phase S3 実機確認項目(loop 中に追記):
 Phase S4(サウンド・演出系):
 
 - [x] VoiceTimelineLayer / SeTimelineLayer(再生パラメータ / SoundWindow / 逆方向なし)
-- [ ] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
+- [x] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
 - [ ] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし)
 - [ ] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
 - [ ] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向は要調査: 不可なら実装せず理由を追記)
@@ -327,3 +327,10 @@ Phase S4 実機確認項目(loop 中に追記):
 - [ ] サウンドウィンドウと Inspector を同時に開いても SE 名コンボが互いに干渉しない
 - [ ] 編集モードでないときは「編集モード中のみ〜操作できます」が出て編集行が出ない
 - [ ] サウンドウィンドウのボイスタブ・効果音タブ(操作/管理)に退行が無い(抽出リファクタリングの確認)
+- [ ] テキストレイヤーでテキスト行を選択 → Inspector に内容・フォント・サイズ・行間・整列・幅・高さ・色が出て編集できる
+- [ ] テキスト枠の位置・回転・拡縮はレイヤー UI 側で編集する(意図した制約。spec の表が「内容・スタイル」のため)
+- [ ] 複数のテキスト行を同時に選択しても色ピッカーとフォント/整列コンボが混ざらない
+- [ ] テキスト表示数を減らした直後の項目が「(テキストが見つかりません)」表示になる
+- [ ] Inspector のコンボを開いている間に他の行を触っても誤操作にならないか
+      (レイヤー UI は SetEnabled で抑止しているが、Inspector 経路は全プロバイダ共通で未対応。
+       問題があれば TimelineItemInspector.Draw 側で一括して掛ける)
