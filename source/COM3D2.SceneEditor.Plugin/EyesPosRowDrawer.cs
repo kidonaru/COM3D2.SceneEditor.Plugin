@@ -42,7 +42,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private Texture2D _eyesPositionTex = null;
         private Texture2D _eyesTex = null;
-        private bool _isEyesDragging = false;
+
+        /// <summary>位置図でドラッグ中の瞳。押下時に近い方のマーカーを掴み、左右を個別に動かす</summary>
+        private MTEP.MotionEyesType? _draggingEyesType = null;
 
         /// <summary>この Drawer が扱う項目か (Inspector の項目種別の振り分けに使う)</summary>
         public static bool IsEyesPosType(MTEP.MotionEyesType eyesType)
@@ -135,9 +137,13 @@ namespace COM3D2.SceneEditor.Plugin
             view.SetEnabled(view.focusedComboBox == null);
         }
 
-        /// <summary>瞳 1 つ分のスライダー 2 本 (位置は水平/垂直、サイズは幅/高さ)</summary>
+        /// <summary>
+        /// 瞳 1 つ分のドラッグ入力欄 2 個を 1 行で描く (位置は水平/垂直、サイズは幅/高さ)。
+        /// rowLabel を渡すと行頭に項目名ラベルを付ける
+        /// </summary>
         public void DrawEyesSliderRows(
-            GUIView view, MTEP.MaidCache maidCache, MTEP.MotionEyesType eyesType)
+            GUIView view, MTEP.MaidCache maidCache, MTEP.MotionEyesType eyesType,
+            string rowLabel = null)
         {
             if (maidCache == null)
             {
@@ -166,8 +172,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             BeginEditable(view);
 
-            updateTransform |= DrawEyesSlider(view, names[0], horizon, x => horizon = x);
-            updateTransform |= DrawEyesSlider(view, names[1], vertical, y => vertical = y);
+            view.BeginHorizontal();
+            {
+                if (rowLabel != null)
+                {
+                    view.DrawLabel(rowLabel, 100, RowHeight);
+                }
+
+                updateTransform |= DrawEyesDragField(view, names[0], horizon, x => horizon = x);
+                updateTransform |= DrawEyesDragField(view, names[1], vertical, y => vertical = y);
+            }
+            view.EndLayout();
 
             EndEditable(view);
 
@@ -177,27 +192,26 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>項目名 (レイヤーの表示名) 付きでスライダーを描く</summary>
+        /// <summary>項目名 (レイヤーの表示名) 付きで 1 行描く</summary>
         public void DrawLabeledEyesSliderRows(
             GUIView view, MTEP.MaidCache maidCache, MTEP.MotionEyesType eyesType)
         {
-            view.DrawLabel(
-                MTEP.EyesTimelineLayer.EyesDisplayNameMap[eyesType.ToString()], 100, RowHeight);
-            DrawEyesSliderRows(view, maidCache, eyesType);
+            DrawEyesSliderRows(view, maidCache, eyesType,
+                MTEP.EyesTimelineLayer.EyesDisplayNameMap[eyesType.ToString()]);
         }
 
-        private static bool DrawEyesSlider(
+        private static bool DrawEyesDragField(
             GUIView view, string label, float value, Action<float> onChanged)
         {
-            return view.DrawSliderValue(new GUIView.SliderOption
+            return view.DrawDragFloatField(new GUIView.DragFloatFieldOption
             {
                 label = label,
                 labelWidth = 30,
-                min = -1f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
                 value = value,
+                minValue = -1f,
+                maxValue = 1f,
+                fieldWidth = 50,
+                height = RowHeight,
                 onChanged = onChanged,
             });
         }
@@ -205,62 +219,123 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>位置図とその上の瞳マーカー。左瞳は図の座標と符号が逆になる</summary>
         private void DrawEyesImage(GUIView view, MTEP.MaidCache maidCache, Vector2 basePos)
         {
-            var half = ImageSize / 2;
+            // DrawTexture が使うのと同じ矩形を先に取ってドラッグ判定に使う
+            var drawRect = view.GetDrawRect(ImageSize, ImageSize);
 
             view.DrawTexture(
                 _eyesPositionTex,
                 ImageSize,
                 ImageSize,
-                studioHackManager.isPoseEditing ? Color.white : Color.gray,
-                EventType.MouseDrag,
-                pos =>
-                {
-                    _isEyesDragging = true;
+                studioHackManager.isPoseEditing ? Color.white : Color.gray);
 
-                    var horizon = (pos.x - half) / (float)half;
-                    var vertical = (pos.y - half) / (float)half;
-
-                    foreach (var eyesType in DraggableEyesTypes)
-                    {
-                        if (eyesType == MTEP.MotionEyesType.EyesPosL)
-                        {
-                            MTEP.EyesTimelineLayer.ApplyEyes(
-                                maidCache, eyesType, -horizon, -vertical);
-                        }
-                        else
-                        {
-                            MTEP.EyesTimelineLayer.ApplyEyes(
-                                maidCache, eyesType, horizon, vertical);
-                        }
-                    }
-                });
-
-            if (_isEyesDragging && !Input.GetMouseButton(0))
-            {
-                _isEyesDragging = false;
-            }
+            HandleEyesDrag(view, maidCache, drawRect);
 
             var halfEyesSize = _eyesTex.width / 2;
 
             foreach (var eyesType in DraggableEyesTypes)
             {
-                var eyesValue = MTEP.EyesTimelineLayer.GetEyesValue(maidCache, eyesType);
-                var horizon = eyesValue.x;
-                var vertical = eyesValue.y;
-
-                if (eyesType == MTEP.MotionEyesType.EyesPosL)
-                {
-                    horizon = -horizon;
-                    vertical = -vertical;
-                }
-
-                var pos = new Vector2(half + horizon * half, half + vertical * half);
-                pos.x = Mathf.Clamp(pos.x, 0, ImageSize);
-                pos.y = Mathf.Clamp(pos.y, 0, ImageSize);
-
+                var pos = GetEyesImagePos(maidCache, eyesType);
                 view.currentPos = basePos + pos - new Vector2(halfEyesSize, halfEyesSize);
                 view.DrawTexture(_eyesTex);
             }
+        }
+
+        /// <summary>瞳マーカーの図上の座標。左瞳は図の座標と符号が逆になる</summary>
+        private static Vector2 GetEyesImagePos(
+            MTEP.MaidCache maidCache, MTEP.MotionEyesType eyesType)
+        {
+            var half = ImageSize / 2;
+            var eyesValue = MTEP.EyesTimelineLayer.GetEyesValue(maidCache, eyesType);
+            var horizon = eyesValue.x;
+            var vertical = eyesValue.y;
+
+            if (eyesType == MTEP.MotionEyesType.EyesPosL)
+            {
+                horizon = -horizon;
+                vertical = -vertical;
+            }
+
+            var pos = new Vector2(half + horizon * half, half + vertical * half);
+            pos.x = Mathf.Clamp(pos.x, 0, ImageSize);
+            pos.y = Mathf.Clamp(pos.y, 0, ImageSize);
+            return pos;
+        }
+
+        /// <summary>
+        /// 位置図のドラッグ処理。押下時に近い方の瞳マーカーを掴み、その瞳だけを動かす。
+        /// MouseDown を消費してウィンドウの移動ドラッグを始めさせない
+        /// (EditorSubWindow は未消費の押下を空き領域ドラッグとして扱うため)
+        /// </summary>
+        private void HandleEyesDrag(GUIView view, MTEP.MaidCache maidCache, Rect drawRect)
+        {
+            // ボタン解放のほか、ドラッグ中に編集モードを抜けた場合も掴みを離す
+            // (編集モード外はレイヤーが毎フレーム値を書き戻すため、書き続けても巻き戻るだけ)
+            if (_draggingEyesType.HasValue &&
+                (!Input.GetMouseButton(0) || !studioHackManager.isPoseEditing))
+            {
+                _draggingEyesType = null;
+            }
+
+            var e = Event.current;
+
+            if (e.type == EventType.MouseDown && e.button == 0 &&
+                drawRect.Contains(e.mousePosition) &&
+                view.focusedComboBox == null &&
+                studioHackManager.isPoseEditing)
+            {
+                var pos = e.mousePosition - drawRect.position;
+                _draggingEyesType = FindNearestEyesType(maidCache, pos);
+                ApplyEyesDrag(maidCache, pos);
+                e.Use();
+            }
+            else if (_draggingEyesType.HasValue &&
+                e.type == EventType.MouseDrag && e.button == 0)
+            {
+                ApplyEyesDrag(maidCache, e.mousePosition - drawRect.position);
+                e.Use();
+            }
+        }
+
+        /// <summary>図上の座標から掴む対象を決める (マーカーとの距離が近い方)</summary>
+        private static MTEP.MotionEyesType FindNearestEyesType(
+            MTEP.MaidCache maidCache, Vector2 pos)
+        {
+            var nearest = DraggableEyesTypes[0];
+            var nearestSqr = float.MaxValue;
+
+            foreach (var eyesType in DraggableEyesTypes)
+            {
+                var sqr = (GetEyesImagePos(maidCache, eyesType) - pos).sqrMagnitude;
+                if (sqr < nearestSqr)
+                {
+                    nearestSqr = sqr;
+                    nearest = eyesType;
+                }
+            }
+
+            return nearest;
+        }
+
+        /// <summary>図上の座標をドラッグ中の瞳へ適用する。図の外へ出た分は端で止める</summary>
+        private void ApplyEyesDrag(MTEP.MaidCache maidCache, Vector2 pos)
+        {
+            if (!_draggingEyesType.HasValue)
+            {
+                return;
+            }
+
+            var half = ImageSize / 2;
+            var horizon = Mathf.Clamp((pos.x - half) / half, -1f, 1f);
+            var vertical = Mathf.Clamp((pos.y - half) / half, -1f, 1f);
+
+            var eyesType = _draggingEyesType.Value;
+            if (eyesType == MTEP.MotionEyesType.EyesPosL)
+            {
+                horizon = -horizon;
+                vertical = -vertical;
+            }
+
+            MTEP.EyesTimelineLayer.ApplyEyes(maidCache, eyesType, horizon, vertical);
         }
     }
 }
