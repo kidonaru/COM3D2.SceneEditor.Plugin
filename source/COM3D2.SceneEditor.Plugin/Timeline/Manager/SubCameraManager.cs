@@ -277,6 +277,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>サブカメラ数を指定数へ増減する (タイムライン設定ウィンドウの要素数 UI 用)</summary>
+        public void SetCameraCount(int count)
+        {
+            count = Mathf.Clamp(count, MinSubCameraCount, MaxSubCameraCount);
+
+            EnsureCameraCount(count);
+
+            while (_subCameras.Count > count)
+            {
+                RemoveLastCamera();
+            }
+        }
+
         // SE 適合: GameViewManager のウィンドウモードではメインカメラが RenderTexture へ
         // リダイレクトされるため、サブカメラの出力先も毎フレーム追従させる。
         // targetTexture 内でも camera.rect は正規化 viewport として機能し、

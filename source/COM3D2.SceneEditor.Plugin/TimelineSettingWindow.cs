@@ -261,6 +261,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            DrawElementCountSection(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
+            DrawLightToggleSection(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
             DrawBGMSetting(view);
 
             DrawVideoSetting(view);
@@ -300,6 +308,85 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 timeline.isGroundLinkedToBackground = newValue;
             });
+        }
+
+        /// <summary>
+        /// タイムライン上の要素数 (テキスト/ポストエフェクト/サブカメラ) の増減。
+        /// 旧レイヤー編集ウィンドウから移設
+        /// </summary>
+        private void DrawElementCountSection(GUIView view)
+        {
+            view.DrawLabel("要素数", 100, ROW_HEIGHT);
+
+            DrawCountRow(view, "テキスト表示数", timeline.textCount, 1, 16,
+                x => timeline.textCount = x);
+            DrawCountRow(view, "パラフィン数", timeline.paraffinCount, 0, 8,
+                x => timeline.paraffinCount = x);
+            DrawCountRow(view, "距離フォグ数", timeline.distanceFogCount, 0, 4,
+                x => timeline.distanceFogCount = x);
+            DrawCountRow(view, "リムライト数", timeline.rimlightCount, 0, 8,
+                x => timeline.rimlightCount = x);
+
+            var subCameraManager = MTEP.SubCameraManager.instance;
+            DrawCountRow(view, "サブカメラ数", subCameraManager.subCameras.Count,
+                MTEP.SubCameraManager.MinSubCameraCount,
+                MTEP.SubCameraManager.MaxSubCameraCount,
+                x => subCameraManager.SetCameraCount(x));
+        }
+
+        /// <summary>
+        /// ライトの補間まわりのトグル。旧レイヤー編集ウィンドウから移設。
+        /// いずれもタイムラインに保存される個別設定のためこのタブに置く
+        /// </summary>
+        private void DrawLightToggleSection(GUIView view)
+        {
+            view.DrawToggle("ライトで色補間を有効化", timeline.isLightColorEasing, -1, ROW_HEIGHT, newValue =>
+            {
+                timeline.isLightColorEasing = newValue;
+            });
+
+            view.DrawToggle("ライトで拡張補間を有効化", timeline.isLightExtraEasing, -1, ROW_HEIGHT, newValue =>
+            {
+                timeline.isLightExtraEasing = newValue;
+            });
+
+            view.DrawToggle("ライトの互換性モードを有効化", timeline.isLightCompatibilityMode, -1, ROW_HEIGHT, newValue =>
+            {
+                timeline.isLightCompatibilityMode = newValue;
+                // SE では互換モードの実体がないためフラグの保存のみ行う
+            });
+        }
+
+        /// <summary>整数値の増減行 (旧レイヤー編集ウィンドウの ±ボタン付き IntField と同型)</summary>
+        private void DrawCountRow(
+            GUIView view, string label, int value, int min, int max, Action<int> onChanged)
+        {
+            view.BeginHorizontal();
+            {
+                view.margin = 0;
+
+                view.DrawLabel(label, view.labelWidth, ROW_HEIGHT);
+
+                view.DrawIntField(new GUIView.IntFieldOption
+                {
+                    value = value,
+                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
+                    height = ROW_HEIGHT,
+                    onChanged = x => onChanged(Mathf.Clamp(x, min, max)),
+                });
+
+                if (view.DrawButton("-", 20, ROW_HEIGHT, value > min))
+                {
+                    onChanged(value - 1);
+                }
+                if (view.DrawButton("+", 20, ROW_HEIGHT, value < max))
+                {
+                    onChanged(value + 1);
+                }
+
+                view.margin = GUIView.defaultMargin;
+            }
+            view.EndLayout();
         }
 
         /// <summary>BGM の読み込みと BPM ライン表示 (MTE TimelineSettingUI から移植)</summary>
