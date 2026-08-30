@@ -268,13 +268,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 OnLoadClicked();
             }
-
-            // 要素数 (テキスト・エフェクト・サブカメラ) の増減もここから辿れるようにする
-            WrapIfNeeded(view, 60);
-            if (view.DrawButton("設定", 60, ROW_HEIGHT))
-            {
-                WindowManager.ToggleWindowVisible(TimelineSettingWindow.instance);
-            }
         }
 
         /// <summary>
