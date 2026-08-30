@@ -56,23 +56,59 @@ namespace COM3D2.SceneEditor.Plugin
                 TimelineSelectionBridge.instance,
             };
 
-            public TimelineUpdateManager()
+            // PostEffects.Plugin のロードは SceneEditor より後になることがあるため、
+            // 接続できるまで毎フレーム試し、成功した 1 回だけ登録する
+            private bool _postEffectsRegistered;
+
+            private void TryRegisterPostEffects()
             {
-                // PostEffectManager は静的初期化で PostEffects.Plugin の型を掴むため、
-                // 未導入環境では触れた時点で例外になる。リストへ入れる時点で弾く
-                // (フィールド初期化子に置くと Initialize 全体が巻き添えで中断する)
-                if (MTEP.PostEffectsBridge.isAvailable)
+                if (_postEffectsRegistered || !MTEP.PostEffectsBridge.isAvailable)
                 {
-                    // 破棄順に依存する並び (MovieManager → CameraManager 等) を崩さないよう、
-                    // 元の位置 (PsylliumManager の直後) へ差し込む
-                    _managers.Insert(
-                        _managers.IndexOf(MTEP.PsylliumManager.instance) + 1,
-                        MTEP.PostEffectManager.instance);
+                    return;
                 }
+                _postEffectsRegistered = true;
+
+                // 破棄順に依存する並び (MovieManager → CameraManager 等) を崩さないよう、
+                // 元の位置 (PsylliumManager の直後) へ差し込む
+                var manager = MTEP.PostEffectManager.instance;
+                _managers.Insert(
+                    _managers.IndexOf(MTEP.PsylliumManager.instance) + 1, manager);
+
+                timelineManager.RegisterLayer(
+                    typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
+                TimelineItemInspectorRegistry.Register(
+                    typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.DepthOfField,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.DistanceFog,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDistanceFog>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.GTToneMap,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGTToneMap>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.Paraffin,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataParaffin>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.Rimlight,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
+
+                // 後から差し込むため一括ループには乗らない。ライフサイクルを手で追いつかせる。
+                // OnLoad は timeline 読込済みのときだけ (未読込で呼ぶと同期する値が無い)
+                manager.Init();
+                if (timelineManager.timeline != null)
+                {
+                    manager.OnLoad();
+                }
+
+                MTEUtils.LogDebug("PostEffects.Plugin と接続しました。ポストエフェクトのレイヤーを登録します");
             }
 
             public void Init()
             {
+                TryRegisterPostEffects();
+
                 foreach (var manager in _managers)
                 {
                     manager.Init();
@@ -105,6 +141,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             public void Update()
             {
+                // 接続の検出をガードより後ろに置くと、条件が揃うまで登録されない
+                TryRegisterPostEffects();
+
                 if (!UpdateGuards())
                 {
                     return;
@@ -252,13 +291,6 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.StageLaserTimelineLayer), MTEP.StageLaserTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.PsylliumTimelineLayer), MTEP.PsylliumTimelineLayer.Create);
-            // PostEffects.Plugin 未導入時はポストエフェクトの実体が無いため、レイヤーごと外す。
-            // 該当レイヤー入りのタイムライン XML は未登録レイヤーとして読み飛ばされる (既存挙動)
-            if (MTEP.PostEffectsBridge.isAvailable)
-            {
-                timelineManager.RegisterLayer(
-                    typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
-            }
             timelineManager.RegisterLayer(
                 typeof(MTEP.PngPlacementTimelineLayer), MTEP.PngPlacementTimelineLayer.Create);
             // モデル系レイヤーの登録は TryRegisterModelPlacer が担う
@@ -333,11 +365,6 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.StageLaserTimelineLayer), new StageLaserItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PsylliumTimelineLayer), new PsylliumItemInspector());
-            if (MTEP.PostEffectsBridge.isAvailable)
-            {
-                TimelineItemInspectorRegistry.Register(
-                    typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
-            }
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PngPlacementTimelineLayer), new PngPlacementItemInspector());
             TimelineItemInspectorRegistry.Register(
@@ -376,24 +403,6 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.PngObject,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPngObject>);
-            if (MTEP.PostEffectsBridge.isAvailable)
-            {
-                timelineManager.RegisterTransform(
-                    MTEP.TransformType.DepthOfField,
-                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
-                timelineManager.RegisterTransform(
-                    MTEP.TransformType.DistanceFog,
-                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDistanceFog>);
-                timelineManager.RegisterTransform(
-                    MTEP.TransformType.GTToneMap,
-                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGTToneMap>);
-                timelineManager.RegisterTransform(
-                    MTEP.TransformType.Paraffin,
-                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataParaffin>);
-                timelineManager.RegisterTransform(
-                    MTEP.TransformType.Rimlight,
-                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
-            }
             timelineManager.RegisterTransform(
                 MTEP.TransformType.PsylliumArea,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumArea>);
