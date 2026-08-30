@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -25,7 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
 
-        private static readonly string[] TargetNames = { "Main", "SceneView" };
+        private static readonly string[] TargetNames = { "Main", "SceneView", "サブカメラ" };
         private static readonly int TargetButtonWidth = 90;
 
         // カメラプリセットのスロット数 (ボタン 1〜10)
@@ -49,7 +49,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly Vector2 PresetMenuContentSize = new Vector2(80, 60);
 
-        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView)</summary>
+        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView, 2: サブカメラ)</summary>
         private int _targetIndex = 0;
 
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
@@ -88,6 +88,26 @@ namespace COM3D2.SceneEditor.Plugin
                 contentSize = new Vector2(80, 300),
                 showArrow = false,
             };
+
+        // ---- サブカメラタブ ----
+
+        private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
+        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
+        private static MTEP.SubCameraManager subCameraManager => MTEP.SubCameraManager.instance;
+
+        private readonly GUIComboBox<MTEP.SubCameraData> _subCameraComboBox =
+            new GUIComboBox<MTEP.SubCameraData>
+            {
+                getName = (cameraData, _) => cameraData.displayName,
+                labelWidth = LABEL_WIDTH,
+                buttonSize = new Vector2(150, ROW_HEIGHT),
+                contentSize = new Vector2(150, 300),
+            };
+
+        // 回転オフセットのキャッシュとコンボ開閉状態をカメラごとに分けるため名前で引く
+        // (台数上限 8 なので減った分の掃除はしない)
+        private readonly Dictionary<string, SubCameraRowDrawer> _subCameraRowDrawers =
+            new Dictionary<string, SubCameraRowDrawer>();
 
         private static CameraWindow _instance = null;
         public static CameraWindow instance
@@ -139,13 +159,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (_targetIndex == 0)
             {
-                // プリセットは Main カメラ専用のため SceneView タブでは行を出さない
+                // プリセットは Main カメラ専用のため他タブでは行を出さない
                 DrawPresetRow();
                 DrawMainCameraContent();
             }
-            else
+            else if (_targetIndex == 1)
             {
                 DrawSceneViewCameraContent();
+            }
+            else
+            {
+                DrawSubCameraContent();
             }
 
             // 右クリックで _rootView に登録されたフォーカスをポップアップへ引き渡す
@@ -563,6 +587,108 @@ namespace COM3D2.SceneEditor.Plugin
                         mainCamera.SetTargetPos(point.position);
                     }
                 }
+            }
+            _view.EndLayout();
+        }
+
+        /// <summary>
+        /// サブカメラの管理タブ。台数の増減と選択したカメラの編集を行う。
+        /// サブカメラはタイムライン文脈でのみ生成・更新されるため、
+        /// タイムライン未読込時は使えない (SubCameraItemInspector と同じ制約)
+        /// </summary>
+        private void DrawSubCameraContent()
+        {
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            if (timelineManager.timeline == null)
+            {
+                _view.DrawLabel("タイムライン読込後に使用できます", -1, ROW_HEIGHT,
+                    textColor: Color.yellow);
+                return;
+            }
+
+            _view.SetEnabled(_view.focusedComboBox == null);
+
+            DrawSubCameraCountRow();
+
+            var subCameras = subCameraManager.subCameras;
+            if (subCameras.Count == 0)
+            {
+                _view.DrawLabel("サブカメラが存在しません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            // 台数を減らすと選択が範囲外に残るため、末尾へ寄せ直す
+            _subCameraComboBox.items = subCameras;
+            _subCameraComboBox.currentIndex =
+                Mathf.Clamp(_subCameraComboBox.currentIndex, 0, subCameras.Count - 1);
+            _subCameraComboBox.DrawButton("操作対象", _view);
+
+            var cameraData = _subCameraComboBox.currentItem;
+            if (cameraData == null || cameraData.camera == null)
+            {
+                _view.DrawLabel("サブカメラを選択してください", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            // 編集していない間はレイヤーが毎フレーム再生値を書き戻すため、
+            // 編集モードでないときは触らせない (レイヤー UI と同じ制約)
+            if (!studioHackManager.isPoseEditing)
+            {
+                _view.DrawLabel("編集モード中のみサブカメラを操作できます", -1, ROW_HEIGHT,
+                    textColor: Color.yellow);
+            }
+            _view.SetEnabled(_view.focusedComboBox == null && studioHackManager.isPoseEditing);
+
+            SubCameraRowDrawer drawer;
+            if (!_subCameraRowDrawers.TryGetValue(cameraData.name, out drawer))
+            {
+                drawer = new SubCameraRowDrawer();
+                _subCameraRowDrawers[cameraData.name] = drawer;
+            }
+            drawer.Draw(_view, cameraData, LABEL_WIDTH, ROW_HEIGHT);
+
+            _view.SetEnabled(_view.focusedComboBox == null);
+            _view.EndScrollView();
+        }
+
+        /// <summary>サブカメラ台数の増減行 (TimelineSettingWindow の要素数行から移設)</summary>
+        private void DrawSubCameraCountRow()
+        {
+            var count = subCameraManager.subCameras.Count;
+
+            _view.BeginHorizontal();
+            {
+                _view.margin = 0;
+
+                _view.DrawLabel("サブカメラ数", _view.labelWidth, ROW_HEIGHT);
+
+                _view.DrawIntField(new GUIView.IntFieldOption
+                {
+                    value = count,
+                    width = _view.viewRect.width - (_view.labelWidth + 40 + _view.padding.x * 2),
+                    height = ROW_HEIGHT,
+                    onChanged = x => subCameraManager.SetCameraCount(x),
+                });
+
+                if (_view.DrawButton("-", 20, ROW_HEIGHT,
+                    count > MTEP.SubCameraManager.MinSubCameraCount))
+                {
+                    subCameraManager.SetCameraCount(count - 1);
+                }
+                if (_view.DrawButton("+", 20, ROW_HEIGHT,
+                    count < MTEP.SubCameraManager.MaxSubCameraCount))
+                {
+                    subCameraManager.SetCameraCount(count + 1);
+                }
+
+                _view.margin = GUIView.defaultMargin;
             }
             _view.EndLayout();
         }

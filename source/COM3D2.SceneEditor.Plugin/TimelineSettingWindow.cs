@@ -325,12 +325,6 @@ namespace COM3D2.SceneEditor.Plugin
                 x => timeline.distanceFogCount = x);
             DrawCountRow(view, "リムライト数", timeline.rimlightCount, 0, 8,
                 x => timeline.rimlightCount = x);
-
-            var subCameraManager = MTEP.SubCameraManager.instance;
-            DrawCountRow(view, "サブカメラ数", subCameraManager.subCameras.Count,
-                MTEP.SubCameraManager.MinSubCameraCount,
-                MTEP.SubCameraManager.MaxSubCameraCount,
-                x => subCameraManager.SetCameraCount(x));
         }
 
         /// <summary>
