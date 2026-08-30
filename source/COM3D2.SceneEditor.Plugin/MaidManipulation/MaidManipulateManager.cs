@@ -580,6 +580,30 @@ namespace COM3D2.SceneEditor.Plugin
             MaidPoseFileManager.ClearClips();
         }
 
+        public override void OnLoad()
+        {
+            // OnPluginDisable が選択を捨てる一方、有効化側では誰も戻さないため、
+            // OFF→ON するとメイドが出ていても対象だけ空のまま残り、タイムラインが
+            // 「メイドを配置してください」と表示し続ける。対象が空のときだけ
+            // シーン上のメイドを選び直す (複数居る場合は先頭のスロットを採る)
+            if (_targetMaid != null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < characterMgr.GetMaidCount(); i++)
+            {
+                var maid = characterMgr.GetMaid(i);
+                if (!IsAlive(maid))
+                {
+                    continue;
+                }
+
+                targetMaid = maid;
+                break;
+            }
+        }
+
         public override void OnPluginDisable()
         {
             DestroyAll();

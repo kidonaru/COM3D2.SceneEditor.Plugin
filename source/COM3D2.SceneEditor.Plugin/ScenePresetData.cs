@@ -360,9 +360,91 @@ namespace COM3D2.SceneEditor.Plugin
         public float value;
     }
 
+    /// <summary>マテリアルの色プロパティ 1 件（初期値と異なるもののみ保存）</summary>
+    public class ScenePresetMaterialColor
+    {
+        [XmlAttribute]
+        public string name;
+
+        // Color を直に持つと XmlSerializer が余計なプロパティまで直列化し、
+        // 自前の文字列化はカルチャ依存になるため、素の float 4 属性で持つ
+        [XmlAttribute]
+        public float r;
+        [XmlAttribute]
+        public float g;
+        [XmlAttribute]
+        public float b;
+        [XmlAttribute]
+        public float a;
+
+        [XmlIgnore]
+        public Color rgba
+        {
+            get => new Color(r, g, b, a);
+            set
+            {
+                r = value.r;
+                g = value.g;
+                b = value.b;
+                a = value.a;
+            }
+        }
+    }
+
+    /// <summary>マテリアルの数値プロパティ 1 件（初期値と異なるもののみ保存）</summary>
+    public class ScenePresetMaterialValue
+    {
+        [XmlAttribute]
+        public string name;
+        [XmlAttribute]
+        public float value;
+    }
+
+    /// <summary>マテリアル 1 件分の編集差分（初期値と異なるプロパティのみ）</summary>
+    public class ScenePresetMaterial
+    {
+        /// <summary>持ち主の識別子。メイドはスロット名、モデルは "GameObject名|プラグイン名"、背景は BG ルートからの相対パス</summary>
+        [XmlAttribute]
+        public string owner;
+
+        [XmlAttribute]
+        public string material;
+
+        /// <summary>同名マテリアルが複数ある場合の同定用インデックス（一覧内の位置）</summary>
+        [XmlAttribute]
+        public int index;
+
+        [XmlElement("color")]
+        public List<ScenePresetMaterialColor> colors = new List<ScenePresetMaterialColor>();
+
+        [XmlElement("value")]
+        public List<ScenePresetMaterialValue> values = new List<ScenePresetMaterialValue>();
+
+        [XmlIgnore]
+        public bool isEmpty => (colors == null || colors.Count == 0) && (values == null || values.Count == 0);
+    }
+
+    /// <summary>モデルのシェイプキー 1 件。modelName + pluginName で ModelProviderHost のモデルと照合する</summary>
+    public class ScenePresetModelShapeKey
+    {
+        // 属性名は同種の ScenePresetModelBoneEdit (modelName/pluginName) と揃える
+        [XmlAttribute]
+        public string modelName;
+
+        [XmlAttribute]
+        public string pluginName;
+
+        [XmlAttribute]
+        public string name;
+
+        [XmlAttribute]
+        public float value;
+    }
+
     /// <summary>
     /// 視線の状態。旧プリセット (v10 以前) は null になり、適用時に視線へ触らない。
-    /// 注視対象はメイドなら guid + ボーン名、それ以外は階層パスで同定する
+    /// 注視対象はメイドなら guid + ボーン名 (メイドモードは guid + 部位)、
+    /// それ以外は階層パスで同定する
     /// </summary>
     public class ScenePresetLook
     {
@@ -389,7 +471,11 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlIgnore]
         public bool eyeToCamSpecified;
 
-        /// <summary>注視対象が呼出済みメイドの一部だった場合の maid.status.guid</summary>
+        /// <summary>
+        /// 注視対象の呼出済みメイドの maid.status.guid。
+        /// オブジェクトモードでは対象が属するメイド (部位は targetBone)、
+        /// メイドモードでは対象メイド自身 (部位は maidPointType) を指す
+        /// </summary>
         [XmlAttribute]
         public string targetMaidGuid;
 
@@ -400,6 +486,50 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メイド以外を注視している場合の、シーンルートからの階層パス</summary>
         [XmlAttribute]
         public string targetPath;
+
+        /// <summary>
+        /// 向け先がメイドのときの部位 (MaidPointType の名前)。
+        /// 対象メイドは targetMaidGuid を使い回す。
+        /// v26 以前や他モードでは null になり、適用時に部位へ触らない
+        /// </summary>
+        [XmlAttribute]
+        public string maidPointType;
+
+        /// <summary>
+        /// 向け先がモデルのときの対象のモデル名 (StudioModelStat.name)。
+        /// v27 以前や他モードでは null になり、適用時にモデル指定へ触らない
+        /// </summary>
+        [XmlAttribute]
+        public string targetModelName;
+
+        /// <summary>
+        /// タイムラインの注視先種別 (MaidCache.lookAtTargetType の名前)。
+        /// v25 以前のプリセットや、タイムライン未読込で保存した場合は null になり、
+        /// 適用時にタイムライン側の視線へ触らない。
+        /// 向け先そのものは mode 側で復元されるため、ここはキー化の指定値だけを持つ
+        /// </summary>
+        [XmlAttribute]
+        public string timelineTargetType;
+
+        /// <summary>
+        /// 注視先がメイドまたはモデルのときの相対番号。
+        /// TimelineXml のキーと同じく番号で持つため、並びが変わると別の対象を指す
+        /// </summary>
+        [XmlAttribute]
+        public int timelineTargetIndex;
+
+        /// <summary>注視先がメイドのときのポイント種別 (MaidPointType の名前)</summary>
+        [XmlAttribute]
+        public string timelineMaidPointType;
+
+        /// <summary>
+        /// MaidCache.lookDirection。注視先が手動のときの顔向きキーの指定値 (-1〜1)。
+        /// 顔向きへ一本化する前の瞳回転 (eyeAngleX/Y/Z 属性) は未知属性として読み飛ばす
+        /// </summary>
+        [XmlAttribute]
+        public float timelineLookX;
+        [XmlAttribute]
+        public float timelineLookY;
     }
 
     /// <summary>
@@ -460,6 +590,21 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlElement("morph")]
         public List<ScenePresetMorph> morphs = new List<ScenePresetMorph>();
 
+        /// <summary>
+        /// 任意シェイプキー (v21)。公式表情モーフを除く。v24 以降はチェック済みのみ。
+        /// 表情モーフと同じ TMorph を共有するため、適用時は保存タグだけ設定し未記録タグのゼロ化はしない。
+        /// 旧プリセットは null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("shapeKey")]
+        public List<ScenePresetMorph> shapeKeys;
+
+        /// <summary>
+        /// スロットマテリアルの編集差分 (v21)。owner はスロット名。
+        /// 旧プリセットは null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("material")]
+        public List<ScenePresetMaterial> materials;
+
         /// <summary>脱衣状態。旧プリセット (v4 以前) は null になり、適用時に変更しない</summary>
         public ScenePresetUndress undress;
 
@@ -476,6 +621,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>固定 ON の箇所。MaidIKHoldType の名前</summary>
         [XmlElement("ikHold")]
         public List<string> ikHolds = new List<string>();
+
+        /// <summary>アニメ指定（再生中も固定）の箇所。MaidIKHoldType 名の一覧</summary>
+        [XmlElement("ikAnime")]
+        public List<string> ikAnimes = new List<string>();
 
         /// <summary>
         /// スロットボーンの編集差分。編集なし・旧プリセット (v5 以前) では null になり、
@@ -500,6 +649,93 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlElement("fingerBlend")]
         public List<FingerUnitState> fingerBlends;
+    }
+
+    /// <summary>フリーテキスト 1 件分の表示状態 (v29)</summary>
+    public class ScenePresetText
+    {
+        [XmlAttribute]
+        public string text = "";
+
+        [XmlAttribute]
+        public string font = "";
+
+        [XmlAttribute]
+        public int fontSize;
+
+        [XmlAttribute]
+        public float lineSpacing;
+
+        /// <summary>TextAnchor の int 値</summary>
+        [XmlAttribute]
+        public int alignment;
+
+        public Vector3 position;
+        public Vector3 rotation;
+        public Vector3 scale = Vector3.one;
+        public Color color = Color.white;
+
+        [XmlAttribute]
+        public float sizeDeltaX;
+
+        [XmlAttribute]
+        public float sizeDeltaY;
+    }
+
+    /// <summary>
+    /// サブカメラ 1 台分の状態 (v29)。
+    /// position / rotation は SubCameraData のプロパティ準拠
+    /// (メイド追従中はオフセット、非追従中はワールド値)
+    /// </summary>
+    public class ScenePresetSubCamera
+    {
+        [XmlAttribute]
+        public bool visible = true;
+
+        [XmlAttribute]
+        public float fieldOfView = 35f;
+
+        public Vector3 position;
+        public Vector3 rotation;
+
+        // Rect は読み書きプロパティが多く XmlSerializer の出力が安定しないため 4 値で持つ
+        [XmlAttribute]
+        public float viewportX;
+
+        [XmlAttribute]
+        public float viewportY;
+
+        [XmlAttribute]
+        public float viewportWidth;
+
+        [XmlAttribute]
+        public float viewportHeight;
+
+        /// <summary>追従先メイドのスロット番号。-1 で追従なし</summary>
+        [XmlAttribute]
+        public int maidSlotNo = -1;
+
+        /// <summary>MaidPointType の int 値</summary>
+        [XmlAttribute]
+        public int maidPointType;
+
+        [XmlAttribute]
+        public bool followRotation;
+    }
+
+    /// <summary>
+    /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ。
+    /// 旧プリセット (要素なし) は null になり、適用時に触らない。
+    /// 各グループとも「空リスト = 保存時に実体なし」は未記録と同義として触らない。
+    /// ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担うためここには持たない
+    /// </summary>
+    public class ScenePresetEffects
+    {
+        [XmlElement("text")]
+        public List<ScenePresetText> texts = new List<ScenePresetText>();
+
+        [XmlElement("subCamera")]
+        public List<ScenePresetSubCamera> subCameras = new List<ScenePresetSubCamera>();
     }
 
     /// <summary>
@@ -563,7 +799,32 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は null で読め、適用時に表情タグを変更しない
         // v20: maid に fingerBlends（指の開き/握り/ロック）を追加。
         //      旧形式は null で読め、適用時に指の状態へ触らない
-        public static readonly int CurrentVersion = 20;
+        // v21: maid に shapeKeys（任意シェイプキー）と materials（スロットマテリアル差分）、
+        //      ルートに modelShapeKeys / modelMaterials / bgMaterials を追加。
+        //      旧形式はいずれも null で読め、適用時に触らない
+        // v22: 表情モーフの保存対象を「値が非 0」から「チェック済み (EditTargetStore)」へ変更。
+        //      構造変更なし。旧データは記載モーフ (=非 0 保存分) を適用時にチェック済みへ復元する
+        // v23: モデルシェイプキーの保存対象を「重みが非 0」から「チェック済み (EditTargetStore)」へ変更。
+        //      構造変更なし。旧データは記載シェイプキー (=非 0 保存分) を適用時にチェック済みへ復元する
+        // v24: メイドの任意シェイプキーの保存対象を「値が非 0」から「チェック済み (EditTargetStore)」へ変更。
+        //      構造変更なし。旧データは記載タグ (=非 0 保存分) を適用時にチェック済みへ復元する
+        // v25: maid に ikAnimes（IK 固定のアニメ指定）を追加。
+        //      旧形式は一覧が空 = 全 OFF として読める
+        // v26: look にタイムライン視線の指定値（timelineTargetType / timelineTargetIndex /
+        //      timelineMaidPointType / timelineLookX/Y）を追加。
+        //      旧形式は timelineTargetType が null = 未記録として読み飛ばす。
+        //      同バージョン内で瞳回転 (eyeAngle*) を顔向き (timelineLook*) へ置き換えた。
+        //      eyeAngle* 付きで保存したデータは同属性だけ読み飛ばされる（構造は互換）
+        // v27: look に maidPointType（向け先「メイド」の部位）を追加。
+        //      対象メイドは既存の targetMaidGuid を使い回す。
+        //      旧形式は maidPointType が null = 未記録として読み飛ばす
+        // v28: look に targetModelName（向け先「モデル」の対象モデル名）を追加。
+        //      旧形式は targetModelName が null = 未記録として読み飛ばす
+        // v29: effects（テキスト / サブカメラ）と savedEffects を追加。
+        //      旧形式は effects が null で読め、適用時に演出へ触らない。
+        //      タイムライン未読込のシーンでも保存・復元できる。
+        //      ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担う
+        public static readonly int CurrentVersion = 29;
 
         [XmlAttribute]
         public int version = CurrentVersion;
@@ -578,6 +839,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         [XmlAttribute]
         public bool savedBackground = true;
+
+        /// <summary>「演出」カテゴリ (テキスト・サブカメラ) を保存したか (v29)</summary>
+        [XmlAttribute]
+        public bool savedEffects = true;
 
         public ScenePresetCamera camera;
 
@@ -602,5 +867,31 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlElement("modelBoneEdit")]
         public List<ScenePresetModelBoneEdit> modelBoneEdits;
+
+        /// <summary>
+        /// モデルのシェイプキー (v21)。v23 以降はチェック済みのみ。外部プロバイダ保存時のみ入る。
+        /// 旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("modelShapeKey")]
+        public List<ScenePresetModelShapeKey> modelShapeKeys;
+
+        /// <summary>
+        /// モデルのマテリアル差分 (v21)。owner は "GameObject名|プラグイン名"。外部プロバイダ保存時のみ入る。
+        /// 旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("modelMaterial")]
+        public List<ScenePresetMaterial> modelMaterials;
+
+        /// <summary>
+        /// 背景オブジェクトのマテリアル差分 (v21)。owner は BG ルートからの相対パス。
+        /// 「背景」カテゴリ保存時のみ入る。旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        [XmlElement("bgMaterial")]
+        public List<ScenePresetMaterial> bgMaterials;
+
+        /// <summary>
+        /// MTE 由来の演出 (v29)。旧プリセット（要素なし）は null になり、適用時に演出へ触らない
+        /// </summary>
+        public ScenePresetEffects effects;
     }
 }

@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -10,12 +11,37 @@ namespace COM3D2.SceneEditor.Plugin
         マウス,
         方向指定,
         オブジェクト,
+
+        /// <summary>
+        /// 向け先を置かない (trsLookTarget = null)。
+        /// TBody は頭ボーンの正面 (offsetLookTarget) を見る。
+        /// 視線そらし・タイムラインの瞳回転はこの状態でだけ効く。
+        /// 既存プリセットの互換のため末尾に足す (列挙値のずれを避ける)
+        /// </summary>
+        無し,
+
+        /// <summary>
+        /// 他のメイドの部位 (顔・胸・股・尻・中心) を見る。
+        /// タイムラインの注視先「メイド」と同じ概念で、キー化の有無に関わらず選べる
+        /// (対象の Transform はボディ読み直しで破棄されるため、適用のたびに引き直す)。
+        /// 既存プリセットの互換のため末尾に足す (列挙値のずれを避ける)
+        /// </summary>
+        メイド,
+
+        /// <summary>
+        /// スタジオモデル (StudioModelManager が持つ配置物) を見る。
+        /// タイムラインの注視先「モデル」と同じ概念で、キー化の有無に関わらず選べる。
+        /// モデルの実体はシーン再構築で作り直されるため名前で保持し、適用のたびに引き直す。
+        /// 既存プリセットの互換のため末尾に足す (列挙値のずれを避ける)
+        /// </summary>
+        モデル,
     }
 
     /// <summary>
     /// 視線の向け先をメイド別に保持する。
     /// TBody.trsLookTarget が null だと頭ボーンの正面 (offsetLookTarget) を見るため、
-    /// どのモードでも実体のある Transform を与えて向きを決める。
+    /// 「無し」以外のモードでは実体のある Transform を与えて向きを決める
+    /// (「無し」は意図的に null を返し、TBody の既定挙動へ委ねる)。
     ///
     /// Maid.EyeToTargetObject は boHeadToCam / boEyeToCam / boEyeSorashi を無条件に
     /// 書き換えてしまい、ウィンドウのトグルと食い違うため使わない
@@ -71,6 +97,18 @@ namespace COM3D2.SceneEditor.Plugin
 
             /// <summary>解決済みの頭ボーン。詳細は GetHeadBone のコメントを参照</summary>
             public Transform headBone;
+
+            /// <summary>メイドモードの注視対象。Transform はボディ読み直しで破棄されるため保持しない</summary>
+            public Maid targetMaid;
+
+            /// <summary>メイドモードで見る部位</summary>
+            public MTEP.MaidPointType maidPointType = MTEP.MaidPointType.Head;
+
+            /// <summary>
+            /// モデルモードの注視対象のモデル名。
+            /// StudioModelStat はシーン再構築で作り直されるため実体は保持しない
+            /// </summary>
+            public string targetModelName;
         }
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
@@ -138,12 +176,60 @@ namespace COM3D2.SceneEditor.Plugin
             Apply(maid);
         }
 
+        public Maid GetTargetMaid(Maid maid)
+        {
+            var entry = Find(maid);
+            return entry != null ? entry.targetMaid : null;
+        }
+
+        public MTEP.MaidPointType GetMaidPointType(Maid maid)
+        {
+            var entry = Find(maid);
+            return entry != null ? entry.maidPointType : MTEP.MaidPointType.Head;
+        }
+
+        /// <summary>
+        /// メイドモードの注視対象と部位。片方だけ変える場合ももう片方は現状値を渡し、
+        /// Apply を 1 回にまとめる (途中の組み合わせで注視点を計算させないため)
+        /// </summary>
+        public void SetMaidTarget(Maid maid, Maid targetMaid, MTEP.MaidPointType pointType)
+        {
+            var entry = GetOrCreate(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.targetMaid = targetMaid;
+            entry.maidPointType = pointType;
+            Apply(maid);
+        }
+
+        public string GetTargetModelName(Maid maid)
+        {
+            var entry = Find(maid);
+            return entry != null ? entry.targetModelName : null;
+        }
+
+        /// <summary>モデルモードの注視対象。モデル名で持ち、Transform は適用のたびに引き直す</summary>
+        public void SetModelTarget(Maid maid, string modelName)
+        {
+            var entry = GetOrCreate(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.targetModelName = modelName;
+            Apply(maid);
+        }
+
         /// <summary>
         /// 状態をまとめて差し替える。個別セッターを重ねると Apply が状態ごとに走り、
         /// 途中の中途半端な組み合わせで注視点を計算してしまうため、
         /// Undo・プリセット復元のような一括復元はこちらを使う
         /// </summary>
-        public void SetState(Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target)
+        public void SetState(
+            Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target,
+            Maid targetMaid, MTEP.MaidPointType maidPointType, string targetModelName)
         {
             var entry = GetOrCreate(maid);
             if (entry == null)
@@ -154,6 +240,9 @@ namespace COM3D2.SceneEditor.Plugin
             entry.lookX = lookX;
             entry.lookY = lookY;
             entry.target = target;
+            entry.targetMaid = targetMaid;
+            entry.maidPointType = maidPointType;
+            entry.targetModelName = targetModelName;
             Apply(maid);
         }
 
@@ -212,6 +301,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static Transform ResolveLookTarget(Maid maid, Entry entry)
         {
+            if (entry.mode == MaidLookMode.無し)
+            {
+                return null;
+            }
+
             if (entry.mode == MaidLookMode.カメラ)
             {
                 var camera = GameMain.Instance.MainCamera;
@@ -221,6 +315,26 @@ namespace COM3D2.SceneEditor.Plugin
             if (entry.mode == MaidLookMode.マウス)
             {
                 return PlaceMousePoint(maid, entry);
+            }
+
+            if (entry.mode == MaidLookMode.メイド)
+            {
+                // 対象が退去・未設定なら方向指定の注視点で代用する (オブジェクトモードと同じ扱い)
+                var point = GetMaidPointTransform(entry.targetMaid, entry.maidPointType);
+                if (point != null)
+                {
+                    return point;
+                }
+            }
+
+            if (entry.mode == MaidLookMode.モデル)
+            {
+                // モデルが消えている・未設定なら方向指定の注視点で代用する (メイドモードと同じ扱い)
+                var modelTransform = GetModelTransform(entry.targetModelName);
+                if (modelTransform != null)
+                {
+                    return modelTransform;
+                }
             }
 
             if (entry.mode == MaidLookMode.オブジェクト && entry.target != null)
@@ -272,6 +386,50 @@ namespace COM3D2.SceneEditor.Plugin
             entry.mousePoint.position = Vector3.Lerp(
                 entry.mousePoint.position, targetPos, lerpRate);
             return entry.mousePoint;
+        }
+
+        /// <summary>
+        /// メイドの注視ポイントを引く。
+        /// タイムラインの MaidCache.GetPointTransform もここへ委譲し、
+        /// 「メイドのどこを見るか」の解決を SE 側の 1 か所に保つ
+        /// </summary>
+        public static Transform GetMaidPointTransform(Maid maid, MTEP.MaidPointType type)
+        {
+            if (maid == null || maid.body0 == null)
+            {
+                return null;
+            }
+
+            switch (type)
+            {
+                case MTEP.MaidPointType.Head:
+                    return maid.body0.trsHead;
+                case MTEP.MaidPointType.Chest:
+                    return maid.body0.Spine1a;
+                case MTEP.MaidPointType.Crotch:
+                    return maid.body0.Pelvis;
+                case MTEP.MaidPointType.Hip:
+                    return maid.body0.Hip_R;
+                case MTEP.MaidPointType.Bip01:
+                    return maid.body0.trBip;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// モデル名からモデルの Transform を引く。
+        /// モデルはシーン再構築で作り直されるため、適用のたびにここで引き直す
+        /// </summary>
+        public static Transform GetModelTransform(string modelName)
+        {
+            if (string.IsNullOrEmpty(modelName))
+            {
+                return null;
+            }
+
+            var model = MTEP.StudioModelManager.instance.GetModel(modelName);
+            return model != null ? model.transform : null;
         }
 
         /// <summary>
@@ -415,11 +573,27 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メイド解除時。ストックの Maid は使い回されるため状態を持ち越さない</summary>
         public void Release(Maid maid)
         {
+            if (maid == null)
+            {
+                return;
+            }
+
             Entry entry;
-            if (maid != null && _entries.TryGetValue(maid, out entry))
+            if (_entries.TryGetValue(maid, out entry))
             {
                 DestroyMousePoint(entry);
                 _entries.Remove(maid);
+            }
+
+            // 退去したメイドを見ていた側の指定も外す。
+            // Maid インスタンスはストックで別キャラとして使い回されるため、
+            // 参照を残すと後から無関係なキャラを注視してしまう
+            foreach (var other in _entries.Values)
+            {
+                if (other.targetMaid == maid)
+                {
+                    other.targetMaid = null;
+                }
             }
         }
 

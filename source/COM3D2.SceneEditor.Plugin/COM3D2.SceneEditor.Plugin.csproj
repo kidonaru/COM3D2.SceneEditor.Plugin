@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -70,8 +70,14 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml" />
+    <!-- タイムライン設定の BGM/動画パス選択 (OpenFileDialog) -->
+    <Reference Include="System.Windows.Forms" />
     <!-- SceneCapture プリセットの読み取り (XDocument)。両ゲームの Managed に実体がある -->
     <Reference Include="System.Xml.Linq" />
+    <!-- テキストレイヤーの字幕描画 (uGUI)。両ゲームの Managed に実体がある -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <!-- COM3D2.5 (Unity 2022) では UnityEngine がモジュール分割されているため個別参照が必要 -->
   <ItemGroup Condition=" '$(GameVersion)' == 'COM3D25' ">
@@ -102,11 +108,21 @@
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestWWWModule">
+      <!-- BGM 読み込み (WWW)。COM3D2 (2.0) では UnityEngine.dll 本体に含まれる -->
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UnityWebRequestWWWModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UnityWebRequestModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.AudioModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UIModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -143,6 +159,7 @@
     <Compile Include="MTEUtils\NaturalStringComparer.cs" />
     <Compile Include="MTEUtils\ResizeCursor.cs" />
     <Compile Include="MTEUtils\TabBarDrawer.cs" />
+    <Compile Include="MTEUtils\TabBarLayout.cs" />
     <Compile Include="MTEUtils\TexturePickerWindow.cs" />
     <Compile Include="MTEUtils\TextureUtils.cs" />
     <Compile Include="MTEUtils\TransformCache.cs" />
@@ -177,9 +194,20 @@
     <Compile Include="MaidManipulation\PhotoMotionUtils.cs" />
     <Compile Include="MaidManipulation\MaidVisibilityController.cs" />
     <Compile Include="MaidManipulation\MaidUndressController.cs" />
+    <Compile Include="MaidManipulation\ModelQualifiedNames.cs" />
+    <Compile Include="MaidManipulation\ModelTrackedNameStore.cs" />
+    <Compile Include="MaidManipulation\ShapeKeySyncDiff.cs" />
+    <Compile Include="MaidManipulation\TrackedDirtyGate.cs" />
+    <Compile Include="MaidManipulation\MaidShapeKeyEditManager.cs" />
+    <Compile Include="MaidManipulation\MaidMaterialEditManager.cs" />
+    <Compile Include="MaidManipulation\ModelShapeKeyEditManager.cs" />
+    <Compile Include="MaidManipulation\ModelMaterialEditManager.cs" />
     <Compile Include="MaidManipulation\ModelGizmoRender.cs" />
     <Compile Include="MaidManipulation\SlotBoneManager.cs" />
+    <Compile Include="MaidManipulation\SlotQualifiedNames.cs" />
     <Compile Include="MaidManipulation\BoneEditStore.cs" />
+    <Compile Include="MaidManipulation\EditTargetStore.cs" />
+    <Compile Include="MaidManipulation\FaceEditManager.cs" />
     <Compile Include="MaidManipulation\PartsEditPresetIO.cs" />
     <Compile Include="MaidManipulation\BoneEditManager.cs" />
     <Compile Include="MaidManipulation\SlotYureUtil.cs" />
@@ -192,6 +220,8 @@
     <Compile Include="Manager\GuiWindowTracker.cs" />
     <Compile Include="Manager\InputRemapper.cs" />
     <Compile Include="Manager\InspectorHost.cs" />
+    <Compile Include="Manager\ModelPlacerProviderRegistry.cs" />
+    <Compile Include="Manager\MteEffectsSnapshot.cs" />
     <Compile Include="Manager\ScenePresetAutoLoadPatch.cs" />
     <Compile Include="Manager\ScenePresetManager.cs" />
     <Compile Include="Manager\ScenePresetProviderRegistry.cs" />
@@ -221,6 +251,7 @@
     <Compile Include="Manager\PngPlacementManager.cs" />
     <Compile Include="Manager\StudioLightManager.cs" />
     <Compile Include="Manager\ToastManager.cs" />
+    <Compile Include="Manager\TimelineLoadManager.cs" />
     <Compile Include="Manager\TabGroupManager.cs" />
     <Compile Include="Manager\WindowConnectManager.cs" />
     <Compile Include="Manager\WindowLayoutManager.cs" />
@@ -239,10 +270,40 @@
     <Compile Include="HistoryAPI.cs" />
     <Compile Include="HistoryWindow.cs" />
     <Compile Include="InspectorWindow.cs" />
+    <Compile Include="KeyFrameFlowLayout.cs" />
+    <Compile Include="KeyFrameInspector.cs" />
     <Compile Include="LightWindow.cs" />
     <Compile Include="MaidWindowBase.cs" />
     <Compile Include="MaidCallWindow.cs" />
     <Compile Include="MaidPoseWindow.cs" />
+    <Compile Include="BoneSliderRowDrawer.cs" />
+    <Compile Include="HiddenMaidGuard.cs" />
+    <Compile Include="LabeledComboRow.cs" />
+    <Compile Include="ItemRowDrawerCache.cs" />
+    <Compile Include="ModelBoneRowDrawer.cs" />
+    <Compile Include="ModelManageRowDrawer.cs" />
+    <Compile Include="ModelShapeKeyRowDrawer.cs" />
+    <Compile Include="MaterialPropertyRowsDrawer.cs" />
+    <Compile Include="ObjectTransformRowDrawer.cs" />
+    <Compile Include="ScaleRowDrawer.cs" />
+    <Compile Include="Vector3RowDrawer.cs" />
+    <Compile Include="MaidShapeKeyRowDrawer.cs" />
+    <Compile Include="MainCameraRowDrawer.cs" />
+    <Compile Include="SubCameraRowDrawer.cs" />
+    <Compile Include="LightRowDrawer.cs" />
+    <Compile Include="AngleUtils.cs" />
+    <Compile Include="BackgroundRowDrawer.cs" />
+    <Compile Include="VoiceRowDrawer.cs" />
+    <Compile Include="SeRowDrawer.cs" />
+    <Compile Include="TextRowDrawer.cs" />
+    <Compile Include="StageLightRowDrawer.cs" />
+    <Compile Include="StageLaserRowDrawer.cs" />
+    <Compile Include="PsylliumRowDrawer.cs" />
+    <Compile Include="PostEffectRowDrawer.cs" />
+    <Compile Include="TimelinePrevKeyUtils.cs" />
+    <Compile Include="TimelineLookRowDrawer.cs" />
+    <Compile Include="EyesPosRowDrawer.cs" />
+    <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
     <Compile Include="MaidFingerWindow.cs" />
     <Compile Include="MaidIKWindow.cs" />
@@ -255,7 +316,6 @@
     <Compile Include="BackgroundUtils.cs" />
     <Compile Include="BackgroundWindow.cs" />
     <Compile Include="BgmUtils.cs" />
-    <Compile Include="BgmWindow.cs" />
     <Compile Include="CameraWindow.cs" />
     <Compile Include="PngPlacementInspector.cs" />
     <Compile Include="PngPlacementWindow.cs" />
@@ -271,6 +331,20 @@
     <Compile Include="SaveFingerPresetPopupWindow.cs" />
     <Compile Include="SaveBonePresetPopupWindow.cs" />
     <Compile Include="SceneViewWindow.cs" />
+    <Compile Include="TimelineTemplateWindow.cs" />
+    <Compile Include="ShapeKeyEditWindow.cs" />
+    <Compile Include="SoundWindow.cs" />
+    <Compile Include="LiveEffectWindow.cs" />
+    <Compile Include="TextWindow.cs" />
+    <Compile Include="CountRowDrawer.cs" />
+    <Compile Include="ProviderModelStat.cs" />
+    <Compile Include="MaterialEditWindow.cs" />
+    <Compile Include="TimelineLoadWindow.cs" />
+    <Compile Include="TimelineControlWindow.cs" />
+    <Compile Include="TimelineSettingWindow.cs" />
+    <Compile Include="TimelineCurveEditor.cs" />
+    <Compile Include="GUIMultiSelectComboBox.cs" />
+    <Compile Include="TimelineWindow.cs" />
     <Compile Include="ToolbarIcons.cs" />
     <Compile Include="TabGroup.cs" />
     <Compile Include="WindowPlacementScaler.cs" />
@@ -278,6 +352,244 @@
     <Compile Include="SceneViewCameraController.cs" />
     <Compile Include="PluginInfo.cs" />
     <Compile Include="PluginUtils.cs" />
+    <Compile Include="MTEUtils\AnimationLayerInfo.cs" />
+    <Compile Include="MTEUtils\BinaryExtensions.cs" />
+    <Compile Include="MTEUtils\BinaryLoader.cs" />
+    <Compile Include="MTEUtils\ModMenuLoader.cs" />
+    <Compile Include="MTEUtils\ParallelHelper.cs" />
+    <Compile Include="MTEUtils\PostEffectData.cs" />
+    <Compile Include="MTEUtils\PostEffectsClient.cs" />
+    <Compile Include="MTEUtils\ReflectionFieldCopier.cs" />
+    <Compile Include="MTEUtils\BoneUtils.cs" />
+    <Compile Include="MTEUtils\MaidPartType.cs" />
+    <Compile Include="MTEUtils\MaidPartUtils.cs" />
+    <Compile Include="MTEUtils\MPNUtils.cs" />
+    <Compile Include="Timeline\BoneData.cs" />
+    <Compile Include="Timeline\MaidLookBridge.cs" />
+    <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\DressItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ModelItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ModelBoneItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ModelShapeKeyItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\MaterialItemInspectorBase.cs" />
+    <Compile Include="Timeline\ItemInspector\MaidMaterialItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ModelMaterialItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\BGModelMaterialItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\ModelTransformItemInspectorBase.cs" />
+    <Compile Include="Timeline\ItemInspector\MoveItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\MorphItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\MotionItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\CameraItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\SubCameraItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\LightItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\BGItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\BGColorItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\VoiceItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\SeItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\TextItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\StageLightItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\StageLaserItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\PsylliumItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\PostEffectItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\PngPlacementItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\AnimationItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
+    <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\BoneMenuManager.cs" />
+    <Compile Include="Timeline\BoneMenu\BoneSetMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\EasyMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\ExtendBoneMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\IBoneMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\MaidBoneMenuItem.cs" />
+    <Compile Include="Timeline\BoneMenu\ModelBoneMenuItem.cs" />
+    <Compile Include="Timeline\BoneXml.cs" />
+    <Compile Include="Timeline\Config.cs" />
+    <Compile Include="Timeline\CurveViewMapping.cs" />
+    <Compile Include="Timeline\DressUtils.cs" />
+    <Compile Include="Timeline\EasingFunctions.cs" />
+    <Compile Include="Timeline\EasingToTangent.cs" />
+    <Compile Include="Timeline\ExtendBoneCache.cs" />
+    <Compile Include="Timeline\Extensions.cs" />
+    <Compile Include="Timeline\FaceMorphUtils.cs" />
+    <Compile Include="Timeline\FrameData.cs" />
+    <Compile Include="Timeline\FrameXml.cs" />
+    <Compile Include="Timeline\Hack\ExternalModelHack.cs" />
+    <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
+    <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
+    <Compile Include="Timeline\Hack\StudioHackBase.cs" />
+    <Compile Include="Timeline\Hack\ModelHackBase.cs" />
+    <Compile Include="Timeline\IKHoldType.cs" />
+    <Compile Include="Timeline\MaidBlendShape.cs" />
+    <Compile Include="Timeline\MaidCache.cs" />
+    <Compile Include="Timeline\MaidInfo.cs" />
+    <Compile Include="Timeline\MaidPropCache.cs" />
+    <Compile Include="Timeline\MaidSlotStat.cs" />
+    <Compile Include="Timeline\Manager\ConfigManager.cs" />
+    <Compile Include="Timeline\Manager\BGMManager.cs" />
+    <Compile Include="Timeline\Manager\CameraManager.cs" />
+    <Compile Include="Timeline\Manager\MaidManager.cs" />
+    <Compile Include="Timeline\Manager\ManagerBase.cs" />
+    <Compile Include="Timeline\Manager\StudioHackManager.cs" />
+    <Compile Include="Timeline\Manager\StudioLightManager.cs" />
+    <Compile Include="Timeline\Manager\StudioModelManager.cs" />
+    <Compile Include="Timeline\Manager\ModelHackManager.cs" />
+    <Compile Include="Timeline\Manager\BGModelManager.cs" />
+    <Compile Include="Timeline\Manager\BGGroundManager.cs" />
+    <Compile Include="Timeline\Manager\SubCameraManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineBundleManager.cs" />
+    <Compile Include="Timeline\Manager\StageLightManager.cs" />
+    <Compile Include="Timeline\Manager\StageLaserManager.cs" />
+    <Compile Include="Timeline\Manager\PsylliumManager.cs" />
+    <Compile Include="Timeline\Manager\PostEffectManager.cs" />
+    <Compile Include="Timeline\Manager\PostEffectsBridge.cs" />
+    <Compile Include="Timeline\Manager\PngObjectTimelineManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineFaceManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineSeManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineTextManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineHistoryManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineTemplateManager.cs" />
+    <Compile Include="Timeline\Manager\MovieManager.cs" />
+    <Compile Include="Timeline\Manager\TimelineManager.cs" />
+    <Compile Include="Timeline\MotionData.cs" />
+    <Compile Include="Timeline\MotionPlayData.cs" />
+    <Compile Include="Timeline\MotionTimelineEditor.cs" />
+    <Compile Include="Timeline\MoviePlayerImpl.cs" />
+    <Compile Include="Timeline\MoveEasingType.cs" />
+    <Compile Include="Timeline\PhotoBGManager.cs" />
+    <Compile Include="Timeline\PluginUtils.cs" />
+    <Compile Include="Timeline\PostEffectUtils.cs" />
+    <Compile Include="Timeline\StopwatchDebug.cs" />
+    <Compile Include="Timeline\StudioLightStat.cs" />
+    <Compile Include="Timeline\StudioModelStat.cs" />
+    <Compile Include="Timeline\BGModelStat.cs" />
+    <Compile Include="Timeline\BlendShapeCacheData.cs" />
+    <Compile Include="Timeline\BlendShapeLoader.cs" />
+    <Compile Include="Timeline\ModelBoneController.cs" />
+    <Compile Include="Timeline\BlendShapeController.cs" />
+    <Compile Include="Timeline\ModelMaterial.cs" />
+    <Compile Include="Timeline\ModelMaterialController.cs" />
+    <Compile Include="Timeline\TangentData.cs" />
+    <Compile Include="Timeline\TangentUnification.cs" />
+    <Compile Include="Timeline\TangentPair.cs" />
+    <Compile Include="Timeline\UnityScripts\Psyllium.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumArea.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumConfig.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumController.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumHand.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumPattern.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumRandomValues.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLaser.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLaserController.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLight.cs" />
+    <Compile Include="Timeline\UnityScripts\StageLightController.cs" />
+    <Compile Include="Timeline\TimelineData.cs" />
+    <Compile Include="Timeline\TimelineHistoryEntry.cs" />
+    <Compile Include="Timeline\TimelineIntegration.cs" />
+    <Compile Include="Timeline\TimelineSelectionBridge.cs" />
+    <Compile Include="Timeline\BGGround.cs" />
+    <Compile Include="Timeline\TimelineLayer\AnimationTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGColorTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGModelTimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGModelTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGModelMaterialTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MaidMaterialTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BGTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\CameraTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\DressTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\EyesTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelTimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelBoneTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelShapeKeyTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ModelMaterialTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MotionTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\SeTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\TextTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MorphTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\MoveTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\ShapeKeyTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\SubCameraTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\StageLightTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\StageLaserTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\PsylliumTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\PngPlacementTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DepthOfField.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DistanceFog.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_GTToneMap.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_Parrifin.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_Rimlight.cs" />
+    <Compile Include="Timeline\TimelineLayer\TimelineLayerBase.cs" />
+    <Compile Include="Timeline\TimelineLayer\TimelineLayerBaseTracking.cs" />
+    <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayerInfo.cs" />
+    <Compile Include="Timeline\TimelineLayerRowState.cs" />
+    <Compile Include="Timeline\TimelineLayerXml.cs" />
+    <Compile Include="Timeline\TimelineXml.cs" />
+    <Compile Include="Timeline\TrackData.cs" />
+    <Compile Include="Timeline\TransformData\ITransformData.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataAnimation.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBase.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBG.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBGColor.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBGGroundColor.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBGModel.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataDress.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataEyes.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataGrounding.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModel.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModelBone.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModelShapeKey.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataModelMaterial.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataMove.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataRoot.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataRotation.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataShapeKey.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataSubCamera.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLight.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLightController.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLaser.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataStageLaserController.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumArea.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumBar.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumController.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumHand.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumPattern.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPsylliumTransform.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataDepthOfField.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataDistanceFog.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataGTToneMap.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataParaffin.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataPngObject.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataRimlight.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataMorph.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataSe.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataText.cs" />
+    <Compile Include="Timeline\TransformXml.cs" />
+    <Compile Include="Timeline\ValueData.cs" />
+    <Compile Include="Timeline\VideoDisplayType.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Timeline\mte_bundle">
+      <LogicalName>mte_bundle</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

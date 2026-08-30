@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TimelineData xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" version="25">
+  <Layer>
+    <ClassName>SubCameraTimelineLayer</ClassName>
+    <SlotNo>0</SlotNo>
+    <Frame>
+      <FrameNo>0</FrameNo>
+      <Bone>
+        <Transform>
+          <Name>SubCamera1</Name>
+          <Type>SubCamera</Type>
+          <Value>0</Value>
+          <Value>1.5</Value>
+          <Value>-2</Value>
+          <Value>0</Value>
+          <Value>0</Value>
+          <Value>0</Value>
+          <Value>35</Value>
+          <Value>0.65</Value>
+          <Value>0.65</Value>
+          <Value>0.3</Value>
+          <Value>0.3</Value>
+          <Value>1</Value>
+        </Transform>
+      </Bone>
+    </Frame>
+  </Layer>
+</TimelineData>

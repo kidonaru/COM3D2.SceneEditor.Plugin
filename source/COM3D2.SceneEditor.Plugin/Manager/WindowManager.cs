@@ -55,13 +55,22 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(MaidUndressWindow.instance);
             AddWindow(MaidGravityWindow.instance);
             AddWindow(BoneEditWindow.instance);
+            AddWindow(ShapeKeyEditWindow.instance);
+            AddWindow(MaterialEditWindow.instance);
             AddWindow(CameraWindow.instance);
             AddWindow(BackgroundWindow.instance);
-            AddWindow(BgmWindow.instance);
+            AddWindow(SoundWindow.instance);
+            AddWindow(LiveEffectWindow.instance);
+            AddWindow(TextWindow.instance);
             AddWindow(LightWindow.instance);
             AddWindow(PngPlacementWindow.instance);
             AddWindow(PresetWindow.instance);
             AddWindow(HistoryWindow.instance);
+            AddWindow(TimelineWindow.instance);
+            AddWindow(TimelineControlWindow.instance);
+            AddWindow(TimelineSettingWindow.instance);
+            AddWindow(TimelineLoadWindow.instance);
+            AddWindow(TimelineTemplateWindow.instance);
             AddWindow(SettingWindow.instance);
 
             // ComboBoxPopupWindow はホストの描画中に開閉が確定するため、
@@ -120,6 +129,28 @@ namespace COM3D2.SceneEditor.Plugin
             WindowConnectManager.instance.ClampGroups();
         }
 
+        /// <summary>
+        /// サブウィンドウの表示をトグルする。
+        /// メニューバーと各ウィンドウの導線ボタンで挙動を揃えるための共通処理
+        /// </summary>
+        public static void ToggleWindowVisible(EditorSubWindow window)
+        {
+            window.isShowWnd = !window.isShowWnd;
+
+            if (window.isShowWnd)
+            {
+                // 表示位置のヘッダーが他ウィンドウと重なっていればそのままドッキングする
+                TabGroupManager.instance.MergeIfHeaderOverlaps(window);
+            }
+            else
+            {
+                // 非表示にしたウィンドウをグループへ残すとタブバーに出続けるため、
+                // ウィンドウ自身の x ボタンと同様にグループからも外す
+                TabGroupManager.instance.RemoveFromGroup(window);
+                WindowConnectManager.instance.OnWindowHidden(window);
+            }
+        }
+
         /// <summary>サブウィンドウの配置と表示状態を config へ書き出す</summary>
         public void SavePlacements()
         {
@@ -149,6 +180,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 表示状態を復元してからでないと、非表示ウィンドウをグループへ入れてしまう
+            // 外部窓は登録がまだのため RestoreGroups では復元できない。
+            // 遅延復元 (TryRestoreExternal) 用に復元前の構成を控えておく
+            TabGroupManager.instance.CaptureRestoreSnapshot();
             TabGroupManager.instance.RestoreGroups();
             WindowConnectManager.instance.RestoreGroups();
         }

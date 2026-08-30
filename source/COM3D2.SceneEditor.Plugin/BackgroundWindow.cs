@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 背景の一覧表示・切替・削除を行うウィンドウ。
+    /// 背景まわりを編集するウィンドウ。
+    /// 「背景」タブは一覧表示・切替・削除と背景色、「地面」タブは地面の表示と広さ、
+    /// 「モデル」タブは背景モデルの配置数を扱う。
     /// 位置・回転の編集は背景を Inspector で選択して行う。
     /// 背景一覧はフォトモードの PhotoBGData、適用は BgMgr.ChangeBg の同一経路を使う
     /// </summary>
@@ -19,8 +22,19 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
+        private static readonly int TAB_WIDTH = 60;
 
         private const string ALL_CATEGORY = "すべて";
+
+        /// <summary>ウィンドウ内の内部タブ</summary>
+        private enum BgTabType
+        {
+            背景,
+            地面,
+            モデル,
+        }
+
+        private BgTabType _tabType = BgTabType.背景;
 
         /// <summary>選択中カテゴリ。ALL_CATEGORY なら全カテゴリ表示</summary>
         private string _category = ALL_CATEGORY;
@@ -117,6 +131,35 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawBody()
         {
+            // タブはスクロールビューの外に置き、どこまでスクロールしても切り替えられるようにする
+            _tabType = _view.DrawTabs(_tabType, TAB_WIDTH, ROW_HEIGHT);
+            // DrawTabs 末尾の AddSpace(5) が縦レイアウトでは「スペース5px + margin」になるため、
+            // 通常の行間に合わせて詰める (TimelineSettingWindow と同じ流儀)
+            _view.currentPos.y -= 5 + GUIView.defaultMargin;
+
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            switch (_tabType)
+            {
+                case BgTabType.背景:
+                    DrawBgTab();
+                    break;
+                case BgTabType.地面:
+                    BackgroundRowDrawer.DrawGroundRows(_view, LABEL_WIDTH, ROW_HEIGHT);
+                    break;
+                case BgTabType.モデル:
+                    DrawBgModelTab();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 背景タブ。現在背景の操作・背景色と、切り替え用の一覧。
+        /// 背景の実体を触るのはこのタブだけのため、BgMgr と一覧データの確認もここで行う
+        /// </summary>
+        private void DrawBgTab()
+        {
             var bgMgr = GameMain.Instance != null ? GameMain.Instance.BgMgr : null;
             if (bgMgr == null)
             {
@@ -133,9 +176,85 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             DrawCurrentBgRow(bgMgr);
+
+            // 背景色は背景の有無に関わらず編集できる
+            BackgroundRowDrawer.DrawBgColorRow(_view, ROW_HEIGHT);
+
             _view.DrawHorizontalLine();
             DrawFilterRows();
             DrawBgList(bgMgr);
+        }
+
+        /// <summary>
+        /// モデルタブ。背景モデルの配置管理で、
+        /// 配置済みのモデルは背景モデルレイヤーのキーと連動する
+        /// </summary>
+        private void DrawBgModelTab()
+        {
+            if (MTEP.TimelineManager.instance.timeline == null)
+            {
+                _view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT,
+                    textColor: Color.yellow);
+                return;
+            }
+
+            var bgModelManager = MTEP.BGModelManager.instance;
+            var infoList = bgModelManager.modelInfoList;
+            if (infoList.Count == 0)
+            {
+                _view.DrawLabel("背景モデルがありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            _view.SetEnabled(_view.focusedComboBox == null
+                && MTEP.StudioHackManager.instance.isPoseEditing);
+
+            // 増減は一覧を作り替えるため、描画ループを回し切ってから 1 件だけ反映する
+            string addSourceName = null;
+            string deleteSourceName = null;
+
+            foreach (var info in infoList)
+            {
+                var models = bgModelManager.GetModels(info.sourceName);
+
+                _view.BeginHorizontal();
+                {
+                    var indent = new string(' ', info.depth);
+                    var name = indent + "└" + info.displayName;
+
+                    var labelWidth = _view.viewRect.width - _view.currentPos.x - 60 - 10;
+                    var labelColor = models.Count > 0 ? Color.green : Color.white;
+                    _view.DrawLabel(name, labelWidth, ROW_HEIGHT, labelColor);
+
+                    if (_view.DrawButton("-", 20, ROW_HEIGHT, models.Count > 0))
+                    {
+                        deleteSourceName = info.sourceName;
+                    }
+
+                    _view.DrawLabel(models.Count.ToString(), 20, ROW_HEIGHT);
+
+                    if (_view.DrawButton("+", 20, ROW_HEIGHT))
+                    {
+                        addSourceName = info.sourceName;
+                    }
+                }
+                _view.EndLayout();
+            }
+
+            _view.SetEnabled(_view.focusedComboBox == null);
+
+            _view.EndScrollView();
+
+            if (deleteSourceName != null)
+            {
+                bgModelManager.DeleteModelBySourceName(deleteSourceName);
+            }
+            if (addSourceName != null)
+            {
+                bgModelManager.AddModelBySourceName(addSourceName);
+            }
         }
 
         /// <summary>
@@ -148,7 +267,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _view.DrawLabel("背景が表示されていません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
-                DrawBgColorRow();
                 return;
             }
 
@@ -172,24 +290,25 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _view.EndLayout();
+
+            DrawBgTransformRows(bgMgr);
         }
 
-        /// <summary>
-        /// 背景を消しているときに見える色の編集行。
-        /// アルファを下げると撮影時に透過 PNG として保存される
-        /// </summary>
-        private void DrawBgColorRow()
+        /// <summary>背景モデルのローカル Transform 編集行。実体は BackgroundRowDrawer 側</summary>
+        private void DrawBgTransformRows(BgMgr bgMgr)
         {
-            var fieldCache = _view.GetColorFieldCache("背景色", true);
-            _view.DrawColor(fieldCache, BackgroundUtils.bgColor, BackgroundUtils.defaultBgColor,
-                value =>
-                {
-                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Background, "背景色");
-                    BackgroundUtils.bgColor = value;
-                });
+            var bgObject = bgMgr.current_bg_object;
+            if (bgObject == null)
+            {
+                return;
+            }
 
-            _view.DrawLabel("アルファを下げると透過PNGで撮影されます", -1, ROW_HEIGHT,
-                textColor: Color.gray);
+            var transform = bgObject.transform;
+
+            _view.DrawHorizontalLine();
+            _view.DrawLabel("背景Transform (ローカル)", -1, ROW_HEIGHT);
+
+            BackgroundRowDrawer.DrawBgTransformRows(_view, transform, LABEL_WIDTH, ROW_HEIGHT);
         }
 
         /// <summary>

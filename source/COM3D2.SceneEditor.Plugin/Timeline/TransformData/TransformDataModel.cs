@@ -1,0 +1,53 @@
+
+using System.IO;
+
+namespace COM3D2.MotionTimelineEditor.Plugin
+{
+    public class TransformDataModel : TransformDataBase
+    {
+        public override TransformType type => TransformType.Model;
+
+        public override int valueCount => 12;
+
+        public override bool hasPosition => true;
+        public override bool hasRotation => true;
+        public override bool hasScale => true;
+        public override bool hasVisible => true;
+        // Tangent 統一により常に Tangent 補間 (isTangentModel は XML 互換で残るのみ)
+        public override bool hasTangent => true;
+
+        public override ValueData[] positionValues
+        {
+            get => new ValueData[] { values[0], values[1], values[2] };
+        }
+
+        public override ValueData[] rotationValues
+        {
+            get => new ValueData[] { values[3], values[4], values[5], values[6] };
+        }
+
+        public override ValueData[] scaleValues
+        {
+            get => new ValueData[] { values[7], values[8], values[9] };
+        }
+
+        public override ValueData visibleValue => values[11];
+        public override ValueData easingValue => values[10];
+        public override ValueData[] tangentValues => baseValues;
+
+        public TransformDataModel()
+        {
+        }
+
+        public override void FromXml(TransformXml xml)
+        {
+            base.FromXml(xml);
+
+            if (name.EndsWith(".menu", System.StringComparison.Ordinal))
+            {
+                name = Path.GetFileName(name);
+            }
+        }
+    }
+
+}

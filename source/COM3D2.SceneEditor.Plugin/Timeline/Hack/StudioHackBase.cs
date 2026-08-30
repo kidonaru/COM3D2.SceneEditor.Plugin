@@ -1,0 +1,275 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+// Assembly-UnityScript-firstpass のグローバル名前空間には Unity 5 世代の DepthOfFieldScatter が
+// 残骸として残っており、素の型名ではそちらに束縛されて Unity 2022 で削除された
+// Graphics.DrawProceduralIndirect を呼んでしまう。ゲームが実際に使う PostEffects_Dummy 側へ束縛する
+#if COM3D25
+using DepthOfFieldEffect = PostEffects_Dummy.DepthOfFieldScatter;
+#else
+using DepthOfFieldEffect = global::DepthOfFieldScatter;
+#endif
+
+namespace COM3D2.MotionTimelineEditor.Plugin
+{
+    // モデル系は ModelHackManager が IModelHack 型を要求するため MTE と同じ interface 実装を採用
+    // (L1 までの Light/BG 系フラット virtual 追加とは方針が異なる)
+    public abstract class StudioHackBase : IModelHack
+    {
+        public abstract string pluginName { get; }
+        public abstract int priority { get; }
+        public abstract Maid selectedMaid { get; }
+        public abstract List<Maid> allMaids { get; }
+        public abstract List<StudioModelStat> modelList { get; }
+        public abstract int selectedMaidSlotNo { get; }
+        public abstract string outputAnmPath { get; }
+        public abstract bool isPoseEditing { get; set; }
+        public abstract bool isIKVisible { get; set; }
+        public abstract float motionSliderRate { set; }
+        public abstract bool useMuneKeyL { set; }
+        public abstract bool useMuneKeyR { set; }
+        public abstract Camera subCamera { get; }
+        public abstract bool isUIVisible { get; set; }
+
+        protected string _errorMessage = "";
+        public string errorMessage
+        {
+            get
+            {
+                return _errorMessage;
+            }
+        }
+
+        private bool _isSceneActive = false;
+        public bool isSceneActive
+        {
+            get
+            {
+                return _isSceneActive;
+            }
+            set
+            {
+                if (_isSceneActive == value)
+                {
+                    return;
+                }
+                _isSceneActive = value;
+
+                if (_isSceneActive)
+                {
+                    OnSceneActive();
+                }
+                else
+                {
+                    OnSceneDeactive();
+                }
+            }
+        }
+
+        public virtual bool isAnmPlaying
+        {
+            get => maidManager.isAnmPlaying;
+            set
+            {
+                if (value && isPoseEditing)
+                {
+                    isPoseEditing = false;
+                }
+
+                maidManager.isAnmPlaying = value;
+            }
+        }
+
+        public abstract bool isAnmEnabled { get; set; }
+
+        public virtual DepthOfFieldEffect depthOfField
+        {
+            get => PluginUtils.MainCamera.gameObject.GetComponent<DepthOfFieldEffect>();
+        }
+
+        protected static MaidManager maidManager => MaidManager.instance;
+
+        protected static CacheBoneDataArray cacheBoneData
+        {
+            get => maidManager.cacheBoneData;
+        }
+
+        protected static Animation animation
+        {
+            get => maidManager.animation;
+        }
+
+        protected static AnimationState animationState
+        {
+            get => maidManager.animationState;
+        }
+
+        protected static Config config => ConfigManager.instance.config;
+
+        protected StudioHackBase()
+        {
+        }
+
+        public virtual bool Init()
+        {
+            return true;
+        }
+
+        public virtual void ChangeMaid(Maid maid)
+        {
+            // do nothing
+        }
+
+        public virtual void OnChangedSceneLevel(Scene sceneName, LoadSceneMode SceneMode)
+        {
+            // do nothing
+        }
+
+        public virtual void OnSceneActive()
+        {
+        }
+
+        public virtual void OnSceneDeactive()
+        {
+        }
+
+        public virtual bool IsValid()
+        {
+            _errorMessage = "";
+            return true;
+        }
+
+        public virtual void Update()
+        {
+            // do nothing
+        }
+
+        public virtual bool HasBoneRotateVisible(IKManager.BoneType boneType)
+        {
+            return false;
+        }
+
+        public virtual bool IsBoneRotateVisible(IKManager.BoneType boneType)
+        {
+            return false;
+        }
+
+        public virtual void SetBoneRotateVisible(IKManager.BoneType boneType, bool visible)
+        {
+            // do nothing
+        }
+
+        public virtual void ClearBoneRotateVisible()
+        {
+            // do nothing
+        }
+
+        public virtual void ClearPoseHistory()
+        {
+            // do nothing
+        }
+
+        public virtual void DeleteAllModels()
+        {
+            // do nothing
+        }
+
+        public virtual void DeleteModel(StudioModelStat model)
+        {
+            // do nothing
+        }
+
+        public virtual void CreateModel(StudioModelStat model)
+        {
+            // do nothing
+        }
+
+        public virtual void UpdateAttachPoint(StudioModelStat model)
+        {
+            // do nothing
+        }
+
+        public virtual void SetModelVisible(StudioModelStat model, bool visible)
+        {
+            var go = model.transform != null ? model.transform.gameObject : null;
+            if (go != null && go.activeSelf != visible)
+            {
+                go.SetActive(visible);
+            }
+        }
+
+        private void DeleteBGObject()
+        {
+            BgMgr bgMgr = GameMain.Instance.BgMgr;
+            UnityEngine.Object.Destroy(bgMgr.current_bg_object);
+            bgMgr.DeleteBg();
+        }
+
+        public virtual void ChangeBackground(string bgName)
+        {
+            if (bgName != GameMain.Instance.BgMgr.GetBGName())
+            {
+                DeleteBGObject();
+                GameMain.Instance.BgMgr.ChangeBg(bgName);
+            }
+        }
+
+        public virtual void SetBackgroundVisible(bool visible)
+        {
+            var bgObject = GameMain.Instance.BgMgr.current_bg_object;
+            if (bgObject != null)
+            {
+                bgObject.SetActive(visible);
+            }
+        }
+
+        public virtual bool IsBackgroundVisible()
+        {
+            var bgObject = GameMain.Instance.BgMgr.current_bg_object;
+            return bgObject != null && bgObject.activeSelf;
+        }
+
+        public virtual void UpdateUndress(Maid maid, DressSlotID slotId, bool isVisible)
+        {
+            // do nothing
+        }
+
+        public int GetMaidSlotNo(string guid)
+        {
+            var maids = this.allMaids;
+            for (var i = 0; i < maids.Count; i++)
+            {
+                if (maids[i].status.guid == guid)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        public Maid GetMaid(int slotNo)
+        {
+            var maids = this.allMaids;
+            if (slotNo < 0 || slotNo >= maids.Count)
+            {
+                return null;
+            }
+            return maids[slotNo];
+        }
+
+        public virtual void OnMotionUpdated(Maid maid)
+        {
+            // do nothing
+        }
+
+        public virtual void OnUpdateMyPose(string anmPath, bool isExist)
+        {
+            // do nothing
+        }
+
+        public virtual void OnUpdateDepthOfField()
+        {
+            // do nothing
+        }
+    }
+}

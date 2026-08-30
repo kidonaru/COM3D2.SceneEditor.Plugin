@@ -274,6 +274,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 config.connectGroups.AddRange(data.connectGroups);
             }
+            // レイアウト適用後の外部窓復帰も新しい構成基準にする
+            TabGroupManager.instance.CaptureRestoreSnapshot();
             TabGroupManager.instance.RestoreGroups();
             WindowConnectManager.instance.RestoreGroups();
             WindowConnectManager.instance.ClampGroups();

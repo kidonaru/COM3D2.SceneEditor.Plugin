@@ -1,10 +1,13 @@
+using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイド系ウィンドウの基底。操作対象メイドの選択行を共通で提供する。
+    /// メイド系ウィンドウの基底。操作対象メイドの選択行と、
+    /// モデル選択行 (DrawModelComboBox) を共通で提供する。
     /// 対象は MaidManipulateManager が保持しているため、どのウィンドウで選び直しても
     /// 全ウィンドウの表示が揃う
     /// </summary>
@@ -28,12 +31,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected readonly GUIView view = new GUIView();
 
-        /// <summary>矢印ボタン 2 つ分の幅。GUIComboBox が showArrow 時に確保する値と合わせる</summary>
-        private static readonly float ComboArrowWidth = 40f;
-
-        /// <summary>コンボをウィンドウ幅に合わせて縮めるときの下限</summary>
-        private static readonly float MinComboWidth = 80f;
-
         /// <summary>対象メイドの選択行を出すか。呼出ウィンドウは一覧から選ぶため不要</summary>
         protected virtual bool showMaidSelector => true;
 
@@ -47,10 +44,120 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         protected static float CalcLabeledComboWidth(GUIView view)
         {
-            return Mathf.Max(
-                view.viewRect.width - view.padding.x * 2
-                    - LABEL_WIDTH - view.margin - ComboArrowWidth,
-                MinComboWidth);
+            return LabeledComboRow.CalcComboWidth(view, LABEL_WIDTH);
+        }
+
+        /// <summary>
+        /// ラベル + コンボの 1 行を描く。コンボ幅は残り幅から決めるため、
+        /// ウィンドウを縮めてもボタンがはみ出さない
+        /// </summary>
+        /// <param name="trailingWidth">コンボの後ろに置くコントロールのために空ける幅</param>
+        /// <param name="drawTrailing">コンボの後ろに置くコントロールの描画</param>
+        protected void DrawLabeledComboBox<T>(
+            string label,
+            GUIComboBox<T> comboBox,
+            float trailingWidth = 0f,
+            Action drawTrailing = null)
+        {
+            LabeledComboRow.Draw(
+                view, label, comboBox, LABEL_WIDTH, ROW_HEIGHT, trailingWidth, drawTrailing);
+        }
+
+        /// <summary>モデル選択行の対象。一覧の増減で位置がずれるため、位置ではなく実体で持つ</summary>
+        private GameObject _targetModel;
+
+        /// <summary>選択変更の検出用。前回 DrawModelComboBox を描いたときの選択オブジェクト</summary>
+        private GameObject _lastSelectedObject;
+
+        /// <summary>
+        /// モデル選択の 1 行を描き、シーンの選択中モデルと双方向で連動させる。
+        /// ボーンウィンドウ (BoneEditManager.targetModel) と同じ方針で、
+        /// モデル以外 (メイド等) が選択された場合は対象を保持する
+        /// (無関係なクリックのたびに編集対象を見失わないため)
+        /// </summary>
+        protected void DrawModelComboBox<T>(
+            string label,
+            GUIComboBox<T> comboBox,
+            List<T> items,
+            Func<T, Transform> getTransform)
+        {
+            comboBox.items = items;
+            SyncTargetModelFromSelection(items, getTransform);
+
+            // 一覧が増減すると同じ対象でも位置が変わるため、コンボの選択は毎回引き直す
+            var index = IndexOfModel(items, getTransform, _targetModel);
+            if (index >= 0)
+            {
+                comboBox.currentIndex = index;
+            }
+
+            // コンボで選び直したらシーンの選択も揃える。
+            // モデルルートのギズモは外部プラグイン側が持つため showGizmo は出さない
+            // (BoneEditManager.targetModel と同じ規約)
+            comboBox.onSelected = (item, _) =>
+            {
+                var transform = getTransform(item);
+                if (transform == null)
+                {
+                    return;
+                }
+                _targetModel = transform.gameObject;
+                SelectionManager.instance.Select(_targetModel, false);
+            };
+
+            DrawLabeledComboBox(label, comboBox);
+        }
+
+        /// <summary>
+        /// 選択がモデル (またはその子) へ移ったら対象を揃える。
+        /// SceneView クリックではモデルの子メッシュがヒットしうるため祖先も辿るが、
+        /// その走査は毎フレーム回すには重いので選択が変わったフレームだけ引き直す
+        /// (BoneEditManager.ReleaseBoneOnObjectSelected と同じ流儀)。
+        /// モデル以外 (メイド等) が選ばれた場合は対象を保持する
+        /// </summary>
+        private void SyncTargetModelFromSelection<T>(List<T> items, Func<T, Transform> getTransform)
+        {
+            var selectedObject = SelectionManager.instance.selectedObject;
+            if (selectedObject == _lastSelectedObject)
+            {
+                return;
+            }
+            _lastSelectedObject = selectedObject;
+
+            if (selectedObject == null)
+            {
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                var transform = getTransform(item);
+                if (transform != null && selectedObject.transform.IsChildOf(transform))
+                {
+                    _targetModel = transform.gameObject;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>一覧から対象モデルの位置を引く。未設定・見つからないなら -1</summary>
+        private static int IndexOfModel<T>(
+            List<T> items, Func<T, Transform> getTransform, GameObject model)
+        {
+            if (model == null)
+            {
+                return -1;
+            }
+
+            for (var i = 0; i < items.Count; i++)
+            {
+                var transform = getTransform(items[i]);
+                if (transform != null && transform.gameObject == model)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         /// <summary>

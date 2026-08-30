@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -152,7 +152,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>現在の表情から保存データを組み立てる。値が 0 でないモーフだけ持つ</summary>
+        /// <summary>現在の表情から保存データを組み立てる。チェック済み (=ユーザーが編集した) モーフだけ持つ</summary>
         private static FacePresetData Capture(Maid maid)
         {
             var data = new FacePresetData
@@ -160,14 +160,18 @@ namespace COM3D2.SceneEditor.Plugin
                 mabataki = MaidFaceMorphController.GetMabataki(maid),
             };
 
+            var store = FaceEditManager.instance.FindStore(maid);
             foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
             {
                 foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
                 {
-                    var value = MaidFaceMorphController.GetMorphValue(maid, def);
-                    if (value != 0f)
+                    if (store != null && store.IsModified(def.name))
                     {
-                        data.morphs.Add(new FacePresetMorph { name = def.name, value = value });
+                        data.morphs.Add(new FacePresetMorph
+                        {
+                            name = def.name,
+                            value = MaidFaceMorphController.GetStoredMorphValue(maid, def),
+                        });
                     }
                 }
             }
@@ -195,9 +199,12 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         value = 0f;
                     }
-                    MaidFaceMorphController.SetMorphValue(maid, def, value);
+                    MaidFaceMorphController.SetStoredMorphValue(maid, def, value);
                 }
             }
+
+            // 保存されているモーフ=保存時のチェック済み集合として復元する
+            FaceEditManager.instance.GetStore(maid).SetNames(savedValues.Keys);
 
             MaidFaceMorphController.SetMabataki(maid, data.mabataki);
         }

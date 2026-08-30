@@ -5,6 +5,7 @@ using System.Linq;
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -131,6 +132,8 @@ namespace COM3D2.SceneEditor.Plugin
         public static bool loadMaids { get; set; } = true;
         public static bool loadBackground { get; set; } = true;
 
+        public static bool loadEffects { get; set; } = true;
+
         /// <summary>読込を無効化したプロバイダ id。上のトグルと同じくセッション中だけ保持する</summary>
         private static readonly HashSet<string> _loadDisabledProviders = new HashSet<string>();
 
@@ -172,6 +175,13 @@ namespace COM3D2.SceneEditor.Plugin
         private static bool ShouldApplyBackground(ScenePresetData data)
         {
             return data.savedBackground && loadBackground;
+        }
+
+        /// <summary>演出カテゴリ (テキスト・サブカメラ・ポストエフェクト) を適用するか</summary>
+        private static bool ShouldApplyEffects(ScenePresetData data)
+        {
+            // 旧プリセット (v28 以前) は effects が null のため、この条件で自然に読み飛ばされる
+            return data.savedEffects && loadEffects && data.effects != null;
         }
 
         private static ScenePresetItem CreateRootItem()
@@ -702,6 +712,7 @@ namespace COM3D2.SceneEditor.Plugin
             data.savedCamera = options.saveCamera;
             data.savedMaids = options.saveMaids;
             data.savedBackground = options.saveBackground;
+            data.savedEffects = options.saveEffects;
 
             if (options.saveCamera)
             {
@@ -724,9 +735,15 @@ namespace COM3D2.SceneEditor.Plugin
                 data.pngPlacement = PngPlacementSnapshot.CaptureState();
             }
 
+            if (options.saveEffects)
+            {
+                data.effects = MteEffectsSnapshot.CaptureState();
+            }
+
             CaptureExternals(data, options.enabledProviderIds);
             // data.externals を保存対象の有無判定に使うため CaptureExternals の後に呼ぶ
             CaptureModelBoneEdits(data);
+            CaptureModelAppearances(data, options);
 
             return data;
         }
@@ -825,6 +842,170 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>モデルマテリアルの owner ("GameObject名|プラグイン名") の区切り文字</summary>
+        private const char ModelOwnerSeparator = '|';
+
+        /// <summary>
+        /// モデル/背景のシェイプキーとマテリアル差分を控える (v21)。
+        /// 差分が生じるのは編集された (= ModelMaterialController 生成済みの) マテリアルだけなので、
+        /// 捕捉時は GetOrCreate を使わず既存コントローラのみを対象にし、
+        /// 保存のたびに全レンダラーへコンポーネントが増える副作用を避ける
+        /// </summary>
+        private static void CaptureModelAppearances(ScenePresetData data, ScenePresetSaveOptions options)
+        {
+            ProviderModelStat.CleanupDestroyed();
+
+            // モデル分は ModelBoneEdit と同じ規約: 復元先が無い孤立データを避けるため
+            // 外部プロバイダの保存が無い場合はスキップする
+            if (data.externals.Count > 0)
+            {
+                var entries = ModelProviderHost.GetModels();
+                CaptureModelMaterials(data, entries);
+                CaptureModelShapeKeys(data, entries);
+            }
+
+            // 背景分は背景セクションと同じカテゴリに従う
+            if (options.saveBackground)
+            {
+                CaptureBgMaterials(data);
+            }
+        }
+
+        /// <summary>編集済みコントローラを持つモデルからマテリアル差分を控える</summary>
+        private static void CaptureModelMaterials(ScenePresetData data, List<ExternalModelEntry> entries)
+        {
+            data.modelMaterials = new List<ScenePresetMaterial>();
+
+            foreach (var entry in entries)
+            {
+                if (entry.obj == null)
+                {
+                    continue;
+                }
+                var controller = entry.obj.GetComponentInChildren<MTEP.ModelMaterialController>(true);
+                if (controller == null)
+                {
+                    continue;
+                }
+                var owner = entry.obj.name + ModelOwnerSeparator + entry.pluginName;
+                var materials = controller.materials;
+                for (var m = 0; m < materials.Count; m++)
+                {
+                    var materialData = CaptureMaterial(materials[m], owner, m);
+                    if (materialData != null)
+                    {
+                        data.modelMaterials.Add(materialData);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// モデルのシェイプキーを控える。BlendShapeController を持つ StudioModelStat からのみ取れる。
+        /// 照合キーは ModelBoneEdit と同じ「ルート GameObject 名 + pluginName」に寄せる
+        /// </summary>
+        private static void CaptureModelShapeKeys(ScenePresetData data, List<ExternalModelEntry> entries)
+        {
+            data.modelShapeKeys = new List<ScenePresetModelShapeKey>();
+
+            foreach (var model in MTEP.StudioModelManager.instance.models)
+            {
+                if (model == null || model.transform == null)
+                {
+                    continue;
+                }
+                var entry = FindProviderEntry(entries, model.transform);
+                if (entry == null)
+                {
+                    continue;
+                }
+                // チェック集合はモデルの GameObject で引く (修飾名は group 振り直しで変わるため使わない)
+                var shapeKeyStore = ModelShapeKeyEditManager.instance
+                    .FindStore(model.transform.gameObject);
+                if (shapeKeyStore == null)
+                {
+                    continue;
+                }
+
+                foreach (var blendShape in model.blendShapes)
+                {
+                    // 保存対象はチェック済みのみ。重み 0 でもユーザーが意図して選んだものは残す
+                    if (!shapeKeyStore.IsModified(blendShape.shapeKeyName))
+                    {
+                        continue;
+                    }
+                    data.modelShapeKeys.Add(new ScenePresetModelShapeKey
+                    {
+                        modelName = entry.obj.name,
+                        pluginName = entry.pluginName,
+                        name = blendShape.shapeKeyName,
+                        value = blendShape.weight,
+                    });
+                }
+            }
+        }
+
+        /// <summary>背景オブジェクト配下の編集済みコントローラからマテリアル差分を控える</summary>
+        private static void CaptureBgMaterials(ScenePresetData data)
+        {
+            data.bgMaterials = new List<ScenePresetMaterial>();
+
+            var bgObject = GameMain.Instance.BgMgr.BgObject;
+            if (bgObject == null)
+            {
+                return;
+            }
+
+            // 編集済みコントローラだけを直接拾う (全 Renderer へ AddComponent する副作用を避ける)
+            foreach (var controller in bgObject.GetComponentsInChildren<MTEP.ModelMaterialController>(true))
+            {
+                var owner = GetRelativePath(bgObject.transform, controller.transform);
+                var materials = controller.materials;
+                for (var m = 0; m < materials.Count; m++)
+                {
+                    var materialData = CaptureMaterial(materials[m], owner, m);
+                    if (materialData != null)
+                    {
+                        data.bgMaterials.Add(materialData);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Transform が ModelProviderHost のどのモデル配下かを逆引きする (entries は呼び出し側で 1 回だけ取得)</summary>
+        private static ExternalModelEntry FindProviderEntry(List<ExternalModelEntry> entries, Transform transform)
+        {
+            foreach (var entry in entries)
+            {
+                if (entry.obj == null)
+                {
+                    continue;
+                }
+                if (transform == entry.obj.transform || transform.IsChildOf(entry.obj.transform))
+                {
+                    return entry;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>root からの相対パス ("child/grandchild" 形式)。root 自身は空文字</summary>
+        private static string GetRelativePath(Transform root, Transform target)
+        {
+            if (target == root)
+            {
+                return "";
+            }
+            var path = target.name;
+            var current = target.parent;
+            while (current != null && current != root)
+            {
+                path = current.name + "/" + path;
+                current = current.parent;
+            }
+            return path;
+        }
+
         private static ScenePresetMaid CaptureMaid(Maid maid)
         {
             var state = new ScenePresetMaid();
@@ -866,16 +1047,32 @@ namespace COM3D2.SceneEditor.Plugin
             state.mabataki = MaidFaceMorphController.GetMabataki(maid);
             state.faceName = MaidFaceMorphController.GetFaceName(maid);
 
+            // チェック済み (=ユーザーが編集した) モーフだけ保存する。値 0 も明示編集なら保存する
+            var faceStore = FaceEditManager.instance.FindStore(maid);
             foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
             {
                 foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
                 {
-                    var value = MaidFaceMorphController.GetMorphValue(maid, def);
-                    if (value != 0f)
+                    if (faceStore != null && faceStore.IsModified(def.name))
                     {
-                        state.morphs.Add(new ScenePresetMorph { name = def.name, value = value });
+                        state.morphs.Add(new ScenePresetMorph
+                        {
+                            name = def.name,
+                            value = MaidFaceMorphController.GetStoredMorphValue(maid, def),
+                        });
                     }
                 }
+            }
+
+            // 任意シェイプキーとスロットマテリアル (v21)。1 体の失敗で保存全体を止めない
+            try
+            {
+                CaptureShapeKeysAndMaterials(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogError("シェイプキー/マテリアルの保存に失敗しました: {0}", maid.name);
+                MTEUtils.LogException(e);
             }
 
             state.undress = new ScenePresetUndress
@@ -1002,6 +1199,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     state.ikHolds.Add(type.ToString());
                 }
+                if (maidManager.ikHoldController.GetAnime(maid, type))
+                {
+                    state.ikAnimes.Add(type.ToString());
+                }
             }
         }
 
@@ -1012,9 +1213,10 @@ namespace COM3D2.SceneEditor.Plugin
         private static void CaptureLook(Maid maid, ScenePresetMaid state)
         {
             var controller = maidManager.lookController;
+            var mode = controller.GetMode(maid);
             var look = new ScenePresetLook
             {
-                mode = controller.GetMode(maid).ToString(),
+                mode = mode.ToString(),
                 lookX = controller.GetLookX(maid),
                 lookY = controller.GetLookY(maid),
             };
@@ -1030,7 +1232,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var target = controller.GetTarget(maid);
-            if (controller.GetMode(maid) == MaidLookMode.オブジェクト && target != null)
+            if (mode == MaidLookMode.オブジェクト && target != null)
             {
                 var ownerMaid = FindOwnerMaid(target);
                 if (ownerMaid != null)
@@ -1043,8 +1245,46 @@ namespace COM3D2.SceneEditor.Plugin
                     look.targetPath = GetScenePath(target);
                 }
             }
+            else if (mode == MaidLookMode.メイド)
+            {
+                // メイド注視は「対象メイド + 部位」で持つ。ボーン名は復元時に部位から引き直す
+                var targetMaid = controller.GetTargetMaid(maid);
+                if (targetMaid != null)
+                {
+                    look.targetMaidGuid = GetGuid(targetMaid);
+                    look.maidPointType = controller.GetMaidPointType(maid).ToString();
+                }
+            }
+            else if (mode == MaidLookMode.モデル)
+            {
+                // モデルはシーン再構築で作り直されるため、名前で持つ
+                look.targetModelName = controller.GetTargetModelName(maid);
+            }
+
+            CaptureTimelineLook(maid, look);
 
             state.look = look;
+        }
+
+        /// <summary>
+        /// タイムライン視線の指定値を記録する。
+        /// 向け先そのものは lookController 側 (mode / target) に写っているため、
+        /// ここで残すのはキー化の元になる注視先種別と顔向きキーの指定値だけ。
+        /// タイムライン未読込などで MaidCache が無いときは未記録のままにする
+        /// </summary>
+        private static void CaptureTimelineLook(Maid maid, ScenePresetLook look)
+        {
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            look.timelineTargetType = maidCache.lookAtTargetType.ToString();
+            look.timelineTargetIndex = maidCache.lookAtTargetIndex;
+            look.timelineMaidPointType = maidCache.lookAtMaidPointType.ToString();
+            look.timelineLookX = maidCache.lookDirection.x;
+            look.timelineLookY = maidCache.lookDirection.y;
         }
 
         /// <summary>
@@ -1408,22 +1648,32 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 全メイドのロード完了後にまとめて行う仕上げ。
-        /// 視線は他メイドを参照しうるため、外部プロバイダと同じくここで反映する。
+        /// 視線は他メイドとモデルを注視先にできるため、外部プロバイダのモデル復元より後に反映する。
         /// メイドを読み込まないときは AssignMaids ごと飛ばしているため、
         /// 無関係な既存メイドへ視線・フォーカスを当てないよう合わせて飛ばす
         /// </summary>
         private static void FinishApply(ScenePresetData data)
         {
             var applyMaids = ShouldApplyMaids(data);
-            if (applyMaids)
+
+            // MTE 由来の演出は仕上げ段 (全メイドのロード完了後) で適用する。
+            // メイド追従サブカメラの position/rotation は追従先メイドの有無で
+            // 書き込み先 (オフセット / ワールド値) が変わるため、
+            // メイドが揃う前に適用すると保存時と書き込み先を取り違える。
+            // タイムライン読込中に適用した場合、キーフレームを持つ項目は
+            // 再生側 (レイヤーの ApplyPlayData) が優先して上書きする
+            if (ShouldApplyEffects(data))
             {
-                ApplyLooks();
+                MteEffectsSnapshot.ApplyState(data.effects);
             }
             ApplyExternals(data);
             // 外部プロバイダのモデル復元 (同期) の後でないと GameObject が存在しない
             ApplyModelBoneEdits(data);
+            ApplyModelAppearances(data);
+            // 視線はモデルを注視先にできるため、モデルが揃った後に反映する
             if (applyMaids)
             {
+                ApplyLooks();
                 RequestFocusOnAppliedMaid(data);
             }
             // Maid 参照を適用の間だけ持つ。以降の解除・シーン遷移で寿命が切れるため残さない
@@ -1437,6 +1687,17 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void ApplyLooks()
         {
+            // モデル注視を戻すメイドがいるなら、モデル一覧を取り直してから解決する。
+            // StudioModelManager は 30 フレームに 1 回しか一覧を更新しないため、
+            // 外部プロバイダが今作ったモデルは強制更新しないと引けない
+            var needsModel = _resolvedAssignments.Any(
+                pair => pair.Value.look != null
+                    && !string.IsNullOrEmpty(pair.Value.look.targetModelName));
+            if (needsModel)
+            {
+                MTEP.StudioModelManager.instance.LateUpdate(true);
+            }
+
             foreach (var pair in _resolvedAssignments)
             {
                 var maid = pair.Key;
@@ -1478,7 +1739,44 @@ namespace COM3D2.SceneEditor.Plugin
                 mode = MaidLookMode.方向指定;
             }
 
-            maidManager.lookController.SetState(maid, mode, look.lookX, look.lookY, target);
+            Maid targetMaid = null;
+            var maidPointType = MTEP.MaidPointType.Head;
+            if (mode == MaidLookMode.メイド)
+            {
+                targetMaid = !string.IsNullOrEmpty(look.targetMaidGuid)
+                    ? FindMaidBySlotGuid(look.targetMaidGuid) : null;
+                // XML は外部入力のため、未知の部位名は既定 (顔) のままにする
+                if (!TryParseEnum(look.maidPointType, out maidPointType))
+                {
+                    maidPointType = MTEP.MaidPointType.Head;
+                }
+                if (targetMaid == null)
+                {
+                    MTEUtils.LogWarning("注視対象のメイドが見つからないため方向指定で復元します: {0}",
+                        look.targetMaidGuid);
+                    mode = MaidLookMode.方向指定;
+                }
+            }
+
+            string targetModelName = null;
+            if (mode == MaidLookMode.モデル)
+            {
+                targetModelName = look.targetModelName;
+                if (MaidLookController.GetModelTransform(targetModelName) == null)
+                {
+                    MTEUtils.LogWarning("注視対象のモデルが見つからないため方向指定で復元します: {0}",
+                        look.targetModelName);
+                    mode = MaidLookMode.方向指定;
+                }
+            }
+
+            maidManager.lookController.SetState(
+                maid, mode, look.lookX, look.lookY, target,
+                targetMaid, maidPointType, targetModelName);
+
+            // TBody に依存しないため、追従トグルの防御的ガードより前に戻す
+            // (未ロードのメイドでも指定値だけは欠落させない)
+            ApplyTimelineLook(maid, look);
 
             // 追従トグルは lookController の管轄外なので TBody へ直接戻す。
             // ウィンドウのトグルと同じく割合 (HeadToCamPer) は触らず、ゲーム側のフェードに任せる。
@@ -1497,6 +1795,45 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 body.boEyeToCam = look.eyeToCam;
             }
+        }
+
+        /// <summary>
+        /// タイムライン視線の指定値を戻す。
+        /// 3 つのセッターはいずれも UpdateLookAtTarget を呼ぶため、先に番号・ポイントを
+        /// 確定させ、最後に種別を入れて最終の呼び出しで正しい組み合わせに解決させる。
+        ///
+        /// この指定値が向け先へ波及するかは、復元先のタイムラインの
+        /// 「視線をキー化」(useHeadKey) が決める。プリセットはこのフラグを持たないため、
+        /// 保存時と復元時で設定が違うと、直前に戻した mode が上書きされることがある
+        /// </summary>
+        private static void ApplyTimelineLook(Maid maid, ScenePresetLook look)
+        {
+            if (string.IsNullOrEmpty(look.timelineTargetType))
+            {
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            MTEP.LookAtTargetType targetType;
+            MTEP.MaidPointType maidPointType;
+            // XML は外部入力のため、未知の名前は復元せず既定のままにする
+            if (!TryParseEnum(look.timelineTargetType, out targetType)
+                || !TryParseEnum(look.timelineMaidPointType, out maidPointType))
+            {
+                MTEUtils.LogWarning("タイムライン視線の設定が不明です: {0} / {1}",
+                    look.timelineTargetType, look.timelineMaidPointType);
+                return;
+            }
+
+            maidCache.lookDirection = new Vector2(look.timelineLookX, look.timelineLookY);
+            maidCache.lookAtTargetIndex = look.timelineTargetIndex;
+            maidCache.lookAtMaidPointType = maidPointType;
+            maidCache.lookAtTargetType = targetType;
         }
 
         /// <summary>
@@ -1700,6 +2037,23 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogException(e);
             }
+            // シェイプキー/マテリアルは ApplyUndress で装備が出入りした後に適用する
+            try
+            {
+                ApplyShapeKeys(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+            try
+            {
+                ApplyMaidMaterials(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
             try
             {
                 ApplyGravity(maid, state);
@@ -1754,6 +2108,270 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             maidManager.fingerBlendController.RestoreStates(maid, state.fingerBlends);
+        }
+
+        /// <summary>
+        /// 任意シェイプキーとスロットマテリアルの差分を控える (v21)。
+        /// 公式表情モーフは faceName/morphs セクションの責務なので除外し、非ゼロ値だけを記録する
+        /// </summary>
+        private static void CaptureShapeKeysAndMaterials(Maid maid, ScenePresetMaid state)
+        {
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            var faceMorphNames = new HashSet<string>();
+            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
+            {
+                foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
+                {
+                    faceMorphNames.Add(def.name);
+                }
+            }
+
+            // 着替え後の古い TMorph を掴んだまま読まないよう作り直してから走査する
+            maidCache.ClearBlendShapeCache();
+
+            state.shapeKeys = new List<ScenePresetMorph>();
+            // 保存対象はチェック済みのみ。チェックが 1 つも無ければ走査自体を省く
+            // (この後のスロットマテリアル取得は続けるので早期 return はしない)
+            var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(maid);
+            if (shapeKeyStore != null && !shapeKeyStore.isEmpty)
+            {
+                var seenTags = new HashSet<string>();
+                // COM3D2.5 の goSlot は直接列挙できないため、インデックス走査で両バージョンに対応する
+                var slotCount = Mathf.Min((int) TBody.SlotID.end, maid.body0.goSlot.Count);
+                for (var i = 0; i < slotCount; i++)
+                {
+                    var slot = maid.body0.GetSlot(i);
+                    if (slot == null || slot.morph == null || slot.morph.hash.Count == 0)
+                    {
+                        continue;
+                    }
+                    foreach (var tag in slot.morph.GetTags())
+                    {
+                        // 表情モーフは同じ TMorph を共有していて適用順で競合するため従来どおり除外する
+                        if (faceMorphNames.Contains(tag) || !seenTags.Add(tag))
+                        {
+                            continue;
+                        }
+                        // 値 0 でもユーザーが意図してチェックしたものは残す
+                        if (!shapeKeyStore.IsModified(tag))
+                        {
+                            continue;
+                        }
+                        state.shapeKeys.Add(new ScenePresetMorph
+                        {
+                            name = tag,
+                            value = maidCache.GetBlendShapeValue(tag),
+                        });
+                    }
+                }
+            }
+
+            // スロットマテリアル: 初期値と異なるプロパティを持つものだけ控える
+            maidCache.UpdateMaterials();
+            state.materials = new List<ScenePresetMaterial>();
+            foreach (var slotStat in maidCache.slotStats)
+            {
+                var slotMaterials = slotStat.materials;
+                for (var m = 0; m < slotMaterials.Count; m++)
+                {
+                    var materialData = CaptureMaterial(slotMaterials[m], slotStat.name, m);
+                    if (materialData != null)
+                    {
+                        state.materials.Add(materialData);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 保存された任意シェイプキーを適用する (v21)。未保存タグのゼロ化は行わない
+        /// (表情モーフと同じ TMorph を共有するため、ApplyFace の結果を踏まないようにする)。
+        /// チェック集合は記載分を積み増しで復元する (v24)
+        /// </summary>
+        private static void ApplyShapeKeys(Maid maid, ScenePresetMaid state)
+        {
+            if (state.shapeKeys == null || state.shapeKeys.Count == 0)
+            {
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            // 着替え直後に古い TMorph を掴まないようキャッシュを破棄してから書く
+            maidCache.ClearBlendShapeCache();
+
+            var appliedTags = new List<string>(state.shapeKeys.Count);
+            foreach (var shapeKey in state.shapeKeys)
+            {
+                maidCache.SetBlendShapeValue(shapeKey.name, shapeKey.value);
+                appliedTags.Add(shapeKey.name);
+            }
+            // FixBlendValues は対象 TMorph を集約するため 1 回でまとめて呼ぶ
+            maidCache.FixBlendValues(appliedTags);
+
+            // 保存されていた = ユーザーがチェックしていた。旧バージョンのプリセットでも
+            // 「記載分 = チェック済み」で辻褄が合う。
+            // 表情の v22 と違い SetNames ではなく Mark の積み増しにするのは、
+            // 未保存タグをゼロ化しない適用側の仕様と揃えるため
+            // (ゼロ化しないのにチェックだけ消すと、値が残ったまま追跡から外れる)
+            var shapeKeyStore = MaidShapeKeyEditManager.instance.GetStore(maid);
+            foreach (var tag in appliedTags)
+            {
+                shapeKeyStore.Mark(tag);
+            }
+        }
+
+        /// <summary>
+        /// 保存されたスロットマテリアル差分を適用する (v21)。
+        /// スロット/マテリアル名が一致しないものは飛ばす
+        /// </summary>
+        private static void ApplyMaidMaterials(Maid maid, ScenePresetMaid state)
+        {
+            if (state.materials == null || state.materials.Count == 0)
+            {
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return;
+            }
+
+            // ApplyUndress で装備が出入りした後の状態でスロット一覧を作り直す
+            maidCache.UpdateMaterials();
+
+            foreach (var materialState in state.materials)
+            {
+                var slotStat = maidCache.slotStats.Find(s => s.name == materialState.owner);
+                if (slotStat == null)
+                {
+                    continue;
+                }
+                var material = FindMaterial(slotStat.materials, materialState);
+                if (material == null)
+                {
+                    continue;
+                }
+                ApplyMaterial(material, materialState);
+            }
+        }
+
+        /// <summary>マテリアルの編集差分（初期値と異なるプロパティのみ）を控える。差分ゼロなら null</summary>
+        private static ScenePresetMaterial CaptureMaterial(MTEP.ModelMaterial material, string owner, int index)
+        {
+            var data = new ScenePresetMaterial
+            {
+                owner = owner,
+                material = material.displayName,
+                index = index,
+            };
+
+            foreach (var propertyType in MTEP.ModelMaterial.ColorPropertyTypes)
+            {
+                if (!material.HasColor(propertyType))
+                {
+                    continue;
+                }
+                var color = material.GetColor(propertyType);
+                if (color == material.GetInitialColor(propertyType))
+                {
+                    continue;
+                }
+                data.colors.Add(new ScenePresetMaterialColor
+                {
+                    name = propertyType.ToString(),
+                    rgba = color,
+                });
+            }
+
+            foreach (var propertyType in MTEP.ModelMaterial.ValuePropertyTypes)
+            {
+                if (!material.HasValue(propertyType))
+                {
+                    continue;
+                }
+                var value = material.GetValue(propertyType);
+                if (value == material.GetInitialValue(propertyType))
+                {
+                    continue;
+                }
+                data.values.Add(new ScenePresetMaterialValue
+                {
+                    name = propertyType.ToString(),
+                    value = value,
+                });
+            }
+
+            return data.isEmpty ? null : data;
+        }
+
+        /// <summary>保存されたプロパティだけをマテリアルへ書き戻す。未知のプロパティ名は無視して互換を保つ</summary>
+        private static void ApplyMaterial(MTEP.ModelMaterial material, ScenePresetMaterial state)
+        {
+            if (state.colors != null)
+            {
+                foreach (var color in state.colors)
+                {
+                    MTEP.ModelMaterial.ColorPropertyType type;
+                    if (!TryParseEnum(color.name, out type) || !material.HasColor(type))
+                    {
+                        continue;
+                    }
+                    material.SetColor(type, color.rgba);
+                }
+            }
+
+            if (state.values != null)
+            {
+                foreach (var value in state.values)
+                {
+                    MTEP.ModelMaterial.ValuePropertyType type;
+                    if (!TryParseEnum(value.name, out type) || !material.HasValue(type))
+                    {
+                        continue;
+                    }
+                    material.SetValue(type, value.value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 保存されたマテリアルを一覧から同定する。
+        /// 同名マテリアルが複数ある場合に備え、保存時インデックスの名前一致を優先し、無ければ先頭の名前一致
+        /// </summary>
+        private static MTEP.ModelMaterial FindMaterial(List<MTEP.ModelMaterial> materials, ScenePresetMaterial state)
+        {
+            if (state.index >= 0 && state.index < materials.Count
+                && materials[state.index].displayName == state.material)
+            {
+                return materials[state.index];
+            }
+            return materials.Find(m => m.displayName == state.material);
+        }
+
+        /// <summary>Enum.TryParse が使えない .NET 3.5 向けの安全なパース</summary>
+        private static bool TryParseEnum<T>(string name, out T result) where T : struct
+        {
+            try
+            {
+                result = (T) Enum.Parse(typeof(T), name);
+                return true;
+            }
+            catch (Exception)
+            {
+                result = default(T);
+                return false;
+            }
         }
 
         /// <summary>
@@ -1908,6 +2526,142 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// モデル/背景のシェイプキーとマテリアル差分を適用する (v21)。
+        /// ApplyModelBoneEdits と同じく外部プロバイダのモデル復元 (同期) の後に呼ぶ。
+        /// 照合に失敗したものは警告のみで飛ばす
+        /// </summary>
+        private static void ApplyModelAppearances(ScenePresetData data)
+        {
+            ProviderModelStat.CleanupDestroyed();
+
+            var entries = ModelProviderHost.GetModels();
+            ApplyModelMaterials(data, entries);
+            ApplyModelShapeKeys(data, entries);
+            ApplyBgMaterials(data);
+        }
+
+        /// <summary>保存されたモデルマテリアル差分を適用する</summary>
+        private static void ApplyModelMaterials(ScenePresetData data, List<ExternalModelEntry> entries)
+        {
+            if (data.modelMaterials == null || data.modelMaterials.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var materialState in data.modelMaterials)
+            {
+                var separatorIndex = (materialState.owner ?? "").LastIndexOf(ModelOwnerSeparator);
+                if (separatorIndex < 0)
+                {
+                    continue;
+                }
+                var modelName = materialState.owner.Substring(0, separatorIndex);
+                var pluginName = materialState.owner.Substring(separatorIndex + 1);
+
+                // ModelBoneEdit と同じ照合 (同名複数は先勝ち)
+                var entry = entries.Find(e =>
+                    e.obj != null && e.obj.name == modelName && e.pluginName == pluginName);
+                if (entry == null)
+                {
+                    MTEUtils.LogWarning(
+                        "マテリアル適用先のモデルが見つかりません: {0}", materialState.owner);
+                    continue;
+                }
+
+                var stat = ProviderModelStat.GetOrCreate(entry.obj, entry.displayName);
+                var material = FindMaterial(stat.materials, materialState);
+                if (material == null)
+                {
+                    continue;
+                }
+                ApplyMaterial(material, materialState);
+            }
+        }
+
+        /// <summary>保存されたモデルシェイプキーを適用する。StudioModelStat を transform 一致で逆引きする</summary>
+        private static void ApplyModelShapeKeys(ScenePresetData data, List<ExternalModelEntry> entries)
+        {
+            if (data.modelShapeKeys == null || data.modelShapeKeys.Count == 0)
+            {
+                return;
+            }
+
+            var models = MTEP.StudioModelManager.instance.models;
+            var touchedModels = new HashSet<MTEP.StudioModelStat>();
+            foreach (var shapeKeyState in data.modelShapeKeys)
+            {
+                var entry = entries.Find(e => e.obj != null
+                    && e.obj.name == shapeKeyState.modelName
+                    && e.pluginName == shapeKeyState.pluginName);
+                if (entry == null)
+                {
+                    continue;
+                }
+                var model = models.Find(m => m != null && m.transform != null
+                    && (m.transform == entry.obj.transform || m.transform.IsChildOf(entry.obj.transform)));
+                if (model == null)
+                {
+                    MTEUtils.LogWarning(
+                        "シェイプキー適用先のモデルが見つかりません: {0}", shapeKeyState.modelName);
+                    continue;
+                }
+                var blendShape = model.blendShapes.Find(b => b.shapeKeyName == shapeKeyState.name);
+                if (blendShape == null)
+                {
+                    continue;
+                }
+                blendShape.weight = shapeKeyState.value;
+                // 保存されていた = ユーザーがチェックしていた。旧バージョンのプリセットでも
+                // 「記載分 = チェック済み」で辻褄が合う (表情の v22 と同じ扱い)。
+                // 表情のような SetNames ではなく Mark の積み増しにするのは、
+                // 部分適用で見つからなかったモデルのチェックを巻き添えで消さないため
+                ModelShapeKeyEditManager.instance
+                    .GetStore(model.transform.gameObject).Mark(shapeKeyState.name);
+                touchedModels.Add(model);
+            }
+            // FixBlendValues は頂点全走査で重いためモデルごとに 1 回
+            foreach (var model in touchedModels)
+            {
+                model.FixBlendValues();
+            }
+        }
+
+        /// <summary>保存された背景マテリアル差分を適用する。背景を復元しない設定のときは触らない</summary>
+        private static void ApplyBgMaterials(ScenePresetData data)
+        {
+            if (data.bgMaterials == null || data.bgMaterials.Count == 0 || !ShouldApplyBackground(data))
+            {
+                return;
+            }
+
+            var bgObject = GameMain.Instance.BgMgr.BgObject;
+            if (bgObject == null)
+            {
+                return;
+            }
+
+            foreach (var materialState in data.bgMaterials)
+            {
+                var target = string.IsNullOrEmpty(materialState.owner)
+                    ? bgObject.transform
+                    : bgObject.transform.Find(materialState.owner);
+                if (target == null)
+                {
+                    MTEUtils.LogWarning(
+                        "背景マテリアル適用先が見つかりません: {0}", materialState.owner);
+                    continue;
+                }
+                var stat = ProviderModelStat.GetOrCreate(target.gameObject, target.name);
+                var material = FindMaterial(stat.materials, materialState);
+                if (material == null)
+                {
+                    continue;
+                }
+                ApplyMaterial(material, materialState);
+            }
+        }
+
         /// <summary>脱衣・めくれ系を復元する。旧プリセット (undress 無し) では変更しない</summary>
         private static void ApplyUndress(Maid maid, ScenePresetMaid state)
         {
@@ -1975,6 +2729,7 @@ namespace COM3D2.SceneEditor.Plugin
             for (var i = 0; i < (int)MaidIKHoldType.Max; i++)
             {
                 var type = (MaidIKHoldType)i;
+                ik.SetAnime(maid, type, state.ikAnimes.Contains(type.ToString()));
                 ik.SetHold(maid, type, state.ikHolds.Contains(type.ToString()));
             }
         }
@@ -2003,9 +2758,12 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         value = 0f;
                     }
-                    MaidFaceMorphController.SetMorphValue(maid, def, value);
+                    MaidFaceMorphController.SetStoredMorphValue(maid, def, value);
                 }
             }
+
+            // 保存されているモーフ=保存時のチェック済み集合。ロード後すぐ編集を継続できるよう復元する
+            FaceEditManager.instance.GetStore(maid).SetNames(savedValues.Keys);
 
             MaidFaceMorphController.SetMabataki(maid, state.mabataki);
         }

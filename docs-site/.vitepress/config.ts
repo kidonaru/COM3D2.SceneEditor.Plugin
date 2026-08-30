@@ -54,6 +54,7 @@ export default defineConfig({
             { text: 'メイド編集', link: '/guide/maid-editing' },
             { text: '演出と撮影', link: '/guide/staging' },
             { text: 'シーンプリセット', link: '/guide/scene-preset' },
+            { text: 'タイムライン', link: '/guide/timeline' },
             { text: 'ショートカット', link: '/guide/shortcuts' },
             { text: '設定リファレンス', link: '/guide/configuration' },
             { text: '既知の制限', link: '/guide/limitations' },

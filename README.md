@@ -17,6 +17,16 @@ https://github.com/user-attachments/assets/419cb107-f25d-426e-a117-f8c052b7da17
 ビルド方法と外部プラグイン連携ガイドは、
 [開発者向けドキュメント](https://kidonaru.github.io/COM3D2.SceneEditor.Plugin/dev/)をご覧ください。
 
+### テスト
+
+タイムラインデータ層（XML シリアライズ・補間）のゲーム外テスト。
+
+前提: COM3D25 構成でプラグインをビルド済みであること（`bin/Debug/COM3D25/` の DLL を参照するため）。
+
+```
+dotnet test source/COM3D2.SceneEditor.Plugin.Tests
+```
+
 ## ライセンス
 
 [MIT License](LICENSE)

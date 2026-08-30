@@ -1,13 +1,16 @@
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// カメラの構図を数値/スライダーで確認・編集するウィンドウ。
-    /// 操作対象は Main (CameraMain) と SceneView 用カメラから選べる。
+    /// 操作対象は Main (CameraMain) / SceneView 用カメラ / サブカメラから選べる。
     /// Main は注視点・距離・回転・FOV を UltimateOrbitCamera の API で編集し、
     /// SceneView も同じ構図モデルを SceneViewCameraController の API で編集する。
     /// 値は毎フレーム読み戻すため、マウス操作や他機能による変更もそのまま表示へ反映される
@@ -22,17 +25,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
 
-        // リセット時の既定値 (CameraMain.Reset の Target カメラ初期値に合わせる)
-        private static readonly Vector3 DefaultTargetPos = new Vector3(0f, 1.5f, 0f);
-        private static readonly float DefaultDistance = 2f;
-        private static readonly Vector2 DefaultAroundAngle = new Vector2(180f, 10f);
-        private static readonly float DefaultFov = 35f;
-
-        private static readonly string[] TargetNames = { "Main", "SceneView" };
+        private static readonly string[] TargetNames = { "Main", "SceneView", "サブカメラ" };
         private static readonly int TargetButtonWidth = 90;
-
-        // 座標行 (Inspector の座標行と同じ形式) のドラッグ感度
-        private const float PositionDragSensitivity = 0.01f;
 
         // カメラプリセットのスロット数 (ボタン 1〜10)
         private const int PresetCount = 10;
@@ -55,7 +49,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly Vector2 PresetMenuContentSize = new Vector2(80, 60);
 
-        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView)</summary>
+        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView, 2: サブカメラ)</summary>
         private int _targetIndex = 0;
 
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
@@ -73,6 +67,47 @@ namespace COM3D2.SceneEditor.Plugin
                 buttonSize = new Vector2(PresetButtonWidth, ROW_HEIGHT),
                 contentSize = PresetMenuContentSize,
             };
+
+        // メイドの部位へ注視点を移すフォーカス行のコンボ
+        private readonly GUIComboBox<MTEP.MaidCache> _focusMaidComboBox =
+            new GUIComboBox<MTEP.MaidCache>
+            {
+                getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
+                buttonSize = new Vector2(120, ROW_HEIGHT),
+                contentSize = new Vector2(150, 300),
+                showArrow = false,
+            };
+
+        private readonly GUIComboBox<MTEP.MaidPointType> _focusPointComboBox =
+            new GUIComboBox<MTEP.MaidPointType>
+            {
+                items = Enum.GetValues(typeof(MTEP.MaidPointType))
+                    .Cast<MTEP.MaidPointType>().ToList(),
+                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
+                buttonSize = new Vector2(60, ROW_HEIGHT),
+                contentSize = new Vector2(80, 300),
+                showArrow = false,
+            };
+
+        // ---- サブカメラタブ ----
+
+        private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
+        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
+        private static MTEP.SubCameraManager subCameraManager => MTEP.SubCameraManager.instance;
+
+        private readonly GUIComboBox<MTEP.SubCameraData> _subCameraComboBox =
+            new GUIComboBox<MTEP.SubCameraData>
+            {
+                getName = (cameraData, _) => cameraData.displayName,
+                labelWidth = LABEL_WIDTH,
+                buttonSize = new Vector2(150, ROW_HEIGHT),
+                contentSize = new Vector2(150, 300),
+            };
+
+        // 回転オフセットのキャッシュとコンボ開閉状態をカメラごとに分けるため名前で引く
+        // (台数上限 8 なので減った分の掃除はしない)
+        private readonly ItemRowDrawerCache<SubCameraRowDrawer> _subCameraRowDrawers =
+            new ItemRowDrawerCache<SubCameraRowDrawer>();
 
         private static CameraWindow _instance = null;
         public static CameraWindow instance
@@ -124,13 +159,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (_targetIndex == 0)
             {
-                // プリセットは Main カメラ専用のため SceneView タブでは行を出さない
+                // プリセットは Main カメラ専用のため他タブでは行を出さない
                 DrawPresetRow();
                 DrawMainCameraContent();
             }
-            else
+            else if (_targetIndex == 1)
             {
                 DrawSceneViewCameraContent();
+            }
+            else if (_targetIndex == 2)
+            {
+                DrawSubCameraContent();
             }
 
             // 右クリックで _rootView に登録されたフォーカスをポップアップへ引き渡す
@@ -293,7 +332,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            RecordCameraEdit("プリセット " + slot);
+            MainCameraRowDrawer.RecordCameraEdit("プリセット " + slot);
             ApplyCameraPreset(mainCamera, camera, stored);
         }
 
@@ -367,13 +406,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            DrawTargetPosRow(mainCamera);
+            MainCameraRowDrawer.DrawTargetPosRow(_view, mainCamera, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
-            DrawAngleSliders(mainCamera, camera);
+            MainCameraRowDrawer.DrawAngleSliders(_view, mainCamera, camera, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
-            DrawDistanceFovSliders(mainCamera, camera);
+            MainCameraRowDrawer.DrawDistanceFovSliders(_view, mainCamera, camera, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
             DrawResetAndMatchSceneViewRow(mainCamera, camera);
+            _view.DrawHorizontalLine();
+            DrawFocusRow(mainCamera);
 
             _view.EndScrollView();
         }
@@ -414,31 +455,35 @@ namespace COM3D2.SceneEditor.Plugin
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             // リセット先はメインカメラの初期注視点と同じ座標 (SceneView 独自の値ではない)
-            DrawVector3Row("注視点", PositionDragSensitivity, controller.targetPos,
+            Vector3RowDrawer.Draw(_view, "注視点", MainCameraRowDrawer.PositionDragSensitivity,
+                LABEL_WIDTH, ROW_HEIGHT, controller.targetPos,
                 value => controller.targetPos = value,
-                () => controller.targetPos = DefaultTargetPos);
+                () => controller.targetPos = MainCameraRowDrawer.DefaultTargetPos);
 
             _view.DrawHorizontalLine();
 
             // 旋回で 0〜360 に丸まるため、表示は ±180 度へ正規化する
             var aroundAngle = controller.aroundAngle;
-            var yaw = NormalizeAngle(aroundAngle.x);
-            var pitch = NormalizeAngle(aroundAngle.y);
+            var yaw = AngleUtils.NormalizeAngle(aroundAngle.x);
+            var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
 
-            DrawAxisSlider("ヨー", yaw, -180f, 180f, 0.1f,
-                NormalizeAngle(DefaultAroundAngle.x),
+            MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー", yaw, -180f, 180f, 0.1f,
+                AngleUtils.NormalizeAngle(MainCameraRowDrawer.DefaultAroundAngle.x),
+                LABEL_WIDTH, ROW_HEIGHT,
                 value => controller.aroundAngle = new Vector2(value, pitch));
-            DrawAxisSlider("ピッチ", pitch, -90f, 90f, 0.1f,
-                DefaultAroundAngle.y,
+            MainCameraRowDrawer.DrawAxisSlider(_view, "ピッチ", pitch, -90f, 90f, 0.1f,
+                MainCameraRowDrawer.DefaultAroundAngle.y, LABEL_WIDTH, ROW_HEIGHT,
                 value => controller.aroundAngle = new Vector2(yaw, value));
 
             _view.DrawHorizontalLine();
 
-            DrawAxisSlider("距離", controller.distance, 0.1f, 30f, 0.01f,
-                DefaultDistance, value => controller.distance = value);
+            MainCameraRowDrawer.DrawAxisSlider(_view, "距離", controller.distance, 0.1f, 30f, 0.01f,
+                MainCameraRowDrawer.DefaultDistance, LABEL_WIDTH, ROW_HEIGHT,
+                value => controller.distance = value);
 
-            DrawAxisSlider("FOV", camera.fieldOfView, 1f, 179f, 0.1f,
-                DefaultFov, value => camera.fieldOfView = value);
+            MainCameraRowDrawer.DrawAxisSlider(_view, "FOV", camera.fieldOfView, 1f, 179f, 0.1f,
+                MainCameraRowDrawer.DefaultFov, LABEL_WIDTH, ROW_HEIGHT,
+                value => camera.fieldOfView = value);
 
             _view.DrawHorizontalLine();
 
@@ -447,10 +492,10 @@ namespace COM3D2.SceneEditor.Plugin
                 // Main のリセットと同じ構図 (注視点・距離・回転・FOV) へ戻す
                 if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
                 {
-                    controller.targetPos = DefaultTargetPos;
-                    controller.distance = DefaultDistance;
-                    controller.aroundAngle = DefaultAroundAngle;
-                    camera.fieldOfView = DefaultFov;
+                    controller.targetPos = MainCameraRowDrawer.DefaultTargetPos;
+                    controller.distance = MainCameraRowDrawer.DefaultDistance;
+                    controller.aroundAngle = MainCameraRowDrawer.DefaultAroundAngle;
+                    camera.fieldOfView = MainCameraRowDrawer.DefaultFov;
                 }
 
                 // メインカメラの構図へ合わせ直す
@@ -473,100 +518,6 @@ namespace COM3D2.SceneEditor.Plugin
             _view.EndScrollView();
         }
 
-        /// <summary>注視点のワールド座標。Inspector の座標行と同じ表示形式で編集する</summary>
-        private void DrawTargetPosRow(CameraMain mainCamera)
-        {
-            DrawVector3Row("注視点", PositionDragSensitivity, mainCamera.GetTargetPos(),
-                value =>
-                {
-                    RecordCameraEdit("注視点");
-                    mainCamera.SetTargetPos(value);
-                },
-                () =>
-                {
-                    RecordCameraEdit("注視点");
-                    mainCamera.SetTargetPos(DefaultTargetPos);
-                });
-        }
-
-        /// <summary>メインカメラの操作を履歴へ記録する。SceneView カメラは対象にしない</summary>
-        private static void RecordCameraEdit(string label)
-        {
-            HistoryManager.instance.BeforeEdit(null, HistoryScope.Camera, "カメラ: " + label);
-        }
-
-        /// <summary>ラベル + XYZ (ドラッグラベル + 数値入力) + リセットボタンの 1 行</summary>
-        private void DrawVector3Row(
-            string label,
-            float dragSensitivity,
-            Vector3 value,
-            System.Action<Vector3> onChanged,
-            System.Action onReset)
-        {
-            _view.DrawVector3Row(new GUIView.Vector3RowOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                height = ROW_HEIGHT,
-                dragSensitivity = dragSensitivity,
-                value = value,
-                onChanged = onChanged,
-                onReset = onReset,
-            });
-        }
-
-        /// <summary>
-        /// 回転。GetAroundAngle は x がヨー (水平旋回)、y がピッチ (仰俯角)。
-        /// ロールは UltimateOrbitCamera が管理しないため Transform へ直接書く
-        /// </summary>
-        private void DrawAngleSliders(CameraMain mainCamera, Camera camera)
-        {
-            var aroundAngle = mainCamera.GetAroundAngle();
-
-            // 旋回中は値が際限なく積み上がるため、表示は ±180 度へ正規化する
-            var yaw = NormalizeAngle(aroundAngle.x);
-            var pitch = NormalizeAngle(aroundAngle.y);
-            var roll = NormalizeAngle(camera.transform.eulerAngles.z);
-
-            DrawAxisSlider("ヨー", yaw, -180f, 180f, 0.1f,
-                NormalizeAngle(DefaultAroundAngle.x), value =>
-                {
-                    RecordCameraEdit("ヨー");
-                    mainCamera.SetAroundAngle(new Vector2(value, pitch));
-                });
-            DrawAxisSlider("ピッチ", pitch, -90f, 90f, 0.1f,
-                DefaultAroundAngle.y, value =>
-                {
-                    RecordCameraEdit("ピッチ");
-                    mainCamera.SetAroundAngle(new Vector2(yaw, value));
-                });
-            DrawAxisSlider("ロール", roll, -180f, 180f, 0.1f, 0f, value =>
-                {
-                    RecordCameraEdit("ロール");
-                    var eulerAngles = camera.transform.eulerAngles;
-                    eulerAngles.z = value;
-                    camera.transform.eulerAngles = eulerAngles;
-                });
-        }
-
-        /// <summary>注視点からの距離と視野角</summary>
-        private void DrawDistanceFovSliders(CameraMain mainCamera, Camera camera)
-        {
-            DrawAxisSlider("距離", mainCamera.GetDistance(), 0.1f, 30f, 0.01f,
-                DefaultDistance, value =>
-                {
-                    RecordCameraEdit("距離");
-                    mainCamera.SetDistance(value);
-                });
-
-            DrawAxisSlider("FOV", camera.fieldOfView, 1f, 179f, 0.1f,
-                DefaultFov, value =>
-                {
-                    RecordCameraEdit("FOV");
-                    camera.fieldOfView = value;
-                });
-        }
-
         /// <summary>
         /// リセットと SceneView 追従の行。
         /// リセットはエディット画面相当の初期構図へ戻す。
@@ -579,16 +530,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
                 {
-                    RecordCameraEdit("リセット");
-                    mainCamera.SetTargetPos(DefaultTargetPos);
-                    mainCamera.SetDistance(DefaultDistance);
-                    mainCamera.SetAroundAngle(DefaultAroundAngle);
+                    MainCameraRowDrawer.RecordCameraEdit("リセット");
+                    mainCamera.SetTargetPos(MainCameraRowDrawer.DefaultTargetPos);
+                    mainCamera.SetDistance(MainCameraRowDrawer.DefaultDistance);
+                    mainCamera.SetAroundAngle(MainCameraRowDrawer.DefaultAroundAngle);
 
                     var eulerAngles = camera.transform.eulerAngles;
                     eulerAngles.z = 0f;
                     camera.transform.eulerAngles = eulerAngles;
 
-                    camera.fieldOfView = DefaultFov;
+                    camera.fieldOfView = MainCameraRowDrawer.DefaultFov;
                 }
 
                 // SceneView が開かれていないと参照する構図が無いため押せない
@@ -599,7 +550,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (_view.DrawButton("SceneViewカメラへ合わせる", 190, ROW_HEIGHT,
                     enabled: canMatchSceneView))
                 {
-                    RecordCameraEdit("SceneViewへ合わせる");
+                    MainCameraRowDrawer.RecordCameraEdit("SceneViewへ合わせる");
                     mainCamera.SetTargetPos(controller.targetPos);
                     mainCamera.SetDistance(controller.distance);
                     mainCamera.SetAroundAngle(controller.aroundAngle);
@@ -615,30 +566,95 @@ namespace COM3D2.SceneEditor.Plugin
             _view.EndLayout();
         }
 
-        /// <summary>共通書式のスライダー 1 行</summary>
-        private void DrawAxisSlider(
-            string label, float value, float min, float max, float step,
-            float defaultValue, System.Action<float> onChanged)
+        /// <summary>選んだメイドの部位へ注視点を移すフォーカス行</summary>
+        private void DrawFocusRow(CameraMain mainCamera)
         {
-            _view.DrawSliderValue(new GUIView.SliderOption
+            _view.BeginHorizontal();
             {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = min,
-                max = max,
-                step = step,
-                defaultValue = defaultValue,
-                value = value,
-                onChanged = onChanged,
-            });
+                _view.DrawLabel("フォーカス", LABEL_WIDTH, ROW_HEIGHT);
+
+                _focusMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
+                _focusMaidComboBox.DrawButton(_view);
+                _focusPointComboBox.DrawButton(_view);
+
+                var maidCache = _focusMaidComboBox.currentItem;
+                if (_view.DrawButton("移動", 60, ROW_HEIGHT, enabled: maidCache != null))
+                {
+                    var point = maidCache.GetPointTransform(_focusPointComboBox.currentItem);
+                    if (point != null)
+                    {
+                        MainCameraRowDrawer.RecordCameraEdit("フォーカス");
+                        mainCamera.SetTargetPos(point.position);
+                    }
+                }
+            }
+            _view.EndLayout();
         }
 
-        /// <summary>角度を (-180, 180] へ正規化する</summary>
-        private static float NormalizeAngle(float angle)
+        /// <summary>
+        /// サブカメラの管理タブ。台数の増減と選択したカメラの編集を行う。
+        /// タイムライン未読込時も台数の増減と編集ができる
+        /// </summary>
+        private void DrawSubCameraContent()
         {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            _view.SetEnabled(_view.focusedComboBox == null);
+
+            DrawSubCameraCountRow();
+
+            var subCameras = subCameraManager.subCameras;
+            if (subCameras.Count == 0)
+            {
+                _view.DrawLabel("サブカメラが存在しません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            // 台数を減らすと選択が範囲外に残るため、末尾へ寄せ直す
+            _subCameraComboBox.items = subCameras;
+            _subCameraComboBox.currentIndex =
+                Mathf.Clamp(_subCameraComboBox.currentIndex, 0, subCameras.Count - 1);
+            _subCameraComboBox.DrawButton("操作対象", _view);
+
+            var cameraData = _subCameraComboBox.currentItem;
+            if (cameraData == null || cameraData.camera == null)
+            {
+                _view.DrawLabel("サブカメラを選択してください", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            // タイムライン読込中はレイヤーが毎フレーム再生値を書き戻すため編集モード中のみ、
+            // 未読込時はレイヤーが動かないため常時編集できる
+            var canEdit = timelineManager.timeline == null ||
+                studioHackManager.isPoseEditing;
+            if (!canEdit)
+            {
+                _view.DrawLabel("編集モード中のみサブカメラを操作できます", -1, ROW_HEIGHT,
+                    textColor: Color.yellow);
+            }
+            _view.SetEnabled(_view.focusedComboBox == null && canEdit);
+
+            _subCameraRowDrawers.Get(cameraData.name)
+                .Draw(_view, cameraData, LABEL_WIDTH, ROW_HEIGHT);
+
+            _view.SetEnabled(_view.focusedComboBox == null);
+            _view.EndScrollView();
+        }
+
+        /// <summary>サブカメラ台数の増減行</summary>
+        private void DrawSubCameraCountRow()
+        {
+            CountRowDrawer.Draw(_view, "サブカメラ数", ROW_HEIGHT,
+                subCameraManager.subCameras.Count,
+                MTEP.SubCameraManager.MinSubCameraCount,
+                MTEP.SubCameraManager.MaxSubCameraCount,
+                x => subCameraManager.SetCameraCount(x));
         }
     }
 }

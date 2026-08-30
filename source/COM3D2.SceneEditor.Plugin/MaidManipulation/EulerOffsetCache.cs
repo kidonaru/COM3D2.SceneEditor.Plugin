@@ -37,17 +37,17 @@ namespace COM3D2.SceneEditor.Plugin
                 : rot * Quaternion.Inverse(baseRot);
             var raw = offsetQ.eulerAngles;
             var euler = new Vector3(
-                NormalizeAngle(raw.x),
-                NormalizeAngle(raw.y),
-                NormalizeAngle(raw.z));
+                AngleUtils.NormalizeAngle(raw.x),
+                AngleUtils.NormalizeAngle(raw.y),
+                AngleUtils.NormalizeAngle(raw.z));
 
             if (sameTarget)
             {
                 // 等価表現 (180-X, Y+180, Z+180) のうち前回に近い方を選ぶ
                 var alt = new Vector3(
-                    NormalizeAngle(180f - euler.x),
-                    NormalizeAngle(euler.y + 180f),
-                    NormalizeAngle(euler.z + 180f));
+                    AngleUtils.NormalizeAngle(180f - euler.x),
+                    AngleUtils.NormalizeAngle(euler.y + 180f),
+                    AngleUtils.NormalizeAngle(euler.z + 180f));
                 if (DiffScore(alt, _euler) < DiffScore(euler, _euler))
                 {
                     euler = alt;
@@ -70,9 +70,9 @@ namespace COM3D2.SceneEditor.Plugin
             _baseRot = baseRot;
             _rot = useLocal ? target.localRotation : target.rotation;
             _euler = new Vector3(
-                NormalizeAngle(euler.x),
-                NormalizeAngle(euler.y),
-                NormalizeAngle(euler.z));
+                AngleUtils.NormalizeAngle(euler.x),
+                AngleUtils.NormalizeAngle(euler.y),
+                AngleUtils.NormalizeAngle(euler.z));
         }
 
         public void Clear()
@@ -139,13 +139,6 @@ namespace COM3D2.SceneEditor.Plugin
                 target.rotation = Quaternion.Euler(offset) * baseWorld;
                 Store(target, baseWorld, offset, false);
             }
-        }
-
-        /// <summary>角度を -180〜180 に正規化する</summary>
-        public static float NormalizeAngle(float angle)
-        {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
         }
     }
 }

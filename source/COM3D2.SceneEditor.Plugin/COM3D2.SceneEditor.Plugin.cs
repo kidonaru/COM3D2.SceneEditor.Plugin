@@ -320,6 +320,7 @@ namespace COM3D2.SceneEditor.Plugin
                 windowManager.SavePlacements();
             }
             configManager.SaveConfigXml();
+            COM3D2.MotionTimelineEditor.Plugin.ConfigManager.instance.SaveConfigXml();
         }
 
         private void Initialize()
@@ -370,11 +371,19 @@ namespace COM3D2.SceneEditor.Plugin
                 managerRegistry.RegisterManager(MaidManipulateManager.instance);
                 // 操作対象メイドが確定してからボーンツリーを解決するため MaidManipulateManager より後に登録する
                 managerRegistry.RegisterManager(BoneEditManager.instance);
+                managerRegistry.RegisterManager(FaceEditManager.instance);
+                managerRegistry.RegisterManager(ModelShapeKeyEditManager.instance);
+                managerRegistry.RegisterManager(MaidShapeKeyEditManager.instance);
+                managerRegistry.RegisterManager(MaidMaterialEditManager.instance);
+                managerRegistry.RegisterManager(ModelMaterialEditManager.instance);
                 // 各操作の BeforeEdit を受けてマウス解放で確定するだけなので登録順は問わない
                 managerRegistry.RegisterManager(HistoryManager.instance);
                 // 各ウィンドウの状態更新後にドラッグ判定を行うため WindowManager より後に登録する
                 managerRegistry.RegisterManager(TabGroupManager.instance);
                 managerRegistry.RegisterManager(WindowConnectManager.instance);
+
+                // タイムライン (MTE 移植) の登録。ウィンドウ更新後に状態を反映するため後段に置く
+                TimelineIntegration.Initialize(managerRegistry);
 
                 AddGearMenu();
             }

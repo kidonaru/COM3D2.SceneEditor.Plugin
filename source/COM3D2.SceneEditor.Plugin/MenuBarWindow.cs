@@ -27,7 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>IMGUI 既定の縦スクロールバー幅。項目幅の差し引きに使う</summary>
         public static readonly int SCROLLBAR_WIDTH = 16;
         // ポップアップ項目のホバー色。label スタイルはホバー反応を持たないため自前で塗る
-        private static readonly Color ITEM_HOVER_COLOR = new Color(1f, 1f, 1f, 0.15f);
+        public static readonly Color ITEM_HOVER_COLOR = new Color(1f, 1f, 1f, 0.15f);
 
         private static Config config => ConfigManager.instance.config;
 
@@ -125,10 +125,17 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("Inspector", InspectorWindow.instance),
                         CreateWindowItem("Camera", CameraWindow.instance),
                         CreateWindowItem("背景", BackgroundWindow.instance),
-                        CreateWindowItem("BGM", BgmWindow.instance),
+                        CreateWindowItem("サウンド", SoundWindow.instance),
+                        CreateWindowItem("ライブ演出", LiveEffectWindow.instance),
+                        CreateWindowItem("テキスト", TextWindow.instance),
                         CreateWindowItem("ライト", LightWindow.instance),
                         CreateWindowItem("PNG配置", PngPlacementWindow.instance),
                         CreateWindowItem("プリセット", PresetWindow.instance),
+                        CreateWindowItem("タイムライン", TimelineWindow.instance),
+                        CreateWindowItem("タイムライン操作", TimelineControlWindow.instance),
+                        CreateWindowItem("タイムライン設定", TimelineSettingWindow.instance),
+                        CreateWindowItem("タイムラインロード", TimelineLoadWindow.instance),
+                        CreateWindowItem("テンプレート", TimelineTemplateWindow.instance),
                         CreateWindowItem("操作履歴", HistoryWindow.instance),
                         CreateWindowItem("設定", SettingWindow.instance),
                     },
@@ -146,6 +153,8 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("脱衣", MaidUndressWindow.instance),
                         CreateWindowItem("重力", MaidGravityWindow.instance),
                         CreateWindowItem("ボーン", BoneEditWindow.instance),
+                        CreateWindowItem("シェイプキー", ShapeKeyEditWindow.instance),
+                        CreateWindowItem("マテリアル", MaterialEditWindow.instance),
                     },
                 },
                 new MenuDef
@@ -316,23 +325,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 label = label,
                 isOn = () => window.isShowWnd,
-                toggle = () =>
-                {
-                    window.isShowWnd = !window.isShowWnd;
-
-                    if (window.isShowWnd)
-                    {
-                        // 表示位置のヘッダーが他ウィンドウと重なっていればそのままドッキングする
-                        TabGroupManager.instance.MergeIfHeaderOverlaps(window);
-                    }
-                    else
-                    {
-                        // 非表示にしたウィンドウをグループへ残すとタブバーに出続けるため、
-                        // ウィンドウ自身の x ボタンと同様にグループからも外す
-                        TabGroupManager.instance.RemoveFromGroup(window);
-                        WindowConnectManager.instance.OnWindowHidden(window);
-                    }
-                },
+                toggle = () => WindowManager.ToggleWindowVisible(window),
             };
         }
 
