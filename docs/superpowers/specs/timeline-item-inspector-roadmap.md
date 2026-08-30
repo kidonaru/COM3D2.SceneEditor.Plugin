@@ -263,7 +263,7 @@ Phase S2 実機確認項目(loop 中に追記):
 Phase S3(カメラ・ライト・背景):
 
 - [x] CameraTimelineLayer(カメラ位置/回転/距離/FoV / CameraWindow `DrawMainCameraContent` / 逆方向なし)
-- [ ] SubCameraTimelineLayer(サブカメラ設定・レイヤー固有 / 逆方向なし)
+- [x] SubCameraTimelineLayer(サブカメラ設定・レイヤー固有 / 逆方向なし)
 - [ ] LightTimelineLayer(ライト Transform・色・強度 / LightWindow / 逆方向あり: `Select(ライトGameObject)`)
 - [ ] BGTimelineLayer(背景 Transform / BackgroundWindow / 逆方向あり: 背景オブジェクト選択)
 - [ ] BGColorTimelineLayer(背景色・地面設定 / BackgroundWindow `DrawBgColorRow` / 逆方向なし)
@@ -277,6 +277,14 @@ Phase S3 実機確認項目(loop 中に追記):
 - [ ] カメラウィンドウの Main タブ(注視点・角度・距離/FOV・プリセット・リセット・フォーカス)に退行が無い(抽出リファクタリングの確認)
 - [ ] カメラウィンドウの SceneView タブの注視点行・角度・距離/FOV に退行が無い(共通ヘルパーへ寄せた影響の確認)
 - [ ] カメラウィンドウと Inspector を同時に開いて同じ項目を編集しても数値入力欄が干渉しない
+- [ ] サブカメラレイヤーでカメラ行を選択 → Inspector に有効・追従メイド・位置・回転・FoV・ビューポートが出て編集できる
+- [ ] 編集モードでないときは「編集モード中のみサブカメラを操作できます」が出て編集行が出ない(レイヤーが再生値で上書きするための制約)
+- [ ] 追従メイドを選ぶと追従ポイント・向き反映が現れ、位置行のラベルが「オフセット」に変わる
+- [ ] 向き反映を ON にした状態の回転編集が追従点基準のオフセットとして効く(レイヤー UI と同じ結果になるか)
+- [ ] 追従メイドを「なし」に戻すと追従が解除される。追従中のメイドが退去してもコンボが壊れない
+- [ ] ビューポートの X/Y/幅/高さを変えると画面内のサブカメラ表示が即座に追従する
+- [ ] 複数のサブカメラ行を同時に選択しても回転角が跳ねず、コンボが混ざらない
+- [ ] Inspector で設定した内容がそのままキーフレームに載る
 
 Phase S4(サウンド・演出系):
 

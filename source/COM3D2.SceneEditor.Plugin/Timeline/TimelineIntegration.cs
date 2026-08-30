@@ -290,6 +290,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.MaidMaterialTimelineLayer), new MaidMaterialItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.CameraTimelineLayer), new CameraItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.SubCameraTimelineLayer), new SubCameraItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
