@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 // Assembly-UnityScript-firstpass のグローバル名前空間には Unity 5 世代の DepthOfFieldScatter が
 // 残骸として残っており、素の型名ではそちらに束縛されて Unity 2022 で削除された
@@ -68,6 +68,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         public int depthOfFieldMaidSlotId = -1;
+
+        // 各エフェクト数の上限。UI の増減行とプリセット復元時の丸めで同じ値を使う
+        public const int MaxParaffinCount = 8;
+        public const int MaxDistanceFogCount = 4;
+        public const int MaxRimlightCount = 8;
 
         // タイムライン未読込時の各エフェクト数。プリセット復元をタイムライン非依存にするための自前の所有者。
         // 既定値は TimelineData の既定値 (各 1) と揃える

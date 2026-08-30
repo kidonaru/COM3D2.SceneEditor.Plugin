@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -25,6 +25,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     public class TimelineTextManager : ManagerBase
     {
         public static readonly string DefaultFontName = "Yu Gothic Bold";
+
+        /// <summary>
+        /// テキスト表示数の範囲。MTE 側に対応する定数はなく、
+        /// TimelineSettingWindow の旧・要素数行から引き継いだ SE 独自の UI 制約
+        /// </summary>
+        public const int MinTextCount = 1;
+        public const int MaxTextCount = 16;
 
         /// <summary>
         /// 字幕を載せるレイヤー。シーン側で未使用かつメインカメラのカリング対象外なので、

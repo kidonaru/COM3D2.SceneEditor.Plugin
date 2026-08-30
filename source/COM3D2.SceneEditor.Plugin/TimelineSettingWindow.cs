@@ -318,11 +318,14 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.DrawLabel("要素数", 100, ROW_HEIGHT);
 
-            CountRowDrawer.Draw(view, "パラフィン数", ROW_HEIGHT, timeline.paraffinCount, 0, 8,
+            CountRowDrawer.Draw(view, "パラフィン数", ROW_HEIGHT, timeline.paraffinCount,
+                0, MTEP.PostEffectManager.MaxParaffinCount,
                 x => timeline.paraffinCount = x);
-            CountRowDrawer.Draw(view, "距離フォグ数", ROW_HEIGHT, timeline.distanceFogCount, 0, 4,
+            CountRowDrawer.Draw(view, "距離フォグ数", ROW_HEIGHT, timeline.distanceFogCount,
+                0, MTEP.PostEffectManager.MaxDistanceFogCount,
                 x => timeline.distanceFogCount = x);
-            CountRowDrawer.Draw(view, "リムライト数", ROW_HEIGHT, timeline.rimlightCount, 0, 8,
+            CountRowDrawer.Draw(view, "リムライト数", ROW_HEIGHT, timeline.rimlightCount,
+                0, MTEP.PostEffectManager.MaxRimlightCount,
                 x => timeline.rimlightCount = x);
         }
 

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -10,12 +10,6 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class MteEffectsSnapshot
     {
-        // 適用時の上限。手編集や破損 XML の異常値で大量生成しないよう UI と同じ範囲へ丸める
-        private const int MaxTextCount = 16;
-        private const int MaxParaffinCount = 8;
-        private const int MaxDistanceFogCount = 4;
-        private const int MaxRimlightCount = 8;
-
         private static MTEP.TimelineTextManager textManager
             => MTEP.TimelineTextManager.instance;
         private static MTEP.SubCameraManager subCameraManager
@@ -80,7 +74,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var count = Mathf.Min(data.texts.Count, MaxTextCount);
+            // 手編集や破損 XML の異常値で大量生成しないよう UI と同じ上限へ丸める
+            var count = Mathf.Min(data.texts.Count, MTEP.TimelineTextManager.MaxTextCount);
             textManager.textCount = count;
             // タイムライン読込中はテキストレイヤーの LateUpdate も作り直すが、
             // 未読込時はここが唯一の生成経路のため直接呼ぶ (InitTexts は冪等)
@@ -212,9 +207,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static void ApplyPostEffects(ScenePresetEffects data)
         {
-            var paraffinCount = Mathf.Min(data.paraffins.Count, MaxParaffinCount);
-            var distanceFogCount = Mathf.Min(data.distanceFogs.Count, MaxDistanceFogCount);
-            var rimlightCount = Mathf.Min(data.rimlights.Count, MaxRimlightCount);
+            // テキストと同じく UI の上限へ丸める
+            var paraffinCount = Mathf.Min(
+                data.paraffins.Count, MTEP.PostEffectManager.MaxParaffinCount);
+            var distanceFogCount = Mathf.Min(
+                data.distanceFogs.Count, MTEP.PostEffectManager.MaxDistanceFogCount);
+            var rimlightCount = Mathf.Min(
+                data.rimlights.Count, MTEP.PostEffectManager.MaxRimlightCount);
 
             if (paraffinCount == 0 && distanceFogCount == 0 && rimlightCount == 0)
             {

@@ -20,13 +20,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
 
-        /// <summary>
-        /// テキスト表示数の範囲。MTE 側に対応する定数はなく、
-        /// TimelineSettingWindow の旧・要素数行から引き継いだ SE 独自の UI 制約
-        /// </summary>
-        private const int MinTextCount = 1;
-        private const int MaxTextCount = 16;
-
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
@@ -174,8 +167,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>テキスト表示数の増減行</summary>
         private void DrawTextCountRow()
         {
-            CountRowDrawer.Draw(_view, "テキスト表示数", ROW_HEIGHT,
-                textManager.textCount, MinTextCount, MaxTextCount, SetTextCount);
+            CountRowDrawer.Draw(_view, "テキスト表示数", ROW_HEIGHT, textManager.textCount,
+                MTEP.TimelineTextManager.MinTextCount,
+                MTEP.TimelineTextManager.MaxTextCount, SetTextCount);
         }
 
         /// <summary>
