@@ -367,6 +367,7 @@
     <Compile Include="MTEUtils\ModMenuLoader.cs" />
     <Compile Include="MTEUtils\ParallelHelper.cs" />
     <Compile Include="MTEUtils\PostEffectData.cs" />
+    <Compile Include="MTEUtils\PostEffectsClient.cs" />
     <Compile Include="MTEUtils\ReflectionFieldCopier.cs" />
     <Compile Include="MTEUtils\BoneUtils.cs" />
     <Compile Include="MTEUtils\MaidPartType.cs" />
