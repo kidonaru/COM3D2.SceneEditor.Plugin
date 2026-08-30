@@ -205,11 +205,6 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawParaffinRows(GUIView view, int index)
         {
             var paraffin = postEffectManager.GetParaffinData(index);
-            if (paraffin == null)
-            {
-                return;
-            }
-
             var updateTransform = false;
             var defaultTrans = TransformDataParaffin.defaultTrans;
 
@@ -314,11 +309,6 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawDistanceFogRows(GUIView view, int index)
         {
             var distanceFog = postEffectManager.GetDistanceFogData(index);
-            if (distanceFog == null)
-            {
-                return;
-            }
-
             var updateTransform = false;
             var defaultTrans = TransformDataDistanceFog.defaultTrans;
 
@@ -405,11 +395,6 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawRimlightRows(GUIView view, int index, string rimlightName)
         {
             var rimlight = postEffectManager.GetRimlightData(index);
-            if (rimlight == null)
-            {
-                return;
-            }
-
             var updateTransform = false;
             var defaultTrans = TransformDataRimlight.defaultTrans;
 

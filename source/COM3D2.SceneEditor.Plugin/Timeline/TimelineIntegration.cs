@@ -94,7 +94,7 @@ namespace COM3D2.SceneEditor.Plugin
                     MTEP.TransformType.Rimlight,
                     MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
 
-                // 後から差し込むため一括ループには乗らない。ライフサイクルを手で追いつかせる。
+                // 呼び出し元の一括ループには乗らないため、ライフサイクルを手で追いつかせる。
                 // OnLoad は timeline 読込済みのときだけ (未読込で呼ぶと同期する値が無い)
                 manager.Init();
                 if (timelineManager.timeline != null)
@@ -107,12 +107,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             public void Init()
             {
-                TryRegisterPostEffects();
-
                 foreach (var manager in _managers)
                 {
                     manager.Init();
                 }
+
+                // 一括ループの後に置く。先に呼ぶと差し込んだ PostEffectManager が
+                // ループにも捕捉され、TryRegisterPostEffects 内の手動 Init と二重に走る
+                TryRegisterPostEffects();
             }
 
             public void PreUpdate()
