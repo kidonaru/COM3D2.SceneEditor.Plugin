@@ -1,4 +1,4 @@
-# PostEffects.Plugin タイムライン連携 設計
+﻿# PostEffects.Plugin タイムライン連携 設計
 
 ## 目的
 
@@ -98,6 +98,26 @@ SceneEditor から呼ぶための公開 API。現行 SceneEditor `PostEffectMana
   - ポストエフェクト関連 UI を非表示にする
   - 既存タイムライン XML にポストエフェクトレイヤーが含まれる場合は
     レイヤー生成をスキップし、警告ログを出す（読込自体は失敗させない）
+
+**実装時の追記: 連携方式をリフレクションへ変更 (2026-08-30)**
+
+当初は `COM3D25.PostEffects.Plugin.dll` へのコンパイル時参照で設計したが、
+UnityInjector がファイル名順にロードするため SceneEditor が先に来てしまい、
+ロード時の型解決に失敗する。Mono はこの束縛失敗をプロセス寿命の間キャッシュ
+するため、後から PostEffects がロードされても復帰しない (`AssemblyResolve` の
+後付けも効かない)。
+
+そのため参照を撤去し、次の方式へ変更した:
+
+- 値は MTEUtils の共有 DTO (`COM3D2.MotionTimelineEditor.PostEffects` 名前空間)
+  で受け渡す。両プラグインが同じソースをコンパイルするため CLR 上は別型になり、
+  境界では `ReflectionFieldCopier` が同名フィールドを写す
+- ホストへの接続は `MTEUtils/PostEffectsClient.cs` が担う。既存の
+  `ModelProviderClient` と同じく、ホスト型が見つかるまで再試行し続ける
+- レイヤー登録は `TimelineIntegration.Initialize` の 1 回きりではなく、
+  接続できたフレームで 1 回だけ行う (`TryRegisterPostEffects`)
+- `TimelineBridge` の公開契約はプロパティではなくメソッドに統一した
+  (`Delegate.CreateDelegate` でプロパティを直接束縛できないため)
 
 **PostEffectManager の改修**
 
