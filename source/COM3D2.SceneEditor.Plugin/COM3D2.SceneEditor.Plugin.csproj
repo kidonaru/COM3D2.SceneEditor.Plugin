@@ -221,6 +221,7 @@
     <Compile Include="Manager\InputRemapper.cs" />
     <Compile Include="Manager\InspectorHost.cs" />
     <Compile Include="Manager\ModelPlacerProviderRegistry.cs" />
+    <Compile Include="Manager\MteEffectsSnapshot.cs" />
     <Compile Include="Manager\ScenePresetAutoLoadPatch.cs" />
     <Compile Include="Manager\ScenePresetManager.cs" />
     <Compile Include="Manager\ScenePresetProviderRegistry.cs" />

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -651,6 +652,114 @@ namespace COM3D2.SceneEditor.Plugin
         public List<FingerUnitState> fingerBlends;
     }
 
+    /// <summary>フリーテキスト 1 件分の表示状態 (v29)</summary>
+    public class ScenePresetText
+    {
+        [XmlAttribute]
+        public string text = "";
+
+        [XmlAttribute]
+        public string font = "";
+
+        [XmlAttribute]
+        public int fontSize;
+
+        [XmlAttribute]
+        public float lineSpacing;
+
+        /// <summary>TextAnchor の int 値</summary>
+        [XmlAttribute]
+        public int alignment;
+
+        public Vector3 position;
+        public Vector3 rotation;
+        public Vector3 scale = Vector3.one;
+        public Color color = Color.white;
+
+        [XmlAttribute]
+        public float sizeDeltaX;
+
+        [XmlAttribute]
+        public float sizeDeltaY;
+    }
+
+    /// <summary>
+    /// サブカメラ 1 台分の状態 (v29)。
+    /// position / rotation は SubCameraData のプロパティ準拠
+    /// (メイド追従中はオフセット、非追従中はワールド値)
+    /// </summary>
+    public class ScenePresetSubCamera
+    {
+        [XmlAttribute]
+        public bool visible = true;
+
+        [XmlAttribute]
+        public float fieldOfView = 35f;
+
+        public Vector3 position;
+        public Vector3 rotation;
+
+        // Rect は読み書きプロパティが多く XmlSerializer の出力が安定しないため 4 値で持つ
+        [XmlAttribute]
+        public float viewportX;
+
+        [XmlAttribute]
+        public float viewportY;
+
+        [XmlAttribute]
+        public float viewportWidth;
+
+        [XmlAttribute]
+        public float viewportHeight;
+
+        /// <summary>追従先メイドのスロット番号。-1 で追従なし</summary>
+        [XmlAttribute]
+        public int maidSlotNo = -1;
+
+        /// <summary>MaidPointType の int 値</summary>
+        [XmlAttribute]
+        public int maidPointType;
+
+        [XmlAttribute]
+        public bool followRotation;
+    }
+
+    /// <summary>
+    /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ / ポストエフェクト。
+    /// 旧プリセット (要素なし) は null になり、適用時に触らない。
+    /// 各グループとも「空リスト = 保存時に実体なし」は未記録と同義として触らない
+    /// </summary>
+    public class ScenePresetEffects
+    {
+        [XmlElement("text")]
+        public List<ScenePresetText> texts = new List<ScenePresetText>();
+
+        [XmlElement("subCamera")]
+        public List<ScenePresetSubCamera> subCameras = new List<ScenePresetSubCamera>();
+
+        // ポストエフェクトは MTE の値クラス (Serializable な公開フィールドのみで
+        // XmlSerializer と相性が良い) をそのまま直列化する。
+        // 上流でフィールドが増えても既存要素は既定値で読める
+        [XmlElement("paraffin")]
+        public List<MTEP.ColorParaffinData> paraffins = new List<MTEP.ColorParaffinData>();
+
+        [XmlElement("distanceFog")]
+        public List<MTEP.DistanceFogData> distanceFogs = new List<MTEP.DistanceFogData>();
+
+        [XmlElement("rimlight")]
+        public List<MTEP.RimlightData> rimlights = new List<MTEP.RimlightData>();
+
+        // 各エフェクトのマスター有効フラグ。個別データの enabled とは別に効果全体を握っている
+        [XmlAttribute]
+        public bool paraffinEnabled;
+
+        [XmlAttribute]
+        public bool distanceFogEnabled;
+
+        [XmlAttribute]
+        public bool rimlightEnabled;
+    }
+
     /// <summary>
     /// 外部プラグインプロバイダ 1 件分の記録。中身はサイドカーへ生のまま保存し、
     /// 本体にはプロバイダ id とサイドカーのファイル名だけ残す
@@ -733,7 +842,10 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は maidPointType が null = 未記録として読み飛ばす
         // v28: look に targetModelName（向け先「モデル」の対象モデル名）を追加。
         //      旧形式は targetModelName が null = 未記録として読み飛ばす
-        public static readonly int CurrentVersion = 28;
+        // v29: effects（テキスト / サブカメラ / ポストエフェクトの MTE 由来演出）と savedEffects を追加。
+        //      旧形式は effects が null で読め、適用時に演出へ触らない。
+        //      タイムライン未読込のシーンでも保存・復元できる
+        public static readonly int CurrentVersion = 29;
 
         [XmlAttribute]
         public int version = CurrentVersion;
@@ -748,6 +860,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         [XmlAttribute]
         public bool savedBackground = true;
+
+        /// <summary>「演出」カテゴリ (テキスト・サブカメラ・ポストエフェクト) を保存したか (v29)</summary>
+        [XmlAttribute]
+        public bool savedEffects = true;
 
         public ScenePresetCamera camera;
 
@@ -793,5 +909,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlElement("bgMaterial")]
         public List<ScenePresetMaterial> bgMaterials;
+
+        /// <summary>
+        /// MTE 由来の演出 (v29)。旧プリセット（要素なし）は null になり、適用時に演出へ触らない
+        /// </summary>
+        public ScenePresetEffects effects;
     }
 }
