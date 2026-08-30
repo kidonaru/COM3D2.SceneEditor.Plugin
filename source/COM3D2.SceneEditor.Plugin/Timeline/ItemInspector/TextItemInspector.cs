@@ -6,9 +6,9 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// テキストレイヤー (TextTimelineLayer) のメニュー項目 → フリーテキストの内容・スタイル編集UI。
+    /// テキストレイヤー (TextTimelineLayer) のメニュー項目 → フリーテキストの
+    /// 内容・スタイル・テキスト枠の Transform の編集UI。
     /// 項目はテキスト 1 つにつき 1 行 ("Text0" のように末尾が添字)。
-    /// テキスト枠の位置・回転・拡縮はレイヤー UI 側で編集する (spec の表どおり内容とスタイルのみ)。
     /// 逆方向: テキストに対応する SelectionManager の選択概念が無いため無し
     /// </summary>
     public class TextItemInspector : ITimelineItemInspector
@@ -48,9 +48,9 @@ namespace COM3D2.SceneEditor.Plugin
                 // 複数選択時にどのテキストの行か分かるよう見出しを出す
                 view.DrawLabel(item.displayName, -1, RowHeight);
 
-                // 色ピッカーはラベルで対象を識別するため、項目名でキーを一意にする
+                // 直前キーの参照と色ピッカーの同定に使うため、項目名をそのまま渡す
                 _textRowDrawers.Get(item.name).Draw(
-                    view, textManager.GetFreeTextSet(index), RowHeight, item.name + "/色");
+                    view, textManager.GetFreeTextSet(index), RowHeight, item.name);
             }
 
             _textRowDrawers.PruneExcept(items);

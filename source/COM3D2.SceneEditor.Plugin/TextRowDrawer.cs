@@ -7,8 +7,8 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// フリーテキスト 1 つ分の内容とスタイルの行
-    /// (テキスト / フォント / サイズ / 行間 / 整列 / 幅 / 高さ / 色)。
+    /// フリーテキスト 1 つ分の内容・スタイル・テキスト枠の Transform の行
+    /// (テキスト / フォント / サイズ / 行間 / 整列 / 幅 / 高さ / 色 / 位置 / 回転 / 拡縮)。
     ///
     /// 委譲先の個別ウィンドウが無いため、共有元はレイヤーの TextTimelineLayer.DrawWindow。
     /// レイヤー本体は MTE 逐語コピーで触らない方針のため、同じ書き込み先
@@ -29,6 +29,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>テキスト入力の最大行数 (レイヤー UI と同じ)</summary>
         private const int TextMaxLines = 3;
 
+        /// <summary>ドラッグラベルの 1px あたりの増減量 (レイヤー UI と同じ値)</summary>
+        private const float RectSensitivity = 1f;
+        private const float ScaleSensitivity = 0.01f;
+
         private readonly GUIComboBox<string> _fontNameComboBox = new GUIComboBox<string>
         {
             getName = (fontName, _) => fontName,
@@ -40,13 +44,14 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (alignment, _) => alignment.ToString(),
         };
 
-        /// <param name="colorLabel">
-        /// 色行のラベル (= ピッカーの同定キー)。複数テキストを並べても
-        /// 対象が混ざらないよう、呼び出し側が一意な文字列を渡す
+        /// <param name="boneName">
+        /// 対象テキストのメニュー項目名 ("Text0" 等)。直前キーの参照キーであり、
+        /// 複数テキストを並べたときに色ピッカーの対象が混ざらないための同定キーでもある
         /// </param>
         public void Draw(
-            GUIView view, MTEP.FreeTextSet freeTextSet, float rowHeight, string colorLabel)
+            GUIView view, MTEP.FreeTextSet freeTextSet, float rowHeight, string boneName)
         {
+            var colorLabel = boneName + "/色";
             var text = freeTextSet.text;
             var rect = freeTextSet.rect;
 
@@ -119,6 +124,46 @@ namespace COM3D2.SceneEditor.Plugin
 
             var colorFieldCache = view.GetColorFieldCache(colorLabel, true);
             view.DrawColor(colorFieldCache, text.color, Color.white, value => text.color = value);
+
+            DrawTransformRows(view, rect, boneName);
+        }
+
+        /// <summary>
+        /// テキスト枠の位置・回転・拡縮の行。
+        /// レイヤー UI の DrawTransformRect (初期値は位置 0 / 回転 0 / 拡縮 1) と同じ内容を、
+        /// protected な行描画を使わずに同じ共有ヘルパーで組み直したもの
+        /// </summary>
+        private static void DrawTransformRows(GUIView view, RectTransform rect, string boneName)
+        {
+            var transformCache = view.GetTransformCache(rect);
+
+            // 位置はピクセル指定のため 1px 単位の整数入力 (レイヤー UI の DrawPositionRect と同値)
+            var position = transformCache.position;
+            if (MTEP.TimelineLayerBase.DrawTransformVector3(
+                    view, "位置", RectSensitivity, position, Vector3.zero,
+                    value => position = value, fieldType: FloatFieldType.Int))
+            {
+                transformCache.position = position;
+                transformCache.Apply();
+            }
+
+            // 回転はキーフレーム間で角度が飛ばないよう直前キーの角度を基準にする
+            MTEP.TimelineLayerBase.DrawEulerAngles(
+                view,
+                transformCache,
+                MTEP.TimelineLayerBase.TransformEditType.全て,
+                TimelinePrevKeyUtils.GetPrevEulerAngles<MTEP.TextTimelineLayer>(
+                    boneName, Vector3.zero),
+                Vector3.zero);
+
+            var scale = transformCache.scale;
+            if (MTEP.TimelineLayerBase.DrawTransformVector3(
+                    view, "拡縮", ScaleSensitivity, scale, Vector3.one,
+                    value => scale = value, linkable: true))
+            {
+                transformCache.scale = scale;
+                transformCache.Apply();
+            }
         }
 
         /// <summary>テキスト枠の幅・高さのスライダー 1 行</summary>
