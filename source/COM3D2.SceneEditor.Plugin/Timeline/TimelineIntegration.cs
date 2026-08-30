@@ -237,8 +237,13 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.StageLaserTimelineLayer), MTEP.StageLaserTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.PsylliumTimelineLayer), MTEP.PsylliumTimelineLayer.Create);
-            timelineManager.RegisterLayer(
-                typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
+            // PostEffects.Plugin 未導入時はポストエフェクトの実体が無いため、レイヤーごと外す。
+            // 該当レイヤー入りのタイムライン XML は未登録レイヤーとして読み飛ばされる (既存挙動)
+            if (MTEP.PostEffectsBridge.isAvailable)
+            {
+                timelineManager.RegisterLayer(
+                    typeof(MTEP.PostEffectTimelineLayer), MTEP.PostEffectTimelineLayer.Create);
+            }
             timelineManager.RegisterLayer(
                 typeof(MTEP.PngPlacementTimelineLayer), MTEP.PngPlacementTimelineLayer.Create);
             // モデル系レイヤーの登録は TryRegisterModelPlacer が担う
@@ -313,8 +318,11 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.StageLaserTimelineLayer), new StageLaserItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PsylliumTimelineLayer), new PsylliumItemInspector());
-            TimelineItemInspectorRegistry.Register(
-                typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
+            if (MTEP.PostEffectsBridge.isAvailable)
+            {
+                TimelineItemInspectorRegistry.Register(
+                    typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
+            }
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PngPlacementTimelineLayer), new PngPlacementItemInspector());
             TimelineItemInspectorRegistry.Register(
@@ -353,21 +361,24 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.PngObject,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPngObject>);
-            timelineManager.RegisterTransform(
-                MTEP.TransformType.DepthOfField,
-                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
-            timelineManager.RegisterTransform(
-                MTEP.TransformType.DistanceFog,
-                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDistanceFog>);
-            timelineManager.RegisterTransform(
-                MTEP.TransformType.GTToneMap,
-                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGTToneMap>);
-            timelineManager.RegisterTransform(
-                MTEP.TransformType.Paraffin,
-                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataParaffin>);
-            timelineManager.RegisterTransform(
-                MTEP.TransformType.Rimlight,
-                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
+            if (MTEP.PostEffectsBridge.isAvailable)
+            {
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.DepthOfField,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.DistanceFog,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDistanceFog>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.GTToneMap,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGTToneMap>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.Paraffin,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataParaffin>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.Rimlight,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
+            }
             timelineManager.RegisterTransform(
                 MTEP.TransformType.PsylliumArea,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataPsylliumArea>);
