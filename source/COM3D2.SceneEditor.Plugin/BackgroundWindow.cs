@@ -150,8 +150,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 背景モデルの配置管理。旧レイヤー編集ウィンドウ (BGModelTimelineLayerBase.DrawModelManage)
-        /// から移設。配置済みのモデルは背景モデルレイヤーのキーと連動する。
+        /// 背景モデルの配置管理。配置済みのモデルは背景モデルレイヤーのキーと連動する。
         /// 下の背景一覧のスクロールを圧迫しないよう、既定は畳んでおく
         /// </summary>
         private void DrawBgModelSection()

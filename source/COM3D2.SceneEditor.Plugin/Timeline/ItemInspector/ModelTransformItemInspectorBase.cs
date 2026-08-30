@@ -33,8 +33,7 @@ namespace COM3D2.SceneEditor.Plugin
         protected abstract List<TModel> models { get; }
 
         /// <summary>
-        /// モデル 1 件分の管理行 (表示切替・複製・削除など)。
-        /// 旧レイヤー編集ウィンドウの管理タブの受け皿で、内容はモデルの種類ごとに変わる。
+        /// モデル 1 件分の管理行 (表示切替・複製・削除など)。内容はモデルの種類ごとに変わる。
         /// 一覧性はヒエラルキーが持つため、ここは選択中のモデルだけを対象にする
         /// </summary>
         protected virtual void DrawModelManageRows(GUIView view, TModel model)

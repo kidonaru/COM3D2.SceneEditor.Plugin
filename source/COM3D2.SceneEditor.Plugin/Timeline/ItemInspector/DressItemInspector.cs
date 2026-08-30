@@ -10,8 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
     ///
     /// 衣装は「初期値からの差分」をキー化する仕組みで、値の編集はアイテム選択UI
     /// (ModItemExplorer 等) の領分になるため、Inspector では現在値の表示だけを行う。
-    /// 表示形式は旧レイヤー編集ウィンドウの一覧を引き継いでいる。
-    /// ただし対象外の部位は、一覧を流していた旧 UI と違って明示的な理由ラベルを出す
+    /// 対象外の部位は明示的な理由ラベルを出す
     /// (項目を選んだのに何も出ないと壊れて見えるため)
     /// </summary>
     public class DressItemInspector : ITimelineItemInspector
@@ -49,8 +48,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 衣装の初期化・初期値更新は旧レイヤー編集ウィンドウから移設。
-            // 部位単位ではなくメイド全体への操作のため項目の外に置く
+            // 初期化・初期値更新は部位単位ではなくメイド全体への操作のため項目の外に置く
             view.BeginHorizontal();
             {
                 if (view.DrawButton("初期化", 60, RowHeight))

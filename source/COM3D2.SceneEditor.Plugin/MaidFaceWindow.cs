@@ -320,7 +320,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 瞳位置・瞳サイズ。旧レイヤー編集ウィンドウから移設。
+        /// 瞳位置・瞳サイズ。
         /// 書き込み先は瞳の Transform (MaidCache 経由) で「視線をキー化」には依らないため、
         /// キー化の有無に関わらず出す
         /// </summary>

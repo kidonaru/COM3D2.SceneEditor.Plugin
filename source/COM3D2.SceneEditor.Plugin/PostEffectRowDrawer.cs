@@ -10,8 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap)。
     ///
-    /// ポストエフェクトには委譲先の個別ウィンドウが無いため、旧レイヤー編集ウィンドウの
-    /// 編集 UI (コピー先への複製・トーンカーブのプレビューを含む) をここへ引き継いでいる。
+    /// 委譲先の個別ウィンドウが無いため、コピー先への複製とトーンカーブのプレビューも含めここで描く。
     /// 書き込み先は PostEffectManager のデータで、値の範囲・既定値は TransformData の Info を使う。
     /// 書き込み先はどのスナップショットにも含まれないため履歴は記録しない。
     ///
@@ -51,7 +50,7 @@ namespace COM3D2.SceneEditor.Plugin
         private MTEP.GTToneMapData _gtToneMapTextureData;
 
         /// <summary>
-        /// 同種の別インデックスへ設定をコピーする行。旧レイヤー編集ウィンドウから移設。
+        /// 同種の別インデックスへ設定をコピーする行。
         /// コンボは項目ごとの Drawer が持つため、エフェクトごとに選択状態が残る
         /// </summary>
         private void DrawCopyRow(
@@ -667,7 +666,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawGTToneMapCurve(view, data);
         }
 
-        /// <summary>トーンカーブのプレビュー。旧レイヤー編集ウィンドウから移設</summary>
+        /// <summary>トーンカーブのプレビュー</summary>
         private void DrawGTToneMapCurve(GUIView view, MTEP.GTToneMapData data)
         {
             if (_gtToneMapTexture == null)

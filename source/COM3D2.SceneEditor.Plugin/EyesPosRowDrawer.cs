@@ -15,7 +15,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class EyesPosRowDrawer
     {
-        /// <summary>位置図の一辺 (px)。旧レイヤー編集ウィンドウと同じ大きさ</summary>
+        /// <summary>位置図の一辺 (px)</summary>
         private const int ImageSize = 150;
         private const float RowHeight = 20f;
 
@@ -85,7 +85,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 左右の瞳位置をドラッグで動かす位置図。旧レイヤー編集ウィンドウから移設。
+        /// 左右の瞳位置をドラッグで動かす位置図。
         /// 図の右側に初期化ボタンを並べ、図の下端まで描画位置を進めてから戻る
         /// </summary>
         public void DrawEyesPosImage(GUIView view, MTEP.MaidCache maidCache)
@@ -96,6 +96,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             InitTexture();
+
+            BeginEditable(view);
 
             var basePos = view.currentPos;
 
@@ -114,6 +116,23 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.currentPos = basePos;
             view.currentPos.y += ImageSize;
+
+            EndEditable(view);
+        }
+
+        /// <summary>
+        /// 編集モード中だけ操作させる。編集モード外はレイヤーが毎フレーム再生値を
+        /// 書き戻すため、触れても即座に巻き戻る (旧レイヤー編集ウィンドウと同じ制約)
+        /// </summary>
+        private static void BeginEditable(GUIView view)
+        {
+            view.SetEnabled(view.focusedComboBox == null
+                && MTEP.StudioHackManager.instance.isPoseEditing);
+        }
+
+        private static void EndEditable(GUIView view)
+        {
+            view.SetEnabled(view.focusedComboBox == null);
         }
 
         /// <summary>瞳 1 つ分のスライダー 2 本 (位置は水平/垂直、サイズは幅/高さ)</summary>
@@ -145,8 +164,12 @@ namespace COM3D2.SceneEditor.Plugin
             var vertical = eyesValue.y;
             var updateTransform = false;
 
+            BeginEditable(view);
+
             updateTransform |= DrawEyesSlider(view, names[0], horizon, x => horizon = x);
             updateTransform |= DrawEyesSlider(view, names[1], vertical, y => vertical = y);
+
+            EndEditable(view);
 
             if (updateTransform)
             {

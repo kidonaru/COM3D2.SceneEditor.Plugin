@@ -9,7 +9,6 @@ namespace COM3D2.SceneEditor.Plugin
 
     /// <summary>
     /// 配置モデル 1 つ分の管理行 (表示切替・プラグイン・複製・削除・アタッチ先)。
-    /// 旧レイヤー編集ウィンドウの管理タブ (ModelTimelineLayerBase.DrawModelContent) から移設。
     /// 一覧性はヒエラルキーが受け持ち、ここは選択中のモデルへの操作だけを担う。
     /// コンボボックスの開閉状態を持つため、モデルごとにインスタンスを分ける
     /// </summary>
@@ -48,6 +47,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
+
+            // 複製・削除はその場でモデル一覧を書き換えるため、編集モード中のみ操作させる
+            view.SetEnabled(view.focusedComboBox == null
+                && MTEP.StudioHackManager.instance.isPoseEditing);
 
             view.DrawToggle("表示", model.visible, 80, RowHeight, newValue =>
             {
@@ -110,6 +113,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             view.EndLayout();
+
+            // 後続の Transform 行まで無効のままにしない
+            view.SetEnabled(view.focusedComboBox == null);
         }
 
         /// <summary>プラグイン名から選択肢の添字を引く。未設定・未知の名前は先頭 (Default) 扱い</summary>

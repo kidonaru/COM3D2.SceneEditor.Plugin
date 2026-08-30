@@ -22,8 +22,7 @@ namespace COM3D2.SceneEditor.Plugin
         protected override List<MTEP.BGModelStat> models => bgModelManager.models;
 
         /// <summary>
-        /// 背景モデルは配置数の増減を背景ウィンドウが持つため、
-        /// ここは旧レイヤー編集ウィンドウと同じく表示切替だけを出す
+        /// 背景モデルは配置数の増減を背景ウィンドウが持つため、ここは表示切替だけを出す
         /// </summary>
         protected override void DrawModelManageRows(GUIView view, MTEP.BGModelStat model)
         {

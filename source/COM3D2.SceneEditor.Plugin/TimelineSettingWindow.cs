@@ -311,8 +311,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// タイムライン上の要素数 (テキスト/ポストエフェクト/サブカメラ) の増減。
-        /// 旧レイヤー編集ウィンドウから移設
+        /// タイムライン上の要素数 (テキスト/ポストエフェクト/サブカメラ) の増減
         /// </summary>
         private void DrawElementCountSection(GUIView view)
         {
@@ -335,7 +334,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ライトの補間まわりのトグル。旧レイヤー編集ウィンドウから移設。
+        /// ライトの補間まわりのトグル。
         /// いずれもタイムラインに保存される個別設定のためこのタブに置く
         /// </summary>
         private void DrawLightToggleSection(GUIView view)
@@ -357,7 +356,7 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
-        /// <summary>整数値の増減行 (旧レイヤー編集ウィンドウの ±ボタン付き IntField と同型)</summary>
+        /// <summary>整数値の増減行 (±ボタン付きの IntField)</summary>
         private void DrawCountRow(
             GUIView view, string label, int value, int min, int max, Action<int> onChanged)
         {
