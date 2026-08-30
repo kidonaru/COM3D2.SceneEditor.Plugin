@@ -310,7 +310,7 @@ Phase S3 実機確認項目(loop 中に追記):
 
 Phase S4(サウンド・演出系):
 
-- [ ] VoiceTimelineLayer / SeTimelineLayer(再生パラメータ / SoundWindow / 逆方向なし)
+- [x] VoiceTimelineLayer / SeTimelineLayer(再生パラメータ / SoundWindow / 逆方向なし)
 - [ ] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
 - [ ] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし)
 - [ ] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
@@ -319,4 +319,11 @@ Phase S4(サウンド・演出系):
 
 Phase S4 実機確認項目(loop 中に追記):
 
-- (なし)
+- [ ] ボイスレイヤーで「ボイス」行を選択 → Inspector に開始/長さ/Fade/音程/ボイス名/ループボイス/再生が出て編集できる
+- [ ] Inspector のボイス対象がレイヤーのメイドになっている(サウンドウィンドウのメイド選択とは独立)
+- [ ] 効果音レイヤーで「SE」行を選択 → Inspector に SE 名・再生間隔・ループ・再生/初期化が出る
+- [ ] 効果音の管理タブで追加 SE を「追加してから別の SE を削除」しても、SE 名コンボの一覧が正しく更新される
+      (件数が相殺されるケース。世代番号でキャッシュを引き直している)
+- [ ] サウンドウィンドウと Inspector を同時に開いても SE 名コンボが互いに干渉しない
+- [ ] 編集モードでないときは「編集モード中のみ〜操作できます」が出て編集行が出ない
+- [ ] サウンドウィンドウのボイスタブ・効果音タブ(操作/管理)に退行が無い(抽出リファクタリングの確認)

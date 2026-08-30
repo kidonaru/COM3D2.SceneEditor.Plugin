@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -22,7 +21,6 @@ namespace COM3D2.SceneEditor.Plugin
         protected override string windowTitle => "サウンド";
 
         private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
-        private static MTEP.TimelineSeManager seManager => MTEP.TimelineSeManager.instance;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
 
         private static SoundWindow _instance = null;
@@ -198,74 +196,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "開始",
-                labelWidth = 30,
-                min = 0f,
-                max = timelineConfig.voiceMaxLength,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = maidCache.oneShotVoiceStartTime,
-                onChanged = value => maidCache.oneShotVoiceStartTime = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "長さ",
-                labelWidth = 30,
-                min = 0f,
-                max = timelineConfig.voiceMaxLength,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = maidCache.oneShotVoiceLength,
-                onChanged = value => maidCache.oneShotVoiceLength = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "Fade",
-                labelWidth = 30,
-                min = 0f,
-                max = timelineConfig.voiceMaxLength,
-                step = 0.01f,
-                defaultValue = 0.1f,
-                value = maidCache.voiceFadeTime,
-                onChanged = value => maidCache.voiceFadeTime = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "音程",
-                labelWidth = 30,
-                min = 0f,
-                max = 2f,
-                step = 0.01f,
-                defaultValue = 1f,
-                value = maidCache.voicePitch,
-                onChanged = value => maidCache.voicePitch = value,
-            });
-
-            view.DrawTextField(new GUIView.TextFieldOption
-            {
-                label = "ボイス名",
-                labelWidth = 75,
-                value = maidCache.oneShotVoiceName,
-                onChanged = value => maidCache.oneShotVoiceName = value,
-            });
-
-            view.DrawTextField(new GUIView.TextFieldOption
-            {
-                label = "ループボイス",
-                labelWidth = 75,
-                value = maidCache.loopVoiceName,
-                onChanged = value => maidCache.loopVoiceName = value,
-            });
-
-            if (view.DrawButton("再生", 100, ROW_HEIGHT))
-            {
-                maidCache.PlayOneShotVoice();
-            }
+            VoiceRowDrawer.Draw(view, maidCache, ROW_HEIGHT);
 
             view.SetEnabled(view.focusedComboBox == null);
 
@@ -306,89 +237,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        // タイムライン固有の追加 SE と公式 SE を連結したコンボボックス用の一覧
-        private readonly List<string> _seNames = new List<string>();
-
-        private readonly GUIComboBox<string> _seNameComboBox = new GUIComboBox<string>
-        {
-            getName = (seName, index) => seName,
-        };
-
-        /// <summary>_seNames を構築した時点のタイムライン。切替の検出用に実体で持つ</summary>
-        private MTEP.TimelineData _seNamesTimeline = null;
-
-        private void UpdateSeNames(MTEP.TimelineData timeline)
-        {
-            _seNamesTimeline = timeline;
-            _seNames.Clear();
-            _seNames.AddRange(timeline.additionalSeNames);
-            _seNames.AddRange(seManager.seNames);
-        }
+        // SE の操作行は 1 つしか出さないので、行ドロワーも 1 つで足りる
+        private readonly SeRowDrawer _seRowDrawer = new SeRowDrawer();
 
         private void DrawSeControl(GUIView view, MTEP.TimelineData timeline)
         {
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
-            var updated = false;
-
-            // 追加 SE はタイムラインごとの内容。切替時と件数の増減時に引き直す
-            if (_seNamesTimeline != timeline ||
-                _seNames.Count != timeline.additionalSeNames.Count + seManager.seNames.Count)
-            {
-                UpdateSeNames(timeline);
-            }
-
-            _seNameComboBox.items = _seNames;
-            if (_seNameComboBox.currentItem != seManager.currentSeName)
-            {
-                _seNameComboBox.currentIndex = _seNameComboBox.items.IndexOf(seManager.currentSeName);
-            }
-            _seNameComboBox.onSelected = (seName, _) =>
-            {
-                seManager.currentSeName = seName;
-                updated = true;
-            };
-
-            _seNameComboBox.DrawButton("SE名", view);
-
-            updated |= view.DrawSliderValue(
-                new GUIView.SliderOption
-                {
-                    label = "再生間隔",
-                    labelWidth = 60,
-                    min = 0f,
-                    max = timelineConfig.voiceMaxLength,
-                    step = 0.01f,
-                    defaultValue = 0f,
-                    value = seManager.currentInterval,
-                    onChanged = value => seManager.currentInterval = value,
-                });
-
-            view.DrawToggle("ループ", seManager.currentIsLoop, 80, ROW_HEIGHT, newValue =>
-            {
-                seManager.currentIsLoop = newValue;
-                updated = true;
-            });
-
-            view.BeginHorizontal();
-            {
-                if (view.DrawButton("再生", 100, ROW_HEIGHT))
-                {
-                    updated = true;
-                }
-
-                if (view.DrawButton("初期化", 100, ROW_HEIGHT))
-                {
-                    seManager.PlaySe("", 0f, false);
-                }
-            }
-            view.EndLayout();
-
-            if (updated)
-            {
-                seManager.StopSe();
-                seManager.PlaySe(seManager.currentSeName, seManager.currentInterval, seManager.currentIsLoop);
-            }
+            _seRowDrawer.Draw(view, timeline, ROW_HEIGHT);
         }
 
         private string _additionalSeName = "";
@@ -425,7 +281,7 @@ namespace COM3D2.SceneEditor.Plugin
                         if (view.DrawButton("削除", 50, ROW_HEIGHT))
                         {
                             timeline.additionalSeNames.Remove(seName);
-                            UpdateSeNames(timeline);
+                            SeRowDrawer.InvalidateSeNames();
                             break;
                         }
                     }
@@ -456,7 +312,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (!timeline.additionalSeNames.Contains(_additionalSeName))
             {
                 timeline.additionalSeNames.Add(_additionalSeName);
-                UpdateSeNames(timeline);
+                SeRowDrawer.InvalidateSeNames();
             }
 
             _additionalSeName = "";

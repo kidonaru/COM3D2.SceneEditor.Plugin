@@ -298,6 +298,10 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.BGTimelineLayer), new BGItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.BGColorTimelineLayer), new BGColorItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.VoiceTimelineLayer), new VoiceItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.SeTimelineLayer), new SeItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
