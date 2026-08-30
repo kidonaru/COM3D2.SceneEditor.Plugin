@@ -29,6 +29,12 @@ namespace COM3D2.SceneEditor.Plugin
         private const int PresetLineWidth = 3;
         /// <summary>テクスチャと数値列の間隔</summary>
         private const float ColumnSpacing = 10f;
+        /// <summary>タンジェント行のラベル幅 ("OutTangent" が収まる幅)</summary>
+        private const float TangentLabelWidth = 80f;
+        /// <summary>タンジェント行の数値入力欄の幅</summary>
+        private const float TangentFieldWidth = 50f;
+        /// <summary>ラベルドラッグ 1px あたりのタンジェント増減量</summary>
+        private const float DragSensitivity = 0.01f;
 
         private Texture2D _tangentTex;
         private Texture2D[] _presetTextures;
@@ -213,25 +219,18 @@ namespace COM3D2.SceneEditor.Plugin
             var diffOutTangent = 0f;
             var diffInTangent = 0f;
 
-            // MTE 原典と同じく「コンボ展開中は無効化。値が 1 件でもあれば編集可 (NaN=混在でも差分編集は許可)」
-            var hasAnyTangent = _workTangents.Count > 0;
-
-            subView.DrawLabel("OutTangent", 100, RowHeight);
-            subView.SetEnabled(subView.focusedComboBox == null && hasAnyTangent);
-            subView.DrawFloatSelect(
-                "", 0.1f, 0f, null, outTangent,
-                value => newOutTangent = value,
-                value => diffOutTangent = value);
-
+            // コンボ展開中はポップアップが重なるので下の行を触らせない
             subView.SetEnabled(subView.focusedComboBox == null);
-            subView.DrawLabel("InTangent", 100, RowHeight);
-            subView.SetEnabled(subView.focusedComboBox == null && hasAnyTangent);
-            subView.DrawFloatSelect(
-                "", 0.1f, 0f, null, inTangent,
-                value => newInTangent = value,
-                value => diffInTangent = value);
 
-            subView.SetEnabled(subView.focusedComboBox == null);
+            DrawTangentRow(subView, "OutTangent", outTangent,
+                diff => diffOutTangent += diff,
+                value => newOutTangent = value);
+
+            DrawTangentRow(subView, "InTangent", inTangent,
+                diff => diffInTangent += diff,
+                value => newInTangent = value);
+
+            subView.SetEnabled(true);
 
             // 新値の適用 (NaN=混在のままなら何もしない)
             if (!float.IsNaN(newOutTangent) && newOutTangent != outTangent)
@@ -282,6 +281,32 @@ namespace COM3D2.SceneEditor.Plugin
                 ForEachInTangent(data => data.isSmooth = newIsSmooth);
                 ApplyAndRecord("タンジェント: 自動補間");
             });
+        }
+
+        /// <summary>
+        /// タンジェント 1 行。ラベルを左右ドラッグすると差分編集、数値欄への入力で絶対値編集。
+        /// value が NaN (複数選択で値が混在) でも差分編集を残したいため、
+        /// 絶対値しか渡さない DrawDragFloatField ではなく DrawDragLabel を直接使う
+        /// </summary>
+        private void DrawTangentRow(
+            GUIView view, string label, float value, Action<float> onDiff, Action<float> onValue)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawDragLabel(label, TangentLabelWidth, RowHeight, DragSensitivity, onDiff);
+
+                var fieldCache = view.GetFieldCache(label);
+                fieldCache.UpdateValue(value);
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    value = value,
+                    width = TangentFieldWidth,
+                    height = RowHeight,
+                    fieldCache = fieldCache,
+                    onChanged = onValue,
+                });
+            }
+            view.EndLayout();
         }
 
         private void DrawPresets(GUIView view)
