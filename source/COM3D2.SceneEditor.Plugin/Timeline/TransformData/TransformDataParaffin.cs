@@ -1,5 +1,8 @@
+// ポストエフェクトの値クラスは PostEffects.Plugin 側の実体を使う。alias の理由は PostEffectsBridge を参照
+extern alias PostEffectsPlugin;
 using System.Collections.Generic;
 using UnityEngine;
+using PEP = PostEffectsPlugin::COM3D25.PostEffects.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -28,16 +31,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UseMultiply = 18,
             UseOverlay = 19,
             UseSubstruct = 20,
-            DepthMin = 21,
-            DepthMax = 22,
-            DepthFade = 23
+            MaskMode = 21
         }
 
         public static TransformDataParaffin defaultTrans = new TransformDataParaffin();
 
         public override TransformType type => TransformType.Paraffin;
 
-        public override int valueCount => 24;
+        public override int valueCount => 22;
 
         public override bool hasColor => true;
         public override bool hasSubColor => true;
@@ -209,35 +210,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             },
             {
-                "depthMin", new CustomValueInfo
+                // 0=マスクなし / 1=キャラ除外 / 2=キャラのみ。実体は int なので丸めて渡す
+                "maskMode", new CustomValueInfo
                 {
-                    index = (int)Index.DepthMin,
-                    name = "最小深度",
+                    index = (int)Index.MaskMode,
+                    name = "マスク",
                     min = 0f,
-                    max = 100f,
-                    step = 0.1f,
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "depthMax", new CustomValueInfo
-                {
-                    index = (int)Index.DepthMax,
-                    name = "最大深度",
-                    min = 0f,
-                    max = 100f,
-                    step = 0.1f,
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "depthFade", new CustomValueInfo
-                {
-                    index = (int)Index.DepthFade,
-                    name = "深度幅",
-                    min = 0f,
-                    max = 10f,
-                    step = 0.01f,
+                    max = 2f,
+                    step = 1f,
                     defaultValue = 0f,
                 }
             }
@@ -275,9 +255,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData useMultiplyValue => values[(int)Index.UseMultiply];
         public ValueData useOverlayValue => values[(int)Index.UseOverlay];
         public ValueData useSubstructValue => values[(int)Index.UseSubstruct];
-        public ValueData depthMinValue => values[(int)Index.DepthMin];
-        public ValueData depthMaxValue => values[(int)Index.DepthMax];
-        public ValueData depthFadeValue => values[(int)Index.DepthFade];
+        public ValueData maskModeValue => values[(int)Index.MaskMode];
 
         // CustomValueInfoアクセサ
         public CustomValueInfo centerPositionXInfo => CustomValueInfoMap["centerPositionX"];
@@ -291,9 +269,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public CustomValueInfo useMultiplyInfo => CustomValueInfoMap["useMultiply"];
         public CustomValueInfo useOverlayInfo => CustomValueInfoMap["useOverlay"];
         public CustomValueInfo useSubstructInfo => CustomValueInfoMap["useSubstruct"];
-        public CustomValueInfo depthMinInfo => CustomValueInfoMap["depthMin"];
-        public CustomValueInfo depthMaxInfo => CustomValueInfoMap["depthMax"];
-        public CustomValueInfo depthFadeInfo => CustomValueInfoMap["depthFade"];
+        public CustomValueInfo maskModeInfo => CustomValueInfoMap["maskMode"];
 
         // プロパティアクセサ
         public Vector2 centerPosition
@@ -350,27 +326,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => useSubstructValue.value = value;
         }
 
-        public float depthMin
+        public float maskMode
         {
-            get => depthMinValue.value;
-            set => depthMinValue.value = value;
+            get => maskModeValue.value;
+            set => maskModeValue.value = value;
         }
 
-        public float depthMax
+        public PEP.ColorParaffinData paraffin
         {
-            get => depthMaxValue.value;
-            set => depthMaxValue.value = value;
-        }
-
-        public float depthFade
-        {
-            get => depthFadeValue.value;
-            set => depthFadeValue.value = value;
-        }
-
-        public ColorParaffinData paraffin
-        {
-            get => new ColorParaffinData
+            get => new PEP.ColorParaffinData
             {
                 enabled = visible,
                 color1 = color,
@@ -379,9 +343,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 radiusFar = radiusFar,
                 radiusNear = radiusNear,
                 radiusScale = radiusScale,
-                depthMin = depthMin,
-                depthMax = depthMax,
-                depthFade = depthFade,
+                maskMode = Mathf.RoundToInt(maskMode),
                 useNormal = useNormal,
                 useAdd = useAdd,
                 useMultiply = useMultiply,
@@ -397,9 +359,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 radiusFar = value.radiusFar;
                 radiusNear = value.radiusNear;
                 radiusScale = value.radiusScale;
-                depthMin = value.depthMin;
-                depthMax = value.depthMax;
-                depthFade = value.depthFade;
+                maskMode = value.maskMode;
                 useNormal = value.useNormal;
                 useAdd = value.useAdd;
                 useMultiply = value.useMultiply;

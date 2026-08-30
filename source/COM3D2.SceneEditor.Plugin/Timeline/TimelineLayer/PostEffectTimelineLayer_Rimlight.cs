@@ -1,7 +1,10 @@
+// ポストエフェクトの値クラスは PostEffects.Plugin 側の実体を使う。alias の理由は PostEffectsBridge を参照
+extern alias PostEffectsPlugin;
 using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
+using PEP = PostEffectsPlugin::COM3D25.PostEffects.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -14,7 +17,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
             float lerpTime = CalcTangentValue(motion, t);
-            var rimlight = RimlightData.Lerp(start.rimlight, end.rimlight, lerpTime);
+            var rimlight = PEP.RimlightData.Lerp(start.rimlight, end.rimlight, lerpTime);
 
             var index = start.index;
             postEffectManager.ApplyRimlight(index, rimlight);

@@ -1,5 +1,8 @@
+// ポストエフェクトの値クラスは PostEffects.Plugin 側の実体を使う。alias の理由は PostEffectsBridge を参照
+extern alias PostEffectsPlugin;
 using System.Collections.Generic;
 using UnityEngine;
+using PEP = PostEffectsPlugin::COM3D25.PostEffects.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -23,25 +26,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             LightArea = 13,
             FadeRange = 14,
             FadeExp = 15,
-            DepthMin = 16,
-            DepthMax = 17,
-            DepthFade = 18,
+            MaskMode = 16,
+            ExcludeFace = 17,
+            ApplyHair = 18,
             UseNormal = 19,
             UseAdd = 20,
             UseMultiply = 21,
             UseOverlay = 22,
             UseSubstruct = 23,
-            IsWorldSpace = 24,
-            EdgeDepth = 25,
-            EdgeRange = 26,
-            HeightMin = 27
+            IsWorldSpace = 24
         }
 
         public static TransformDataRimlight defaultTrans = new TransformDataRimlight();
 
         public override TransformType type => TransformType.Rimlight;
 
-        public override int valueCount => 28;
+        public override int valueCount => 25;
 
         public override bool hasEulerAngles => true;
         public override bool hasColor => true;
@@ -130,36 +130,38 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             },
             {
-                "depthMin", new CustomValueInfo
+                // 0=マスクなし / 1=キャラ除外 / 2=キャラのみ。実体は int なので丸めて渡す
+                "maskMode", new CustomValueInfo
                 {
-                    index = (int)Index.DepthMin,
-                    name = "最小深度",
+                    index = (int)Index.MaskMode,
+                    name = "マスク",
                     min = 0f,
-                    max = 100f,
-                    step = 0.1f,
-                    defaultValue = 0f,
+                    max = 2f,
+                    step = 1f,
+                    defaultValue = 2f,
                 }
             },
             {
-                "depthMax", new CustomValueInfo
+                // bool を 0/1 で持つ。0.5 以上を true として実体へ渡す
+                "excludeFace", new CustomValueInfo
                 {
-                    index = (int)Index.DepthMax,
-                    name = "最大深度",
+                    index = (int)Index.ExcludeFace,
+                    name = "顔除外",
                     min = 0f,
-                    max = 100f,
-                    step = 0.1f,
-                    defaultValue = 5f,
-                }
-            },
-            {
-                "depthFade", new CustomValueInfo
-                {
-                    index = (int)Index.DepthFade,
-                    name = "深度幅",
-                    min = 0f,
-                    max = 10f,
-                    step = 0.01f,
+                    max = 1f,
+                    step = 1f,
                     defaultValue = 1f,
+                }
+            },
+            {
+                "applyHair", new CustomValueInfo
+                {
+                    index = (int)Index.ApplyHair,
+                    name = "髪に適用",
+                    min = 0f,
+                    max = 1f,
+                    step = 1f,
+                    defaultValue = 0f,
                 }
             },
             {
@@ -228,39 +230,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     defaultValue = 0f,
                 }
             },
-            {
-                "edgeDepth", new CustomValueInfo
-                {
-                    index = (int)Index.EdgeDepth,
-                    name = "Edge深度",
-                    min = 0f,
-                    max = 10f,
-                    step = 0.01f,
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "edgeRange", new CustomValueInfo
-                {
-                    index = (int)Index.EdgeRange,
-                    name = "Edge幅",
-                    min = 0f,
-                    max = 10f,
-                    step = 0.01f,
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "heightMin", new CustomValueInfo
-                {
-                    index = (int)Index.HeightMin,
-                    name = "最小高さ",
-                    min = -10f,
-                    max = 10f,
-                    step = 0.01f,
-                    defaultValue = 0.01f,
-                }
-            }
         };
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
@@ -272,35 +241,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData lightAreaValue => values[(int)Index.LightArea];
         public ValueData fadeRangeValue => values[(int)Index.FadeRange];
         public ValueData fadeExpValue => values[(int)Index.FadeExp];
-        public ValueData depthMinValue => values[(int)Index.DepthMin];
-        public ValueData depthMaxValue => values[(int)Index.DepthMax];
-        public ValueData depthFadeValue => values[(int)Index.DepthFade];
+        public ValueData maskModeValue => values[(int)Index.MaskMode];
+        public ValueData excludeFaceValue => values[(int)Index.ExcludeFace];
+        public ValueData applyHairValue => values[(int)Index.ApplyHair];
         public ValueData useNormalValue => values[(int)Index.UseNormal];
         public ValueData useAddValue => values[(int)Index.UseAdd];
         public ValueData useMultiplyValue => values[(int)Index.UseMultiply];
         public ValueData useOverlayValue => values[(int)Index.UseOverlay];
         public ValueData useSubstructValue => values[(int)Index.UseSubstruct];
         public ValueData isWorldSpaceValue => values[(int)Index.IsWorldSpace];
-        public ValueData edgeDepthValue => values[(int)Index.EdgeDepth];
-        public ValueData edgeRangeValue => values[(int)Index.EdgeRange];
-        public ValueData heightMinValue => values[(int)Index.HeightMin];
 
         // CustomValueInfoアクセサ
         public CustomValueInfo lightAreaInfo => GetCustomValueInfo("lightArea");
         public CustomValueInfo fadeRangeInfo => GetCustomValueInfo("fadeRange");
         public CustomValueInfo fadeExpInfo => GetCustomValueInfo("fadeExp");
-        public CustomValueInfo depthMinInfo => GetCustomValueInfo("depthMin");
-        public CustomValueInfo depthMaxInfo => GetCustomValueInfo("depthMax");
-        public CustomValueInfo depthFadeInfo => GetCustomValueInfo("depthFade");
+        public CustomValueInfo maskModeInfo => GetCustomValueInfo("maskMode");
+        public CustomValueInfo excludeFaceInfo => GetCustomValueInfo("excludeFace");
+        public CustomValueInfo applyHairInfo => GetCustomValueInfo("applyHair");
         public CustomValueInfo useNormalInfo => GetCustomValueInfo("useNormal");
         public CustomValueInfo useAddInfo => GetCustomValueInfo("useAdd");
         public CustomValueInfo useMultiplyInfo => GetCustomValueInfo("useMultiply");
         public CustomValueInfo useOverlayInfo => GetCustomValueInfo("useOverlay");
         public CustomValueInfo useSubstructInfo => GetCustomValueInfo("useSubstruct");
         public CustomValueInfo isWorldSpaceInfo => GetCustomValueInfo("isWorldSpace");
-        public CustomValueInfo edgeDepthInfo => GetCustomValueInfo("edgeDepth");
-        public CustomValueInfo edgeRangeInfo => GetCustomValueInfo("edgeRange");
-        public CustomValueInfo heightMinInfo => GetCustomValueInfo("heightMin");
 
         // プロパティアクセサ
         public float lightArea
@@ -321,22 +284,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => fadeExpValue.value = value;
         }
 
-        public float depthMin
+        public float maskMode
         {
-            get => depthMinValue.value;
-            set => depthMinValue.value = value;
+            get => maskModeValue.value;
+            set => maskModeValue.value = value;
         }
 
-        public float depthMax
+        public float excludeFace
         {
-            get => depthMaxValue.value;
-            set => depthMaxValue.value = value;
+            get => excludeFaceValue.value;
+            set => excludeFaceValue.value = value;
         }
 
-        public float depthFade
+        public float applyHair
         {
-            get => depthFadeValue.value;
-            set => depthFadeValue.value = value;
+            get => applyHairValue.value;
+            set => applyHairValue.value = value;
         }
 
         public float useNormal
@@ -375,27 +338,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => isWorldSpaceValue.boolValue = value;
         }
 
-        public float edgeDepth
+        public PEP.RimlightData rimlight
         {
-            get => edgeDepthValue.value;
-            set => edgeDepthValue.value = value;
-        }
-
-        public float edgeRange
-        {
-            get => edgeRangeValue.value;
-            set => edgeRangeValue.value = value;
-        }
-
-        public float heightMin
-        {
-            get => heightMinValue.value;
-            set => heightMinValue.value = value;
-        }
-
-        public RimlightData rimlight
-        {
-            get => new RimlightData
+            get => new PEP.RimlightData
             {
                 enabled = visible,
                 color1 = color,
@@ -404,18 +349,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 lightArea = lightArea,
                 fadeRange = fadeRange,
                 fadeExp = fadeExp,
-                depthMin = depthMin,
-                depthMax = depthMax,
-                depthFade = depthFade,
+                maskMode = Mathf.RoundToInt(maskMode),
+                excludeFace = excludeFace >= 0.5f,
+                applyHair = applyHair >= 0.5f,
                 useNormal = useNormal,
                 useAdd = useAdd,
                 useMultiply = useMultiply,
                 useOverlay = useOverlay,
                 useSubstruct = useSubstruct,
                 isWorldSpace = isWorldSpace,
-                edgeDepth = edgeDepth,
-                edgeRange = edgeRange,
-                heightMin = heightMin,
             };
             set
             {
@@ -426,18 +368,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 lightArea = value.lightArea;
                 fadeRange = value.fadeRange;
                 fadeExp = value.fadeExp;
-                depthMin = value.depthMin;
-                depthMax = value.depthMax;
-                depthFade = value.depthFade;
+                maskMode = value.maskMode;
+                excludeFace = value.excludeFace ? 1f : 0f;
+                applyHair = value.applyHair ? 1f : 0f;
                 useNormal = value.useNormal;
                 useAdd = value.useAdd;
                 useMultiply = value.useMultiply;
                 useOverlay = value.useOverlay;
                 useSubstruct = value.useSubstruct;
                 isWorldSpace = value.isWorldSpace;
-                edgeDepth = value.edgeDepth;
-                edgeRange = value.edgeRange;
-                heightMin = value.heightMin;
             }
         }
 

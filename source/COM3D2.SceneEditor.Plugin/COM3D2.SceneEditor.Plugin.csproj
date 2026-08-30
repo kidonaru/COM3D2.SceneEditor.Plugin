@@ -482,17 +482,6 @@
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentUnification.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\ColorParaffinEffectModel.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\ColorParaffinEffectSettings.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\DistanceFogEffectModel.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\DistanceFogEffectSettings.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\GTToneMapController.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\PostEffectContext.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\PostEffectController.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\PostEffectModelBase.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\PostEffectSettingsBase.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\RimlightEffectModel.cs" />
-    <Compile Include="Timeline\UnityScripts\PostEffect\RimlightEffectSettings.cs" />
     <Compile Include="Timeline\UnityScripts\Psyllium.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumArea.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumConfig.cs" />

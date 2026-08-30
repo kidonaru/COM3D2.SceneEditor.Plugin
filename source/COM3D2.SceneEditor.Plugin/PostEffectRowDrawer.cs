@@ -195,35 +195,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
-            view.DrawHorizontalLine(Color.gray);
-
-            view.DrawLabel("共通設定", 100, 20);
-
-            view.BeginHorizontal();
-            {
-                view.DrawToggle("高解像度", config.dofHighResolution, 100, 20, newValue =>
-                {
-                    config.dofHighResolution = newValue;
-                    config.dirty = true;
-                    updateTransform = true;
-                });
-
-                view.DrawToggle("近距離ブラー", config.dofNearBlur, 100, 20, newValue =>
-                {
-                    config.dofNearBlur = newValue;
-                    config.dirty = true;
-                    updateTransform = true;
-                });
-            }
-            view.EndLayout();
-
-            view.DrawToggle("フォーカスの可視化", config.dofVisualizeFocus, 150, 20, newValue =>
-            {
-                config.dofVisualizeFocus = newValue;
-                config.dirty = true;
-                updateTransform = true;
-            });
-
             if (updateTransform)
             {
                 postEffectManager.ApplyDepthOfField(depthOfField);
@@ -285,21 +256,10 @@ namespace COM3D2.SceneEditor.Plugin
                 defaultTrans.radiusScaleYInfo,
                 paraffin.radiusScale.y,
                 newValue => paraffin.radiusScale.y = newValue);
-            
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.depthMinInfo,
-                paraffin.depthMin,
-                newValue => paraffin.depthMin = newValue);
-            
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.depthMaxInfo,
-                paraffin.depthMax,
-                newValue => paraffin.depthMax = newValue);
-            
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.depthFadeInfo,
-                paraffin.depthFade,
-                newValue => paraffin.depthFade = newValue);
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.maskModeInfo,
+                paraffin.maskMode,
+                newValue => paraffin.maskMode = newValue);
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
@@ -343,16 +303,6 @@ namespace COM3D2.SceneEditor.Plugin
             DrawCopyRow(view, timeline.paraffinCount, index,
                 PostEffectTimelineLayer.GetParaffinJpName,
                 copyToIndex => postEffectManager.ApplyParaffin(copyToIndex, paraffin));
-
-            view.DrawHorizontalLine(Color.gray);
-
-            view.DrawLabel("共通設定", 100, 20);
-
-            updateTransform |= view.DrawToggle("デバッグ表示", config.paraffinDebug, 150, 20, newValue =>
-            {
-                config.paraffinDebug = newValue;
-                config.dirty = true;
-            });
 
             if (updateTransform)
             {
@@ -444,16 +394,6 @@ namespace COM3D2.SceneEditor.Plugin
                 PostEffectTimelineLayer.GetDistanceFogJpName,
                 copyToIndex => postEffectManager.ApplyDistanceFog(copyToIndex, distanceFog));
 
-            view.DrawHorizontalLine(Color.gray);
-
-            view.DrawLabel("共通設定", 100, 20);
-
-            updateTransform |= view.DrawToggle("デバッグ表示", config.distanceFogDebug, 150, 20, newValue =>
-            {
-                config.distanceFogDebug = newValue;
-                config.dirty = true;
-            });
-
             if (updateTransform)
             {
                 postEffectManager.ApplyDistanceFog(index, distanceFog);
@@ -508,6 +448,25 @@ namespace COM3D2.SceneEditor.Plugin
                 rimlight.isWorldSpace,
                 newValue => rimlight.isWorldSpace = newValue);
 
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.maskModeInfo,
+                rimlight.maskMode,
+                newValue => rimlight.maskMode = newValue);
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.excludeFaceInfo,
+                rimlight.excludeFace,
+                newValue => rimlight.excludeFace = newValue);
+
+            // 顔を除外しているときだけ、髪へ戻すかを選べる (実体側 UI と同じ条件)
+            if (rimlight.excludeFace)
+            {
+                updateTransform |= view.DrawCustomValueBool(
+                    defaultTrans.applyHairInfo,
+                    rimlight.applyHair,
+                    newValue => rimlight.applyHair = newValue);
+            }
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.lightAreaInfo,
                 rimlight.lightArea,
@@ -523,35 +482,10 @@ namespace COM3D2.SceneEditor.Plugin
                 rimlight.fadeExp,
                 newValue => rimlight.fadeExp = newValue);
 
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.depthMinInfo,
-                rimlight.depthMin,
-                newValue => rimlight.depthMin = newValue);
 
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.depthMaxInfo,
-                rimlight.depthMax,
-                newValue => rimlight.depthMax = newValue);
 
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.depthFadeInfo,
-                rimlight.depthFade,
-                newValue => rimlight.depthFade = newValue);
 
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.edgeDepthInfo,
-                rimlight.edgeDepth,
-                newValue => rimlight.edgeDepth = newValue);
-
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.edgeRangeInfo,
-                rimlight.edgeRange,
-                newValue => rimlight.edgeRange = newValue);
             
-            updateTransform |= view.DrawCustomValueFloat(
-                defaultTrans.heightMinInfo,
-                rimlight.heightMin,
-                newValue => rimlight.heightMin = newValue);
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
@@ -595,16 +529,6 @@ namespace COM3D2.SceneEditor.Plugin
             DrawCopyRow(view, timeline.rimlightCount, index,
                 PostEffectTimelineLayer.GetRimlightJpName,
                 copyToIndex => postEffectManager.ApplyRimlight(copyToIndex, rimlight));
-
-            view.DrawHorizontalLine(Color.gray);
-
-            view.DrawLabel("共通設定", 100, 20);
-
-            updateTransform |= view.DrawToggle("デバッグ表示", config.rimlightDebug, 150, 20, newValue =>
-            {
-                config.rimlightDebug = newValue;
-                config.dirty = true;
-            });
 
             if (updateTransform)
             {

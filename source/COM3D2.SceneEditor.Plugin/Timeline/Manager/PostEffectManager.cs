@@ -1,13 +1,7 @@
-﻿using System.Collections.Generic;
+// ポストエフェクトの実体は PostEffects.Plugin が持つ。alias の理由は PostEffectsBridge を参照
+extern alias PostEffectsPlugin;
 using UnityEngine;
-// Assembly-UnityScript-firstpass のグローバル名前空間には Unity 5 世代の DepthOfFieldScatter が
-// 残骸として残っており、素の型名ではそちらに束縛されて Unity 2022 で削除された
-// Graphics.DrawProceduralIndirect を呼んでしまう。ゲームが実際に使う PostEffects_Dummy 側へ束縛する
-#if COM3D25
-using DepthOfFieldEffect = PostEffects_Dummy.DepthOfFieldScatter;
-#else
-using DepthOfFieldEffect = global::DepthOfFieldScatter;
-#endif
+using PEP = PostEffectsPlugin::COM3D25.PostEffects.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -37,6 +31,79 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
     }
 
+    [System.Serializable]
+    public struct GTToneMapData
+    {
+        public bool enabled;
+        [Range(1f, 100f)]
+        public float maxBrightness;
+        [Range(0f, 5f)]
+        public float contrast;
+        [Range(0f, 1f)]
+        public float linearStart;
+        [Range(0f, 1f)]
+        public float linearLength;
+        [Range(1f, 3f)]
+        public float blackTightness;
+        [Range(0f, 1f)]
+        public float blackOffset;
+
+        public static GTToneMapData Create()
+        {
+            return new GTToneMapData
+            {
+                enabled = false,
+                maxBrightness = 1.0f,
+                contrast = 1.0f,
+                linearStart = 0.22f,
+                linearLength = 0.4f,
+                blackTightness = 1.33f,
+                blackOffset = 0.0f
+            };
+        }
+
+        public void CopyFrom(GTToneMapData other)
+        {
+            enabled = other.enabled;
+            maxBrightness = other.maxBrightness;
+            contrast = other.contrast;
+            linearStart = other.linearStart;
+            linearLength = other.linearLength;
+            blackTightness = other.blackTightness;
+            blackOffset = other.blackOffset;
+        }
+
+        public bool Equals(GTToneMapData other)
+        {
+            return enabled == other.enabled &&
+                   maxBrightness.Equals(other.maxBrightness) &&
+                   contrast.Equals(other.contrast) &&
+                   linearStart.Equals(other.linearStart) &&
+                   linearLength.Equals(other.linearLength) &&
+                   blackTightness.Equals(other.blackTightness) &&
+                   blackOffset.Equals(other.blackOffset);
+        }
+
+        public static GTToneMapData Lerp(GTToneMapData start, GTToneMapData end, float t)
+        {
+            GTToneMapData result = new GTToneMapData();
+            result.enabled = start.enabled;
+            result.maxBrightness = Mathf.Lerp(start.maxBrightness, end.maxBrightness, t);
+            result.contrast = Mathf.Lerp(start.contrast, end.contrast, t);
+            result.linearStart = Mathf.Lerp(start.linearStart, end.linearStart, t);
+            result.linearLength = Mathf.Lerp(start.linearLength, end.linearLength, t);
+            result.blackTightness = Mathf.Lerp(start.blackTightness, end.blackTightness, t);
+            result.blackOffset = Mathf.Lerp(start.blackOffset, end.blackOffset, t);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// ポストエフェクトのタイムライン窓口。値の実体は PostEffects.Plugin が所有しており、
+    /// ここは TimelineBridge への素通し委譲と DTO 変換だけを持つ。
+    /// 全メンバが「PostEffects.Plugin 導入済み」を前提にするため、
+    /// 未導入時のガードは呼び出し元 (TimelineIntegration / UI) が行うこと
+    /// </summary>
     public class PostEffectManager : ManagerBase
     {
         private static PostEffectManager _instance;
@@ -53,40 +120,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private DepthOfFieldEffect _depthOfField = null;
-        public DepthOfFieldEffect depthOfField
-        {
-            get
-            {
-                if (_depthOfField == null)
-                {
-                    _depthOfField = studioHack.depthOfField;
-                }
-
-                return _depthOfField;
-            }
-        }
-
         public int depthOfFieldMaidSlotId = -1;
 
-        // 各エフェクト数の上限。UI の増減行とプリセット復元時の丸めで同じ値を使う
-        public const int MaxParaffinCount = 8;
-        public const int MaxDistanceFogCount = 4;
-        public const int MaxRimlightCount = 8;
+        // 各エフェクト数の上限。実体側 (PostEffects.Plugin) のシェーダーバッファ上限に従う
+        public static readonly int MaxParaffinCount = PEP.TimelineBridge.MaxParaffinCount;
+        public static readonly int MaxDistanceFogCount = PEP.TimelineBridge.MaxDistanceFogCount;
+        public static readonly int MaxRimlightCount = PEP.TimelineBridge.MaxRimlightCount;
 
-        // タイムライン未読込時の各エフェクト数。プリセット復元をタイムライン非依存にするための自前の所有者。
-        // 既定値は TimelineData の既定値 (各 1) と揃える
-        private int _standaloneParaffinCount = 1;
-        private int _standaloneDistanceFogCount = 1;
-        private int _standaloneRimlightCount = 1;
-
-        /// <summary>パラフィン数。タイムライン読込中は timeline 側が正、未読込時は自前値で動く</summary>
+        /// <summary>パラフィン数。実体は PostEffects.Plugin 側が所有する。
+        /// タイムライン読込中は timeline 側 (TimelineXml に保存) と同期する</summary>
         public int paraffinCount
         {
-            get => timeline != null ? timeline.paraffinCount : _standaloneParaffinCount;
+            get => PEP.TimelineBridge.paraffinCount;
             set
             {
-                _standaloneParaffinCount = value;
+                PEP.TimelineBridge.paraffinCount = value;
                 if (timeline != null)
                 {
                     timeline.paraffinCount = value;
@@ -94,13 +142,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>距離フォグ数。タイムライン読込中は timeline 側が正、未読込時は自前値で動く</summary>
+        /// <summary>距離フォグ数。所有者と同期規約はパラフィンと同じ</summary>
         public int distanceFogCount
         {
-            get => timeline != null ? timeline.distanceFogCount : _standaloneDistanceFogCount;
+            get => PEP.TimelineBridge.distanceFogCount;
             set
             {
-                _standaloneDistanceFogCount = value;
+                PEP.TimelineBridge.distanceFogCount = value;
                 if (timeline != null)
                 {
                     timeline.distanceFogCount = value;
@@ -108,13 +156,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>リムライト数。タイムライン読込中は timeline 側が正、未読込時は自前値で動く</summary>
+        /// <summary>リムライト数。所有者と同期規約はパラフィンと同じ</summary>
         public int rimlightCount
         {
-            get => timeline != null ? timeline.rimlightCount : _standaloneRimlightCount;
+            get => PEP.TimelineBridge.rimlightCount;
             set
             {
-                _standaloneRimlightCount = value;
+                PEP.TimelineBridge.rimlightCount = value;
                 if (timeline != null)
                 {
                     timeline.rimlightCount = value;
@@ -122,39 +170,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private PostEffectController _controller = null;
-        public PostEffectController controller
+        public bool paraffinEnabled
         {
-            get
-            {
-                if (_controller == null)
-                {
-                    _controller = mainCamera.GetOrAddComponent<PostEffectController>();
-                }
-                return _controller;
-            }
+            get => PEP.TimelineBridge.paraffinEnabled;
+            set => PEP.TimelineBridge.paraffinEnabled = value;
         }
 
-        private GTToneMapController _gTToneMappingController = null;
-        public GTToneMapController gtToneMapController
+        public bool distanceFogEnabled
         {
-            get
-            {
-                if (_gTToneMappingController == null)
-                {
-                    _gTToneMappingController = mainCamera.GetOrAddComponent<GTToneMapController>();
-                    _gTToneMappingController.enabled = false; // Disable by default
-                }
-                return _gTToneMappingController;
-            }
+            get => PEP.TimelineBridge.distanceFogEnabled;
+            set => PEP.TimelineBridge.distanceFogEnabled = value;
         }
 
-        public ColorParaffinEffectSettings paraffin => controller.context.paraffinSettings;
-        public DistanceFogEffectSettings distanceFog => controller.context.fogSettings;
-        public RimlightEffectSettings rimlight => controller.context.rimlightSettings;
-        public GTToneMapData gtToneMap => gtToneMapController.data;
-
-        private static Camera mainCamera => PluginUtils.MainCamera;
+        public bool rimlightEnabled
+        {
+            get => PEP.TimelineBridge.rimlightEnabled;
+            set => PEP.TimelineBridge.rimlightEnabled = value;
+        }
 
         private PostEffectManager()
         {
@@ -173,220 +205,166 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void OnPluginDisable()
         {
             DisableAllEffects();
-            ResetCache();
-            ReleaseController();
         }
 
         public void InitPostEffects()
         {
             if (timeline != null)
             {
-                // タイムライン読込 (TimelineXml) で timeline 側だけ変わった場合に自前値を追随させる
-                _standaloneParaffinCount = timeline.paraffinCount;
-                _standaloneDistanceFogCount = timeline.distanceFogCount;
-                _standaloneRimlightCount = timeline.rimlightCount;
-            }
-
-            InitParrifinEffect();
-            InitDistanceFogEffect();
-            InitRimlightEffect();
-        }
-
-        private void InitParrifinEffect()
-        {
-            while (postEffectManager.GetParaffinCount() < paraffinCount)
-            {
-                postEffectManager.AddParaffinData();
-            }
-            while (postEffectManager.GetParaffinCount() > paraffinCount)
-            {
-                postEffectManager.RemoveParaffinData();
-            }
-        }
-
-        private void InitDistanceFogEffect()
-        {
-            while (postEffectManager.GetDistanceFogCount() < distanceFogCount)
-            {
-                postEffectManager.AddDistanceFogData();
-            }
-            while (postEffectManager.GetDistanceFogCount() > distanceFogCount)
-            {
-                postEffectManager.RemoveDistanceFogData();
-            }
-        }
-
-        private void InitRimlightEffect()
-        {
-            while (postEffectManager.GetRimlightCount() < rimlightCount)
-            {
-                postEffectManager.AddRimlightData();
-            }
-            while (postEffectManager.GetRimlightCount() > rimlightCount)
-            {
-                postEffectManager.RemoveRimlightData();
-            }
-        }
-
-        private void ResetCache()
-        {
-            _depthOfField = null;
-        }
-
-        private void ReleaseController()
-        {
-            if (_controller != null)
-            {
-                Object.Destroy(_controller);
-                _controller = null;
+                // TimelineXml 読込で timeline 側だけ変わった場合に実体数を追随させる
+                PEP.TimelineBridge.paraffinCount = timeline.paraffinCount;
+                PEP.TimelineBridge.distanceFogCount = timeline.distanceFogCount;
+                PEP.TimelineBridge.rimlightCount = timeline.rimlightCount;
             }
         }
 
         public void DisableAllEffects()
         {
-            depthOfField.enabled = false;
-            paraffin.enabled = false;
-            distanceFog.enabled = false;
-            rimlight.enabled = false;
-            gtToneMapController.SetEnable(false);
+            PEP.TimelineBridge.paraffinEnabled = false;
+            PEP.TimelineBridge.distanceFogEnabled = false;
+            PEP.TimelineBridge.rimlightEnabled = false;
+
+            var dof = PEP.TimelineBridge.GetDepthOfField();
+            dof.enabled = false;
+            PEP.TimelineBridge.ApplyDepthOfField(dof);
+
+            var toneMap = PEP.TimelineBridge.GetGTToneMap();
+            toneMap.enabled = false;
+            PEP.TimelineBridge.ApplyGTToneMap(toneMap);
         }
 
         public DepthOfFieldData GetDepthOfFieldData()
         {
-            DepthOfFieldData data = new DepthOfFieldData();
-            data.enabled = depthOfField.enabled;
-            data.focalLength = depthOfField.focalLength;
-            data.focalSize = depthOfField.focalSize;
-            data.aperture = depthOfField.aperture;
-            data.maxBlurSize = depthOfField.maxBlurSize;
-            data.maidSlotNo = depthOfFieldMaidSlotId;
-            return data;
+            var setting = PEP.TimelineBridge.GetDepthOfField();
+            return new DepthOfFieldData
+            {
+                enabled = setting.enabled,
+                focalLength = setting.focalLength,
+                focalSize = setting.focalSize,
+                aperture = setting.aperture,
+                maxBlurSize = setting.maxBlurSize,
+                // メイド追従は PEP 側で maidFocus + maidIndex に分かれている
+                maidSlotNo = setting.maidFocus ? setting.maidIndex : -1,
+            };
         }
 
         public void ApplyDepthOfField(DepthOfFieldData data)
         {
-            depthOfField.enabled = data.enabled;
-            depthOfField.focalLength = data.focalLength;
-            depthOfField.focalSize = data.focalSize;
-            depthOfField.aperture = data.aperture;
-            depthOfField.maxBlurSize = data.maxBlurSize;
+            var setting = PEP.TimelineBridge.GetDepthOfField();
+            setting.enabled = data.enabled;
+            setting.focalLength = data.focalLength;
+            setting.focalSize = data.focalSize;
+            setting.aperture = data.aperture;
+            setting.maxBlurSize = data.maxBlurSize;
+            setting.maidFocus = data.maidSlotNo >= 0;
+            setting.maidIndex = data.maidSlotNo >= 0 ? data.maidSlotNo : 0;
+            PEP.TimelineBridge.ApplyDepthOfField(setting);
             depthOfFieldMaidSlotId = data.maidSlotNo;
-            depthOfField.visualizeFocus = config.dofVisualizeFocus;
-            depthOfField.highResolution = config.dofHighResolution;
-            depthOfField.nearBlur = config.dofNearBlur;
-
-            Transform focalTransform = null;
-            if (data.maidSlotNo >= 0)
-            {
-                var maid = maidManager.GetMaid(data.maidSlotNo);
-                if (maid != null)
-                {
-                    focalTransform = maid.body0.trsHead;
-                }
-            }
-            depthOfField.focalTransform = focalTransform;
 
             studioHack.OnUpdateDepthOfField();
         }
 
         public int GetParaffinCount()
         {
-            return paraffin.GetDataCount();
+            return PEP.TimelineBridge.paraffinCount;
         }
 
         public void AddParaffinData()
         {
-            paraffin.AddData(new ColorParaffinData());
+            PEP.TimelineBridge.paraffinCount++;
         }
 
         public void RemoveParaffinData()
         {
-            paraffin.RemoveDataLast();
+            PEP.TimelineBridge.paraffinCount--;
         }
 
-        public ColorParaffinData GetParaffinData(int index)
+        public PEP.ColorParaffinData GetParaffinData(int index)
         {
-            return paraffin.GetData(index);
+            return PEP.TimelineBridge.GetParaffinData(index);
         }
 
-        public void ApplyParaffin(int index, ColorParaffinData data)
+        public void ApplyParaffin(int index, PEP.ColorParaffinData data)
         {
-            if (data.enabled)
-            {
-                paraffin.enabled = true;
-            }
-            paraffin.SetData(index, data);
-            paraffin.isDebugView = config.paraffinDebug;
+            PEP.TimelineBridge.ApplyParaffin(index, data);
         }
 
         public int GetDistanceFogCount()
         {
-            return distanceFog.GetDataCount();
+            return PEP.TimelineBridge.distanceFogCount;
         }
 
         public void AddDistanceFogData()
         {
-            distanceFog.AddData(new DistanceFogData());
+            PEP.TimelineBridge.distanceFogCount++;
         }
 
         public void RemoveDistanceFogData()
         {
-            distanceFog.RemoveDataLast();
+            PEP.TimelineBridge.distanceFogCount--;
         }
 
-        public DistanceFogData GetDistanceFogData(int index)
+        public PEP.DistanceFogData GetDistanceFogData(int index)
         {
-            return distanceFog.GetData(index);
+            return PEP.TimelineBridge.GetDistanceFogData(index);
         }
 
-        public void ApplyDistanceFog(int index, DistanceFogData data)
+        public void ApplyDistanceFog(int index, PEP.DistanceFogData data)
         {
-            if (data.enabled)
-            {
-                distanceFog.enabled = true;
-            }
-            distanceFog.SetData(index, data);
-            distanceFog.isDebugView = config.distanceFogDebug;
+            PEP.TimelineBridge.ApplyDistanceFog(index, data);
         }
 
         public int GetRimlightCount()
         {
-            return rimlight.GetDataCount();
+            return PEP.TimelineBridge.rimlightCount;
         }
 
         public void AddRimlightData()
         {
-            rimlight.AddData(new RimlightData());
+            PEP.TimelineBridge.rimlightCount++;
         }
 
         public void RemoveRimlightData()
         {
-            rimlight.RemoveDataLast();
+            PEP.TimelineBridge.rimlightCount--;
         }
 
-        public RimlightData GetRimlightData(int index)
+        public PEP.RimlightData GetRimlightData(int index)
         {
-            return rimlight.GetData(index);
+            return PEP.TimelineBridge.GetRimlightData(index);
         }
 
-        public void ApplyRimlight(int index, RimlightData data)
+        public void ApplyRimlight(int index, PEP.RimlightData data)
         {
-            if (data.enabled)
-            {
-                rimlight.enabled = true;
-            }
-            rimlight.SetData(index, data);
-            rimlight.isDebugView = config.rimlightDebug;
+            PEP.TimelineBridge.ApplyRimlight(index, data);
         }
 
         public GTToneMapData GetGTToneMapData()
         {
-            return gtToneMapController.data;
+            var setting = PEP.TimelineBridge.GetGTToneMap();
+            return new GTToneMapData
+            {
+                enabled = setting.enabled,
+                maxBrightness = setting.maxBrightness,
+                contrast = setting.contrast,
+                linearStart = setting.linearStart,
+                linearLength = setting.linearLength,
+                blackTightness = setting.blackTightness,
+                blackOffset = setting.blackOffset,
+            };
         }
 
         public void ApplyGTToneMap(GTToneMapData data)
         {
-            gtToneMapController.ApplyData(data);
+            var setting = PEP.TimelineBridge.GetGTToneMap();
+            setting.enabled = data.enabled;
+            setting.maxBrightness = data.maxBrightness;
+            setting.contrast = data.contrast;
+            setting.linearStart = data.linearStart;
+            setting.linearLength = data.linearLength;
+            setting.blackTightness = data.blackTightness;
+            setting.blackOffset = data.blackOffset;
+            PEP.TimelineBridge.ApplyGTToneMap(setting);
         }
     }
 }
