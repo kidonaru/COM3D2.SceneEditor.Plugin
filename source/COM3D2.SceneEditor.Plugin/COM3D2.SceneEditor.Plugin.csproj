@@ -62,15 +62,6 @@
     <Reference Include="UnityInjector">
       <HintPath>$(COM3D2_DIR)\Sybaris\lib\UnityInjector.dll</HintPath>
     </Reference>
-    <!-- ポストエフェクトの実体を提供するプラグイン。未導入環境では PostEffectsBridge が
-         型ロード失敗を握り潰すため、必要なのはビルド時だけ (実行時は任意)。
-         向こうも MTEUtils 一式 (COM3D2.MotionTimelineEditor 名前空間) を同梱しており
-         拡張メソッドが多重定義になるため、extern alias で名前空間ごと隔離する -->
-    <Reference Include="COM3D25.PostEffects.Plugin">
-      <HintPath>$(GameDir)\Sybaris\UnityInjector\COM3D25.PostEffects.Plugin.dll</HintPath>
-      <Aliases>PostEffectsPlugin</Aliases>
-      <Private>False</Private>
-    </Reference>
     <!-- HarmonyX。BepInEx 同梱の 0Harmony を参照する -->
     <Reference Include="0Harmony">
       <HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath>

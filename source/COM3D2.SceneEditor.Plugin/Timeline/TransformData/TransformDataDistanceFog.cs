@@ -1,8 +1,6 @@
-// ポストエフェクトの値クラスは PostEffects.Plugin 側の実体を使う。alias の理由は PostEffectsBridge を参照
-extern alias PostEffectsPlugin;
 using System.Collections.Generic;
 using UnityEngine;
-using PEP = PostEffectsPlugin::COM3D25.PostEffects.Plugin;
+using PEP = COM3D2.MotionTimelineEditor.PostEffects;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {

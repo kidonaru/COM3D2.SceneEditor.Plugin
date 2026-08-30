@@ -1,7 +1,5 @@
-// ポストエフェクトの実体は PostEffects.Plugin が持つ。alias の理由は PostEffectsBridge を参照
-extern alias PostEffectsPlugin;
 using UnityEngine;
-using PEP = PostEffectsPlugin::COM3D25.PostEffects.Plugin;
+using PEData = COM3D2.MotionTimelineEditor.PostEffects;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -100,9 +98,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     /// <summary>
     /// ポストエフェクトのタイムライン窓口。値の実体は PostEffects.Plugin が所有しており、
-    /// ここは TimelineBridge への素通し委譲と DTO 変換だけを持つ。
-    /// 全メンバが「PostEffects.Plugin 導入済み」を前提にするため、
-    /// 未導入時のガードは呼び出し元 (TimelineIntegration / UI) が行うこと
+    /// ここは PostEffectsClient (リフレクション経由の TimelineBridge) への委譲と
+    /// DTO 変換だけを持つ。未接続時は PostEffectsClient 側が既定値を返して
+    /// 書き込みを捨てるため、ここに未導入時のガードは置かない
     /// </summary>
     public class PostEffectManager : ManagerBase
     {
@@ -123,20 +121,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int depthOfFieldMaidSlotId = -1;
 
         // 各エフェクト数の上限。実体側 (PostEffects.Plugin) のシェーダーバッファ上限に従う。
-        // 静的フィールドにするとこのクラスへ触れただけで PEP の型ロードを誘発し、
-        // 未導入環境で isAvailable ガードを迲回してしまうためプロパティにする
-        public static int MaxParaffinCount => PEP.TimelineBridge.MaxParaffinCount;
-        public static int MaxDistanceFogCount => PEP.TimelineBridge.MaxDistanceFogCount;
-        public static int MaxRimlightCount => PEP.TimelineBridge.MaxRimlightCount;
+        // 未接続時は 0 になるので、UI 側は isAvailable でゲートしてから参照すること
+        public static int MaxParaffinCount => PostEffectsClient.maxParaffinCount;
+        public static int MaxDistanceFogCount => PostEffectsClient.maxDistanceFogCount;
+        public static int MaxRimlightCount => PostEffectsClient.maxRimlightCount;
 
         /// <summary>パラフィン数。実体は PostEffects.Plugin 側が所有する。
         /// タイムライン読込中は timeline 側 (TimelineXml に保存) と同期する</summary>
         public int paraffinCount
         {
-            get => PEP.TimelineBridge.paraffinCount;
+            get => PostEffectsClient.paraffinCount;
             set
             {
-                PEP.TimelineBridge.paraffinCount = value;
+                PostEffectsClient.paraffinCount = value;
                 if (timeline != null)
                 {
                     timeline.paraffinCount = value;
@@ -147,10 +144,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>距離フォグ数。所有者と同期規約はパラフィンと同じ</summary>
         public int distanceFogCount
         {
-            get => PEP.TimelineBridge.distanceFogCount;
+            get => PostEffectsClient.distanceFogCount;
             set
             {
-                PEP.TimelineBridge.distanceFogCount = value;
+                PostEffectsClient.distanceFogCount = value;
                 if (timeline != null)
                 {
                     timeline.distanceFogCount = value;
@@ -161,10 +158,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>リムライト数。所有者と同期規約はパラフィンと同じ</summary>
         public int rimlightCount
         {
-            get => PEP.TimelineBridge.rimlightCount;
+            get => PostEffectsClient.rimlightCount;
             set
             {
-                PEP.TimelineBridge.rimlightCount = value;
+                PostEffectsClient.rimlightCount = value;
                 if (timeline != null)
                 {
                     timeline.rimlightCount = value;
@@ -174,20 +171,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool paraffinEnabled
         {
-            get => PEP.TimelineBridge.paraffinEnabled;
-            set => PEP.TimelineBridge.paraffinEnabled = value;
+            get => PostEffectsClient.paraffinEnabled;
+            set => PostEffectsClient.paraffinEnabled = value;
         }
 
         public bool distanceFogEnabled
         {
-            get => PEP.TimelineBridge.distanceFogEnabled;
-            set => PEP.TimelineBridge.distanceFogEnabled = value;
+            get => PostEffectsClient.distanceFogEnabled;
+            set => PostEffectsClient.distanceFogEnabled = value;
         }
 
         public bool rimlightEnabled
         {
-            get => PEP.TimelineBridge.rimlightEnabled;
-            set => PEP.TimelineBridge.rimlightEnabled = value;
+            get => PostEffectsClient.rimlightEnabled;
+            set => PostEffectsClient.rimlightEnabled = value;
         }
 
         private PostEffectManager()
@@ -214,30 +211,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (timeline != null)
             {
                 // TimelineXml 読込で timeline 側だけ変わった場合に実体数を追随させる
-                PEP.TimelineBridge.paraffinCount = timeline.paraffinCount;
-                PEP.TimelineBridge.distanceFogCount = timeline.distanceFogCount;
-                PEP.TimelineBridge.rimlightCount = timeline.rimlightCount;
+                PostEffectsClient.paraffinCount = timeline.paraffinCount;
+                PostEffectsClient.distanceFogCount = timeline.distanceFogCount;
+                PostEffectsClient.rimlightCount = timeline.rimlightCount;
             }
         }
 
         public void DisableAllEffects()
         {
-            PEP.TimelineBridge.paraffinEnabled = false;
-            PEP.TimelineBridge.distanceFogEnabled = false;
-            PEP.TimelineBridge.rimlightEnabled = false;
+            PostEffectsClient.paraffinEnabled = false;
+            PostEffectsClient.distanceFogEnabled = false;
+            PostEffectsClient.rimlightEnabled = false;
 
-            var dof = PEP.TimelineBridge.GetDepthOfField();
+            var dof = PostEffectsClient.GetDepthOfField();
             dof.enabled = false;
-            PEP.TimelineBridge.ApplyDepthOfField(dof);
+            PostEffectsClient.ApplyDepthOfField(dof);
 
-            var toneMap = PEP.TimelineBridge.GetGTToneMap();
+            var toneMap = PostEffectsClient.GetGTToneMap();
             toneMap.enabled = false;
-            PEP.TimelineBridge.ApplyGTToneMap(toneMap);
+            PostEffectsClient.ApplyGTToneMap(toneMap);
         }
 
         public DepthOfFieldData GetDepthOfFieldData()
         {
-            var setting = PEP.TimelineBridge.GetDepthOfField();
+            var setting = PostEffectsClient.GetDepthOfField();
             return new DepthOfFieldData
             {
                 enabled = setting.enabled,
@@ -245,14 +242,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 focalSize = setting.focalSize,
                 aperture = setting.aperture,
                 maxBlurSize = setting.maxBlurSize,
-                // メイド追従は PEP 側で maidFocus + maidIndex に分かれている
+                // メイド追従は共有 DTO 側で maidFocus + maidIndex に分かれている
                 maidSlotNo = setting.maidFocus ? setting.maidIndex : -1,
             };
         }
 
         public void ApplyDepthOfField(DepthOfFieldData data)
         {
-            var setting = PEP.TimelineBridge.GetDepthOfField();
+            var setting = PostEffectsClient.GetDepthOfField();
             setting.enabled = data.enabled;
             setting.focalLength = data.focalLength;
             setting.focalSize = data.focalSize;
@@ -260,45 +257,45 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             setting.maxBlurSize = data.maxBlurSize;
             setting.maidFocus = data.maidSlotNo >= 0;
             setting.maidIndex = data.maidSlotNo >= 0 ? data.maidSlotNo : 0;
-            PEP.TimelineBridge.ApplyDepthOfField(setting);
+            PostEffectsClient.ApplyDepthOfField(setting);
             depthOfFieldMaidSlotId = data.maidSlotNo;
 
             studioHack.OnUpdateDepthOfField();
         }
 
-        public PEP.ColorParaffinData GetParaffinData(int index)
+        public PEData.ParaffinData GetParaffinData(int index)
         {
-            return PEP.TimelineBridge.GetParaffinData(index);
+            return PostEffectsClient.GetParaffinData(index);
         }
 
-        public void ApplyParaffin(int index, PEP.ColorParaffinData data)
+        public void ApplyParaffin(int index, PEData.ParaffinData data)
         {
-            PEP.TimelineBridge.ApplyParaffin(index, data);
+            PostEffectsClient.ApplyParaffin(index, data);
         }
 
-        public PEP.DistanceFogData GetDistanceFogData(int index)
+        public PEData.DistanceFogData GetDistanceFogData(int index)
         {
-            return PEP.TimelineBridge.GetDistanceFogData(index);
+            return PostEffectsClient.GetDistanceFogData(index);
         }
 
-        public void ApplyDistanceFog(int index, PEP.DistanceFogData data)
+        public void ApplyDistanceFog(int index, PEData.DistanceFogData data)
         {
-            PEP.TimelineBridge.ApplyDistanceFog(index, data);
+            PostEffectsClient.ApplyDistanceFog(index, data);
         }
 
-        public PEP.RimlightData GetRimlightData(int index)
+        public PEData.RimlightData GetRimlightData(int index)
         {
-            return PEP.TimelineBridge.GetRimlightData(index);
+            return PostEffectsClient.GetRimlightData(index);
         }
 
-        public void ApplyRimlight(int index, PEP.RimlightData data)
+        public void ApplyRimlight(int index, PEData.RimlightData data)
         {
-            PEP.TimelineBridge.ApplyRimlight(index, data);
+            PostEffectsClient.ApplyRimlight(index, data);
         }
 
         public GTToneMapData GetGTToneMapData()
         {
-            var setting = PEP.TimelineBridge.GetGTToneMap();
+            var setting = PostEffectsClient.GetGTToneMap();
             return new GTToneMapData
             {
                 enabled = setting.enabled,
@@ -313,7 +310,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void ApplyGTToneMap(GTToneMapData data)
         {
-            var setting = PEP.TimelineBridge.GetGTToneMap();
+            var setting = PostEffectsClient.GetGTToneMap();
             setting.enabled = data.enabled;
             setting.maxBrightness = data.maxBrightness;
             setting.contrast = data.contrast;
@@ -321,7 +318,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             setting.linearLength = data.linearLength;
             setting.blackTightness = data.blackTightness;
             setting.blackOffset = data.blackOffset;
-            PEP.TimelineBridge.ApplyGTToneMap(setting);
+            PostEffectsClient.ApplyGTToneMap(setting);
         }
     }
 }
