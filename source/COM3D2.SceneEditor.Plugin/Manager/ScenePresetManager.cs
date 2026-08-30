@@ -132,6 +132,8 @@ namespace COM3D2.SceneEditor.Plugin
         public static bool loadMaids { get; set; } = true;
         public static bool loadBackground { get; set; } = true;
 
+        public static bool loadEffects { get; set; } = true;
+
         /// <summary>読込を無効化したプロバイダ id。上のトグルと同じくセッション中だけ保持する</summary>
         private static readonly HashSet<string> _loadDisabledProviders = new HashSet<string>();
 
@@ -173,6 +175,13 @@ namespace COM3D2.SceneEditor.Plugin
         private static bool ShouldApplyBackground(ScenePresetData data)
         {
             return data.savedBackground && loadBackground;
+        }
+
+        /// <summary>演出カテゴリ (テキスト・サブカメラ・ポストエフェクト) を適用するか</summary>
+        private static bool ShouldApplyEffects(ScenePresetData data)
+        {
+            // 旧プリセット (v28 以前) は effects が null のため、この条件で自然に読み飛ばされる
+            return data.savedEffects && loadEffects && data.effects != null;
         }
 
         private static ScenePresetItem CreateRootItem()
@@ -703,6 +712,7 @@ namespace COM3D2.SceneEditor.Plugin
             data.savedCamera = options.saveCamera;
             data.savedMaids = options.saveMaids;
             data.savedBackground = options.saveBackground;
+            data.savedEffects = options.saveEffects;
 
             if (options.saveCamera)
             {
@@ -723,6 +733,11 @@ namespace COM3D2.SceneEditor.Plugin
                 data.background = BackgroundSnapshot.CaptureState();
                 data.light = LightSnapshot.CaptureState();
                 data.pngPlacement = PngPlacementSnapshot.CaptureState();
+            }
+
+            if (options.saveEffects)
+            {
+                data.effects = MteEffectsSnapshot.CaptureState();
             }
 
             CaptureExternals(data, options.enabledProviderIds);
@@ -1640,6 +1655,17 @@ namespace COM3D2.SceneEditor.Plugin
         private static void FinishApply(ScenePresetData data)
         {
             var applyMaids = ShouldApplyMaids(data);
+
+            // MTE 由来の演出は仕上げ段 (全メイドのロード完了後) で適用する。
+            // メイド追従サブカメラの position/rotation は追従先メイドの有無で
+            // 書き込み先 (オフセット / ワールド値) が変わるため、
+            // メイドが揃う前に適用すると保存時と書き込み先を取り違える。
+            // タイムライン読込中に適用した場合、キーフレームを持つ項目は
+            // 再生側 (レイヤーの ApplyPlayData) が優先して上書きする
+            if (ShouldApplyEffects(data))
+            {
+                MteEffectsSnapshot.ApplyState(data.effects);
+            }
             ApplyExternals(data);
             // 外部プロバイダのモデル復元 (同期) の後でないと GameObject が存在しない
             ApplyModelBoneEdits(data);

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -323,6 +323,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool scenePresetSaveMaids = true;
         // 背景・ライト・PNG 配置をまとめた「背景」カテゴリ
         public bool scenePresetSaveBackground = true;
+        // テキスト・サブカメラ・ポストエフェクトをまとめた「演出」カテゴリ
+        public bool scenePresetSaveEffects = true;
         // 無効化した外部プロバイダ id のカンマ区切り (未指定は全有効)
         public string scenePresetDisabledProviders = "";
 
