@@ -318,10 +318,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.DrawLabel("要素数", 100, ROW_HEIGHT);
 
-            // 上限定数の参照だけで PostEffects.Plugin の型ロードを誘発するため、先に導入を見る
+            // 未接続時は上限が 0 になり増減行が成立しないため、先に接続を見る
             if (!MTEP.PostEffectsBridge.isAvailable)
             {
-                view.DrawLabel("PostEffects.Plugin が見つかりません。導入するとポストエフェクトを使用できます",
+                view.DrawLabel("PostEffects.Plugin に接続していません。導入するとポストエフェクトを使用できます",
                     -1, ROW_HEIGHT, textColor: Color.gray);
                 return;
             }
