@@ -103,6 +103,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             /// <summary>メイドモードで見る部位</summary>
             public MTEP.MaidPointType maidPointType = MTEP.MaidPointType.Head;
+
+            /// <summary>
+            /// モデルモードの注視対象のモデル名。
+            /// StudioModelStat はシーン再構築で作り直されるため実体は保持しない
+            /// </summary>
+            public string targetModelName;
         }
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
@@ -198,6 +204,24 @@ namespace COM3D2.SceneEditor.Plugin
             Apply(maid);
         }
 
+        public string GetTargetModelName(Maid maid)
+        {
+            var entry = Find(maid);
+            return entry != null ? entry.targetModelName : null;
+        }
+
+        /// <summary>モデルモードの注視対象。モデル名で持ち、Transform は適用のたびに引き直す</summary>
+        public void SetModelTarget(Maid maid, string modelName)
+        {
+            var entry = GetOrCreate(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.targetModelName = modelName;
+            Apply(maid);
+        }
+
         /// <summary>
         /// 状態をまとめて差し替える。個別セッターを重ねると Apply が状態ごとに走り、
         /// 途中の中途半端な組み合わせで注視点を計算してしまうため、
@@ -205,7 +229,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public void SetState(
             Maid maid, MaidLookMode mode, float lookX, float lookY, Transform target,
-            Maid targetMaid, MTEP.MaidPointType maidPointType)
+            Maid targetMaid, MTEP.MaidPointType maidPointType, string targetModelName)
         {
             var entry = GetOrCreate(maid);
             if (entry == null)
@@ -218,6 +242,7 @@ namespace COM3D2.SceneEditor.Plugin
             entry.target = target;
             entry.targetMaid = targetMaid;
             entry.maidPointType = maidPointType;
+            entry.targetModelName = targetModelName;
             Apply(maid);
         }
 
@@ -302,6 +327,16 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            if (entry.mode == MaidLookMode.モデル)
+            {
+                // モデルが消えている・未設定なら方向指定の注視点で代用する (メイドモードと同じ扱い)
+                var modelTransform = GetModelTransform(entry.targetModelName);
+                if (modelTransform != null)
+                {
+                    return modelTransform;
+                }
+            }
+
             if (entry.mode == MaidLookMode.オブジェクト && entry.target != null)
             {
                 return entry.target;
@@ -380,6 +415,21 @@ namespace COM3D2.SceneEditor.Plugin
                 default:
                     return null;
             }
+        }
+
+        /// <summary>
+        /// モデル名からモデルの Transform を引く。
+        /// モデルはシーン再構築で作り直されるため、適用のたびにここで引き直す
+        /// </summary>
+        public static Transform GetModelTransform(string modelName)
+        {
+            if (string.IsNullOrEmpty(modelName))
+            {
+                return null;
+            }
+
+            var model = MTEP.StudioModelManager.instance.GetModel(modelName);
+            return model != null ? model.transform : null;
         }
 
         /// <summary>

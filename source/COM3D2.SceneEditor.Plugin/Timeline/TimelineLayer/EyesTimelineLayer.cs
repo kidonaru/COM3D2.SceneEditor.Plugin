@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
@@ -184,38 +184,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             maidCache.lookAtTargetType = targetType;
             maidCache.lookAtTargetIndex = targetIndex;
             maidCache.lookAtMaidPointType = maidPointType;
-        }
-
-        private Transform GetLookAtTarget(
-            LookAtTargetType targetType,
-            int targetIndex,
-            MaidPointType maidPointType)
-        {
-            var maid = this.maid;
-            if (maid == null)
-            {
-                return null;
-            }
-
-            switch (targetType)
-            {
-                case LookAtTargetType.Camera:
-                    return PluginUtils.MainCamera.transform;
-                case LookAtTargetType.Maid:
-                {
-                    var maidCache = maidManager.GetMaidCache(targetIndex);
-                    if (maidCache != null)
-                    {
-                        return maidCache.GetPointTransform(maidPointType);
-                    }
-                    break;
-                }
-                case LookAtTargetType.Model:
-                    // StudioModelManager は未移植のため対象を解決しない
-                    break;
-            }
-
-            return null;
         }
 
         private Vector2 GetEyesValue(MotionEyesType eyesType)

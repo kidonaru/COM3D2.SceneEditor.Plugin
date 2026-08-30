@@ -62,6 +62,13 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
             };
 
+        /// <summary>キー化中のモデル注視の対象。番号 (modelNames の添字) で書き込む</summary>
+        private readonly GUIComboBox<MTEP.StudioModelStat> _targetModelComboBox =
+            new GUIComboBox<MTEP.StudioModelStat>
+            {
+                getName = (model, _) => model.displayName,
+            };
+
         /// <summary>
         /// キー化中の向け先の行 (対象がメイドのときはメイド・ポイントの行も続けて出す)。
         /// キー化していないときの SE の「向け先」行と同じ語彙・同じラベルにして、
@@ -70,7 +77,7 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawLookAtTargetRows(
             GUIView view, MTEP.MaidCache maidCache, float labelWidth, float rowHeight)
         {
-            // 選択肢に無い値 (モデル注視等) は ToLookMode が方向指定へ丸める
+            // 選択肢に無い値 (無し・マウス・オブジェクト) は ToLookMode が方向指定へ丸める
             var mode = MaidLookBridge.ToLookMode(maidCache.lookAtTargetType);
 
             _lookModeComboBox.items = KeyedLookModes;
@@ -78,6 +85,22 @@ namespace COM3D2.SceneEditor.Plugin
             _lookModeComboBox.onSelected =
                 (newMode, _) => maidCache.lookAtTargetType = MaidLookBridge.ToTargetType(newMode);
             LabeledComboRow.Draw(view, "向け先", _lookModeComboBox, labelWidth, rowHeight);
+
+            if (_lookModeComboBox.currentItem == MaidLookMode.モデル)
+            {
+                var models = MTEP.StudioModelManager.instance.models;
+                _targetModelComboBox.items = models;
+                // 番号は modelNames の添字。models と同順で構築されるため添字をそのまま使う
+                var modelIndex = maidCache.lookAtTargetIndex >= 0
+                    && maidCache.lookAtTargetIndex < models.Count
+                    ? maidCache.lookAtTargetIndex : -1;
+                _targetModelComboBox.defaultName = modelIndex >= 0 ? null : "未選択";
+                _targetModelComboBox.currentIndex = modelIndex;
+                _targetModelComboBox.onSelected =
+                    (_, index) => maidCache.lookAtTargetIndex = index;
+                LabeledComboRow.Draw(view, "モデル", _targetModelComboBox, labelWidth, rowHeight);
+                return;
+            }
 
             if (_lookModeComboBox.currentItem != MaidLookMode.メイド)
             {

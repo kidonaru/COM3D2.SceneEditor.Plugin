@@ -23,6 +23,7 @@ namespace COM3D2.SceneEditor.Plugin
         private Transform _lookTarget;
         private Maid _lookTargetMaid;
         private MTEP.MaidPointType _lookMaidPointType;
+        private string _lookTargetModelName;
 
         /// <summary>記録時の胸の揺れもの状態。ボーンが動かないトグル操作も履歴に残すために持つ</summary>
         private bool _muneYureL;
@@ -66,6 +67,7 @@ namespace COM3D2.SceneEditor.Plugin
             snapshot._lookTarget = lookController.GetTarget(maid);
             snapshot._lookTargetMaid = lookController.GetTargetMaid(maid);
             snapshot._lookMaidPointType = lookController.GetMaidPointType(maid);
+            snapshot._lookTargetModelName = lookController.GetTargetModelName(maid);
 
             snapshot._clipName = MaidMotionState.GetCurrentClipName(maid);
             snapshot._isPlaying = MaidMotionState.IsPlaying(maid);
@@ -198,7 +200,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             MaidManipulateManager.instance.lookController.SetState(
                 maid, _lookMode, _lookX, _lookY, _lookTarget,
-                _lookTargetMaid, _lookMaidPointType);
+                _lookTargetMaid, _lookMaidPointType, _lookTargetModelName);
 
             // IK 固定が復元前の位置へ解き直すと undo が打ち消されるため、
             // 復元後のボーン位置を新しい固定ターゲットとして取り直させる
@@ -247,6 +249,7 @@ namespace COM3D2.SceneEditor.Plugin
                 || _lookTarget != o._lookTarget
                 || _lookTargetMaid != o._lookTargetMaid
                 || _lookMaidPointType != o._lookMaidPointType
+                || _lookTargetModelName != o._lookTargetModelName
                 || _muneYureL != o._muneYureL
                 || _muneYureR != o._muneYureR)
             {

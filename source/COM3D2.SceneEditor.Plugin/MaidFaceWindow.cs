@@ -72,6 +72,13 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
             };
 
+        /// <summary>モデルモードの注視対象。スタジオモデルから選ぶ</summary>
+        private readonly GUIComboBox<MTEP.StudioModelStat> _lookModelComboBox =
+            new GUIComboBox<MTEP.StudioModelStat>
+            {
+                getName = (model, _) => model.displayName,
+            };
+
         /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
         private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
 
@@ -385,10 +392,14 @@ namespace COM3D2.SceneEditor.Plugin
             };
             DrawLabeledComboBox("向け先", _lookModeComboBox);
 
-            // 対象の指定はキー化中の行 (向け先の直下にメイド・ポイントが続く) と並びを揃える
+            // 対象の指定はキー化中の行 (向け先の直下に対象が続く) と並びを揃える
             if (mode == MaidLookMode.メイド)
             {
                 DrawLookMaidRows(view, target);
+            }
+            else if (mode == MaidLookMode.モデル)
+            {
+                DrawLookModelRow(view, target);
             }
             else if (mode == MaidLookMode.オブジェクト)
             {
@@ -459,6 +470,25 @@ namespace COM3D2.SceneEditor.Plugin
                     target, lookController.GetTargetMaid(target), pointType);
             };
             DrawLabeledComboBox("ポイント", _lookMaidPointComboBox);
+        }
+
+        /// <summary>モデルモードの注視対象。キー化中は同じ行を TimelineLookRowDrawer が描く</summary>
+        private void DrawLookModelRow(GUIView view, Maid target)
+        {
+            var models = MTEP.StudioModelManager.instance.models;
+            var modelName = lookController.GetTargetModelName(target);
+
+            _lookModelComboBox.items = models;
+            // 未選択・モデルが消えたときは currentIndex が -1 になりボタン文字列が決まらないため既定名で埋める
+            var index = models.FindIndex(model => model.name == modelName);
+            _lookModelComboBox.defaultName = index >= 0 ? null : "未選択";
+            _lookModelComboBox.currentIndex = index;
+            _lookModelComboBox.onSelected = (selected, _) =>
+            {
+                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視対象の指定");
+                lookController.SetModelTarget(target, selected.name);
+            };
+            DrawLabeledComboBox("モデル", _lookModelComboBox);
         }
 
         /// <summary>オブジェクトモードの注視対象。Hierarchy の選択をそのまま指定できる</summary>

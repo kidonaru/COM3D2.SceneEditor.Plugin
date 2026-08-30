@@ -496,6 +496,13 @@ namespace COM3D2.SceneEditor.Plugin
         public string maidPointType;
 
         /// <summary>
+        /// 向け先がモデルのときの対象のモデル名 (StudioModelStat.name)。
+        /// v27 以前や他モードでは null になり、適用時にモデル指定へ触らない
+        /// </summary>
+        [XmlAttribute]
+        public string targetModelName;
+
+        /// <summary>
         /// タイムラインの注視先種別 (MaidCache.lookAtTargetType の名前)。
         /// v25 以前のプリセットや、タイムライン未読込で保存した場合は null になり、
         /// 適用時にタイムライン側の視線へ触らない。
@@ -724,7 +731,9 @@ namespace COM3D2.SceneEditor.Plugin
         // v27: look に maidPointType（向け先「メイド」の部位）を追加。
         //      対象メイドは既存の targetMaidGuid を使い回す。
         //      旧形式は maidPointType が null = 未記録として読み飛ばす
-        public static readonly int CurrentVersion = 27;
+        // v28: look に targetModelName（向け先「モデル」の対象モデル名）を追加。
+        //      旧形式は targetModelName が null = 未記録として読み飛ばす
+        public static readonly int CurrentVersion = 28;
 
         [XmlAttribute]
         public int version = CurrentVersion;

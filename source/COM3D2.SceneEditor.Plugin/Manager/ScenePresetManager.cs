@@ -1240,6 +1240,11 @@ namespace COM3D2.SceneEditor.Plugin
                     look.maidPointType = controller.GetMaidPointType(maid).ToString();
                 }
             }
+            else if (mode == MaidLookMode.モデル)
+            {
+                // モデルはシーン再構築で作り直されるため、名前で持つ
+                look.targetModelName = controller.GetTargetModelName(maid);
+            }
 
             CaptureTimelineLook(maid, look);
 
@@ -1628,23 +1633,21 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 全メイドのロード完了後にまとめて行う仕上げ。
-        /// 視線は他メイドを参照しうるため、外部プロバイダと同じくここで反映する。
+        /// 視線は他メイドとモデルを注視先にできるため、外部プロバイダのモデル復元より後に反映する。
         /// メイドを読み込まないときは AssignMaids ごと飛ばしているため、
         /// 無関係な既存メイドへ視線・フォーカスを当てないよう合わせて飛ばす
         /// </summary>
         private static void FinishApply(ScenePresetData data)
         {
             var applyMaids = ShouldApplyMaids(data);
-            if (applyMaids)
-            {
-                ApplyLooks();
-            }
             ApplyExternals(data);
             // 外部プロバイダのモデル復元 (同期) の後でないと GameObject が存在しない
             ApplyModelBoneEdits(data);
             ApplyModelAppearances(data);
+            // 視線はモデルを注視先にできるため、モデルが揃った後に反映する
             if (applyMaids)
             {
+                ApplyLooks();
                 RequestFocusOnAppliedMaid(data);
             }
             // Maid 参照を適用の間だけ持つ。以降の解除・シーン遷移で寿命が切れるため残さない
@@ -1658,6 +1661,17 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void ApplyLooks()
         {
+            // モデル注視を戻すメイドがいるなら、モデル一覧を取り直してから解決する。
+            // StudioModelManager は 30 フレームに 1 回しか一覧を更新しないため、
+            // 外部プロバイダが今作ったモデルは強制更新しないと引けない
+            var needsModel = _resolvedAssignments.Any(
+                pair => pair.Value.look != null
+                    && !string.IsNullOrEmpty(pair.Value.look.targetModelName));
+            if (needsModel)
+            {
+                MTEP.StudioModelManager.instance.LateUpdate(true);
+            }
+
             foreach (var pair in _resolvedAssignments)
             {
                 var maid = pair.Key;
@@ -1718,8 +1732,21 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            string targetModelName = null;
+            if (mode == MaidLookMode.モデル)
+            {
+                targetModelName = look.targetModelName;
+                if (MaidLookController.GetModelTransform(targetModelName) == null)
+                {
+                    MTEUtils.LogWarning("注視対象のモデルが見つからないため方向指定で復元します: {0}",
+                        look.targetModelName);
+                    mode = MaidLookMode.方向指定;
+                }
+            }
+
             maidManager.lookController.SetState(
-                maid, mode, look.lookX, look.lookY, target, targetMaid, maidPointType);
+                maid, mode, look.lookX, look.lookY, target,
+                targetMaid, maidPointType, targetModelName);
 
             // TBody に依存しないため、追従トグルの防御的ガードより前に戻す
             // (未ロードのメイドでも指定値だけは欠落させない)

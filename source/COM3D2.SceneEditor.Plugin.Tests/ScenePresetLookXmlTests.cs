@@ -122,5 +122,34 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 Assert.Null(look.maidPointType);
             }
         }
+
+        [Fact]
+        public void モデル注視の対象が往復で保たれる()
+        {
+            var restored = RoundTrip(new ScenePresetLook
+            {
+                mode = "モデル",
+                targetModelName = "Cube_1",
+            });
+
+            Assert.Equal("モデル", restored.mode);
+            Assert.Equal("Cube_1", restored.targetModelName);
+        }
+
+        [Fact]
+        public void モデル注視を持たない旧プリセットは対象が未記録になる()
+        {
+            const string oldPreset =
+                "<?xml version=\"1.0\"?>"
+                + "<ScenePresetLook mode=\"カメラ\">"
+                + "<lookX>0</lookX><lookY>0</lookY>"
+                + "</ScenePresetLook>";
+
+            using (var reader = new StringReader(oldPreset))
+            {
+                var look = (ScenePresetLook) Serializer.Deserialize(reader);
+                Assert.Null(look.targetModelName);
+            }
+        }
     }
 }

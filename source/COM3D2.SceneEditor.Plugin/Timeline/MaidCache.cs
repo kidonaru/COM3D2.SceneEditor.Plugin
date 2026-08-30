@@ -559,11 +559,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // メイド注視は Transform ではなく「対象メイド + 部位」で渡し、
+            // メイド注視・モデル注視は Transform ではなく対象の同定情報で渡し、
             // 実際の Transform は SE のコントローラが適用のたびに引き直す
             SEP.MaidLookBridge.ApplyLookMode(
                 maid, lookMode.Value, lookAtTarget, _lookDirection,
-                GetLookAtMaid(), lookAtMaidPointType);
+                GetLookAtMaid(), lookAtMaidPointType, GetLookAtModelName());
 
             // そらし演出は trsLookTarget == null かつ非ロックが条件のため、常にロックを解く
             maid.LockHeadAndEye(false);
@@ -816,6 +816,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var targetMaidCache = maidManager.GetMaidCache(lookAtTargetIndex);
             return targetMaidCache != null ? targetMaidCache.maid : null;
+        }
+
+        /// <summary>
+        /// 注視先がモデルのときの対象のモデル名。注視先が別種別なら null。
+        /// SE 側は名前でモデルを保持するため、番号ではなく名前を渡す。
+        /// GetLookAtTarget と SE 側の解決で GetModel を二度引くが、
+        /// メイド注視と同じ形で、辞書引き 1 回のため許容する
+        /// </summary>
+        private string GetLookAtModelName()
+        {
+            if (lookAtTargetType != LookAtTargetType.Model)
+            {
+                return null;
+            }
+
+            var model = modelManager.GetModel(lookAtTargetIndex);
+            return model != null ? model.name : null;
         }
 
         /// <summary>
