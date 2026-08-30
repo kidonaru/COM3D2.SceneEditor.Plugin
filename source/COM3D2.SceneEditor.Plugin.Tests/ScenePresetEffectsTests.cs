@@ -2,7 +2,6 @@ using System.IO;
 using System.Xml.Serialization;
 using UnityEngine;
 using Xunit;
-using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
@@ -55,19 +54,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 maidPointType = 3,
                 followRotation = true,
             });
-            data.effects.paraffins.Add(new MTEP.ColorParaffinData
-            {
-                enabled = true,
-                useAdd = 0.5f,
-                color1 = new Color(0.1f, 0.2f, 0.3f, 0.4f),
-            });
-            data.effects.paraffinEnabled = true;
-            data.effects.distanceFogs.Add(new MTEP.DistanceFogData { fogEnd = 25f });
-            data.effects.rimlights.Add(new MTEP.RimlightData
-            {
-                rotation = new Vector3(5f, -15f, 0f),
-                isWorldSpace = true,
-            });
 
             var restored = RoundTrip(data);
 
@@ -88,17 +74,31 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(2, subCamera.maidSlotNo);
             Assert.Equal(3, subCamera.maidPointType);
             Assert.True(subCamera.followRotation);
+        }
 
-            var paraffin = Assert.Single(restored.effects.paraffins);
-            Assert.True(paraffin.enabled);
-            Assert.Equal(0.5f, paraffin.useAdd);
-            Assert.Equal(new Color(0.1f, 0.2f, 0.3f, 0.4f), paraffin.color1);
-            Assert.True(restored.effects.paraffinEnabled);
+        [Fact]
+        public void V29Preset_WithPostEffectElements_IgnoresThemSafely()
+        {
+            // ポストエフェクト部を撤去する前の v29 が出力していた形。
+            // XmlSerializer は未知要素・未知属性を黙って読み飛ばすことを確認する
+            var xml =
+                "<ScenePresetData version=\"29\" savedEffects=\"true\">" +
+                "<effects paraffinEnabled=\"true\" distanceFogEnabled=\"false\" rimlightEnabled=\"false\">" +
+                "<text text=\"hello\" fontSize=\"20\" />" +
+                "<paraffin enabled=\"true\" useAdd=\"0.5\" />" +
+                "<distanceFog fogEnd=\"25\" />" +
+                "<rimlight isWorldSpace=\"true\" />" +
+                "</effects>" +
+                "</ScenePresetData>";
 
-            Assert.Equal(25f, Assert.Single(restored.effects.distanceFogs).fogEnd);
-            var rimlight = Assert.Single(restored.effects.rimlights);
-            Assert.Equal(new Vector3(5f, -15f, 0f), rimlight.rotation);
-            Assert.True(rimlight.isWorldSpace);
+            var serializer = new XmlSerializer(typeof(ScenePresetData));
+            using (var reader = new StringReader(xml))
+            {
+                var restored = (ScenePresetData)serializer.Deserialize(reader);
+                Assert.NotNull(restored.effects);
+                var text = Assert.Single(restored.effects.texts);
+                Assert.Equal("hello", text.text);
+            }
         }
 
         [Fact]

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
-using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -725,9 +724,10 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ / ポストエフェクト。
+    /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ。
     /// 旧プリセット (要素なし) は null になり、適用時に触らない。
-    /// 各グループとも「空リスト = 保存時に実体なし」は未記録と同義として触らない
+    /// 各グループとも「空リスト = 保存時に実体なし」は未記録と同義として触らない。
+    /// ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担うためここには持たない
     /// </summary>
     public class ScenePresetEffects
     {
@@ -736,28 +736,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         [XmlElement("subCamera")]
         public List<ScenePresetSubCamera> subCameras = new List<ScenePresetSubCamera>();
-
-        // ポストエフェクトは MTE の値クラス (Serializable な公開フィールドのみで
-        // XmlSerializer と相性が良い) をそのまま直列化する。
-        // 上流でフィールドが増えても既存要素は既定値で読める
-        [XmlElement("paraffin")]
-        public List<MTEP.ColorParaffinData> paraffins = new List<MTEP.ColorParaffinData>();
-
-        [XmlElement("distanceFog")]
-        public List<MTEP.DistanceFogData> distanceFogs = new List<MTEP.DistanceFogData>();
-
-        [XmlElement("rimlight")]
-        public List<MTEP.RimlightData> rimlights = new List<MTEP.RimlightData>();
-
-        // 各エフェクトのマスター有効フラグ。個別データの enabled とは別に効果全体を握っている
-        [XmlAttribute]
-        public bool paraffinEnabled;
-
-        [XmlAttribute]
-        public bool distanceFogEnabled;
-
-        [XmlAttribute]
-        public bool rimlightEnabled;
     }
 
     /// <summary>
@@ -842,9 +820,10 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は maidPointType が null = 未記録として読み飛ばす
         // v28: look に targetModelName（向け先「モデル」の対象モデル名）を追加。
         //      旧形式は targetModelName が null = 未記録として読み飛ばす
-        // v29: effects（テキスト / サブカメラ / ポストエフェクトの MTE 由来演出）と savedEffects を追加。
+        // v29: effects（テキスト / サブカメラ）と savedEffects を追加。
         //      旧形式は effects が null で読め、適用時に演出へ触らない。
-        //      タイムライン未読込のシーンでも保存・復元できる
+        //      タイムライン未読込のシーンでも保存・復元できる。
+        //      ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担う
         public static readonly int CurrentVersion = 29;
 
         [XmlAttribute]
@@ -861,7 +840,7 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public bool savedBackground = true;
 
-        /// <summary>「演出」カテゴリ (テキスト・サブカメラ・ポストエフェクト) を保存したか (v29)</summary>
+        /// <summary>「演出」カテゴリ (テキスト・サブカメラ) を保存したか (v29)</summary>
         [XmlAttribute]
         public bool savedEffects = true;
 

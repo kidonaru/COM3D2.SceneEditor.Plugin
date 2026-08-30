@@ -4,7 +4,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// MTE 由来の演出状態 (テキスト / サブカメラ / ポストエフェクト) のプリセット断面。
+    /// MTE 由来の演出状態 (テキスト / サブカメラ) のプリセット断面。
     /// 実体は Unity コンポーネント側にしか無いため、値をここで DTO へ吸い出す。
     /// 要素数はマネージャ側プロパティが所有しており、タイムライン未読込でも保存・復元できる
     /// </summary>
@@ -14,15 +14,12 @@ namespace COM3D2.SceneEditor.Plugin
             => MTEP.TimelineTextManager.instance;
         private static MTEP.SubCameraManager subCameraManager
             => MTEP.SubCameraManager.instance;
-        private static MTEP.PostEffectManager postEffectManager
-            => MTEP.PostEffectManager.instance;
 
         public static ScenePresetEffects CaptureState()
         {
             var data = new ScenePresetEffects();
             CaptureTexts(data);
             CaptureSubCameras(data);
-            CapturePostEffects(data);
             return data;
         }
 
@@ -35,7 +32,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             ApplyTexts(data);
             ApplySubCameras(data);
-            ApplyPostEffects(data);
         }
 
         private static void CaptureTexts(ScenePresetEffects data)
@@ -174,95 +170,6 @@ namespace COM3D2.SceneEditor.Plugin
                 cameraData.ApplyViewport(new Rect(
                     src.viewportX, src.viewportY, src.viewportWidth, src.viewportHeight));
                 cameraData.visible = src.visible;
-            }
-        }
-
-        private static void CapturePostEffects(ScenePresetEffects data)
-        {
-            for (var i = 0; i < postEffectManager.GetParaffinCount(); i++)
-            {
-                // 適用中の実体を直に直列化しないようコピーを取る
-                var copy = new MTEP.ColorParaffinData();
-                copy.CopyFrom(postEffectManager.GetParaffinData(i));
-                data.paraffins.Add(copy);
-            }
-            data.paraffinEnabled = postEffectManager.paraffin.enabled;
-
-            for (var i = 0; i < postEffectManager.GetDistanceFogCount(); i++)
-            {
-                var copy = new MTEP.DistanceFogData();
-                copy.CopyFrom(postEffectManager.GetDistanceFogData(i));
-                data.distanceFogs.Add(copy);
-            }
-            data.distanceFogEnabled = postEffectManager.distanceFog.enabled;
-
-            for (var i = 0; i < postEffectManager.GetRimlightCount(); i++)
-            {
-                var copy = new MTEP.RimlightData();
-                copy.CopyFrom(postEffectManager.GetRimlightData(i));
-                data.rimlights.Add(copy);
-            }
-            data.rimlightEnabled = postEffectManager.rimlight.enabled;
-        }
-
-        private static void ApplyPostEffects(ScenePresetEffects data)
-        {
-            // テキストと同じく UI の上限へ丸める
-            var paraffinCount = Mathf.Min(
-                data.paraffins.Count, MTEP.PostEffectManager.MaxParaffinCount);
-            var distanceFogCount = Mathf.Min(
-                data.distanceFogs.Count, MTEP.PostEffectManager.MaxDistanceFogCount);
-            var rimlightCount = Mathf.Min(
-                data.rimlights.Count, MTEP.PostEffectManager.MaxRimlightCount);
-
-            if (paraffinCount == 0 && distanceFogCount == 0 && rimlightCount == 0)
-            {
-                return;
-            }
-
-            // 記録があるグループだけ要素数を合わせてから一括で実体を作り直す。
-            // InitPostEffects は 3 グループ全ての count プロパティを毎回突き合わせるが、
-            // 未記録グループは count を触っていないため実体数は変わらない
-            if (paraffinCount > 0)
-            {
-                postEffectManager.paraffinCount = paraffinCount;
-            }
-            if (distanceFogCount > 0)
-            {
-                postEffectManager.distanceFogCount = distanceFogCount;
-            }
-            if (rimlightCount > 0)
-            {
-                postEffectManager.rimlightCount = rimlightCount;
-            }
-            postEffectManager.InitPostEffects();
-
-            for (var i = 0; i < paraffinCount; i++)
-            {
-                postEffectManager.ApplyParaffin(i, data.paraffins[i]);
-            }
-            if (paraffinCount > 0)
-            {
-                // Apply* は個別データが有効だとマスターを ON にするため、保存値で確定させる
-                postEffectManager.paraffin.enabled = data.paraffinEnabled;
-            }
-
-            for (var i = 0; i < distanceFogCount; i++)
-            {
-                postEffectManager.ApplyDistanceFog(i, data.distanceFogs[i]);
-            }
-            if (distanceFogCount > 0)
-            {
-                postEffectManager.distanceFog.enabled = data.distanceFogEnabled;
-            }
-
-            for (var i = 0; i < rimlightCount; i++)
-            {
-                postEffectManager.ApplyRimlight(i, data.rimlights[i]);
-            }
-            if (rimlightCount > 0)
-            {
-                postEffectManager.rimlight.enabled = data.rimlightEnabled;
             }
         }
     }
