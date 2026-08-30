@@ -10,7 +10,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData(MTEP.LookAtTargetType.Camera, true, MaidLookMode.カメラ)]
         [InlineData(MTEP.LookAtTargetType.Camera, false, MaidLookMode.カメラ)]
         [InlineData(MTEP.LookAtTargetType.Maid, true, MaidLookMode.メイド)]
-        [InlineData(MTEP.LookAtTargetType.Model, true, MaidLookMode.オブジェクト)]
+        [InlineData(MTEP.LookAtTargetType.Model, true, MaidLookMode.モデル)]
         [InlineData(MTEP.LookAtTargetType.None, false, MaidLookMode.方向指定)]
         public void ResolveLookMode_キー化中は注視先種別を向け先モードへ写す(
             MTEP.LookAtTargetType targetType, bool hasTarget, MaidLookMode expected)
@@ -81,8 +81,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData(MTEP.LookAtTargetType.None, MaidLookMode.方向指定)]
         [InlineData(MTEP.LookAtTargetType.Camera, MaidLookMode.カメラ)]
         [InlineData(MTEP.LookAtTargetType.Maid, MaidLookMode.メイド)]
-        // モデル注視は選択肢に出さないため、表示上は方向指定へ丸める
-        [InlineData(MTEP.LookAtTargetType.Model, MaidLookMode.方向指定)]
+        [InlineData(MTEP.LookAtTargetType.Model, MaidLookMode.モデル)]
         public void ToLookMode_キーの注視先種別を統合列挙へ写す(
             MTEP.LookAtTargetType targetType, MaidLookMode expected)
         {
@@ -91,6 +90,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
         [Theory]
         [InlineData(MaidLookMode.カメラ, MTEP.LookAtTargetType.Camera)]
+        [InlineData(MaidLookMode.モデル, MTEP.LookAtTargetType.Model)]
         [InlineData(MaidLookMode.メイド, MTEP.LookAtTargetType.Maid)]
         [InlineData(MaidLookMode.方向指定, MTEP.LookAtTargetType.None)]
         // キー化できない値は顔向きキーで駆動する None へ丸める
@@ -107,7 +107,11 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void GetSelectableModes_キー化中はキー化できる値だけを出す()
         {
             Assert.Equal(
-                new[] { MaidLookMode.カメラ, MaidLookMode.メイド, MaidLookMode.方向指定 },
+                new[]
+                {
+                    MaidLookMode.カメラ, MaidLookMode.メイド,
+                    MaidLookMode.モデル, MaidLookMode.方向指定,
+                },
                 MaidLookBridge.GetSelectableModes(true));
         }
 
@@ -118,7 +122,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 new[]
                 {
                     MaidLookMode.カメラ, MaidLookMode.マウス, MaidLookMode.方向指定,
-                    MaidLookMode.メイド, MaidLookMode.オブジェクト, MaidLookMode.無し,
+                    MaidLookMode.メイド, MaidLookMode.モデル,
+                    MaidLookMode.オブジェクト, MaidLookMode.無し,
                 },
                 MaidLookBridge.GetSelectableModes(false));
         }
@@ -128,7 +133,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             var modes = MaidLookBridge.GetSelectableModes(true);
             modes.Clear();
-            Assert.Equal(3, MaidLookBridge.GetSelectableModes(true).Count);
+            Assert.Equal(4, MaidLookBridge.GetSelectableModes(true).Count);
         }
     }
 }

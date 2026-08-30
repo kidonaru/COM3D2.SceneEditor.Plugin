@@ -25,14 +25,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>キー化中に選べる向け先。「無し」は None が方向指定と衝突するため出さない</summary>
         private static readonly MaidLookMode[] KeyedModes =
         {
-            MaidLookMode.カメラ, MaidLookMode.メイド, MaidLookMode.方向指定,
+            MaidLookMode.カメラ, MaidLookMode.メイド,
+            MaidLookMode.モデル, MaidLookMode.方向指定,
         };
 
         /// <summary>キー化していないときに選べる向け先 (SE の全モード)</summary>
         private static readonly MaidLookMode[] UnkeyedModes =
         {
             MaidLookMode.カメラ, MaidLookMode.マウス, MaidLookMode.方向指定,
-            MaidLookMode.メイド, MaidLookMode.オブジェクト, MaidLookMode.無し,
+            MaidLookMode.メイド, MaidLookMode.モデル,
+            MaidLookMode.オブジェクト, MaidLookMode.無し,
         };
 
         /// <summary>
@@ -44,11 +46,7 @@ namespace COM3D2.SceneEditor.Plugin
             return new List<MaidLookMode>(useHeadKey ? KeyedModes : UnkeyedModes);
         }
 
-        /// <summary>
-        /// キーの注視先種別を統合列挙へ写す (UI 表示用)。
-        /// モデル注視は選択肢に出していないため方向指定へ丸める
-        /// (StudioModelManager 未移植。TimelineLookRowDrawer の除外と揃える)
-        /// </summary>
+        /// <summary>キーの注視先種別を統合列挙へ写す (UI 表示用)</summary>
         public static MaidLookMode ToLookMode(MTEP.LookAtTargetType targetType)
         {
             switch (targetType)
@@ -57,6 +55,8 @@ namespace COM3D2.SceneEditor.Plugin
                     return MaidLookMode.カメラ;
                 case MTEP.LookAtTargetType.Maid:
                     return MaidLookMode.メイド;
+                case MTEP.LookAtTargetType.Model:
+                    return MaidLookMode.モデル;
                 default:
                     return MaidLookMode.方向指定;
             }
@@ -75,6 +75,8 @@ namespace COM3D2.SceneEditor.Plugin
                     return MTEP.LookAtTargetType.Camera;
                 case MaidLookMode.メイド:
                     return MTEP.LookAtTargetType.Maid;
+                case MaidLookMode.モデル:
+                    return MTEP.LookAtTargetType.Model;
                 default:
                     return MTEP.LookAtTargetType.None;
             }
@@ -116,10 +118,10 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     return ResolveNoTargetMode(isEyeSorashi);
                 case MTEP.LookAtTargetType.Model:
-                    // モデルは SE 側に対応する概念が無いため任意オブジェクトとして扱う
+                    // モデル注視は SE 側にも同じ概念があるためそのまま写す
                     if (hasTarget)
                     {
-                        return MaidLookMode.オブジェクト;
+                        return MaidLookMode.モデル;
                     }
                     return ResolveNoTargetMode(isEyeSorashi);
                 default:
