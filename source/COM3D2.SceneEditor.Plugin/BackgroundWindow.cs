@@ -136,8 +136,9 @@ namespace COM3D2.SceneEditor.Plugin
             DrawCurrentBgRow(bgMgr);
 
             // 背景色と地面は背景の有無に関わらず編集できる
-            DrawBgColorRow();
-            DrawGroundRows();
+            BackgroundRowDrawer.DrawBgColorRow(_view, ROW_HEIGHT);
+            _view.DrawHorizontalLine();
+            BackgroundRowDrawer.DrawGroundRows(_view, LABEL_WIDTH, ROW_HEIGHT);
 
             _view.DrawHorizontalLine();
             DrawFilterRows();
@@ -196,93 +197,6 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawLabel("背景Transform (ローカル)", -1, ROW_HEIGHT);
 
             BackgroundRowDrawer.DrawBgTransformRows(_view, transform, LABEL_WIDTH, ROW_HEIGHT);
-        }
-
-        /// <summary>
-        /// 背景を消しているときに見える色の編集行。
-        /// アルファを下げると撮影時に透過 PNG として保存される
-        /// </summary>
-        private void DrawBgColorRow()
-        {
-            var fieldCache = _view.GetColorFieldCache("背景色", true);
-            _view.DrawColor(fieldCache, BackgroundUtils.bgColor, BackgroundUtils.defaultBgColor,
-                value =>
-                {
-                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Background, "背景色");
-                    BackgroundUtils.bgColor = value;
-                });
-
-            _view.DrawLabel("アルファを下げると透過PNGで撮影されます", -1, ROW_HEIGHT,
-                textColor: Color.gray);
-        }
-
-        /// <summary>
-        /// 地面の表示・色・位置・広さ。
-        /// 編集対象はタイムラインの背景色レイヤーがキー化するのと同じ BGGround
-        /// </summary>
-        private void DrawGroundRows()
-        {
-            var groundManager = MTEP.BGGroundManager.instance;
-            var ground = groundManager.bgGround;
-
-            _view.DrawHorizontalLine();
-
-            _view.DrawToggle("地面を表示", ground != null && ground.visible, -1, ROW_HEIGHT,
-                value =>
-                {
-                    // 表示するまで実体を作らない（タイムラインを使わない間は生成しない）
-                    var target = groundManager.GetOrCreate();
-                    BackgroundRowDrawer.RecordObjectEdit("地面: 表示", target.transform);
-                    target.visible = value;
-                });
-
-            if (ground == null)
-            {
-                return;
-            }
-
-            var groundTransform = ground.transform;
-
-            // 地面色は履歴のスナップショットが持たないため記録しない
-            // （ObjectSnapshot は Transform とアクティブ状態しか復元できない）
-            var fieldCache = _view.GetColorFieldCache("地面色", false);
-            _view.DrawColor(fieldCache, ground.color, MTEP.BGGround.DefaultColor,
-                value => ground.color = value);
-
-            BackgroundRowDrawer.DrawObjectVector3Row(_view, "位置", "地面: 位置",
-                LABEL_WIDTH, ROW_HEIGHT, ground.position,
-                value => ground.position = value,
-                () => ground.position = MTEP.BGGround.DefaultPosition,
-                groundTransform);
-
-            var scale = ground.scale;
-            DrawGroundScaleSlider("SX", scale.x, MTEP.BGGround.DefaultScale.x, groundTransform,
-                value => ground.scale = new Vector3(value, scale.y, scale.z));
-            DrawGroundScaleSlider("SZ", scale.z, MTEP.BGGround.DefaultScale.z, groundTransform,
-                value => ground.scale = new Vector3(scale.x, scale.y, value));
-        }
-
-        /// <summary>地面の広さのスライダー 1 行</summary>
-        private void DrawGroundScaleSlider(
-            string label, float value, float defaultValue, Transform target,
-            Action<float> onChanged)
-        {
-            _view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = label,
-                labelWidth = 30,
-                width = -1,
-                min = 0f,
-                max = 1000f,
-                step = 1f,
-                defaultValue = defaultValue,
-                value = value,
-                onChanged = newValue =>
-                {
-                    BackgroundRowDrawer.RecordObjectEdit("地面: " + label, target);
-                    onChanged(newValue);
-                },
-            });
         }
 
         /// <summary>

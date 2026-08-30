@@ -1,6 +1,7 @@
 using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -21,6 +22,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>座標行（Inspector の座標行と同じ形式）のドラッグ感度</summary>
         public const float PositionDragSensitivity = 0.01f;
+
+        /// <summary>地面の広さのスライダーのラベル幅（SX / SZ の 2 文字ぶん）</summary>
+        private const float GroundScaleLabelWidth = 30f;
 
         /// <summary>背景モデルのローカル Transform 編集行 (位置 / 回転 / 拡縮 + リセット)</summary>
         public static void DrawBgTransformRows(
@@ -46,6 +50,96 @@ namespace COM3D2.SceneEditor.Plugin
                 transform.localEulerAngles = DefaultEulerAngles;
                 transform.localScale = DefaultScale;
             }
+        }
+
+        /// <summary>
+        /// 背景を消しているときに見える色の編集行。
+        /// アルファを下げると撮影時に透過 PNG として保存される。
+        ///
+        /// ColorPickerWindow はラベルで編集対象を識別するが、背景色・地面色は
+        /// 呼び出し元によらず同じ 1 つの実体を指すため、ライトやマテリアルのように
+        /// 呼び出し元ごとのラベル一意化はしない (背景ウィンドウと Inspector で
+        /// 同じピッカーを共有するのが正しい状態)
+        /// </summary>
+        public static void DrawBgColorRow(GUIView view, float rowHeight)
+        {
+            var fieldCache = view.GetColorFieldCache("背景色", true);
+            view.DrawColor(fieldCache, BackgroundUtils.bgColor, BackgroundUtils.defaultBgColor,
+                value =>
+                {
+                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Background, "背景色");
+                    BackgroundUtils.bgColor = value;
+                });
+
+            view.DrawLabel("アルファを下げると透過PNGで撮影されます", -1, rowHeight,
+                textColor: Color.gray);
+        }
+
+        /// <summary>
+        /// 地面の表示・色・位置・広さ。
+        /// 編集対象はタイムラインの背景色レイヤーがキー化するのと同じ BGGround
+        /// </summary>
+        public static void DrawGroundRows(GUIView view, float labelWidth, float rowHeight)
+        {
+            var groundManager = MTEP.BGGroundManager.instance;
+            var ground = groundManager.bgGround;
+
+            view.DrawToggle("地面を表示", ground != null && ground.visible, -1, rowHeight,
+                value =>
+                {
+                    // 表示するまで実体を作らない（タイムラインを使わない間は生成しない）
+                    var target = groundManager.GetOrCreate();
+                    RecordObjectEdit("地面: 表示", target.transform);
+                    target.visible = value;
+                });
+
+            if (ground == null)
+            {
+                return;
+            }
+
+            var groundTransform = ground.transform;
+
+            // 地面色は履歴のスナップショットが持たないため記録しない
+            // （ObjectSnapshot は Transform とアクティブ状態しか復元できない）
+            var fieldCache = view.GetColorFieldCache("地面色", false);
+            view.DrawColor(fieldCache, ground.color, MTEP.BGGround.DefaultColor,
+                value => ground.color = value);
+
+            DrawObjectVector3Row(view, "位置", "地面: 位置",
+                labelWidth, rowHeight, ground.position,
+                value => ground.position = value,
+                () => ground.position = MTEP.BGGround.DefaultPosition,
+                groundTransform);
+
+            var scale = ground.scale;
+            DrawGroundScaleSlider(view, "SX", scale.x, MTEP.BGGround.DefaultScale.x,
+                groundTransform, value => ground.scale = new Vector3(value, scale.y, scale.z));
+            DrawGroundScaleSlider(view, "SZ", scale.z, MTEP.BGGround.DefaultScale.z,
+                groundTransform, value => ground.scale = new Vector3(scale.x, scale.y, value));
+        }
+
+        /// <summary>地面の広さのスライダー 1 行</summary>
+        private static void DrawGroundScaleSlider(
+            GUIView view, string label, float value, float defaultValue, Transform target,
+            Action<float> onChanged)
+        {
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = label,
+                labelWidth = GroundScaleLabelWidth,
+                width = -1,
+                min = 0f,
+                max = 1000f,
+                step = 1f,
+                defaultValue = defaultValue,
+                value = value,
+                onChanged = newValue =>
+                {
+                    RecordObjectEdit("地面: " + label, target);
+                    onChanged(newValue);
+                },
+            });
         }
 
         /// <summary>

@@ -296,6 +296,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.LightTimelineLayer), new LightItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.BGTimelineLayer), new BGItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.BGColorTimelineLayer), new BGColorItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
