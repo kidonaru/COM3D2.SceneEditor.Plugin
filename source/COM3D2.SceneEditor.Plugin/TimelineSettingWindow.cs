@@ -13,7 +13,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// タイムラインの設定ウィンドウ。
     /// 「個別」タブは読み込み中のタイムライン (TimelineData) を、
     /// 「共通」タブはプラグイン共通の設定 (timelineConfig) を編集する。
-    /// TimelineWindow のコントロールパネルの「設定」ボタンから開く
+    /// タイムライン操作ウィンドウの「設定」ボタン、またはメニューバーから開く
     /// </summary>
     public class TimelineSettingWindow : EditorSubWindow
     {
