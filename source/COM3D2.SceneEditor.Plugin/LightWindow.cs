@@ -22,40 +22,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
-        private static readonly int TYPE_BUTTON_WIDTH = 70;
-
-        // メインライトのリセット既定値（LightMain.Reset と同じ）
-        private static readonly Vector3 DefaultMainRotation = new Vector3(40f, 180f, 18f);
-        private const float DefaultMainIntensity = 0.95f;
-        private const float DefaultMainShadowStrength = 0.098f;
-        private const float DefaultMainShadowBias = 0.01f;
-
-        /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
-        private static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
-
-        // 追加した平行光源の影のリセット既定値（メインライトの初期値に合わせる）
-        private const float DefaultAdditionalShadowStrength = 0.098f;
-        private const float DefaultAdditionalShadowBias = 0.01f;
-
-        /// <summary>座標行（Inspector の座標行と同じ形式）のドラッグ感度</summary>
-        private const float PositionDragSensitivity = 0.01f;
 
         /// <summary>編集中のライト（メイン / 追加）。破棄・削除で null になりうる</summary>
         private Light _selectedLight = null;
 
+        // 編集欄は常に 1 灯ぶんなので、行ドロワーも 1 つで足りる
+        private readonly LightRowDrawer _rowDrawer = new LightRowDrawer();
+
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
         private readonly GUIView _rootView = new GUIView();
         private readonly GUIView _view = new GUIView();
-
-        /// <summary>追従先メイドのコンボ</summary>
-        private readonly GUIComboBox<MTEP.MaidCache> _followMaidComboBox =
-            new GUIComboBox<MTEP.MaidCache>
-            {
-                getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
-                buttonSize = new Vector2(120, ROW_HEIGHT),
-                contentSize = new Vector2(150, 300),
-                showArrow = false,
-            };
 
         private static LightWindow _instance = null;
         public static LightWindow instance
@@ -75,16 +51,6 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private static StudioLightManager lightManager => StudioLightManager.instance;
-
-        /// <summary>メインライトの Light。シーンによっては取得できず null になる</summary>
-        private static Light mainLightComponent
-        {
-            get
-            {
-                var lightMain = lightManager.mainLight;
-                return lightMain != null ? lightMain.GetComponent<Light>() : null;
-            }
-        }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
@@ -120,7 +86,7 @@ namespace COM3D2.SceneEditor.Plugin
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             // GetComponent を挟むため 1 描画につき 1 回だけ引いて使い回す
-            var mainLight = mainLightComponent;
+            var mainLight = LightRowDrawer.MainLightComponent;
 
             DrawLightListSection(mainLight);
 
@@ -145,7 +111,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (_view.DrawButton("追加", 60, ROW_HEIGHT))
                 {
-                    RecordLightEdit("追加");
+                    LightRowDrawer.RecordLightEdit("追加");
                     SelectLight(lightManager.AddLight(), mainLight);
                 }
 
@@ -209,7 +175,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            RecordLightEdit("削除");
+            LightRowDrawer.RecordLightEdit("削除");
 
             // 消したライトを Inspector に残さない
             if (SelectionManager.instance.selectedObject == _selectedLight.gameObject)
@@ -227,280 +193,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (light == mainLight)
             {
-                DrawMainLightParams(light);
+                _rowDrawer.DrawMainLightParams(_view, light, LABEL_WIDTH, ROW_HEIGHT);
             }
             else
             {
-                DrawAdditionalLightParams(light);
+                _rowDrawer.DrawAdditionalLightParams(_view, light, LABEL_WIDTH, ROW_HEIGHT);
             }
-        }
-
-        /// <summary>メインライトのパラメータ（回転・強度・影の濃さ・色・リセット）</summary>
-        private void DrawMainLightParams(Light light)
-        {
-            var lightMain = lightManager.mainLight;
-
-            // 既定の横回転 180 度はスライダー範囲の両端どちらでも同じ向きになる。
-            // 正規化表示 (-180, 180] と符号を揃えるため -180 側を既定値にする
-            DrawRotationSliders(
-                light.transform.eulerAngles,
-                new Vector3(DefaultMainRotation.x, DefaultMainRotation.y - 360f),
-                lightMain.SetRotation);
-
-            DrawAxisSlider("強度", light.intensity, 0f, 5f, 0.01f, DefaultMainIntensity,
-                value => lightMain.SetIntensity(value));
-            DrawAxisSlider("影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
-                DefaultMainShadowStrength, value => lightMain.SetShadowStrength(value));
-            // shadowBias に LightMain の API は無いため Light へ直接書く（LightMain.Reset と同じ扱い）
-            DrawAxisSlider("影の距離", light.shadowBias, 0f, 1f, 0.01f,
-                DefaultMainShadowBias, value => light.shadowBias = value);
-
-            // ColorPickerWindow はラベル文字列で編集対象を識別するため、
-            // 追加ライト側の色行とラベルを重複させないこと
-            DrawColorRow("メイン色", light, Color.white);
-
-            if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
-            {
-                RecordLightEdit("リセット");
-                lightMain.Reset();
-            }
-        }
-
-        /// <summary>
-        /// 追加ライトのパラメータ
-        /// （種別・有効・位置/オフセット・回転・強度・範囲・スポット角度・影・色・メイド追従）
-        /// </summary>
-        private void DrawAdditionalLightParams(Light light)
-        {
-            // メイド追従の状態はタイムライン側の StudioLightStat が持つ MaidFollowLight が実体。
-            // ライトレイヤーがキー化するのと同じ実体を編集する
-            var followLight = FindFollowLight(light);
-
-            _view.BeginHorizontal();
-            {
-                _view.DrawLabel("種別", LABEL_WIDTH, ROW_HEIGHT);
-                DrawLightTypeButton(light, LightType.Point, "ポイント");
-                DrawLightTypeButton(light, LightType.Spot, "スポット");
-                DrawLightTypeButton(light, LightType.Directional, "平行");
-            }
-            _view.EndLayout();
-
-            _view.DrawToggle("有効", light.enabled, -1, ROW_HEIGHT,
-                value =>
-                {
-                    RecordLightEdit("有効");
-                    light.enabled = value;
-                });
-
-            // 平行光源は位置を持たない。追従中は位置がメイド基準のオフセットになる
-            // （StudioLightStat.position と同じ切り替え）
-            if (light.type != LightType.Directional)
-            {
-                if (followLight != null && followLight.isFollow)
-                {
-                    DrawVector3Row("オフセット", followLight.offset,
-                        value =>
-                        {
-                            RecordLightEdit("オフセット");
-                            followLight.offset = value;
-                        },
-                        () =>
-                        {
-                            RecordLightEdit("オフセット");
-                            followLight.offset = Vector3.zero;
-                        });
-                }
-                else
-                {
-                    var lightTransform = light.transform;
-                    DrawVector3Row("位置", lightTransform.localPosition,
-                        value =>
-                        {
-                            RecordLightEdit("位置");
-                            lightTransform.localPosition = value;
-                        },
-                        () =>
-                        {
-                            RecordLightEdit("位置");
-                            lightTransform.localPosition = StudioLightManager.DefaultPosition;
-                        });
-                }
-            }
-
-            // ポイントライトは全方位へ照らすため向きを持たない
-            if (light.type != LightType.Point)
-            {
-                DrawRotationSliders(
-                    light.transform.eulerAngles,
-                    DefaultAdditionalRotation,
-                    value => light.transform.eulerAngles = value);
-            }
-
-            DrawAxisSlider("強度", light.intensity, 0f, 5f, 0.01f,
-                StudioLightManager.DefaultIntensity, value => light.intensity = value);
-
-            // 平行光源は位置・減衰を持たないため範囲は編集させない
-            if (light.type != LightType.Directional)
-            {
-                DrawAxisSlider("範囲", light.range, 0f, 30f, 0.01f,
-                    StudioLightManager.DefaultRange, value => light.range = value);
-            }
-
-            if (light.type == LightType.Spot)
-            {
-                DrawAxisSlider("角度", light.spotAngle, 1f, 179f, 0.1f,
-                    StudioLightManager.DefaultSpotAngle, value => light.spotAngle = value);
-            }
-
-            // 影は平行光源だけが落とす（ライトレイヤーの表示条件に合わせる）
-            if (light.type == LightType.Directional)
-            {
-                DrawAxisSlider("影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
-                    DefaultAdditionalShadowStrength, value => light.shadowStrength = value);
-                DrawAxisSlider("影の距離", light.shadowBias, 0f, 1f, 0.01f,
-                    DefaultAdditionalShadowBias, value => light.shadowBias = value);
-            }
-
-            DrawColorRow("追加色", light, Color.white);
-
-            // 平行光源は位置を持たないため追従させない
-            if (light.type != LightType.Directional && followLight != null)
-            {
-                DrawFollowMaidRow(followLight);
-            }
-        }
-
-        /// <summary>
-        /// メイド追従の切替と追従先の選択。
-        /// メインライトはゲーム側の恒久オブジェクトのため追従対象にしない
-        /// （StudioLightManager.RemoveMainLightFollow の方針に合わせ、追加ライトでのみ描く）
-        /// </summary>
-        private void DrawFollowMaidRow(MTEP.MaidFollowLight followLight)
-        {
-            _view.BeginHorizontal();
-            {
-                _view.DrawLabel("追従メイド", LABEL_WIDTH, ROW_HEIGHT);
-
-                _view.DrawToggle("", followLight.maidSlotNo >= 0, 20, ROW_HEIGHT,
-                    value =>
-                    {
-                        RecordLightEdit("追従メイド");
-                        followLight.maidSlotNo =
-                            value ? Mathf.Max(0, _followMaidComboBox.currentIndex) : -1;
-                    });
-
-                _followMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
-                _followMaidComboBox.onSelected = (maidCache, index) =>
-                {
-                    RecordLightEdit("追従メイド");
-                    followLight.maidSlotNo = index;
-                };
-                _followMaidComboBox.DrawButton(_view);
-            }
-            _view.EndLayout();
-        }
-
-        /// <summary>
-        /// タイムライン側が持つ追従コンポーネント。
-        /// ライト一覧はタイムライン側で遅延収集されるため、未収集なら null を返す
-        /// </summary>
-        private static MTEP.MaidFollowLight FindFollowLight(Light light)
-        {
-            var stat = MTEP.StudioLightManager.instance.lights
-                .FirstOrDefault(s => s != null && s.light == light);
-            return stat != null ? stat.followLight : null;
-        }
-
-        /// <summary>ラベル + XYZ（ドラッグラベル + 数値入力）+ リセットボタンの 1 行</summary>
-        private void DrawVector3Row(
-            string label, Vector3 value, Action<Vector3> onChanged, Action onReset)
-        {
-            _view.DrawVector3Row(new GUIView.Vector3RowOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                height = ROW_HEIGHT,
-                dragSensitivity = PositionDragSensitivity,
-                value = value,
-                onChanged = onChanged,
-                onReset = onReset,
-            });
-        }
-
-        /// <summary>ライトの向き（縦回転・横回転・ロール）</summary>
-        private void DrawRotationSliders(
-            Vector3 eulerAngles, Vector3 defaultRotation, Action<Vector3> onChanged)
-        {
-            var pitch = NormalizeAngle(eulerAngles.x);
-            var yaw = NormalizeAngle(eulerAngles.y);
-            var roll = NormalizeAngle(eulerAngles.z);
-
-            DrawAxisSlider("縦回転", pitch, -90f, 90f, 0.1f, defaultRotation.x,
-                value => onChanged(new Vector3(value, yaw, roll)));
-            DrawAxisSlider("横回転", yaw, -180f, 180f, 0.1f, defaultRotation.y,
-                value => onChanged(new Vector3(pitch, value, roll)));
-            DrawAxisSlider("ロール", roll, -180f, 180f, 0.1f, defaultRotation.z,
-                value => onChanged(new Vector3(pitch, yaw, value)));
-        }
-
-        /// <summary>種別切替ボタン 1 つ。選択中はアクセント色で示す</summary>
-        private void DrawLightTypeButton(Light light, LightType type, string label)
-        {
-            var isCurrent = light.type == type;
-            if (_view.DrawButton(label, TYPE_BUTTON_WIDTH, ROW_HEIGHT, true,
-                isCurrent ? Color.cyan : Color.white) && !isCurrent)
-            {
-                RecordLightEdit("種別");
-                lightManager.SetLightType(light, type);
-            }
-        }
-
-        /// <summary>ライトの色を DrawColor（ColorPickerWindow 連携）で編集する 1 行</summary>
-        private void DrawColorRow(string label, Light light, Color resetColor)
-        {
-            var fieldCache = _view.GetColorFieldCache(label, false);
-            _view.DrawColor(fieldCache, light.color, resetColor,
-                value =>
-                {
-                    RecordLightEdit(label);
-                    light.color = value;
-                });
-        }
-
-        /// <summary>共通書式のスライダー 1 行（CameraWindow と同形式）</summary>
-        private void DrawAxisSlider(
-            string label, float value, float min, float max, float step,
-            float defaultValue, Action<float> onChanged)
-        {
-            _view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = min,
-                max = max,
-                step = step,
-                defaultValue = defaultValue,
-                value = value,
-                onChanged = newValue =>
-                {
-                    RecordLightEdit(label);
-                    onChanged(newValue);
-                },
-            });
-        }
-
-        /// <summary>ライト操作を履歴へ記録する。ドラッグ中の連続変更は 1 件に集約される</summary>
-        private static void RecordLightEdit(string label)
-        {
-            HistoryManager.instance.BeforeEdit(null, HistoryScope.Light, "ライト: " + label);
-        }
-
-        /// <summary>角度を (-180, 180] へ正規化する</summary>
-        private static float NormalizeAngle(float angle)
-        {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
         }
     }
 }

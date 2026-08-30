@@ -440,11 +440,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 旋回で 0〜360 に丸まるため、表示は ±180 度へ正規化する
             var aroundAngle = controller.aroundAngle;
-            var yaw = MainCameraRowDrawer.NormalizeAngle(aroundAngle.x);
-            var pitch = MainCameraRowDrawer.NormalizeAngle(aroundAngle.y);
+            var yaw = AngleUtils.NormalizeAngle(aroundAngle.x);
+            var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
 
             MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー", yaw, -180f, 180f, 0.1f,
-                MainCameraRowDrawer.NormalizeAngle(MainCameraRowDrawer.DefaultAroundAngle.x),
+                AngleUtils.NormalizeAngle(MainCameraRowDrawer.DefaultAroundAngle.x),
                 LABEL_WIDTH, ROW_HEIGHT,
                 value => controller.aroundAngle = new Vector2(value, pitch));
             MainCameraRowDrawer.DrawAxisSlider(_view, "ピッチ", pitch, -90f, 90f, 0.1f,

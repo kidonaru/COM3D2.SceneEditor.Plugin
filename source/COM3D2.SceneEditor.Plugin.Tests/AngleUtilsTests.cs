@@ -3,7 +3,7 @@ using Xunit;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
-    public class MainCameraRowDrawerTests
+    public class AngleUtilsTests
     {
         [Theory]
         [InlineData(0f, 0f)]
@@ -20,7 +20,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData(-730f, -10f)]
         public void NormalizeAngle_角度を180度以内へ正規化する(float angle, float expected)
         {
-            Assert.Equal(expected, MainCameraRowDrawer.NormalizeAngle(angle), 3);
+            Assert.Equal(expected, AngleUtils.NormalizeAngle(angle), 3);
         }
     }
 }

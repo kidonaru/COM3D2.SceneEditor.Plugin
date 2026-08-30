@@ -264,7 +264,7 @@ Phase S3(カメラ・ライト・背景):
 
 - [x] CameraTimelineLayer(カメラ位置/回転/距離/FoV / CameraWindow `DrawMainCameraContent` / 逆方向なし)
 - [x] SubCameraTimelineLayer(サブカメラ設定・レイヤー固有 / 逆方向なし)
-- [ ] LightTimelineLayer(ライト Transform・色・強度 / LightWindow / 逆方向あり: `Select(ライトGameObject)`)
+- [x] LightTimelineLayer(ライト Transform・色・強度 / LightWindow / 逆方向あり: `Select(ライトGameObject)`)
 - [ ] BGTimelineLayer(背景 Transform / BackgroundWindow / 逆方向あり: 背景オブジェクト選択)
 - [ ] BGColorTimelineLayer(背景色・地面設定 / BackgroundWindow `DrawBgColorRow` / 逆方向なし)
 
@@ -285,6 +285,16 @@ Phase S3 実機確認項目(loop 中に追記):
 - [ ] ビューポートの X/Y/幅/高さを変えると画面内のサブカメラ表示が即座に追従する
 - [ ] 複数のサブカメラ行を同時に選択しても回転角が跳ねず、コンボが混ざらない
 - [ ] Inspector で設定した内容がそのままキーフレームに載る
+- [ ] ライトレイヤーでライト行を選択 → Inspector に種別・有効・位置・回転・強度・範囲・色などが出て編集できる
+- [ ] メインライトの行では回転・強度・影・色・リセットだけが出る(追加ライトと項目が違う)
+- [ ] ライト種別を変えると位置・範囲・角度・影の行の出し分けがライトウィンドウと一致する
+- [ ] 追従メイドを ON にすると位置行が「オフセット」に変わり、追従が効く
+- [ ] 複数のライト行を同時に選択しても色ピッカーが混ざらない(色行のラベルをライト名で一意化している)
+- [ ] ライトをビューポート/Hierarchy で選択 → 該当ライトの行が選択される(ループしない)
+- [ ] メインライトは選択に載らないため逆方向同期しない(ライトウィンドウの方針どおり)
+- [ ] Inspector からの編集が履歴(Undo)に「ライト: ○○」として積まれる
+- [ ] ライトウィンドウの一覧・追加/削除・メイン/追加それぞれの編集欄に退行が無い(抽出リファクタリングの確認)
+- [ ] カメラ・ライト・ボーンの角度スライダーの表示に退行が無い(NormalizeAngle を AngleUtils へ統合した影響の確認)
 
 Phase S4(サウンド・演出系):
 

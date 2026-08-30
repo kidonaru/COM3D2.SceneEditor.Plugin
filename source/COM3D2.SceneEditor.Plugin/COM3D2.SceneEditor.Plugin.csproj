@@ -288,6 +288,8 @@
     <Compile Include="MaidShapeKeyRowDrawer.cs" />
     <Compile Include="MainCameraRowDrawer.cs" />
     <Compile Include="SubCameraRowDrawer.cs" />
+    <Compile Include="LightRowDrawer.cs" />
+    <Compile Include="AngleUtils.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
@@ -367,6 +369,7 @@
     <Compile Include="Timeline\ItemInspector\MotionItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\CameraItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\SubCameraItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\LightItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />

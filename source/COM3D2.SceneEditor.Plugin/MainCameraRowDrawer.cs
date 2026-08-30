@@ -51,12 +51,12 @@ namespace COM3D2.SceneEditor.Plugin
             var aroundAngle = mainCamera.GetAroundAngle();
 
             // 旋回中は値が際限なく積み上がるため、表示は ±180 度へ正規化する
-            var yaw = NormalizeAngle(aroundAngle.x);
-            var pitch = NormalizeAngle(aroundAngle.y);
-            var roll = NormalizeAngle(camera.transform.eulerAngles.z);
+            var yaw = AngleUtils.NormalizeAngle(aroundAngle.x);
+            var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
+            var roll = AngleUtils.NormalizeAngle(camera.transform.eulerAngles.z);
 
             DrawAxisSlider(view, "ヨー", yaw, -180f, 180f, 0.1f,
-                NormalizeAngle(DefaultAroundAngle.x), labelWidth, rowHeight, value =>
+                AngleUtils.NormalizeAngle(DefaultAroundAngle.x), labelWidth, rowHeight, value =>
                 {
                     RecordCameraEdit("ヨー");
                     mainCamera.SetAroundAngle(new Vector2(value, pitch));
@@ -120,13 +120,6 @@ namespace COM3D2.SceneEditor.Plugin
                 value = value,
                 onChanged = onChanged,
             });
-        }
-
-        /// <summary>角度を (-180, 180] へ正規化する</summary>
-        public static float NormalizeAngle(float angle)
-        {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
         }
     }
 }
