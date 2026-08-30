@@ -50,6 +50,24 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 衣装の初期化・初期値更新は旧レイヤー編集ウィンドウから移設。
+            // 部位単位ではなくメイド全体への操作のため項目の外に置く
+            view.BeginHorizontal();
+            {
+                if (view.DrawButton("初期化", 60, RowHeight))
+                {
+                    maidCache.maidPropCache.ApplyInitialProp();
+                }
+
+                if (view.DrawButton("初期値更新", 100, RowHeight))
+                {
+                    maidCache.maidPropCache.UpdateInitialProp();
+                }
+            }
+            view.EndLayout();
+
+            view.DrawHorizontalLine();
+
             foreach (var item in items)
             {
                 MaidPartType partType;
