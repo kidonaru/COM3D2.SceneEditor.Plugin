@@ -7,7 +7,9 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 背景の一覧表示・切替・削除を行うウィンドウ。
+    /// 背景まわりを編集するウィンドウ。
+    /// 「背景」タブは一覧表示・切替・削除と背景色、「地面」タブは地面の表示と広さ、
+    /// 「モデル」タブは背景モデルの配置数を扱う。
     /// 位置・回転の編集は背景を Inspector で選択して行う。
     /// 背景一覧はフォトモードの PhotoBGData、適用は BgMgr.ChangeBg の同一経路を使う
     /// </summary>
@@ -20,15 +22,23 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
+        private static readonly int TAB_WIDTH = 60;
 
         private const string ALL_CATEGORY = "すべて";
+
+        /// <summary>ウィンドウ内の内部タブ</summary>
+        private enum BgTabType
+        {
+            背景,
+            地面,
+            モデル,
+        }
+
+        private BgTabType _tabType = BgTabType.背景;
 
         /// <summary>選択中カテゴリ。ALL_CATEGORY なら全カテゴリ表示</summary>
         private string _category = ALL_CATEGORY;
         private string _searchText = "";
-
-        /// <summary>背景モデルの配置管理を開いているか。既定は畳む</summary>
-        private bool _isBgModelExpanded = false;
 
         private readonly GUIComboBox<string> _categoryComboBox = new GUIComboBox<string>
         {
@@ -121,6 +131,35 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawBody()
         {
+            // タブはスクロールビューの外に置き、どこまでスクロールしても切り替えられるようにする
+            _tabType = _view.DrawTabs(_tabType, TAB_WIDTH, ROW_HEIGHT);
+            // DrawTabs 末尾の AddSpace(5) が縦レイアウトでは「スペース5px + margin」になるため、
+            // 通常の行間に合わせて詰める (TimelineSettingWindow と同じ流儀)
+            _view.currentPos.y -= 5 + GUIView.defaultMargin;
+
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            switch (_tabType)
+            {
+                case BgTabType.背景:
+                    DrawBgTab();
+                    break;
+                case BgTabType.地面:
+                    BackgroundRowDrawer.DrawGroundRows(_view, LABEL_WIDTH, ROW_HEIGHT);
+                    break;
+                case BgTabType.モデル:
+                    DrawBgModelTab();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 背景タブ。現在背景の操作・背景色と、切り替え用の一覧。
+        /// 背景の実体を触るのはこのタブだけのため、BgMgr と一覧データの確認もここで行う
+        /// </summary>
+        private void DrawBgTab()
+        {
             var bgMgr = GameMain.Instance != null ? GameMain.Instance.BgMgr : null;
             if (bgMgr == null)
             {
@@ -138,41 +177,24 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawCurrentBgRow(bgMgr);
 
-            // 背景色と地面は背景の有無に関わらず編集できる
+            // 背景色は背景の有無に関わらず編集できる
             BackgroundRowDrawer.DrawBgColorRow(_view, ROW_HEIGHT);
-            _view.DrawHorizontalLine();
-            BackgroundRowDrawer.DrawGroundRows(_view, LABEL_WIDTH, ROW_HEIGHT);
 
             _view.DrawHorizontalLine();
             DrawFilterRows();
-            DrawBgModelSection();
             DrawBgList(bgMgr);
         }
 
         /// <summary>
-        /// 背景モデルの配置管理。配置済みのモデルは背景モデルレイヤーのキーと連動する。
-        /// 下の背景一覧のスクロールを圧迫しないよう、既定は畳んでおく
+        /// モデルタブ。背景モデルの配置管理で、
+        /// 配置済みのモデルは背景モデルレイヤーのキーと連動する
         /// </summary>
-        private void DrawBgModelSection()
+        private void DrawBgModelTab()
         {
             if (MTEP.TimelineManager.instance.timeline == null)
             {
-                return;
-            }
-
-            _view.DrawHorizontalLine();
-
-            Action toggle = () => _isBgModelExpanded = !_isBgModelExpanded;
-            _view.BeginHorizontal();
-            {
-                _view.DrawLabel(_isBgModelExpanded ? "▼" : "▶", 20, ROW_HEIGHT,
-                    onClickAction: toggle);
-                _view.DrawLabel("背景モデルの配置", 150, ROW_HEIGHT, onClickAction: toggle);
-            }
-            _view.EndLayout();
-
-            if (!_isBgModelExpanded)
-            {
+                _view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT,
+                    textColor: Color.yellow);
                 return;
             }
 
@@ -183,6 +205,8 @@ namespace COM3D2.SceneEditor.Plugin
                 _view.DrawLabel("背景モデルがありません", -1, ROW_HEIGHT);
                 return;
             }
+
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             _view.SetEnabled(_view.focusedComboBox == null
                 && MTEP.StudioHackManager.instance.isPoseEditing);
@@ -220,6 +244,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _view.SetEnabled(_view.focusedComboBox == null);
+
+            _view.EndScrollView();
 
             if (deleteSourceName != null)
             {
