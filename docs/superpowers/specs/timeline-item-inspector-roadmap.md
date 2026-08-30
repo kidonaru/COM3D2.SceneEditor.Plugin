@@ -314,7 +314,7 @@ Phase S4(サウンド・演出系):
 - [x] TextTimelineLayer(テキスト内容・スタイル・レイヤー固有 / 逆方向なし)
 - [x] StageLightTimelineLayer / StageLaserTimelineLayer / PsylliumTimelineLayer(演出パラメータ / LiveEffectWindow / 逆方向なし。パターン・移動回転は Inspector 対象外)
 - [x] PostEffectTimelineLayer 5 種(エフェクトパラメータ・レイヤー固有 / 逆方向なし)
-- [ ] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向は要調査: 不可なら実装せず理由を追記)
+- [x] PngPlacementTimelineLayer(配置 PNG パラメータ / PngPlacementWindow / 逆方向あり: PNG のルートオブジェクト選択。調査の結果 `PngObjectData.rootObject` で解決できた)
 - [ ] AnimationTimelineLayer(アニメブレンド設定・レイヤー固有 / 逆方向なし)
 
 Phase S4 実機確認項目(loop 中に追記):
@@ -356,3 +356,13 @@ Phase S4 実機確認項目(loop 中に追記):
 - [ ] 複数のエフェクト行を同時に選択しても色ピッカーが混ざらない
 - [ ] Inspector から「デバッグ表示」等の共通設定を変えると設定として保存される(レイヤー UI と同じ)
 - [ ] コピー先への複製とトーンカーブのプレビューはレイヤー UI 側で行う(意図した制約)
+- [ ] PNG 配置レイヤーで PNG 行を選択 → Inspector に位置/回転/拡縮と表示・ビルボード・色・明るさが出て編集できる
+- [ ] PNG (またはビューポートで板そのもの) を選択 → 該当 PNG の行が選択される(ループしない)
+- [ ] 複数の PNG 行を同時に選択しても色ピッカーが混ざらない
+- [ ] PNG を削除した直後の項目が「(PNGが見つかりません)」表示になる
+- [ ] 編集モードでないときは「編集モード中のみPNG配置を操作できます」が出て編集行が出ない
+- [ ] Inspector の通常の PNG 選択 (Object 表示) の色行に退行が無い(ラベル接頭辞を足した影響の確認)
+- **要検討**: 明るさは SE の実体が 0〜2 倍まで持てるのに対し、レイヤーのキーは MTE 由来の
+  0〜255 (= 1.0 相当) の byte で保存する。1.0 を超える明るさはキーフレームに載らない。
+  Inspector・PNG ウィンドウ双方に共通する既存の非対称のため今回は変更していない。
+  直すならレイヤー側のキー形式か、明るさスライダーの上限を 1.0 に揃えるかの判断が要る

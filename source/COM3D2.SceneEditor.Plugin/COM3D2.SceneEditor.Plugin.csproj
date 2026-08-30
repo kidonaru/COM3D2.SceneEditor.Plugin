@@ -388,6 +388,7 @@
     <Compile Include="Timeline\ItemInspector\StageLaserItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\PsylliumItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\PostEffectItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\PngPlacementItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />

@@ -312,6 +312,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.PsylliumTimelineLayer), new PsylliumItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.PngPlacementTimelineLayer), new PngPlacementItemInspector());
 
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Animation,
