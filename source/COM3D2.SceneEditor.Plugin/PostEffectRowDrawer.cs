@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
@@ -17,8 +18,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// 書き込み先はどのスナップショットにも含まれないため履歴は記録しない
     /// (レイヤー側の UI も記録していない)。
     ///
-    /// レイヤー UI にある「コピー先」への複製とトーンカーブのプレビューは、
-    /// 対象を 2 つ以上選ぶ操作・表示専用の領域のため含めない (レイヤー UI で行う)。
+    /// 「コピー先」への複製とトーンカーブのプレビューは、レイヤー編集ウィンドウの
+    /// 撤去に伴いここへ移設した。
     ///
     /// 色欄とコンボボックスの状態を持つため、エフェクトごと・描画するビューごとに
     /// インスタンスを分ける
@@ -42,6 +43,50 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
             showArrow = false,
         };
+
+        private readonly GUIComboBox<string> _copyToComboBox = new GUIComboBox<string>
+        {
+            getName = (name, index) => name,
+        };
+
+        /// <summary>コピー先コンボの選択肢。エフェクト数が変わったときだけ作り直す</summary>
+        private readonly List<string> _copyToNames = new List<string>();
+
+        /// <summary>GTToneMap のトーンカーブ表示用。描画済みのデータと一致する間は使い回す</summary>
+        private Texture2D _gtToneMapTexture;
+        private MTEP.GTToneMapData _gtToneMapTextureData;
+
+        /// <summary>
+        /// 同種の別インデックスへ設定をコピーする行。旧レイヤー編集ウィンドウから移設。
+        /// コンボは項目ごとの Drawer が持つため、エフェクトごとに選択状態が残る
+        /// </summary>
+        private void DrawCopyRow(
+            GUIView view, int count, int sourceIndex,
+            Func<int, string> getJpName, Action<int> copyTo)
+        {
+            if (_copyToNames.Count != count)
+            {
+                _copyToNames.Clear();
+                for (var i = 0; i < count; i++)
+                {
+                    _copyToNames.Add(getJpName(i));
+                }
+            }
+
+            _copyToComboBox.items = _copyToNames;
+            _copyToComboBox.DrawButton("コピー先", view);
+
+            if (view.DrawButton("コピー", 60, 20))
+            {
+                var copyToIndex = _copyToComboBox.currentIndex;
+                if (copyToIndex != -1 && copyToIndex != sourceIndex)
+                {
+                    copyTo(copyToIndex);
+                }
+            }
+
+            view.SetEnabled(view.focusedComboBox == null);
+        }
 
         /// <summary>色欄のラベルを対象ごとに一意にする (ColorPickerWindow はラベルで対象を識別する)</summary>
         public void SetColorLabels(string colorLabelPrefix)
@@ -302,6 +347,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            DrawCopyRow(view, timeline.paraffinCount, index,
+                PostEffectTimelineLayer.GetParaffinJpName,
+                copyToIndex => postEffectManager.ApplyParaffin(copyToIndex, paraffin));
+
+            view.DrawHorizontalLine(Color.gray);
+
             view.DrawLabel("共通設定", 100, 20);
 
             updateTransform |= view.DrawToggle("デバッグ表示", config.paraffinDebug, 150, 20, newValue =>
@@ -393,6 +444,12 @@ namespace COM3D2.SceneEditor.Plugin
                     distanceFog.useNormal,
                     newValue => distanceFog.useNormal = newValue);
             }
+
+            view.DrawHorizontalLine(Color.gray);
+
+            DrawCopyRow(view, timeline.distanceFogCount, index,
+                PostEffectTimelineLayer.GetDistanceFogJpName,
+                copyToIndex => postEffectManager.ApplyDistanceFog(copyToIndex, distanceFog));
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -542,6 +599,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            DrawCopyRow(view, timeline.rimlightCount, index,
+                PostEffectTimelineLayer.GetRimlightJpName,
+                copyToIndex => postEffectManager.ApplyRimlight(copyToIndex, rimlight));
+
+            view.DrawHorizontalLine(Color.gray);
+
             view.DrawLabel("共通設定", 100, 20);
 
             updateTransform |= view.DrawToggle("デバッグ表示", config.rimlightDebug, 150, 20, newValue =>
@@ -604,6 +667,40 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 postEffectManager.ApplyGTToneMap(data);
             }
+
+            view.DrawHorizontalLine(Color.gray);
+
+            DrawGTToneMapCurve(view, data);
+        }
+
+        /// <summary>トーンカーブのプレビュー。旧レイヤー編集ウィンドウから移設</summary>
+        private void DrawGTToneMapCurve(GUIView view, MTEP.GTToneMapData data)
+        {
+            if (_gtToneMapTexture == null)
+            {
+                _gtToneMapTexture = new Texture2D(150, 150);
+                TextureUtils.ClearTexture(_gtToneMapTexture, config.curveBgColor);
+            }
+
+            if (!_gtToneMapTextureData.Equals(data))
+            {
+                _gtToneMapTextureData = data;
+
+                TextureUtils.ClearTexture(_gtToneMapTexture, config.curveBgColor);
+
+                MTEP.GTToneMap.ApplyTexture(
+                    _gtToneMapTexture,
+                    config.curveLineColor,
+                    1,
+                    data.maxBrightness,
+                    data.contrast,
+                    data.linearStart,
+                    data.linearLength,
+                    data.blackTightness,
+                    data.blackOffset);
+            }
+
+            view.DrawTexture(_gtToneMapTexture);
         }
     }
 }
