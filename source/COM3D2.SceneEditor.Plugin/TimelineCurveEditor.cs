@@ -464,7 +464,7 @@ namespace COM3D2.SceneEditor.Plugin
             y += size + TOOL_ROW_SPACING;
         }
 
-        /// <summary>選択キーのうち、片側タンジェントが実際に効くものがあるか。
+        /// <summary>編集区間のうち、片側タンジェントが実際に効くものがあるか。
         /// 値が変わらない区間では TangentData.value が normalizedValue によらず 0 になり
         /// (UpdateValue: value = normalizedValue * baseTangent)、編集しても形が変わらない。
         /// ハンドルを出さない条件と揃えて、入力欄もこの条件で伏せる</summary>
@@ -480,7 +480,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 for (var i = 0; i < channel.values.Count; i++)
                 {
-                    if (IsHandleVisible(channel, i)
+                    if (IsTangentInEditRange(channel, i, isOut)
                         && TryGetBaseSlopePerFrame(channel, i, isOut, out _))
                     {
                         return true;
@@ -490,7 +490,7 @@ namespace COM3D2.SceneEditor.Plugin
             return false;
         }
 
-        /// <summary>選択キーの片側タンジェントが全て同値ならその正規化値、
+        /// <summary>編集区間の片側タンジェントが全て同値ならその正規化値、
         /// 未選択または混在なら NaN (フィールドは空欄表示になる)</summary>
         private float GetUniformNormalizedTangent(bool isOut)
         {
@@ -514,7 +514,7 @@ namespace COM3D2.SceneEditor.Plugin
             return isMixed ? float.NaN : result;
         }
 
-        /// <summary>選択キーの片側タンジェントへ正規化値を一括適用する</summary>
+        /// <summary>編集区間の片側タンジェントへ正規化値を一括適用する</summary>
         private void ApplyNormalizedTangent(bool isOut, float value)
         {
             ForEachTangent((tangent, tangentIsOut) =>
@@ -532,7 +532,7 @@ namespace COM3D2.SceneEditor.Plugin
                 timeline, "カーブ: タンジェント入力 " + (isOut ? "Out" : "In"));
         }
 
-        /// <summary>選択キーの片側タンジェントへ正規化値の差分を加算する</summary>
+        /// <summary>編集区間の片側タンジェントへ正規化値の差分を加算する</summary>
         private void AddNormalizedTangent(bool isOut, float diff)
         {
             ForEachTangent((tangent, tangentIsOut) =>
@@ -550,8 +550,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RequestHistory("カーブ: タンジェント入力 " + (isOut ? "Out" : "In"));
         }
 
-        /// <summary>選択キー自身の out/in Tangent を走査する
-        /// (前キー側ではなく、選択している頂点の両ハンドルが対象)</summary>
+        /// <summary>編集区間 (前キー → 選択キー) のタンジェントを走査する。
+        /// out は前キー側、in は選択キー側で、Inspector の補間曲線タブと同じ組み合わせ
+        /// (KeyFrameTangentDrawer.CollectTangents)</summary>
         private void ForEachTangent(System.Action<MTEP.TangentData, bool> callback)
         {
             var target = _targets.current;
@@ -564,7 +565,16 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                foreach (var tangent in TangentTargetList.GetTangents(transform, target, isOut: true))
+                // 前キーが無い先頭キーは区間を成さないので編集対象にしない。
+                // loopSearch を既定 (true) にすると、前キーが無くても末尾や自分自身へ
+                // 回り込んだボーンが返り、ハンドルの出ない区間まで編集対象に入ってしまう
+                var prevBone = currentLayer.GetPrevBone(bone.frameNo, bone.name, false);
+                if (prevBone == null)
+                {
+                    continue;
+                }
+
+                foreach (var tangent in TangentTargetList.GetTangents(prevBone.transform, target, isOut: true))
                 {
                     callback(tangent, true);
                 }
@@ -717,14 +727,13 @@ namespace COM3D2.SceneEditor.Plugin
 
                 for (var i = 0; i < channel.values.Count; i++)
                 {
-                    if (!IsHandleVisible(channel, i))
-                    {
-                        continue;
-                    }
-
                     for (var side = 0; side < 2; side++)
                     {
                         var isOut = side == 0;
+                        if (!IsTangentInEditRange(channel, i, isOut))
+                        {
+                            continue;
+                        }
                         if (!TryGetBaseSlopePerFrame(channel, i, isOut, out var baseSlope))
                         {
                             continue;
@@ -760,8 +769,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                 for (var i = 0; i < channel.values.Count; i++)
                 {
-                    // 半透明表示の非選択キーを誤ってドラッグしないようハンドルと同じ条件で絞る
-                    if (!IsHandleVisible(channel, i))
+                    // 半透明表示の非選択キーを誤ってドラッグしないよう選択キーだけに絞る
+                    if (!IsKeySelected(channel, i))
                     {
                         continue;
                     }
@@ -848,10 +857,24 @@ namespace COM3D2.SceneEditor.Plugin
             _dragChanged = false;
         }
 
-        /// <summary>選択中キーのみハンドルを出す</summary>
-        private bool IsHandleVisible(CurveChannel channel, int keyIndex)
+        /// <summary>選択中のキーか (キー自体のドラッグ可否)</summary>
+        private bool IsKeySelected(CurveChannel channel, int keyIndex)
         {
             return selectedBones.Contains(channel.keyBones[keyIndex]);
+        }
+
+        /// <summary>そのキーの片側タンジェントが編集区間に属するか。
+        /// 編集区間は Inspector と同じく「前キー → 選択キー」なので、
+        /// in は選択キー自身、out は次キーが選択されているキーが対象になる。
+        /// チャンネルの配列はフレーム昇順なので隣の添字が隣のキーになり、
+        /// ForEachTangent の GetPrevBone と同じ区間を指す。
+        /// 実際に編集が効くかは別途 TryGetBaseSlopePerFrame でも絞る
+        /// (勾配 0 や 1フレーム調整の区間はここでは弾かない)</summary>
+        private bool IsTangentInEditRange(CurveChannel channel, int keyIndex, bool isOut)
+        {
+            var selectedIndex = isOut ? keyIndex + 1 : keyIndex;
+            return selectedIndex < channel.values.Count
+                && IsKeySelected(channel, selectedIndex);
         }
 
         /// <summary>キーを積み終えたチャンネルへ、再生時の区間情報を持たせる。
@@ -1598,7 +1621,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>選択キーの in/out タンジェントハンドルを描画する</summary>
+        /// <summary>編集区間 (前キー → 選択キー) のタンジェントハンドルを描画する</summary>
         private void DrawChannelHandles(GUIView view, CurveChannel channel, Rect paneRect, float scrollX)
         {
             // Euler 表示チャンネルは表示専用のためハンドルを出さない
@@ -1612,11 +1635,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             for (var i = 0; i < channel.values.Count; i++)
             {
-                if (!IsHandleVisible(channel, i))
-                {
-                    continue;
-                }
-
                 var keyPos = new Vector2(
                     _mapping.FrameToX(channel.frameNos[i]) - scrollX,
                     _mapping.ValueToY(channel.GetKeyValue(i)));
@@ -1624,6 +1642,10 @@ namespace COM3D2.SceneEditor.Plugin
                 for (var side = 0; side < 2; side++)
                 {
                     var isOut = side == 0;
+                    if (!IsTangentInEditRange(channel, i, isOut))
+                    {
+                        continue;
+                    }
                     // 値が変わらない区間に面した側は編集しても形が変わらないため出さない
                     // (ツールバーの入力欄も DrawTangentRow で伏せる)
                     if (!TryGetBaseSlopePerFrame(channel, i, isOut, out _))
