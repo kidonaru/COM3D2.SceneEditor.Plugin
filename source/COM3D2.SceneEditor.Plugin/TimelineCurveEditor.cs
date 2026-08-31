@@ -85,15 +85,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ペイン高さのドラッグリサイズ状態 (menuWidth リサイザと同じ流儀)</summary>
         private readonly GUIView.DragInfo _resizeDragInfo = new GUIView.DragInfo();
 
-        /// <summary>コンボの表示値種別。「回転進行度」は TangentValueType に存在しないため
-        /// カーブエディタ専用の enum を持ち、データアクセス時に ToTangentValueType で変換する</summary>
+        /// <summary>コンボの表示値種別。カーブエディタ専用の enum を持ち、
+        /// データアクセス時に ToTangentValueType で変換する</summary>
         private enum CurveValueFilter
         {
             すべて,
             移動,
             X移動, Y移動, Z移動,
             回転,
-            回転進行度,
             X回転, Y回転, Z回転,
             拡縮,
             X拡縮, Y拡縮, Z拡縮,
@@ -107,14 +106,12 @@ namespace COM3D2.SceneEditor.Plugin
             = new List<CurveValueFilter>();
 
         /// <summary>コンボに出すフィルタ候補 (enum の定義順)。
-        /// クォータニオン格納ボーン: 回転 = Euler 表示 3 本 / 回転進行度 = 進行度 1 本 /
-        /// X/Y/Z回転 = 該当軸の Euler 表示。オイラー角格納ボーン: 回転・X/Y/Z回転 = 実カーブ、
-        /// 回転進行度は候補に出ない (CollectChannels)</summary>
+        /// クォータニオン格納ボーン: 回転 = Euler 表示 3 本 / X/Y/Z回転 = 該当軸の Euler 表示。
+        /// オイラー角格納ボーン: 回転・X/Y/Z回転 = 実カーブ (CollectChannels)</summary>
         private static readonly CurveValueFilter[] FilterCandidates
             = (CurveValueFilter[])System.Enum.GetValues(typeof(CurveValueFilter));
 
-        /// <summary>データアクセス用の TangentValueType へ変換する。
-        /// 回転進行度はクォータニオン 4 成分を扱うため「回転」に写す</summary>
+        /// <summary>データアクセス用の TangentValueType へ変換する</summary>
         private static MTEP.TangentValueType ToTangentValueType(CurveValueFilter filter)
         {
             switch (filter)
@@ -125,7 +122,6 @@ namespace COM3D2.SceneEditor.Plugin
                 case CurveValueFilter.Y移動: return MTEP.TangentValueType.Y移動;
                 case CurveValueFilter.Z移動: return MTEP.TangentValueType.Z移動;
                 case CurveValueFilter.回転: return MTEP.TangentValueType.回転;
-                case CurveValueFilter.回転進行度: return MTEP.TangentValueType.回転;
                 case CurveValueFilter.X回転: return MTEP.TangentValueType.X回転;
                 case CurveValueFilter.Y回転: return MTEP.TangentValueType.Y回転;
                 case CurveValueFilter.Z回転: return MTEP.TangentValueType.Z回転;
@@ -259,16 +255,13 @@ namespace COM3D2.SceneEditor.Plugin
         private DragMode _dragMode = DragMode.None;
         /// <summary>ドラッグ対象のキー値。CurveChannel は毎フレーム作り直すため実体を直接保持する</summary>
         private MTEP.ValueData _dragValue = null;
-        /// <summary>ドラッグ対象のタンジェント。回転進行度チャンネルでは代表成分 (x) を指す
-        /// (_dragTangents に含まれる同一実体で、常に一括更新されるため重複判定にも使える)</summary>
+        /// <summary>ドラッグ対象のタンジェント</summary>
         private MTEP.TangentData _dragTangent = null;
-        /// <summary>回転進行度チャンネルのタンジェントドラッグでは 4 成分を一括で動かす (通常は null)</summary>
-        private List<MTEP.TangentData> _dragTangents = null;
         private bool _dragTangentIsOut = false;
         /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)</summary>
         private float _dragBaseSlopePerFrame = 0f;
         private int _dragKeyFrameNo = 0;
-        /// <summary>ドラッグ対象キーの表示値 (回転進行度チャンネルではキー番号)</summary>
+        /// <summary>ドラッグ対象キーの表示値</summary>
         private float _dragKeyValue = 0f;
         private bool _dragChanged = false;
 
@@ -277,14 +270,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
             /// <summary>値そのものを表示・編集する通常チャンネル</summary>
             Normal,
-            /// <summary>クォータニオン回転の進行度 1 本。値ドラッグ不可、タンジェントは 4 成分一括</summary>
-            RotationProgress,
             /// <summary>クォータニオンから導出した表示専用の Euler 角。値・タンジェントとも編集不可</summary>
             EulerDisplay,
         }
 
         /// <summary>1 本のカーブ = 1 ボーン × 1 値チャンネル。
-        /// RotationProgress / EulerDisplay は frameNos / values / keyBones / rotationValues を
+        /// EulerDisplay は frameNos / values / keyBones / rotationValues を
         /// 兄弟チャンネルと共有参照するため、構築後にこれらのリストを変更してはならない</summary>
         private class CurveChannel
         {
@@ -299,17 +290,16 @@ namespace COM3D2.SceneEditor.Plugin
             public Color color;
             /// <summary>フレーム番号順のキー列</summary>
             public List<int> frameNos = new List<int>();
-            /// <summary>キーごとの値。導出チャンネル (進行度/Euler) では代表成分 (x) を積み、
+            /// <summary>キーごとの値。Euler 表示チャンネルでは代表成分 (x) を積み、
             /// ドラッグ対象の特定とキー数依存ループの境界に使う</summary>
             public List<MTEP.ValueData> values = new List<MTEP.ValueData>();
             public List<MTEP.BoneData> keyBones = new List<MTEP.BoneData>();
             /// <summary>表示範囲のサンプル値 (SAMPLE_STEP px 刻み)</summary>
             public List<float> samples = new List<float>();
 
-            public bool isRotationProgress => kind == ChannelKind.RotationProgress;
             public bool isEulerDisplay => kind == ChannelKind.EulerDisplay;
 
-            /// <summary>回転進行度 / Euler 表示チャンネルのキーごとのクォータニオン成分 (x,y,z,w)</summary>
+            /// <summary>Euler 表示チャンネルのキーごとのクォータニオン成分 (x,y,z,w)</summary>
             public List<MTEP.ValueData[]> rotationValues = new List<MTEP.ValueData[]>();
 
             /// <summary>Euler 表示チャンネルの軸 (0=X, 1=Y, 2=Z)。EulerDisplay 以外は -1</summary>
@@ -317,11 +307,10 @@ namespace COM3D2.SceneEditor.Plugin
             /// <summary>Euler 表示チャンネルのキー表示値 (連続化済みの角度、度)</summary>
             public List<float> eulerKeyValues = new List<float>();
 
-            /// <summary>キー位置の表示値。回転進行度ではキー番号 (区間ごとに +1 進む)</summary>
+            /// <summary>キー位置の表示値。Euler 表示では連続化済みの角度 (度)</summary>
             public float GetKeyValue(int i)
             {
-                if (isEulerDisplay) return eulerKeyValues[i];
-                return isRotationProgress ? i : values[i].value;
+                return isEulerDisplay ? eulerKeyValues[i] : values[i].value;
             }
         }
 
@@ -344,7 +333,6 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Color ColorY = new Color(0.3f, 0.9f, 0.3f);   // 緑
         private static readonly Color ColorZ = new Color(0.4f, 0.6f, 1.0f);   // 青
         private static readonly Color ColorW = new Color(0.85f, 0.85f, 0.85f); // 白
-        private static readonly Color ColorRotationProgress = new Color(0.95f, 0.6f, 0.25f); // 橙
 
         /// <summary>チャンネルの軸に対応する色</summary>
         private static Color GetChannelColor(MTEP.TangentValueType valueType)
@@ -441,12 +429,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>選択中ボーンのいずれかが指定フィルタに対応する値を持つか</summary>
         private static bool HasValueType(CurveValueFilter filter)
         {
-            // 進行度はクォータニオン格納の回転専用
-            if (filter == CurveValueFilter.回転進行度)
-            {
-                return HasQuaternionRotation();
-            }
-
             var valueType = ToTangentValueType(filter);
             foreach (var bone in selectedBones)
             {
@@ -456,20 +438,6 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
                 if (transform.GetValueDataList(valueType).Length > 0)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>選択中ボーンのいずれかがクォータニオン格納の回転を持つか</summary>
-        private static bool HasQuaternionRotation()
-        {
-            foreach (var bone in selectedBones)
-            {
-                var transform = bone.transform;
-                if (transform != null && transform.hasRotation)
                 {
                     return true;
                 }
@@ -622,14 +590,6 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var bone in selectedBones)
             {
                 var transform = bone.transform;
-
-                // 回転進行度はクォータニオン格納ボーン専用。混在選択時に、表示されていない
-                // オイラー角格納ボーンの実回転タンジェントを黙って書き換えないようスキップする
-                if (_valueTypeFilter == CurveValueFilter.回転進行度 && !transform.hasRotation)
-                {
-                    continue;
-                }
-
                 var valueType = ToTangentValueType(_valueTypeFilter);
 
                 foreach (var tangent in transform.GetOutTangentDataList(valueType))
@@ -795,7 +755,7 @@ namespace COM3D2.SceneEditor.Plugin
                             continue;
                         }
 
-                        var handlePos = GetHandlePos(channel, i, isOut, scrollX, baseSlope);
+                        var handlePos = GetHandlePos(channel, i, isOut, scrollX);
                         if (Vector2.Distance(handlePos, mouse) > HANDLE_HIT_RADIUS)
                         {
                             continue;
@@ -804,12 +764,6 @@ namespace COM3D2.SceneEditor.Plugin
                         _dragMode = DragMode.Tangent;
                         _dragValue = channel.values[i];
                         _dragTangent = isOut ? _dragValue.outTangent : _dragValue.inTangent;
-                        // 回転進行度チャンネルはクォータニオン 4 成分のタンジェントを一括で動かす
-                        _dragTangents = channel.isRotationProgress
-                            ? channel.rotationValues[i]
-                                .Select(comp => isOut ? comp.outTangent : comp.inTangent)
-                                .ToList()
-                            : null;
                         _dragTangentIsOut = isOut;
                         _dragBaseSlopePerFrame = baseSlope;
                         _dragKeyFrameNo = channel.frameNos[i];
@@ -823,8 +777,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var channel in _channels)
             {
-                // 回転進行度・Euler 表示は導出値のため値ドラッグ不可 (表示値→成分の逆変換ができない)
-                if (channel.isRotationProgress || channel.isEulerDisplay)
+                // Euler 表示は導出値のため値ドラッグ不可 (表示値→成分の逆変換ができない)
+                if (channel.isEulerDisplay)
                 {
                     continue;
                 }
@@ -893,25 +847,13 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            // 重複判定は代表成分だけで足りる (回転進行度では 4 成分が常に一括更新され同値になるため)
             if (normalized == _dragTangent.normalizedValue && !_dragTangent.isSmooth)
             {
                 return;
             }
 
-            if (_dragTangents != null)
-            {
-                foreach (var tangent in _dragTangents)
-                {
-                    tangent.normalizedValue = normalized;
-                    tangent.isSmooth = false;
-                }
-            }
-            else
-            {
-                _dragTangent.normalizedValue = normalized;
-                _dragTangent.isSmooth = false;
-            }
+            _dragTangent.normalizedValue = normalized;
+            _dragTangent.isSmooth = false;
             _dragChanged = true;
             currentLayer.ApplyCurrentFrame(true);
         }
@@ -928,7 +870,6 @@ namespace COM3D2.SceneEditor.Plugin
             _dragMode = DragMode.None;
             _dragValue = null;
             _dragTangent = null;
-            _dragTangents = null;
             _dragChanged = false;
         }
 
@@ -961,30 +902,19 @@ namespace COM3D2.SceneEditor.Plugin
             return baseSlope != 0f;
         }
 
-        /// <summary>ハンドル先端のペイン内座標。baseSlopePerFrame は呼び出し側が
-        /// TryGetBaseSlopePerFrame で取得済みの値を渡す (再計算を避ける)</summary>
+        /// <summary>ハンドル先端のペイン内座標</summary>
         private Vector2 GetHandlePos(
-            CurveChannel channel, int keyIndex, bool isOut, float scrollX, float baseSlopePerFrame)
+            CurveChannel channel, int keyIndex, bool isOut, float scrollX)
         {
             var keyX = _mapping.FrameToX(channel.frameNos[keyIndex]) - scrollX;
             var keyY = _mapping.ValueToY(channel.GetKeyValue(keyIndex));
 
-            float slopePerFrame;
-            if (channel.isRotationProgress)
-            {
-                // 進行度領域に成分タンジェントをそのまま使えないため、
-                // 4 成分の正規化勾配の平均を進行度の区間線形勾配へ掛けて近似する
-                slopePerFrame = GetAverageNormalizedTangent(channel, keyIndex, isOut) * baseSlopePerFrame;
-            }
-            else
-            {
-                var tangent = isOut
-                    ? channel.values[keyIndex].outTangent
-                    : channel.values[keyIndex].inTangent;
+            var tangent = isOut
+                ? channel.values[keyIndex].outTangent
+                : channel.values[keyIndex].inTangent;
 
-                // TangentData.value は値/秒なのでフレームあたり勾配へ換算してから画面勾配にする
-                slopePerFrame = tangent.value * timeline.frameDuration;
-            }
+            // TangentData.value は値/秒なのでフレームあたり勾配へ換算してから画面勾配にする
+            var slopePerFrame = tangent.value * timeline.frameDuration;
             var pxPerValue = _mapping.paneHeight / (_mapping.valueMax - _mapping.valueMin);
 
             var dx = isOut ? _mapping.frameWidth : -_mapping.frameWidth;
@@ -992,20 +922,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             var dir = new Vector2(dx, dy).normalized;
             return new Vector2(keyX, keyY) + dir * HANDLE_LEN;
-        }
-
-        /// <summary>回転進行度チャンネルのハンドル表示用。4 成分の正規化タンジェントの平均。
-        /// 成分間で符号が逆転していると打ち消し合い、表示勾配が実際より平坦になりうる (表示専用の近似)</summary>
-        private static float GetAverageNormalizedTangent(CurveChannel channel, int keyIndex, bool isOut)
-        {
-            var comps = channel.rotationValues[keyIndex];
-            var sum = 0f;
-            foreach (var comp in comps)
-            {
-                var tangent = isOut ? comp.outTangent : comp.inTangent;
-                sum += tangent.normalizedValue;
-            }
-            return sum / comps.Length;
         }
 
         /// <summary>選択ボーンから描画対象チャンネルを収集する</summary>
@@ -1052,7 +968,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var firstTransform = bones[0].transform;
 
-                // クォータニオン格納の回転は成分カーブを出さず、進行度 + Euler 表示に置き換える
+                // クォータニオン格納の回転は成分カーブを出さず、表示用 Euler へ置き換える
                 var isQuaternionRotation = firstTransform.hasRotation;
                 if (isQuaternionRotation)
                 {
@@ -1149,60 +1065,52 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>クォータニオン格納ボーンの回転チャンネルを追加する。
-        /// 回転/すべて → 進行度 1 本 + 表示用 Euler 3 本、X/Y/Z回転 → 該当軸の Euler 表示 1 本</summary>
+        /// 回転/すべて → 表示用 Euler 3 本、X/Y/Z回転 → 該当軸の Euler 表示 1 本。
+        /// Euler 表示は導出値のため表示専用 (値・タンジェントとも編集不可)</summary>
         private void AddQuaternionRotationChannels(
             List<CurveChannel> channels, ref int totalChannelCount,
             string boneName, List<int> frameNos, List<MTEP.BoneData> bones)
         {
-            // すべて → 進行度 + Euler 3 本 / 回転 → Euler 3 本 / 回転進行度 → 進行度 1 本 /
-            // X/Y/Z回転 → 該当軸の Euler 表示 1 本
-            var addProgress = _valueTypeFilter == CurveValueFilter.すべて
-                || _valueTypeFilter == CurveValueFilter.回転進行度;
             var addAllEulers = _valueTypeFilter == CurveValueFilter.すべて
                 || _valueTypeFilter == CurveValueFilter.回転;
             var isAxisFilter = IsAxisRotationFilter(_valueTypeFilter);
-            if (!addProgress && !addAllEulers && !isAxisFilter)
+            if (!addAllEulers && !isAxisFilter)
             {
                 return;
             }
 
-            var progressChannel = BuildRotationProgressChannel(boneName, frameNos, bones);
-            if (progressChannel == null)
+            var sourceChannel = BuildQuaternionSourceChannel(boneName, frameNos, bones);
+            if (sourceChannel == null)
             {
                 return;
             }
 
-            totalChannelCount += (addProgress ? 1 : 0) + (addAllEulers ? 3 : 0) + (isAxisFilter ? 1 : 0);
+            totalChannelCount += (addAllEulers ? 3 : 0) + (isAxisFilter ? 1 : 0);
 
-            if (addProgress && channels.Count < MAX_CHANNELS)
-            {
-                channels.Add(progressChannel);
-            }
             if (addAllEulers)
             {
                 for (var axis = 0; axis < 3 && channels.Count < MAX_CHANNELS; axis++)
                 {
-                    channels.Add(BuildEulerDisplayChannel(progressChannel, axis));
+                    channels.Add(BuildEulerDisplayChannel(sourceChannel, axis));
                 }
             }
             if (isAxisFilter && channels.Count < MAX_CHANNELS)
             {
                 channels.Add(BuildEulerDisplayChannel(
-                    progressChannel, GetAxisIndex(_valueTypeFilter)));
+                    sourceChannel, GetAxisIndex(_valueTypeFilter)));
             }
         }
 
-        /// <summary>クォータニオン格納ボーンの回転進行度チャンネルを構築する。
+        /// <summary>クォータニオン格納ボーンの回転から Euler 表示チャンネルの元データを作る。
+        /// このチャンネル自体は表示せず、BuildEulerDisplayChannel の入力にのみ使う。
         /// キーが 1 つも拾えなければ null</summary>
-        private static CurveChannel BuildRotationProgressChannel(
+        private static CurveChannel BuildQuaternionSourceChannel(
             string boneName, List<int> frameNos, List<MTEP.BoneData> bones)
         {
             var channel = new CurveChannel
             {
-                kind = ChannelKind.RotationProgress,
+                kind = ChannelKind.EulerDisplay,
                 boneName = boneName,
-                displayName = "回転進行度",
-                color = ColorRotationProgress,
             };
 
             for (var k = 0; k < bones.Count; k++)
@@ -1225,7 +1133,7 @@ namespace COM3D2.SceneEditor.Plugin
             return channel;
         }
 
-        /// <summary>回転進行度チャンネルのキー列を流用して表示用 Euler チャンネルを作る。
+        /// <summary>元データチャンネルのキー列を流用して表示用 Euler チャンネルを作る。
         /// キー表示値は前キーと連続になるよう 360° 単位で寄せる (unwrap)。
         /// Euler 表現自体の切り替わり (ジンバル付近) までは補正しない表示近似</summary>
         private static CurveChannel BuildEulerDisplayChannel(CurveChannel source, int axis)
@@ -1278,8 +1186,7 @@ namespace COM3D2.SceneEditor.Plugin
             return angle + 360f * Mathf.Round((reference - angle) / 360f);
         }
 
-        /// <summary>複合型フィルタを単チャンネル型へ展開する。
-        /// 回転進行度はクォータニオン専用 (AddQuaternionRotationChannels) のため空を返す</summary>
+        /// <summary>複合型フィルタを単チャンネル型へ展開する</summary>
         private static List<MTEP.TangentValueType> ExpandValueTypes(CurveValueFilter filter)
         {
             switch (filter)
@@ -1295,8 +1202,6 @@ namespace COM3D2.SceneEditor.Plugin
                     return RotationChannelTypes.ToList();
                 case CurveValueFilter.拡縮:
                     return ScaleChannelTypes.ToList();
-                case CurveValueFilter.回転進行度:
-                    return new List<MTEP.TangentValueType>();
                 default:
                     return new List<MTEP.TangentValueType> { ToTangentValueType(filter) };
             }
@@ -1341,10 +1246,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return channel.GetKeyValue(count - 1);
             }
 
-            if (channel.isRotationProgress)
-            {
-                return EvaluateRotationProgress(channel, frameNo);
-            }
             if (channel.isEulerDisplay)
             {
                 return EvaluateEulerDisplay(channel, frameNo);
@@ -1381,56 +1282,6 @@ namespace COM3D2.SceneEditor.Plugin
                 frameA * frameDuration, frameB * frameDuration,
                 a.value, b.value,
                 a.outTangent.value, b.inTangent.value, t);
-        }
-
-        /// <summary>回転進行度チャンネルの実値。キー i を高さ i に置き、
-        /// 区間内は補間の進み具合 (0→1) を足して描く。傾き = 回転の速さで、
-        /// タンジェントの緩急やオーバーシュートがそのまま形状に出る</summary>
-        private static float EvaluateRotationProgress(CurveChannel channel, float frameNo)
-        {
-            var count = channel.rotationValues.Count;
-            for (var i = 0; i < count - 1; i++)
-            {
-                if (frameNo <= channel.frameNos[i + 1])
-                {
-                    return i + EvaluateSegmentProgress(channel, i, frameNo);
-                }
-            }
-            return count - 1;
-        }
-
-        /// <summary>区間 [keyIndex, keyIndex+1] 内の進行度 (0→1)。
-        /// 各成分の正規化進行度を変化量で重み付け平均する (再生経路と同じ Hermite 形状)。
-        /// 全成分が同値の区間は緩急が存在しないため時間そのまま (線形) にフォールバックする</summary>
-        private static float EvaluateSegmentProgress(CurveChannel channel, int keyIndex, float frameNo)
-        {
-            var start = channel.rotationValues[keyIndex];
-            var end = channel.rotationValues[keyIndex + 1];
-            var frameA = channel.frameNos[keyIndex];
-            var frameB = channel.frameNos[keyIndex + 1];
-
-            // Σ(補間変位 × 符号) / Σ|delta| の形にして、極小 delta の成分を
-            // 割り算で増幅しない (全成分が同比率なら単純平均と一致する)
-            var weightedSum = 0f;
-            var weightTotal = 0f;
-            for (var c = 0; c < start.Length; c++)
-            {
-                var delta = end[c].value - start[c].value;
-                if (delta == 0f)
-                {
-                    continue;
-                }
-                var value = EvaluateSegment(frameA, start[c], frameB, end[c], frameNo);
-                weightedSum += (value - start[c].value) * Mathf.Sign(delta);
-                weightTotal += Mathf.Abs(delta);
-            }
-            if (weightTotal > 0f)
-            {
-                return weightedSum / weightTotal;
-            }
-
-            var dtFrames = frameB - frameA;
-            return dtFrames > 0 ? (frameNo - frameA) / (float)dtFrames : 0f;
         }
 
         /// <summary>Euler 表示チャンネルの実値 (度)。区間内はクォータニオン 4 成分を
@@ -1672,12 +1523,12 @@ namespace COM3D2.SceneEditor.Plugin
                 for (var side = 0; side < 2; side++)
                 {
                     var isOut = side == 0;
-                    if (!TryGetBaseSlopePerFrame(channel, i, isOut, out var baseSlope))
+                    if (!TryGetBaseSlopePerFrame(channel, i, isOut, out _))
                     {
                         continue;
                     }
 
-                    var handlePos = GetHandlePos(channel, i, isOut, scrollX, baseSlope);
+                    var handlePos = GetHandlePos(channel, i, isOut, scrollX);
 
                     // 線分はカーブと同じく小さな矩形の連続で描く
                     var steps = Mathf.CeilToInt(HANDLE_LEN / SAMPLE_STEP);
