@@ -46,6 +46,16 @@ namespace COM3D2.SceneEditor.Plugin
         private const float LEGEND_ITEM_MARGIN = 10f;
         private const float LEGEND_PADDING = 4f;
 
+        /// <summary>プリセットサムネの生成解像度 (表示は幅・高さに合わせて縮小する)</summary>
+        private const int PRESET_TEX_SIZE = 40;
+        /// <summary>プリセットサムネの表示サイズの上下限 (px)</summary>
+        private const float PRESET_DRAW_SIZE_MAX = 40f;
+        private const float PRESET_DRAW_SIZE_MIN = 20f;
+        /// <summary>タンジェント行のラベル幅 ("Out" が収まる幅)</summary>
+        private const float TANGENT_LABEL_WIDTH = 30f;
+        /// <summary>ラベルドラッグ 1px あたりのタンジェント増減量 (Inspector と同じ)</summary>
+        private const float TANGENT_DRAG_SENSITIVITY = 0.01f;
+
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
@@ -130,65 +140,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>コンボの &lt; &gt; ボタン 2 個分の幅 (GUIComboBox 側の固定値 20px × 2)</summary>
         private const float COMBO_ARROW_WIDTH = 40f;
 
-        /// <summary>プリセットボタンの表示名と適用する TangentPair。
-        /// 選択キー自身の in/out ハンドルへ適用するため、
-        /// EaseIn は in 側 (キーへ入る側)、EaseOut は out 側 (キーから出る側) が緩やかになる。
-        /// タンジェントは線形勾配比 (1=線形, 0=完全に緩やか, 負=オーバーシュート)</summary>
-        private static readonly KeyValuePair<string, MTEP.TangentPair>[] TangentPresets = {
-            MakePreset("EaseInOut", 0f, 0f),
-            MakePreset("EaseIn", 1f, 0f),
-            MakePreset("EaseOut", 0f, 1f),
-            MakePreset("線形", 1f, 1f),
-        };
-
         /// <summary>正規化タンジェント直接入力用のフィールドキャッシュ (In / Out)</summary>
         private readonly FloatFieldCache _inTangentFieldCache = new FloatFieldCache();
         private readonly FloatFieldCache _outTangentFieldCache = new FloatFieldCache();
 
-        private static KeyValuePair<string, MTEP.TangentPair> MakePreset(
-            string label, float outTangent, float inTangent)
-        {
-            return new KeyValuePair<string, MTEP.TangentPair>(
-                label,
-                new MTEP.TangentPair { outTangent = outTangent, inTangent = inTangent });
-        }
-
-        /// <summary>プリセットボタンのスタイル。組み込みスタイルの解決には GUI.skin が要るため
-        /// 静的初期化子ではなく OnGUI 内で遅延構築する (GUIView.InitStyles と同じ理由)</summary>
-        private static GUIStyle _gsPresetButton = null;
-
-        // 2 列に収めるためラベル幅に応じて縮める font size の範囲
-        private const int PRESET_FONT_SIZE_MAX = 12;
-        private const int PRESET_FONT_SIZE_MIN = 8;
-
-        /// <summary>ボタン幅に一番長いラベルが収まる font size を選ぶ
-        /// (menuWidth を詰めるとラベルが見切れるため)</summary>
-        private static GUIStyle GetPresetButtonStyle(float buttonWidth)
-        {
-            if (_gsPresetButton == null)
-            {
-                _gsPresetButton = new GUIStyle("button")
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                };
-            }
-
-            var longestLabel = TangentPresets
-                .Select(preset => preset.Key)
-                .OrderByDescending(label => label.Length)
-                .First();
-
-            for (var fontSize = PRESET_FONT_SIZE_MAX; fontSize > PRESET_FONT_SIZE_MIN; fontSize--)
-            {
-                _gsPresetButton.fontSize = fontSize;
-                if (GUIView.CalcWidth(_gsPresetButton, longestLabel) <= buttonWidth)
-                {
-                    break;
-                }
-            }
-
-            return _gsPresetButton;
-        }
+        /// <summary>プリセットサムネ (添字は TangentType の値)。GUI.skin と同じく OnGUI 内で遅延生成する</summary>
+        private Texture2D[] _presetTextures = null;
 
         /// <summary>直近の描画で使ったマッピング。ヒットテストは描画済みの座標系に合わせる</summary>
         private MTEP.CurveViewMapping _mapping = null;
@@ -384,6 +341,11 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 正規化タンジェント (線形勾配比、1=線形) の直接入力。
+            // Inspector の補間曲線タブと同じく Out → In の順に並べる
+            DrawTangentRow(view, x, ref y, width, "Out", true, _outTangentFieldCache);
+            DrawTangentRow(view, x, ref y, width, "In", false, _inTangentFieldCache);
+
             var isSmooth = IsAllTangentSmooth();
             view.currentPos = new Vector2(x, y);
             view.DrawToggle("自動補間", isSmooth, width, TOOL_ROW_HEIGHT, newIsSmooth =>
@@ -394,36 +356,15 @@ namespace COM3D2.SceneEditor.Plugin
             });
             y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
 
-            // プリセットは 2 列に並べて縦幅を節約する
-            var halfWidth = (width - TOOL_ROW_SPACING) * 0.5f;
-            var presetStyle = GetPresetButtonStyle(halfWidth);
-            for (var i = 0; i < TangentPresets.Length; i++)
-            {
-                var preset = TangentPresets[i];
-                var isRightColumn = (i % 2) == 1;
-
-                view.currentPos = new Vector2(
-                    x + (isRightColumn ? halfWidth + TOOL_ROW_SPACING : 0f), y);
-                if (view.DrawButton(preset.Key, halfWidth, TOOL_ROW_HEIGHT, true, null, presetStyle))
-                {
-                    ApplyTangentPreset(preset.Key, preset.Value);
-                }
-
-                // 行の最後を描いたら改行する (プリセットが奇数個でも行送りが止まらないように)
-                if (isRightColumn || i == TangentPresets.Length - 1)
-                {
-                    y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
-                }
-            }
-
-            // 正規化タンジェント (線形勾配比、1=線形) の直接入力
-            DrawTangentField(view, x, ref y, width, "In", false, _inTangentFieldCache);
-            DrawTangentField(view, x, ref y, width, "Out", true, _outTangentFieldCache);
+            DrawPresetThumbnails(view, x, ref y, width, toolbarRect);
         }
 
-        /// <summary>選択キーの片側タンジェントの正規化値を表示・編集するテキストフィールド。
-        /// 選択内で値が揃っていなければ空欄になる</summary>
-        private void DrawTangentField(
+        /// <summary>
+        /// タンジェント 1 行。ラベルを左右ドラッグすると差分編集、数値欄への入力で絶対値編集。
+        /// 選択内で値が混在していると数値欄は空欄 (NaN) になるが、差分編集は効かせたいので
+        /// 絶対値しか渡さない DrawDragFloatField ではなく DrawDragLabel を直接使う
+        /// </summary>
+        private void DrawTangentRow(
             GUIView view, float x, ref float y, float width,
             string label, bool isOut, FloatFieldCache fieldCache)
         {
@@ -435,17 +376,70 @@ namespace COM3D2.SceneEditor.Plugin
                 fieldCache.UpdateValue(current);
             }
 
+            var diff = 0f;
+
             view.currentPos = new Vector2(x, y);
-            view.DrawFloatField(new GUIView.FloatFieldOption
+            view.BeginHorizontal();
             {
-                label = label,
-                labelWidth = 26,
-                fieldCache = fieldCache,
-                width = width,
-                height = TOOL_ROW_HEIGHT,
-                onChanged = value => ApplyNormalizedTangent(isOut, value),
-            });
+                view.DrawDragLabel(
+                    label, TANGENT_LABEL_WIDTH, TOOL_ROW_HEIGHT,
+                    TANGENT_DRAG_SENSITIVITY, value => diff += value);
+
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    value = current,
+                    fieldCache = fieldCache,
+                    width = Mathf.Max(20f, width - TANGENT_LABEL_WIDTH),
+                    height = TOOL_ROW_HEIGHT,
+                    onChanged = value => ApplyNormalizedTangent(isOut, value),
+                });
+            }
+            view.EndLayout();
             y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
+
+            // 各タンジェントへ個別に足すので、混在 (空欄) でも値の差を保ったまま相対変更できる
+            if (diff != 0f)
+            {
+                AddNormalizedTangent(isOut, diff);
+            }
+        }
+
+        /// <summary>プリセットの曲線サムネを 2 列で並べる。
+        /// サムネ一辺は幅とツールバーの残り高さに収まるよう縮める</summary>
+        private void DrawPresetThumbnails(
+            GUIView view, float x, ref float y, float width, Rect toolbarRect)
+        {
+            if (_presetTextures == null)
+            {
+                _presetTextures = TangentCurveTexture.CreatePresetTextures(
+                    PRESET_TEX_SIZE, config.curveBgColor, config.curveLineColor);
+            }
+
+            var remainHeight = toolbarRect.yMax - TOOL_PADDING_Y - y;
+            var size = Mathf.Clamp(
+                Mathf.Min(
+                    (width - TOOL_ROW_SPACING) * 0.5f,
+                    (remainHeight - TOOL_ROW_SPACING) * 0.5f),
+                PRESET_DRAW_SIZE_MIN,
+                PRESET_DRAW_SIZE_MAX);
+
+            for (var i = 0; i < _presetTextures.Length; i++)
+            {
+                var tangentType = (MTEP.TangentType)i;
+                var isRightColumn = (i % 2) == 1;
+
+                view.currentPos = new Vector2(
+                    x + (isRightColumn ? size + TOOL_ROW_SPACING : 0f), y);
+                view.DrawTexture(
+                    _presetTextures[i], size, size, Color.white, EventType.MouseDown,
+                    _ => ApplyTangentPreset(tangentType));
+
+                // 行の最後を描いたら改行する (プリセットが奇数個でも行送りが止まらないように)
+                if (isRightColumn || i == _presetTextures.Length - 1)
+                {
+                    y += size + TOOL_ROW_SPACING;
+                }
+            }
         }
 
         /// <summary>選択キーの片側タンジェントが全て同値ならその正規化値、
@@ -490,6 +484,24 @@ namespace COM3D2.SceneEditor.Plugin
                 timeline, "カーブ: タンジェント入力 " + (isOut ? "Out" : "In"));
         }
 
+        /// <summary>選択キーの片側タンジェントへ正規化値の差分を加算する</summary>
+        private void AddNormalizedTangent(bool isOut, float diff)
+        {
+            ForEachTangent((tangent, tangentIsOut) =>
+            {
+                if (tangentIsOut != isOut)
+                {
+                    return;
+                }
+                tangent.normalizedValue += diff;
+                tangent.isSmooth = false;
+            });
+
+            currentLayer.ApplyCurrentFrame(true);
+            // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
+            timelineManager.RequestHistory("カーブ: タンジェント入力 " + (isOut ? "Out" : "In"));
+        }
+
         /// <summary>選択キー自身の out/in Tangent を走査する
         /// (前キー側ではなく、選択している頂点の両ハンドルが対象)</summary>
         private void ForEachTangent(System.Action<MTEP.TangentData, bool> callback)
@@ -528,8 +540,10 @@ namespace COM3D2.SceneEditor.Plugin
             return hasAny && isSmooth;
         }
 
-        private void ApplyTangentPreset(string presetName, MTEP.TangentPair tangentPair)
+        private void ApplyTangentPreset(MTEP.TangentType tangentType)
         {
+            var tangentPair = MTEP.TangentPair.GetDefault(tangentType);
+
             ForEachTangent((tangent, isOut) =>
             {
                 tangent.normalizedValue = isOut ? tangentPair.outTangent : tangentPair.inTangent;
@@ -538,7 +552,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             currentLayer.ApplyCurrentFrame(true);
             MTEP.TimelineHistoryManager.instance.AddHistory(
-                timeline, "カーブ: プリセット " + presetName);
+                timeline,
+                "カーブ: プリセット " + MTEP.TangentData.TangentTypeNames[(int)tangentType]);
         }
 
         /// <summary>カーブ描画領域。paneRect はウィンドウローカル座標</summary>
