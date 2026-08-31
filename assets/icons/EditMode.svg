@@ -1,0 +1,13 @@
+<!--
+  タイムライン操作「編集モード」アイコン (32x32)。斜めの鉛筆。
+  白地に黒縁取りで、明るい背景でも暗い背景でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="#ffffff" stroke="#000000" stroke-width="0.8" stroke-linejoin="round">
+    <!-- 軸 (左下が芯先、右上が尻) -->
+    <path d="M 5 27 L 6.5 20.5 L 21.5 5.5 L 26.5 10.5 L 11.5 25.5 Z" />
+    <!-- 芯先の境界と尻の金具 -->
+    <path d="M 6.5 20.5 L 11.5 25.5" fill="none" />
+    <path d="M 18.5 8.5 L 23.5 13.5" fill="none" />
+  </g>
+</svg>

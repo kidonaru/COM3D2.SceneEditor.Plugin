@@ -1,0 +1,15 @@
+<!--
+  タイムライン操作「モデル表示」アイコン (32x32)。面取りした宝石 (八面体) のワイヤーフレーム。
+  平行投影の立方体 (Ortho) と区別できる形にしている。
+  白地に黒縁取りで、明るい背景でも暗い背景でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="none" stroke="#000000" stroke-width="4" stroke-linejoin="round">
+    <path d="M 16 3 L 29 13 L 16 29 L 3 13 Z" />
+    <path d="M 3 13 L 29 13 M 16 3 L 10 13 L 16 29 M 16 3 L 22 13 L 16 29" />
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M 16 3 L 29 13 L 16 29 L 3 13 Z" />
+    <path d="M 3 13 L 29 13 M 16 3 L 10 13 L 16 29 M 16 3 L 22 13 L 16 29" />
+  </g>
+</svg>

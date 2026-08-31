@@ -1,0 +1,10 @@
+<!--
+  タイムライン操作「カメラ同期」アイコン (32x32)。レンズ付きのカメラ本体。
+  白地に黒縁取りで、明るい背景でも暗い背景でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <path d="M 4 10 L 11 10 L 13 5.5 L 19 5.5 L 21 10 L 28 10 L 28 26 L 4 26 Z"
+    fill="#ffffff" stroke="#000000" stroke-width="0.8" stroke-linejoin="round" />
+  <circle cx="16" cy="18" r="5.5" fill="none" stroke="#000000" stroke-width="2.8" />
+  <circle cx="16" cy="18" r="5.5" fill="none" stroke="#ffffff" stroke-width="1.2" />
+</svg>

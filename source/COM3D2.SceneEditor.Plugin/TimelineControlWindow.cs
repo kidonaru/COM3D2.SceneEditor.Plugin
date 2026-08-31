@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -143,6 +144,12 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         private const float ROW_HEIGHT = 20f;
+
+        /// <summary>アイコンを読み込めなかったときの文字トグルの幅 (異常系のみなので最長ラベルに合わせた 1 種類で済ます)</summary>
+        private const float TEXT_TOGGLE_WIDTH = 100f;
+
+        /// <summary>アイコントグルの内側余白 (ボタン枠と絵の間)</summary>
+        private const float ICON_TOGGLE_OFFSET = 4f;
 
         /// <summary>外周の余白。既定値より詰めて 1 行に並ぶ要素数を稼ぐ</summary>
         private static readonly Vector2 CONTENT_PADDING = new Vector2(3, 3);
@@ -577,41 +584,35 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawToggles(GUIView view)
         {
-            WrapIfNeeded(view, 80);
-            view.DrawToggle("簡易表示", timelineConfig.isEasyEdit, 80, ROW_HEIGHT, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.EasyEdit, "簡易表示", timelineConfig.isEasyEdit, true, newValue =>
             {
                 timelineConfig.isEasyEdit = newValue;
                 timelineConfig.dirty = true;
                 timelineManager.Refresh();
             });
 
-            WrapIfNeeded(view, 80);
-            view.DrawToggle("編集モード", studioHackManager.isPoseEditing, 80, ROW_HEIGHT, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.EditMode, "編集モード", studioHackManager.isPoseEditing, true, newValue =>
             {
                 studioHackManager.isPoseEditing = newValue;
             });
 
-            WrapIfNeeded(view, 80);
-            view.DrawToggle("自動登録", timelineConfig.isAutoKeyFrame, 80, ROW_HEIGHT, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.AutoKey, "自動登録", timelineConfig.isAutoKeyFrame, true, newValue =>
             {
                 timelineConfig.isAutoKeyFrame = newValue;
                 timelineConfig.dirty = true;
             });
 
-            WrapIfNeeded(view, 80);
-            view.DrawToggle("メイド表示", maidManager.maid.Visible, 80, ROW_HEIGHT, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.Maid, "メイド表示", maidManager.maid.Visible, true, newValue =>
             {
                 maidManager.maid.Visible = newValue;
             });
 
-            WrapIfNeeded(view, 80);
-            view.DrawToggle("モデル表示", modelManager.Visible, 80, ROW_HEIGHT, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.Model, "モデル表示", modelManager.Visible, true, newValue =>
             {
                 modelManager.Visible = newValue;
             });
 
-            WrapIfNeeded(view, 80);
-            view.DrawToggle("背景表示", timeline.isBackgroundVisible, 80, ROW_HEIGHT, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.Bg, "背景表示", timeline.isBackgroundVisible, true, newValue =>
             {
                 timeline.isBackgroundVisible = newValue;
             });
@@ -619,22 +620,19 @@ namespace COM3D2.SceneEditor.Plugin
             if (timelineManager.hasCameraLayer)
             {
                 var cameraUpdated = false;
-                WrapIfNeeded(view, 80);
-                cameraUpdated |= view.DrawToggle("カメラ同期", timelineConfig.isCameraSync, 80, ROW_HEIGHT, !currentLayer.isCameraLayer, newValue =>
+                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.Camera, "カメラ同期", timelineConfig.isCameraSync, !currentLayer.isCameraLayer, newValue =>
                 {
                     timelineConfig.isCameraSync = newValue;
                     timelineConfig.dirty = true;
                 });
 
-                WrapIfNeeded(view, 80);
-                cameraUpdated |= view.DrawToggle("視野角固定", timelineConfig.isFixedFoV, 80, ROW_HEIGHT, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.FovLock, "視野角固定", timelineConfig.isFixedFoV, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
                 {
                     timelineConfig.isFixedFoV = newValue;
                     timelineConfig.dirty = true;
                 });
 
-                WrapIfNeeded(view, 100);
-                cameraUpdated |= view.DrawToggle("フォーカス固定", timelineConfig.isFixedFocus, 100, ROW_HEIGHT, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.FocusLock, "フォーカス固定", timelineConfig.isFixedFocus, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
                 {
                     timelineConfig.isFixedFocus = newValue;
                     timelineConfig.dirty = true;
@@ -652,13 +650,34 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (timelineManager.hasPostEffectLayer)
             {
-                WrapIfNeeded(view, 100);
-                view.DrawToggle("ポスプロ同期", timelineConfig.isPostEffectSync, 100, ROW_HEIGHT, !currentLayer.isPostEffectLayer, newValue =>
+                DrawIconToggle(view, ToolbarIcons.Kind.PostEffect, "ポスプロ同期", timelineConfig.isPostEffectSync, !currentLayer.isPostEffectLayer, newValue =>
                 {
                     timelineConfig.isPostEffectSync = newValue;
                     timelineConfig.dirty = true;
                 });
             }
+        }
+
+        /// <summary>
+        /// アイコン表示のトグル。折り返しも込みで描き、値が変わったら true を返す
+        /// (カメラ系トグルの ApplyCurrentFrame 判定に使う)。
+        /// SceneViewWindow.DrawToolbarToggle と同型だが、enabled 制御と折り返しが要るため独自に持つ
+        /// </summary>
+        private static bool DrawIconToggle(
+            GUIView view, ToolbarIcons.Kind kind, string label, bool value, bool enabled, Action<bool> onChanged)
+        {
+            var icon = ToolbarIcons.GetTexture(kind);
+            if (icon == null)
+            {
+                WrapIfNeeded(view, TEXT_TOGGLE_WIDTH);
+                return view.DrawToggle(label, value, TEXT_TOGGLE_WIDTH, ROW_HEIGHT, enabled, onChanged);
+            }
+
+            WrapIfNeeded(view, ROW_HEIGHT);
+            view.BeginEnabled(enabled);
+            var changed = view.DrawToggle(icon, value, ROW_HEIGHT, ROW_HEIGHT, onChanged, ICON_TOGGLE_OFFSET);
+            view.EndEnabled();
+            return changed;
         }
     }
 }
