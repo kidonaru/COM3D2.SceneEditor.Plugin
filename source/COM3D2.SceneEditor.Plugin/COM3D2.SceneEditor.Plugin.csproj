@@ -272,6 +272,7 @@
     <Compile Include="InspectorWindow.cs" />
     <Compile Include="KeyFrameFlowLayout.cs" />
     <Compile Include="KeyFrameTangentDrawer.cs" />
+    <Compile Include="TangentCurveTexture.cs" />
     <Compile Include="KeyFrameTangentLogic.cs" />
     <Compile Include="KeyFrameInspector.cs" />
     <Compile Include="LightWindow.cs" />
