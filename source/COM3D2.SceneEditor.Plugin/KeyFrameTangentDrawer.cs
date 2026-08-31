@@ -49,6 +49,12 @@ namespace COM3D2.SceneEditor.Plugin
         private const float HandleSampleStep = 2f;
         /// <summary>ハンドルの色 (曲線より手前に見せたいので不透明寄りの白)</summary>
         private static readonly Color HandleColor = new Color(1f, 1f, 1f, 0.8f);
+        /// <summary>基準線 (値 0/1 と区間の始点/終点で囲む枠) の色</summary>
+        private static readonly Color GuideFrameColor = new Color(1f, 1f, 1f, 0.35f);
+        /// <summary>線形補間 (勾配 1) を示す対角線の色</summary>
+        private static readonly Color GuideLinearColor = new Color(1f, 1f, 1f, 0.25f);
+        /// <summary>対角線の破線パターン (この px 数ごとに描画と空白を切り替える)</summary>
+        private const int GuideDashLength = 4;
 
         private Texture2D _tangentTex;
         private Texture2D[] _presetTextures;
@@ -253,6 +259,7 @@ namespace COM3D2.SceneEditor.Plugin
             _cachedTangents = new HashSet<MTEP.TangentPair>(_workTangents);
 
             TextureUtils.ClearTexture(_tangentTex, config.curveBgColor);
+            DrawGuideLines(_tangentTex, CurvePadding);
             foreach (var tangent in _workTangents)
             {
                 var color = tangent.isSmooth ? config.curveLineSmoothColor : config.curveLineColor;
@@ -723,6 +730,34 @@ namespace COM3D2.SceneEditor.Plugin
             currentLayer.ApplyCurrentFrame(true);
             // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
             timelineManager.RequestHistory(description);
+        }
+
+        /// <summary>
+        /// 曲線を読む基準線を描く。内側領域の枠 (下辺=値 0 / 上辺=値 1 /
+        /// 左辺=区間の始点 / 右辺=終点) と、線形補間を示す対角線 (破線)。
+        /// 曲線より先に描いて背面に置く
+        /// </summary>
+        private static void DrawGuideLines(Texture2D texture, int padding)
+        {
+            var size = texture.width;
+            var min = padding;
+            var max = size - 1 - padding;
+
+            for (var i = min; i <= max; i++)
+            {
+                texture.SetPixel(i, min, GuideFrameColor);
+                texture.SetPixel(i, max, GuideFrameColor);
+                texture.SetPixel(min, i, GuideFrameColor);
+                texture.SetPixel(max, i, GuideFrameColor);
+
+                // 曲線と紛れないよう破線にする
+                if ((i - min) / GuideDashLength % 2 == 0)
+                {
+                    texture.SetPixel(i, i, GuideLinearColor);
+                }
+            }
+
+            texture.Apply();
         }
 
         /// <summary>
