@@ -100,6 +100,23 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 値からテクスチャYへの写像は余白の内側に収まる()
+        {
+            // 一辺 100・余白 10 なら内側は 80px。値 0 は下端の余白ぶん上、値 1 は上端の余白ぶん下
+            Assert.Equal(10, KeyFrameTangentLogic.ValueToTextureY(0f, 100, 10));
+            Assert.Equal(50, KeyFrameTangentLogic.ValueToTextureY(0.5f, 100, 10));
+            Assert.Equal(89, KeyFrameTangentLogic.ValueToTextureY(1f, 100, 10));
+        }
+
+        [Fact]
+        public void オーバーシュートした値は余白を踏み越えない()
+        {
+            // タンジェントが大きいと Hermite の結果は 0..1 の外へ出る
+            Assert.Equal(89, KeyFrameTangentLogic.ValueToTextureY(3f, 100, 10));
+            Assert.Equal(10, KeyFrameTangentLogic.ValueToTextureY(-2f, 100, 10));
+        }
+
+        [Fact]
         public void マウスが原点の真上なら勾配が発散して求まらない()
         {
             // dx = 0 は勾配が定まらない (Infinity になる) ので false

@@ -61,11 +61,32 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 曲線の値 (0=区間始点 / 1=区間終点) をテクスチャのピクセル Y へ写す。
+        /// Texture2D.SetPixel の Y は上向きなので、値が大きいほど Y も大きい。
+        /// タンジェントが大きいと値は 0..1 を超えるため、内側領域へ丸めて
+        /// 余白を曲線が踏み越えないようにする
+        /// </summary>
+        /// <param name="value">曲線の値 (Hermite の結果。0..1 の外に出うる)</param>
+        /// <param name="size">テクスチャの一辺 (px)</param>
+        /// <param name="padding">テクスチャ四辺の余白 (px)</param>
+        public static int ValueToTextureY(float value, int size, int padding)
+        {
+            var innerSize = size - padding * 2;
+            var y = padding + (int)(value * innerSize);
+            return Mathf.Clamp(y, padding, size - 1 - padding);
+        }
+
+        /// <summary>
         /// 曲線プレビュー内のハンドル先端位置 (左上原点・Y 下向きの GUI 座標)。
         /// プレビューは正規化空間 (区間始点が値 0、終点が値 1) なので、
         /// normalizedValue がそのまま勾配 (dy/dx) になる。
         /// 区間の端 (GetCurveOrigin) から handleLength px 伸ばす
         /// </summary>
+        /// <param name="isOut">true=区間始点の out 側 / false=区間終点の in 側</param>
+        /// <param name="normalizedValue">正規化タンジェント (1=線形勾配)</param>
+        /// <param name="size">プレビュー全体の一辺 (px)</param>
+        /// <param name="padding">プレビュー四辺の余白 (px)</param>
+        /// <param name="handleLength">原点から先端までの長さ (px)</param>
         public static Vector2 GetHandlePos(
             bool isOut, float normalizedValue, float size, float padding, float handleLength)
         {
@@ -89,16 +110,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// プレビュー内のマウス位置 (GUI 座標) から正規化タンジェントを求める。
         /// out ハンドルは始点より右、in ハンドルは終点より左でないと勾配が定まらない
         /// </summary>
+        /// <param name="isOut">true=区間始点の out 側 / false=区間終点の in 側</param>
+        /// <param name="mouse">プレビュー左上を原点とするマウス位置 (px)</param>
+        /// <param name="size">プレビュー全体の一辺 (px)</param>
+        /// <param name="padding">プレビュー四辺の余白 (px)</param>
+        /// <param name="normalizedValue">求めた正規化タンジェント</param>
         public static bool TryGetNormalizedTangent(
             bool isOut, Vector2 mouse, float size, float padding, out float normalizedValue)
         {
             normalizedValue = 0f;
 
             var origin = GetCurveOrigin(isOut, size, padding);
-            var inner = size - padding * 2f;
-            var dx = (mouse.x - origin.x) / inner;
+            var innerSize = size - padding * 2f;
+            var dx = (mouse.x - origin.x) / innerSize;
             // GUI の Y は下向きなので、値の増加方向へ戻す
-            var dy = (origin.y - mouse.y) / inner;
+            var dy = (origin.y - mouse.y) / innerSize;
 
             if (isOut ? dx <= 0f : dx >= 0f)
             {

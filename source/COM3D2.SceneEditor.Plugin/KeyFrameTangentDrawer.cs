@@ -194,7 +194,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var pair = MTEP.TangentPair.GetDefault((MTEP.TangentType)i);
                 UpdateTangentTexture(
                     texture, pair.outTangent, pair.inTangent, config.curveLineColor,
-                    PresetLineWidth, PresetPadding);
+                    lineWidth: PresetLineWidth, padding: PresetPadding);
             }
         }
 
@@ -214,7 +214,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 var color = tangent.isSmooth ? config.curveLineSmoothColor : config.curveLineColor;
                 UpdateTangentTexture(
-                    _tangentTex, tangent.outTangent, tangent.inTangent, color, 1, CurvePadding);
+                    _tangentTex, tangent.outTangent, tangent.inTangent, color,
+                    lineWidth: 1, padding: CurvePadding);
             }
         }
 
@@ -615,7 +616,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 正規化タンジェント形状 (t は 0..1) の Hermite 曲線をテクスチャへ描く
-        /// (MTE KeyFrameUI.UpdateTangentTexture の移植)
+        /// (MTE KeyFrameUI.UpdateTangentTexture の移植)。
+        /// padding px は四辺の余白として空け、内側領域だけに描く
         /// </summary>
         private static void UpdateTangentTexture(
             Texture2D texture,
@@ -625,21 +627,21 @@ namespace COM3D2.SceneEditor.Plugin
             int lineWidth,
             int padding)
         {
-            var width = texture.width;
-            var height = texture.height;
+            var size = texture.width;
             var halfLineWidth = lineWidth / 2;
-            var innerWidth = width - padding * 2;
-            var innerHeight = height - padding * 2;
+            var innerWidth = size - padding * 2;
+            // 最終列で t=1 に到達させ、曲線の終端を in ハンドルの原点へ合わせる
+            var lastX = Mathf.Max(1, innerWidth - 1);
 
             for (var x = 0; x < innerWidth; x++)
             {
-                var t = x / (float)innerWidth;
+                var t = x / (float)lastX;
                 var value = MTEP.PluginUtils.HermiteSimplified(outTangent, inTangent, t);
-                var y = padding + (int)(value * innerHeight) - halfLineWidth;
+                var y = KeyFrameTangentLogic.ValueToTextureY(value, size, padding) - halfLineWidth;
 
                 for (var i = 0; i < lineWidth; i++)
                 {
-                    var yy = Mathf.Clamp(y + i, 0, height - 1);
+                    var yy = Mathf.Clamp(y + i, padding, size - 1 - padding);
                     texture.SetPixel(padding + x, yy, lineColor);
                 }
             }
