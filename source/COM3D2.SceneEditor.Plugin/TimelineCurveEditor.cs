@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -181,8 +181,9 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>1 本のカーブ = 1 ボーン × 1 値チャンネル。
-        /// EulerDisplay は frameNos / values / keyBones / rotationValues を
-        /// 兄弟チャンネルと共有参照するため、構築後にこれらのリストを変更してはならない</summary>
+        /// EulerDisplay は frameNos / values / keyBones / rotationValues /
+        /// segmentStFrames / segmentEdFrames を兄弟チャンネルと共有参照するため、
+        /// 構築後にこれらのリストを変更してはならない</summary>
         private class CurveChannel
         {
             public ChannelKind kind = ChannelKind.Normal;
@@ -202,6 +203,15 @@ namespace COM3D2.SceneEditor.Plugin
             public List<MTEP.BoneData> keyBones = new List<MTEP.BoneData>();
             /// <summary>表示範囲のサンプル値 (SAMPLE_STEP px 刻み)</summary>
             public List<float> samples = new List<float>();
+
+            /// <summary>このチャンネルに効く 1フレーム調整の種別</summary>
+            public MTEP.SingleFrameType singleFrameType = MTEP.SingleFrameType.None;
+            /// <summary>再生時の区間フレーム (1フレーム調整の反映後)。
+            /// 添字 i は values[i] → values[i+1] の区間で、要素数はキー数 - 1。
+            /// 1 フレームしかない区間は隣へ潰されるため、
+            /// キーのフレーム番号とは一致しないことがある</summary>
+            public List<int> segmentStFrames = new List<int>();
+            public List<int> segmentEdFrames = new List<int>();
 
             public bool isEulerDisplay => kind == ChannelKind.EulerDisplay;
 
@@ -844,6 +854,105 @@ namespace COM3D2.SceneEditor.Plugin
             return selectedBones.Contains(channel.keyBones[keyIndex]);
         }
 
+        /// <summary>キーを積み終えたチャンネルへ、再生時の区間情報を持たせる。
+        /// 1フレーム調整はレイヤーと transform の種別ごとに変わるので、
+        /// チャンネルの元になった transform から引く。
+        /// なお MotionData.stFrameActive はポーズ編集中だけ調整前のフレームを使うが、
+        /// カーブは編集中も再生時の形を見せたいので isPoseEditing では切り替えない</summary>
+        private static void FinalizeChannel(CurveChannel channel, MTEP.ITransformData transform)
+        {
+            channel.singleFrameType = currentLayer.GetSingleFrameType(transform.type);
+            BuildSegmentFrames(channel);
+        }
+
+        /// <summary>
+        /// 再生時の区間フレームを求める (MotionPlayData.Setup の移植)。
+        /// 1 フレームしかない区間は隣の区間へ潰され、そこで値が瞬間的に切り替わる。
+        /// Delay は手前の区間を伸ばして切り替えを区間の終端へ、
+        /// Advance は次の区間を伸ばして切り替えを始端へ寄せる。
+        /// 最後の区間は Setup の走査対象外なので潰れない。
+        /// prev を i > 1 からしか見ないのも Setup と揃えてある (表示を再生に一致させるため)
+        /// </summary>
+        private static void BuildSegmentFrames(CurveChannel channel)
+        {
+            var stFrames = channel.segmentStFrames;
+            var edFrames = channel.segmentEdFrames;
+            stFrames.Clear();
+            edFrames.Clear();
+
+            for (var i = 0; i < channel.frameNos.Count - 1; i++)
+            {
+                stFrames.Add(channel.frameNos[i]);
+                edFrames.Add(channel.frameNos[i + 1]);
+            }
+
+            if (channel.singleFrameType == MTEP.SingleFrameType.None)
+            {
+                return;
+            }
+
+            for (var i = 0; i < stFrames.Count - 1; i++)
+            {
+                if (!IsSingleFrameSegment(channel, i))
+                {
+                    continue;
+                }
+
+                if (channel.singleFrameType == MTEP.SingleFrameType.Delay)
+                {
+                    if (i > 1)
+                    {
+                        edFrames[i - 1] = edFrames[i];
+                    }
+                    stFrames[i] = edFrames[i];
+                }
+                else
+                {
+                    stFrames[i + 1] = stFrames[i];
+                    edFrames[i] = stFrames[i];
+                }
+            }
+        }
+
+        /// <summary>1フレーム調整で潰される区間か
+        /// (キーが 1 フレーム差で並び、かつ最後の区間ではない)。
+        /// 区間添字は始端キーの添字と同じ。
+        /// 判定は KeyFrameTangentDrawer.IsSingleFrameInterval と同じ内容にすること</summary>
+        private static bool IsSingleFrameSegment(CurveChannel channel, int segmentIndex)
+        {
+            // 最後の区間は Setup の走査対象外なので潰れない
+            if (channel.singleFrameType == MTEP.SingleFrameType.None
+                || segmentIndex >= channel.segmentStFrames.Count - 1)
+            {
+                return false;
+            }
+            return channel.frameNos[segmentIndex] + 1 == channel.frameNos[segmentIndex + 1];
+        }
+
+        /// <summary>フレーム位置 frameNo を含む区間の添字。
+        /// 始端が frameNo 以下で最後のものを選ぶ (PlayDataBase.Update と同じ)。
+        /// 潰れて長さ 0 になった区間は、同じ始端を持つ後続の区間に必ず追い越される</summary>
+        private static int FindSegmentIndex(CurveChannel channel, float frameNo)
+        {
+            // 始端は昇順なので二分探索する (BuildMapping がサンプル列 × チャンネル数だけ呼ぶ)。
+            // 潰れた区間は始端が後続と同値になるため、等しい中でも後ろを選ぶ
+            var lo = 0;
+            var hi = channel.segmentStFrames.Count - 1;
+            while (lo < hi)
+            {
+                var mid = (lo + hi + 1) / 2;
+                if (channel.segmentStFrames[mid] <= frameNo)
+                {
+                    lo = mid;
+                }
+                else
+                {
+                    hi = mid - 1;
+                }
+            }
+            return lo;
+        }
+
         /// <summary>ハンドルの相手側キー (out は次キー、in は前キー)。
         /// 同フレームに重なったキーは区間を成さないため対象外。
         /// 区間の値が変わらないキーもハンドルは描くので、勾配の大小は問わない</summary>
@@ -862,13 +971,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)。
         /// UpdateTangent と同じく inTangent は流入区間、outTangent は流出区間を基準にする。
         /// 勾配 0 の区間では TangentData.value が normalizedValue によらず 0 になり
-        /// (UpdateValue: value = normalizedValue * baseTangent)、正規化も逆算もできないため false</summary>
+        /// (UpdateValue: value = normalizedValue * baseTangent)、正規化も逆算もできない。
+        /// 1フレーム調整で潰される区間も再生時に補間されない。
+        /// どちらもタンジェントが効かないので false を返し、ハンドルと入力欄を伏せる</summary>
         private static bool TryGetBaseSlopePerFrame(
             CurveChannel channel, int keyIndex, bool isOut, out float baseSlope)
         {
             baseSlope = 0f;
 
             if (!TryGetNeighborIndex(channel, keyIndex, isOut, out var otherIndex))
+            {
+                return false;
+            }
+
+            // 2 キーは隣接しているので、添字の小さい方がその間の区間の添字になる
+            if (IsSingleFrameSegment(channel, Mathf.Min(keyIndex, otherIndex)))
             {
                 return false;
             }
@@ -994,6 +1111,7 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     if (channel.values.Count > 0)
                     {
+                        FinalizeChannel(channel, firstTransform);
                         channels.Add(channel);
                     }
                 }
@@ -1043,6 +1161,7 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     if (channel.values.Count > 0)
                     {
+                        FinalizeChannel(channel, firstTransform);
                         channels.Add(channel);
                     }
                 }
@@ -1118,6 +1237,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return null;
             }
+            FinalizeChannel(channel, bones[0].transform);
             return channel;
         }
 
@@ -1137,6 +1257,10 @@ namespace COM3D2.SceneEditor.Plugin
                 values = source.values,
                 keyBones = source.keyBones,
                 rotationValues = source.rotationValues,
+                // キー列が同じなら区間の潰れ方も同じなので、元データのものをそのまま使う
+                singleFrameType = source.singleFrameType,
+                segmentStFrames = source.segmentStFrames,
+                segmentEdFrames = source.segmentEdFrames,
             };
 
             var prev = 0f;
@@ -1239,20 +1363,15 @@ namespace COM3D2.SceneEditor.Plugin
                 return EvaluateEulerDisplay(channel, frameNo);
             }
 
-            for (var i = 0; i < count - 1; i++)
-            {
-                if (frameNo <= channel.frameNos[i + 1])
-                {
-                    return EvaluateSegment(
-                        channel.frameNos[i], channel.values[i],
-                        channel.frameNos[i + 1], channel.values[i + 1],
-                        frameNo);
-                }
-            }
-            return channel.values[count - 1].value;
+            var index = FindSegmentIndex(channel, frameNo);
+            return EvaluateSegment(
+                channel.segmentStFrames[index], channel.values[index],
+                channel.segmentEdFrames[index], channel.values[index + 1],
+                frameNo);
         }
 
-        /// <summary>キー区間 [a, b] 内のフレーム位置 f における実値を返す。
+        /// <summary>区間 [frameA, frameB] 内のフレーム位置 f における実値を返す。
+        /// frameA/frameB は 1フレーム調整の反映後 (segmentStFrames / segmentEdFrames)。
         /// 再生経路 (MoveTimelineLayer.ApplyMotionUpdateTangent) と同じ単位系:
         /// t0/t1 は秒、t は 0〜1 正規化、タンジェントは値/秒</summary>
         private static float EvaluateSegment(
@@ -1262,7 +1381,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var dtFrames = frameB - frameA;
             if (dtFrames <= 0) return a.value;
-            var t = (f - frameA) / dtFrames;
+            // 区間が伸ばされると端の外を引かれることがある (PlayDataBase.CalcLerpFrame と同じ)
+            var t = Mathf.Clamp01((f - frameA) / dtFrames);
 
             // 再生と同一形状にするため t0/t1 は秒単位で渡す (単位系の原則を参照)
             var frameDuration = timeline.frameDuration;
@@ -1277,32 +1397,25 @@ namespace COM3D2.SceneEditor.Plugin
         /// 基準角に最も近い周回へ寄せて連続性を保つ</summary>
         private static float EvaluateEulerDisplay(CurveChannel channel, float frameNo)
         {
-            var count = channel.rotationValues.Count;
-            for (var i = 0; i < count - 1; i++)
+            var i = FindSegmentIndex(channel, frameNo);
+            var start = channel.rotationValues[i];
+            var end = channel.rotationValues[i + 1];
+            var frameA = channel.segmentStFrames[i];
+            var frameB = channel.segmentEdFrames[i];
+
+            var comps = new float[4];
+            for (var c = 0; c < 4; c++)
             {
-                if (frameNo <= channel.frameNos[i + 1])
-                {
-                    var start = channel.rotationValues[i];
-                    var end = channel.rotationValues[i + 1];
-                    var frameA = channel.frameNos[i];
-                    var frameB = channel.frameNos[i + 1];
-
-                    var comps = new float[4];
-                    for (var c = 0; c < 4; c++)
-                    {
-                        comps[c] = EvaluateSegment(frameA, start[c], frameB, end[c], frameNo);
-                    }
-                    var raw = GetEulerAngle(
-                        new Quaternion(comps[0], comps[1], comps[2], comps[3]), channel.eulerAxis);
-
-                    var dtFrames = frameB - frameA;
-                    var t = dtFrames > 0 ? (frameNo - frameA) / (float)dtFrames : 0f;
-                    var reference = Mathf.Lerp(
-                        channel.eulerKeyValues[i], channel.eulerKeyValues[i + 1], t);
-                    return UnwrapAngle(raw, reference);
-                }
+                comps[c] = EvaluateSegment(frameA, start[c], frameB, end[c], frameNo);
             }
-            return channel.eulerKeyValues[count - 1];
+            var raw = GetEulerAngle(
+                new Quaternion(comps[0], comps[1], comps[2], comps[3]), channel.eulerAxis);
+
+            var dtFrames = frameB - frameA;
+            var t = dtFrames > 0 ? Mathf.Clamp01((frameNo - frameA) / (float)dtFrames) : 0f;
+            var reference = Mathf.Lerp(
+                channel.eulerKeyValues[i], channel.eulerKeyValues[i + 1], t);
+            return UnwrapAngle(raw, reference);
         }
 
         /// <summary>凡例の折り返しレイアウト結果</summary>

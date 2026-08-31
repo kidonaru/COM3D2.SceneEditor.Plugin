@@ -160,6 +160,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // タンジェント列は値列から作られるので添字はそのまま対応する
                 var prevValues = TangentTargetList.GetValues(prevBone.transform, target);
                 var values = TangentTargetList.GetValues(bone.transform, target);
+                var isSingleFrame = IsSingleFrameInterval(prevBone, bone);
 
                 for (var i = 0; i < outTangents.Length && i < inTangents.Length; i++)
                 {
@@ -170,7 +171,8 @@ namespace COM3D2.SceneEditor.Plugin
                         isSmooth = outTangents[i].isSmooth && inTangents[i].isSmooth,
                     });
 
-                    if (i < prevValues.Length && i < values.Length
+                    if (!isSingleFrame
+                        && i < prevValues.Length && i < values.Length
                         && values[i].value != prevValues[i].value)
                     {
                         _hasEditableTangent = true;
@@ -184,6 +186,25 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             return hasTangent;
+        }
+
+        /// <summary>1フレーム調整で潰される区間か。
+        /// 潰れた区間は再生時に補間されず値が瞬間的に切り替わるため、タンジェントが効かない。
+        /// 最後の区間は調整の対象外 (MotionPlayData.Setup) なので、次キーの有無を判定に加える。
+        /// 判定は TimelineCurveEditor.IsSingleFrameSegment と同じ内容にすること</summary>
+        private static bool IsSingleFrameInterval(MTEP.BoneData prevBone, MTEP.BoneData bone)
+        {
+            if (bone.frameNo - prevBone.frameNo != 1)
+            {
+                return false;
+            }
+            if (currentLayer.GetSingleFrameType(bone.transform.type) == MTEP.SingleFrameType.None)
+            {
+                return false;
+            }
+            // loopSearch を既定 (true) にすると、次キーが無くても先頭や自分自身へ
+            // 回り込んだボーンが返り、最後の区間を判別できなくなる
+            return currentLayer.GetNextBone(bone.frameNo, bone.name, false) != null;
         }
 
         private void EnsureTextures()

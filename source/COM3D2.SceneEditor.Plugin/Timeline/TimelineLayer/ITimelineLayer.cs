@@ -62,6 +62,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void RemoveKeyFrames(IEnumerable<string> boneNames);
 
         TransformType GetTransformType(string name);
+        SingleFrameType GetSingleFrameType(TransformType transformType);
         ITransformData CreateTransformData(ITransformData transform);
         ITransformData CreateTransformData(TransformXml xml);
 
