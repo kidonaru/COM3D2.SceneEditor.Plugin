@@ -300,6 +300,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private bool DrawHeaderButtons(Rect closeRect)
         {
+            TooltipDrawer.RegisterIfHovered(closeRect, "閉じる");
             // グループ時はアクティブタブだけを閉じる
             if (GUI.Button(closeRect, "x"))
             {
@@ -318,6 +319,7 @@ namespace COM3D2.SceneEditor.Plugin
             var oldColor = GUI.color;
             // ロック中はアクセントカラーで塗って状態を示す
             GUI.color = isLocked ? ACCENT_COLOR : Color.white;
+            TooltipDrawer.RegisterIfHovered(lockRect, DockableWindowBase.GetLockTooltip(isLocked));
             if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
             {
                 ToggleLock();

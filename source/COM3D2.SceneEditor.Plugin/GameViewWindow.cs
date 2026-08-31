@@ -195,6 +195,7 @@ namespace COM3D2.SceneEditor.Plugin
                 (HEADER_HEIGHT - HEADER_BUTTON_HEIGHT) * 0.5f,
                 MAXIMIZE_BUTTON_WIDTH,
                 HEADER_BUTTON_HEIGHT);
+            TooltipDrawer.RegisterIfHovered(maximizeRect, "最大化");
             if (GUI.Button(maximizeRect, "□"))
             {
                 gameViewManager.SetMaximized(true);
@@ -212,6 +213,7 @@ namespace COM3D2.SceneEditor.Plugin
             var oldColor = GUI.color;
             // ロック中はアクセントカラーで塗って状態を示す
             GUI.color = isLocked ? EditorSubWindow.ACCENT_COLOR : Color.white;
+            TooltipDrawer.RegisterIfHovered(lockRect, DockableWindowBase.GetLockTooltip(isLocked));
             if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
             {
                 ToggleLock();
