@@ -377,6 +377,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var diff = 0f;
+            // 値が変わらない区間しか選ばれていなければ、ハンドルと同じく編集させない
+            var wasEnabled = view.guiEnabled;
+            view.SetEnabled(wasEnabled && HasEditableTangent(isOut));
 
             view.currentPos = new Vector2(x, y);
             view.BeginHorizontal();
@@ -395,6 +398,8 @@ namespace COM3D2.SceneEditor.Plugin
                 });
             }
             view.EndLayout();
+
+            view.SetEnabled(wasEnabled);
             y += TOOL_ROW_HEIGHT + TOOL_ROW_SPACING;
 
             // 各タンジェントへ個別に足すので、混在 (空欄) でも値の差を保ったまま相対変更できる
@@ -447,6 +452,32 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             y += size + TOOL_ROW_SPACING;
+        }
+
+        /// <summary>選択キーのうち、片側タンジェントが実際に効くものがあるか。
+        /// 値が変わらない区間では TangentData.value が normalizedValue によらず 0 になり
+        /// (UpdateValue: value = normalizedValue * baseTangent)、編集しても形が変わらない。
+        /// ハンドルを出さない条件と揃えて、入力欄もこの条件で伏せる</summary>
+        private bool HasEditableTangent(bool isOut)
+        {
+            foreach (var channel in _channels)
+            {
+                // Euler 表示は導出値のためタンジェント編集の対象外
+                if (channel.isEulerDisplay)
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < channel.values.Count; i++)
+                {
+                    if (IsHandleVisible(channel, i)
+                        && TryGetBaseSlopePerFrame(channel, i, isOut, out _))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>選択キーの片側タンジェントが全て同値ならその正規化値、
@@ -1480,11 +1511,9 @@ namespace COM3D2.SceneEditor.Plugin
                 for (var side = 0; side < 2; side++)
                 {
                     var isOut = side == 0;
-                    // 描画に区間勾配は要らない (向きは TangentData.value だけで決まる)。
-                    // 勾配 0 の区間で掴めないハンドルもそのまま水平に描く。
-                    // ここで TryGetBaseSlopePerFrame を使うと、値が変わらない区間に面した側の
-                    // ハンドルだけが消えて、キーの片側だけ欠けて見える
-                    if (!TryGetNeighborIndex(channel, i, isOut, out _))
+                    // 値が変わらない区間に面した側は編集しても形が変わらないため出さない
+                    // (ツールバーの入力欄も DrawTangentRow で伏せる)
+                    if (!TryGetBaseSlopePerFrame(channel, i, isOut, out _))
                     {
                         continue;
                     }

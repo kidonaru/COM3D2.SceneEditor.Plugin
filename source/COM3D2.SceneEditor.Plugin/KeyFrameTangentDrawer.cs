@@ -57,6 +57,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ドラッグ中のハンドル (true=Out / false=In)。null ならドラッグしていない</summary>
         private bool? _draggingIsOut = null;
 
+        /// <summary>集めた区間のいずれかで値が変化しているか (CollectTangents で更新)。
+        /// 値が変わらない区間では TangentData.value が normalizedValue によらず 0 になり
+        /// (UpdateValue: value = normalizedValue * baseTangent)、編集しても形が変わらないため、
+        /// false のときはハンドルと数値欄を伏せる (TimelineCurveEditor と同じ扱い)</summary>
+        private bool _hasEditableTangent = false;
+
         // 候補は選択内容で変わるため、items は毎フレーム差し替える
         private readonly GUIComboBox<TangentTarget> _targetComboBox =
             new GUIComboBox<TangentTarget>
@@ -132,6 +138,7 @@ namespace COM3D2.SceneEditor.Plugin
         private bool CollectTangents()
         {
             _workTangents.Clear();
+            _hasEditableTangent = false;
             var hasTangent = false;
             var target = _targets.current;
 
@@ -150,6 +157,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 var outTangents = TangentTargetList.GetTangents(prevBone.transform, target, isOut: true);
                 var inTangents = TangentTargetList.GetTangents(bone.transform, target, isOut: false);
+                // タンジェント列は値列から作られるので添字はそのまま対応する
+                var prevValues = TangentTargetList.GetValues(prevBone.transform, target);
+                var values = TangentTargetList.GetValues(bone.transform, target);
 
                 for (var i = 0; i < outTangents.Length && i < inTangents.Length; i++)
                 {
@@ -159,6 +169,12 @@ namespace COM3D2.SceneEditor.Plugin
                         inTangent = inTangents[i].normalizedValue,
                         isSmooth = outTangents[i].isSmooth && inTangents[i].isSmooth,
                     });
+
+                    if (i < prevValues.Length && i < values.Length
+                        && values[i].value != prevValues[i].value)
+                    {
+                        _hasEditableTangent = true;
+                    }
 
                     if (_workTangents.Count >= config.detailTangentCount)
                     {
@@ -225,8 +241,9 @@ namespace COM3D2.SceneEditor.Plugin
             var diffOutTangent = 0f;
             var diffInTangent = 0f;
 
-            // コンボ展開中はポップアップが重なるので下の行を触らせない
-            subView.SetEnabled(subView.focusedComboBox == null);
+            // コンボ展開中はポップアップが重なるので下の行を触らせない。
+            // 値が変わらない区間だけの選択でも、ハンドルと揃えて編集させない
+            subView.SetEnabled(subView.focusedComboBox == null && _hasEditableTangent);
 
             DrawTangentRow(subView, "OutTangent", outTangent,
                 diff => diffOutTangent += diff,
@@ -343,13 +360,19 @@ namespace COM3D2.SceneEditor.Plugin
             KeyFrameTangentLogic.GetUniformTangents(
                 _workTangents, out var outTangent, out var inTangent);
 
-            DrawHandle(view, texPos, true, outTangent);
-            DrawHandle(view, texPos, false, inTangent);
+            // 値が変わらない区間ではタンジェントを動かしても形が変わらないのでハンドルを出さない
+            if (_hasEditableTangent)
+            {
+                DrawHandle(view, texPos, true, outTangent);
+                DrawHandle(view, texPos, false, inTangent);
+            }
 
             // ハンドル描画で currentPos を動かしたので、テクスチャの下へ戻す
             view.currentPos = new Vector2(texPos.x, texPos.y + CurveTexSize + view.margin);
 
-            HandleCurveInput(texRect, view.focusedComboBox != null);
+            // 値種別コンボのポップアップは別ウィンドウとしてプレビューの上に重なりうるので、
+            // 展開中もハンドル操作を受け付けない
+            HandleCurveInput(texRect, view.focusedComboBox != null || !_hasEditableTangent);
         }
 
         /// <summary>
@@ -391,15 +414,14 @@ namespace COM3D2.SceneEditor.Plugin
                 && pos.y >= margin && pos.y <= CurveTexSize - margin;
         }
 
-        /// <summary>ハンドルの掴み・ドラッグ・離しを処理する</summary>
-        private void HandleCurveInput(Rect texRect, bool comboBoxOpen)
+        /// <summary>ハンドルの掴み・ドラッグ・離しを処理する。
+        /// blockInput 中は掴めるハンドルが描かれていないので、進行中のドラッグごと打ち切る</summary>
+        private void HandleCurveInput(Rect texRect, bool blockInput)
         {
             var e = Event.current;
             var mouse = e.mousePosition - new Vector2(texRect.x, texRect.y);
 
-            // 値種別コンボのポップアップは別ウィンドウとしてプレビューの上に重なりうるので、
-            // 展開中はハンドル操作を受け付けない
-            if (comboBoxOpen)
+            if (blockInput)
             {
                 _draggingIsOut = null;
                 return;

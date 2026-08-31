@@ -41,6 +41,7 @@ namespace COM3D2.SceneEditor.Plugin
         public const string CustomIdPrefix = "c:";
 
         private static readonly MTEP.TangentData[] EmptyTangents = new MTEP.TangentData[0];
+        private static readonly MTEP.ValueData[] EmptyValues = new MTEP.ValueData[0];
 
         private static readonly string DefaultTargetId
             = AxisIdPrefix + MTEP.TangentValueType.すべて;
@@ -153,6 +154,22 @@ namespace COM3D2.SceneEditor.Plugin
             return isOut
                 ? transform.GetOutTangentDataList(target.valueType)
                 : transform.GetInTangentDataList(target.valueType);
+        }
+
+        /// <summary>編集対象に対応する値を取り出す。対象を持たない transform では空。
+        /// タンジェント列は値列から作られるため、GetTangents と同じ並び・同じ要素数になる
+        /// (TransformDataBase.GetOutTangentDataList / GetInTangentDataList)</summary>
+        public static MTEP.ValueData[] GetValues(
+            MTEP.ITransformData transform, TangentTarget target)
+        {
+            if (target.isCustom)
+            {
+                return transform.HasCustomValue(target.customKey)
+                    ? new[] { transform.GetCustomValue(target.customKey) }
+                    : EmptyValues;
+            }
+
+            return transform.GetValueDataList(target.valueType);
         }
 
         /// <summary>軸ごとの値種別を表す候補を作る</summary>
