@@ -27,6 +27,10 @@ namespace COM3D2.SceneEditor.Plugin
         private const int PresetTexSize = 40;
         /// <summary>プリセットサムネの線幅 (40px では 1px だと細くて形が読めない)</summary>
         private const int PresetLineWidth = 3;
+        /// <summary>曲線プレビューの内側余白。勾配 0 のハンドルが枠に載って消えないようにする</summary>
+        private const int CurvePadding = 12;
+        /// <summary>プリセットサムネの内側余白 (40px なので控えめに)</summary>
+        private const int PresetPadding = 3;
         /// <summary>テクスチャと数値列の間隔</summary>
         private const float ColumnSpacing = 10f;
         /// <summary>タンジェント行のラベル幅 ("OutTangent" が収まる幅)</summary>
@@ -189,7 +193,8 @@ namespace COM3D2.SceneEditor.Plugin
                 TextureUtils.ClearTexture(texture, config.curveBgColor);
                 var pair = MTEP.TangentPair.GetDefault((MTEP.TangentType)i);
                 UpdateTangentTexture(
-                    texture, pair.outTangent, pair.inTangent, config.curveLineColor, PresetLineWidth);
+                    texture, pair.outTangent, pair.inTangent, config.curveLineColor,
+                    PresetLineWidth, PresetPadding);
             }
         }
 
@@ -208,7 +213,8 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var tangent in _workTangents)
             {
                 var color = tangent.isSmooth ? config.curveLineSmoothColor : config.curveLineColor;
-                UpdateTangentTexture(_tangentTex, tangent.outTangent, tangent.inTangent, color, 1);
+                UpdateTangentTexture(
+                    _tangentTex, tangent.outTangent, tangent.inTangent, color, 1, CurvePadding);
             }
         }
 
@@ -367,11 +373,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawHandle(GUIView view, Vector2 texPos, bool isOut, float normalizedValue)
         {
-            var origin = isOut
-                ? new Vector2(0f, CurveTexSize)
-                : new Vector2(CurveTexSize, 0f);
+            var origin = KeyFrameTangentLogic.GetCurveOrigin(isOut, CurveTexSize, CurvePadding);
             var handlePos = KeyFrameTangentLogic.GetHandlePos(
-                isOut, normalizedValue, CurveTexSize, HandleLength);
+                isOut, normalizedValue, CurveTexSize, CurvePadding, HandleLength);
             var half = HandleMarkerSize * 0.5f;
 
             var steps = Mathf.CeilToInt(HandleLength / HandleSampleStep);
@@ -424,7 +428,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var isOut = _draggingIsOut.Value;
                 if (KeyFrameTangentLogic.TryGetNormalizedTangent(
-                        isOut, mouse, CurveTexSize, out var newValue))
+                        isOut, mouse, CurveTexSize, CurvePadding, out var newValue))
                 {
                     ApplyTangent(isOut, newValue);
                 }
@@ -448,7 +452,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // 近接して重なった場合は Out を優先する
                 var isOut = side == 0;
                 var handlePos = KeyFrameTangentLogic.GetHandlePos(
-                    isOut, isOut ? outTangent : inTangent, CurveTexSize, HandleLength);
+                    isOut, isOut ? outTangent : inTangent, CurveTexSize, CurvePadding, HandleLength);
                 if (Vector2.Distance(handlePos, mouse) > HandleHitRadius)
                 {
                     continue;
@@ -618,22 +622,25 @@ namespace COM3D2.SceneEditor.Plugin
             float outTangent,
             float inTangent,
             Color lineColor,
-            int lineWidth)
+            int lineWidth,
+            int padding)
         {
             var width = texture.width;
             var height = texture.height;
             var halfLineWidth = lineWidth / 2;
+            var innerWidth = width - padding * 2;
+            var innerHeight = height - padding * 2;
 
-            for (var x = 0; x < width; x++)
+            for (var x = 0; x < innerWidth; x++)
             {
-                var t = x / (float)width;
-                var y = (int)(MTEP.PluginUtils.HermiteSimplified(outTangent, inTangent, t) * height);
+                var t = x / (float)innerWidth;
+                var value = MTEP.PluginUtils.HermiteSimplified(outTangent, inTangent, t);
+                var y = padding + (int)(value * innerHeight) - halfLineWidth;
 
-                y -= halfLineWidth;
                 for (var i = 0; i < lineWidth; i++)
                 {
                     var yy = Mathf.Clamp(y + i, 0, height - 1);
-                    texture.SetPixel(x, yy, lineColor);
+                    texture.SetPixel(padding + x, yy, lineColor);
                 }
             }
 
