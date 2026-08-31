@@ -244,6 +244,7 @@ namespace COM3D2.SceneEditor.Plugin
                 UpdateTangentTexture(
                     texture, pair.outTangent, pair.inTangent, config.curveLineColor,
                     lineWidth: PresetLineWidth, padding: PresetPadding);
+                texture.Apply();
             }
         }
 
@@ -267,6 +268,9 @@ namespace COM3D2.SceneEditor.Plugin
                     _tangentTex, tangent.outTangent, tangent.inTangent, color,
                     lineWidth: 1, padding: CurvePadding);
             }
+
+            // 基準線と全曲線を描き終えてから 1 回だけ GPU へ転送する
+            _tangentTex.Apply();
         }
 
         private void DrawTangentFields(GUIView subView)
@@ -735,13 +739,27 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 曲線を読む基準線を描く。内側領域の枠 (下辺=値 0 / 上辺=値 1 /
         /// 左辺=区間の始点 / 右辺=終点) と、線形補間を示す対角線 (破線)。
-        /// 曲線より先に描いて背面に置く
+        /// 曲線より先に描いて背面に置く。
+        /// GPU への転送をまとめるため Apply は呼び出し側で行う
         /// </summary>
         private static void DrawGuideLines(Texture2D texture, int padding)
         {
             var size = texture.width;
-            var min = padding;
-            var max = size - 1 - padding;
+            // 曲線と同じ写像で端を求め、枠と曲線がずれないようにする
+            var min = KeyFrameTangentLogic.ValueToTextureY(0f, size, padding);
+            var max = KeyFrameTangentLogic.ValueToTextureY(1f, size, padding);
+
+            // 対角線は内側領域が正方形であることを使い、x と y に同じ値を使う。
+            // 曲線と紛れないよう GuideDashLength px ごとに描画と空白を切り替える。
+            // 枠より先に描いて、重なる角は枠の色を残す
+            for (var i = min; i <= max; i++)
+            {
+                var dashSegment = (i - min) / GuideDashLength;
+                if (dashSegment % 2 == 0)
+                {
+                    texture.SetPixel(i, i, GuideLinearColor);
+                }
+            }
 
             for (var i = min; i <= max; i++)
             {
@@ -749,21 +767,14 @@ namespace COM3D2.SceneEditor.Plugin
                 texture.SetPixel(i, max, GuideFrameColor);
                 texture.SetPixel(min, i, GuideFrameColor);
                 texture.SetPixel(max, i, GuideFrameColor);
-
-                // 曲線と紛れないよう破線にする
-                if ((i - min) / GuideDashLength % 2 == 0)
-                {
-                    texture.SetPixel(i, i, GuideLinearColor);
-                }
             }
-
-            texture.Apply();
         }
 
         /// <summary>
         /// 正規化タンジェント形状 (t は 0..1) の Hermite 曲線をテクスチャへ描く
         /// (MTE KeyFrameUI.UpdateTangentTexture の移植)。
-        /// padding px は四辺の余白として空け、内側領域だけに描く
+        /// padding px は四辺の余白として空け、内側領域だけに描く。
+        /// 複数の曲線を重ねられるよう Apply は呼び出し側で行う
         /// </summary>
         private static void UpdateTangentTexture(
             Texture2D texture,
@@ -791,8 +802,6 @@ namespace COM3D2.SceneEditor.Plugin
                     texture.SetPixel(padding + x, yy, lineColor);
                 }
             }
-
-            texture.Apply();
         }
     }
 }
