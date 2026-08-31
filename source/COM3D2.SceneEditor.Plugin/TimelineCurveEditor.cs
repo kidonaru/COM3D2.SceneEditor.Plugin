@@ -41,7 +41,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>縦軸の目盛りラベルの高さ (px)</summary>
         private const float VALUE_LABEL_HEIGHT = 14f;
 
-        // 凡例 (チャンネル名) の 1 行の高さと項目間の余白 (px)
+        // 凡例 (チャンネル名) の高さと項目間の余白 (px)
         private const float LEGEND_ROW_HEIGHT = 16f;
         private const float LEGEND_ITEM_MARGIN = 10f;
         private const float LEGEND_PADDING = 4f;
@@ -187,7 +187,6 @@ namespace COM3D2.SceneEditor.Plugin
         private class CurveChannel
         {
             public ChannelKind kind = ChannelKind.Normal;
-            public string boneName;
             /// <summary>単チャンネル型。カスタム値チャンネルでは未使用</summary>
             public MTEP.TangentValueType valueType;
             /// <summary>カスタム値チャンネルのキー名 (通常チャンネルは null)</summary>
@@ -1092,7 +1091,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (isQuaternionRotation && !target.isCustom)
                 {
                     AddQuaternionRotationChannels(
-                        channels, ref totalChannelCount, boneName, frameNos, bones);
+                        channels, ref totalChannelCount, frameNos, bones);
                 }
 
                 for (var i = 0; i < valueTypes.Count; i++)
@@ -1116,7 +1115,6 @@ namespace COM3D2.SceneEditor.Plugin
 
                     var channel = new CurveChannel
                     {
-                        boneName = boneName,
                         valueType = valueType,
                         displayName = valueType.ToString(),
                         color = GetChannelColor(valueType),
@@ -1166,7 +1164,6 @@ namespace COM3D2.SceneEditor.Plugin
 
                     var channel = new CurveChannel
                     {
-                        boneName = boneName,
                         customKey = customKey,
                         displayName = customValue.Value.name,
                         color = CustomChannelColors[(customIndex - 1) % CustomChannelColors.Length],
@@ -1198,7 +1195,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// Euler 表示は導出値のため表示専用 (値・タンジェントとも編集不可)</summary>
         private void AddQuaternionRotationChannels(
             List<CurveChannel> channels, ref int totalChannelCount,
-            string boneName, List<int> frameNos, List<MTEP.BoneData> bones)
+            List<int> frameNos, List<MTEP.BoneData> bones)
         {
             var target = _targets.current;
             var addAllEulers = target.valueType == MTEP.TangentValueType.すべて
@@ -1209,7 +1206,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var sourceChannel = BuildQuaternionSourceChannel(boneName, frameNos, bones);
+            var sourceChannel = BuildQuaternionSourceChannel(frameNos, bones);
             if (sourceChannel == null)
             {
                 return;
@@ -1235,12 +1232,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// このチャンネル自体は表示せず、BuildEulerDisplayChannel の入力にのみ使う。
         /// キーが 1 つも拾えなければ null</summary>
         private static CurveChannel BuildQuaternionSourceChannel(
-            string boneName, List<int> frameNos, List<MTEP.BoneData> bones)
+            List<int> frameNos, List<MTEP.BoneData> bones)
         {
             var channel = new CurveChannel
             {
                 kind = ChannelKind.EulerDisplay,
-                boneName = boneName,
             };
 
             for (var k = 0; k < bones.Count; k++)
@@ -1272,7 +1268,6 @@ namespace COM3D2.SceneEditor.Plugin
             var channel = new CurveChannel
             {
                 kind = ChannelKind.EulerDisplay,
-                boneName = source.boneName,
                 eulerAxis = axis,
                 displayName = "Euler" + "XYZ"[axis],
                 color = GetAxisColor(axis),
@@ -1441,68 +1436,81 @@ namespace COM3D2.SceneEditor.Plugin
             return UnwrapAngle(raw, reference);
         }
 
-        /// <summary>凡例の折り返しレイアウト結果</summary>
+        /// <summary>凡例に並べる 1 項目</summary>
+        private struct LegendItem
+        {
+            public string label;
+            public float width;
+            public Color color;
+        }
+
+        /// <summary>凡例のレイアウト結果 (1 行ぶん)</summary>
         private class LegendLayout
         {
-            /// <summary>行ごとのチャンネル番号</summary>
-            public readonly List<List<int>> rows = new List<List<int>>();
-            public readonly List<string> labels = new List<string>();
+            public readonly List<LegendItem> items = new List<LegendItem>();
             public float height;
         }
 
-        /// <summary>凡例のラベルと折り返し位置を決める (描画はしない)</summary>
+
+        /// <summary>凡例のラベルと並べる範囲を決める (描画はしない)。
+        /// 凡例はペインを削るので 1 行に限り、入り切らないチャンネルは省く
+        /// (カーブとの対応は色で付く)</summary>
         private LegendLayout BuildLegend(Rect paneRect)
         {
             var layout = new LegendLayout();
-
-            // ボーンが 1 つだけなら値名だけで十分なのでボーン名は省く
-            var isMultiBone = _channels.Select(channel => channel.boneName).Distinct().Count() > 1;
-            foreach (var channel in _channels)
-            {
-                var name = channel.displayName ?? channel.customKey ?? channel.valueType.ToString();
-                layout.labels.Add(isMultiBone ? channel.boneName + "." + name : name);
-            }
-
-            // 中央の目盛りラベル (ペイン中央) より下に収まる行数までに抑える。
-            // これを超えると下端の目盛りラベルが中央ラベルを追い越して重なる
-            var maxRowCount = Mathf.Max(
-                1, (int)((paneRect.height * 0.5f - VALUE_LABEL_HEIGHT) / LEGEND_ROW_HEIGHT));
-
-            var currentRow = new List<int>();
             var currentWidth = LEGEND_PADDING;
 
-            for (var i = 0; i < layout.labels.Count; i++)
+            foreach (var channel in _channels)
             {
-                var itemWidth = GUIView.CalcWidth(GUIView.gsLabel, layout.labels[i]) + LEGEND_ITEM_MARGIN;
-                if (currentRow.Count > 0 && currentWidth + itemWidth > paneRect.width)
+                // 複数ボーンを選んでいてもボーン名は付けない (1 行に収める方を優先する)
+                var label = channel.displayName ?? channel.customKey ?? channel.valueType.ToString();
+                // 複数ボーンで同じ値名が並ぶので 1 つにまとめる
+                if (HasLegendItem(layout, label, channel.color))
                 {
-                    layout.rows.Add(currentRow);
-                    if (layout.rows.Count >= maxRowCount)
-                    {
-                        currentRow = null;
-                        break;
-                    }
-                    currentRow = new List<int>();
-                    currentWidth = LEGEND_PADDING;
+                    continue;
                 }
 
-                currentRow.Add(i);
-                currentWidth += itemWidth;
+                var width = GUIView.CalcWidth(GUIView.gsLabel, label) + LEGEND_ITEM_MARGIN;
+
+                // 幅を超えたら以降は省く。1 個目だけは幅によらず必ず出す
+                if (layout.items.Count > 0 && currentWidth + width > paneRect.width)
+                {
+                    break;
+                }
+
+                layout.items.Add(new LegendItem
+                {
+                    label = label,
+                    width = width,
+                    color = channel.color,
+                });
+                currentWidth += width;
             }
 
-            if (currentRow != null && currentRow.Count > 0)
-            {
-                layout.rows.Add(currentRow);
-            }
-
-            layout.height = layout.rows.Count * LEGEND_ROW_HEIGHT;
+            layout.height = layout.items.Count > 0 ? LEGEND_ROW_HEIGHT : 0f;
             return layout;
+        }
+
+        /// <summary>同じ値名かつ同じ色の項目が既にあるか。
+        /// 色まで見るのは、カスタム値の色が型ごとの定義順で決まるため
+        /// (CustomChannelColors[customIndex - 1])、型の違うボーンを一緒に選ぶと
+        /// 同じ値名でも色が変わりうるから。その場合は別物として両方並べる</summary>
+        private static bool HasLegendItem(LegendLayout layout, string label, Color color)
+        {
+            foreach (var item in layout.items)
+            {
+                if (item.label == label && item.color == color)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>ペイン下部に半透明黒の帯を敷き、チャンネル名をその色で並べる</summary>
         private void DrawLegend(GUIView view, Rect paneRect, LegendLayout layout)
         {
-            if (layout.rows.Count == 0)
+            if (layout.items.Count == 0)
             {
                 return;
             }
@@ -1513,20 +1521,12 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTexture(GUIView.texWhite, paneRect.width, layout.height,
                 new Color(0f, 0f, 0f, 0.6f));
 
-            for (var r = 0; r < layout.rows.Count; r++)
+            var x = LEGEND_PADDING;
+            foreach (var item in layout.items)
             {
-                var x = LEGEND_PADDING;
-                var y = top + r * LEGEND_ROW_HEIGHT;
-
-                foreach (var index in layout.rows[r])
-                {
-                    var label = layout.labels[index];
-                    var itemWidth = GUIView.CalcWidth(GUIView.gsLabel, label) + LEGEND_ITEM_MARGIN;
-
-                    view.currentPos = new Vector2(paneRect.x + x, paneRect.y + y);
-                    view.DrawLabel(label, itemWidth, LEGEND_ROW_HEIGHT, _channels[index].color);
-                    x += itemWidth;
-                }
+                view.currentPos = new Vector2(paneRect.x + x, paneRect.y + top);
+                view.DrawLabel(item.label, item.width, LEGEND_ROW_HEIGHT, item.color);
+                x += item.width;
             }
         }
 
