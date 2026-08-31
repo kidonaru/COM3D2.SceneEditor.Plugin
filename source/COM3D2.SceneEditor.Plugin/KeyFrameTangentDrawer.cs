@@ -54,20 +54,42 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D[] _presetTextures;
         private HashSet<MTEP.TangentPair> _cachedTangents = new HashSet<MTEP.TangentPair>();
         private readonly HashSet<MTEP.TangentPair> _workTangents = new HashSet<MTEP.TangentPair>();
-        private MTEP.TangentValueType _tangentValueType = MTEP.TangentValueType.すべて;
+        /// <summary>
+        /// コンボで選ぶ編集対象。軸ごとの値種別 (TangentValueType) と、
+        /// 軸に属さないカスタム値 (ポストエフェクトの焦点距離など) を同じ土俵で扱う
+        /// </summary>
+        private struct TangentTarget
+        {
+            public string name;
+            public MTEP.TangentValueType valueType;
+            /// <summary>カスタム値のキー。null なら軸ごとの値種別</summary>
+            public string customKey;
+
+            public bool isCustom => customKey != null;
+
+            /// <summary>
+            /// 選択状態を覚えるための識別子。
+            /// 候補は毎フレーム作り直すので添字では覚えられない
+            /// </summary>
+            public string id => isCustom ? "c:" + customKey : "a:" + valueType;
+        }
+
+        private static readonly MTEP.TangentData[] EmptyTangents = new MTEP.TangentData[0];
+
+        /// <summary>選択中の編集対象の識別子</summary>
+        private string _targetId = "a:" + MTEP.TangentValueType.すべて;
 
         /// <summary>ドラッグ中のハンドル (true=Out / false=In)。null ならドラッグしていない</summary>
         private bool? _draggingIsOut = null;
 
-        /// <summary>選択キーフレームが実際に持つ値種別だけを入れたコンボ候補</summary>
-        private readonly List<MTEP.TangentValueType> _availableValueTypes
-            = new List<MTEP.TangentValueType>();
+        /// <summary>選択キーフレームが実際に持つ編集対象だけを入れたコンボ候補</summary>
+        private readonly List<TangentTarget> _availableTargets = new List<TangentTarget>();
 
         // 候補は選択内容で変わるため、items は毎フレーム差し替える
-        private readonly GUIComboBox<MTEP.TangentValueType> _valueTypeComboBox =
-            new GUIComboBox<MTEP.TangentValueType>
+        private readonly GUIComboBox<TangentTarget> _targetComboBox =
+            new GUIComboBox<TangentTarget>
             {
-                getName = (type, index) => type.ToString(),
+                getName = (target, index) => target.name,
                 buttonSize = new Vector2(100, 20),
             };
 
@@ -95,7 +117,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public bool Draw(GUIView view)
         {
-            UpdateAvailableValueTypes();
+            UpdateAvailableTargets();
 
             if (!CollectTangents())
             {
@@ -139,6 +161,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _workTangents.Clear();
             var hasTangent = false;
+            var target = currentTarget;
 
             foreach (var bone in selectedBones)
             {
@@ -153,8 +176,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                var outTangents = prevBone.transform.GetOutTangentDataList(_tangentValueType);
-                var inTangents = bone.transform.GetInTangentDataList(_tangentValueType);
+                var outTangents = GetTangents(prevBone.transform, target, isOut: true);
+                var inTangents = GetTangents(bone.transform, target, isOut: false);
 
                 for (var i = 0; i < outTangents.Length && i < inTangents.Length; i++)
                 {
@@ -221,15 +244,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawTangentFields(GUIView subView)
         {
-            // 候補と enum 値の添字は一致しないので IndexOf で対応させる
-            _valueTypeComboBox.items = _availableValueTypes;
-            _valueTypeComboBox.currentIndex =
-                Mathf.Max(0, _availableValueTypes.IndexOf(_tangentValueType));
-            _valueTypeComboBox.onSelected = (type, index) =>
+            _targetComboBox.items = _availableTargets;
+            _targetComboBox.currentIndex = Mathf.Max(0, FindTargetIndex(_targetId));
+            _targetComboBox.onSelected = (target, index) =>
             {
-                _tangentValueType = type;
+                _targetId = target.id;
             };
-            _valueTypeComboBox.DrawButton(subView);
+            _targetComboBox.DrawButton(subView);
 
             KeyFrameTangentLogic.GetUniformTangents(
                 _workTangents, out var outTangent, out var inTangent);
@@ -544,7 +565,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var prevBone in currentLayer.GetPrevBones(selectedBones))
             {
-                foreach (var data in prevBone.transform.GetOutTangentDataList(_tangentValueType))
+                foreach (var data in GetTangents(prevBone.transform, currentTarget, isOut: true))
                 {
                     callback(data);
                 }
@@ -558,7 +579,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                foreach (var data in bone.transform.GetInTangentDataList(_tangentValueType))
+                foreach (var data in GetTangents(bone.transform, currentTarget, isOut: false))
                 {
                     callback(data);
                 }
@@ -567,27 +588,70 @@ namespace COM3D2.SceneEditor.Plugin
 
 
         /// <summary>
-        /// コンボ候補を選択キーフレームが実際に持つ値種別だけに絞る。
-        /// 「すべて」は常に候補に残し、選択中の種別が消えたらそこへ戻す
-        /// (TimelineCurveEditor.UpdateValueTypeFilter と同じ流儀)
+        /// コンボ候補を選択キーフレームが実際に持つ対象だけに絞る。
+        /// 軸ごとの値種別 (TimelineCurveEditor.UpdateValueTypeFilter と同じ流儀) に加え、
+        /// 軸に属さないカスタム値も 1 パラメータずつ候補へ並べる。
+        /// 「すべて」は常に候補に残し、選択中の対象が消えたらそこへ戻す
         /// </summary>
-        private void UpdateAvailableValueTypes()
+        private void UpdateAvailableTargets()
         {
-            _availableValueTypes.Clear();
-            _availableValueTypes.Add(MTEP.TangentValueType.すべて);
+            _availableTargets.Clear();
+            _availableTargets.Add(new TangentTarget
+            {
+                name = MTEP.TangentValueType.すべて.ToString(),
+                valueType = MTEP.TangentValueType.すべて,
+            });
 
             foreach (MTEP.TangentValueType valueType in
                 Enum.GetValues(typeof(MTEP.TangentValueType)))
             {
                 if (valueType != MTEP.TangentValueType.すべて && HasValueType(valueType))
                 {
-                    _availableValueTypes.Add(valueType);
+                    _availableTargets.Add(new TangentTarget
+                    {
+                        name = valueType.ToString(),
+                        valueType = valueType,
+                    });
                 }
             }
 
-            if (!_availableValueTypes.Contains(_tangentValueType))
+            AddCustomValueTargets();
+
+            if (FindTargetIndex(_targetId) < 0)
             {
-                _tangentValueType = MTEP.TangentValueType.すべて;
+                _targetId = _availableTargets[0].id;
+            }
+        }
+
+        /// <summary>
+        /// カスタム値 (ポストエフェクトの焦点距離など) を候補へ足す。
+        /// 選択キーフレームで種類が違うこともあるので、いずれかが持つキーをすべて並べる
+        /// </summary>
+        private void AddCustomValueTargets()
+        {
+            foreach (var bone in selectedBones)
+            {
+                var transform = bone.transform;
+                if (transform == null || !transform.hasTangent)
+                {
+                    continue;
+                }
+
+                foreach (var pair in transform.GetCustomValueInfoMap())
+                {
+                    var customKey = pair.Key;
+                    if (!transform.HasCustomValue(customKey)
+                        || _availableTargets.Exists(target => target.customKey == customKey))
+                    {
+                        continue;
+                    }
+
+                    _availableTargets.Add(new TangentTarget
+                    {
+                        name = transform.GetCustomValueName(customKey),
+                        customKey = customKey,
+                    });
+                }
             }
         }
 
@@ -603,6 +667,40 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             return false;
+        }
+
+        private int FindTargetIndex(string targetId)
+        {
+            return _availableTargets.FindIndex(target => target.id == targetId);
+        }
+
+        /// <summary>選択中の編集対象。候補から消えていたら先頭 (すべて) を返す</summary>
+        private TangentTarget currentTarget
+        {
+            get
+            {
+                var index = FindTargetIndex(_targetId);
+                return index >= 0 ? _availableTargets[index] : _availableTargets[0];
+            }
+        }
+
+        /// <summary>編集対象に対応するタンジェントを取り出す。対象を持たない transform では空</summary>
+        private static MTEP.TangentData[] GetTangents(
+            MTEP.ITransformData transform, TangentTarget target, bool isOut)
+        {
+            if (target.isCustom)
+            {
+                if (!transform.HasCustomValue(target.customKey))
+                {
+                    return EmptyTangents;
+                }
+                var value = transform.GetCustomValue(target.customKey);
+                return new[] { isOut ? value.outTangent : value.inTangent };
+            }
+
+            return isOut
+                ? transform.GetOutTangentDataList(target.valueType)
+                : transform.GetInTangentDataList(target.valueType);
         }
 
         /// <summary>選択キーフレーム側 (区間終点) の in タンジェントを走査する</summary>
