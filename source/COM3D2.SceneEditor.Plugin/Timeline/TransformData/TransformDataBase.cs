@@ -743,9 +743,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return xml;
         }
 
+        /// <summary>カスタム値を持たない型が毎フレームの UI 描画で空マップを作り直さないよう使い回す</summary>
+        private static readonly Dictionary<string, CustomValueInfo> EmptyCustomValueInfoMap
+            = new Dictionary<string, CustomValueInfo>();
+
         public virtual Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
-            return new Dictionary<string, CustomValueInfo>();
+            return EmptyCustomValueInfoMap;
         }
 
         public CustomValueInfo GetCustomValueInfo(string customKey)

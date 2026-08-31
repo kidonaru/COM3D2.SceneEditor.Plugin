@@ -69,21 +69,41 @@ namespace COM3D2.SceneEditor.Plugin
 
             /// <summary>
             /// 選択状態を覚えるための識別子。
-            /// 候補は毎フレーム作り直すので添字では覚えられない
+            /// 候補は毎フレーム作り直すので添字では覚えられない。
+            /// 軸 (axis) とカスタム値でキー空間が衝突しないよう接頭辞で分ける
             /// </summary>
-            public string id => isCustom ? "c:" + customKey : "a:" + valueType;
+            public string id => isCustom ? CustomIdPrefix + customKey : AxisIdPrefix + valueType;
+        }
+
+        private const string AxisIdPrefix = "a:";
+        private const string CustomIdPrefix = "c:";
+
+        /// <summary>軸ごとの値種別を表す候補を作る</summary>
+        private static TangentTarget CreateAxisTarget(MTEP.TangentValueType valueType)
+        {
+            return new TangentTarget
+            {
+                name = valueType.ToString(),
+                valueType = valueType,
+            };
         }
 
         private static readonly MTEP.TangentData[] EmptyTangents = new MTEP.TangentData[0];
 
         /// <summary>選択中の編集対象の識別子</summary>
-        private string _targetId = "a:" + MTEP.TangentValueType.すべて;
+        private string _targetId = CreateAxisTarget(MTEP.TangentValueType.すべて).id;
 
         /// <summary>ドラッグ中のハンドル (true=Out / false=In)。null ならドラッグしていない</summary>
         private bool? _draggingIsOut = null;
 
-        /// <summary>選択キーフレームが実際に持つ編集対象だけを入れたコンボ候補</summary>
+        /// <summary>
+        /// 選択キーフレームが実際に持つ編集対象だけを入れたコンボ候補。
+        /// 先頭には必ず「すべて」が入るので、添字 0 は常に有効
+        /// </summary>
         private readonly List<TangentTarget> _availableTargets = new List<TangentTarget>();
+
+        /// <summary>候補へ入れ終えたカスタム値キー (重複判定用。毎フレームの確保を避ける)</summary>
+        private readonly HashSet<string> _addedCustomKeys = new HashSet<string>();
 
         // 候補は選択内容で変わるため、items は毎フレーム差し替える
         private readonly GUIComboBox<TangentTarget> _targetComboBox =
@@ -596,22 +616,14 @@ namespace COM3D2.SceneEditor.Plugin
         private void UpdateAvailableTargets()
         {
             _availableTargets.Clear();
-            _availableTargets.Add(new TangentTarget
-            {
-                name = MTEP.TangentValueType.すべて.ToString(),
-                valueType = MTEP.TangentValueType.すべて,
-            });
+            _availableTargets.Add(CreateAxisTarget(MTEP.TangentValueType.すべて));
 
             foreach (MTEP.TangentValueType valueType in
                 Enum.GetValues(typeof(MTEP.TangentValueType)))
             {
                 if (valueType != MTEP.TangentValueType.すべて && HasValueType(valueType))
                 {
-                    _availableTargets.Add(new TangentTarget
-                    {
-                        name = valueType.ToString(),
-                        valueType = valueType,
-                    });
+                    _availableTargets.Add(CreateAxisTarget(valueType));
                 }
             }
 
@@ -629,6 +641,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void AddCustomValueTargets()
         {
+            _addedCustomKeys.Clear();
+
             foreach (var bone in selectedBones)
             {
                 var transform = bone.transform;
@@ -640,8 +654,7 @@ namespace COM3D2.SceneEditor.Plugin
                 foreach (var pair in transform.GetCustomValueInfoMap())
                 {
                     var customKey = pair.Key;
-                    if (!transform.HasCustomValue(customKey)
-                        || _availableTargets.Exists(target => target.customKey == customKey))
+                    if (!_addedCustomKeys.Add(customKey))
                     {
                         continue;
                     }
