@@ -404,8 +404,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>プリセットの曲線サムネを 2 列で並べる。
-        /// サムネ一辺は幅とツールバーの残り高さに収まるよう縮める</summary>
+        /// <summary>プリセットの曲線サムネを横一列に並べ、幅が足りない分だけ折り返す。
+        /// サムネ一辺は全数が 1 行に収まる大きさにするので、
+        /// 既定の menuWidth では折り返さず 1 行で並ぶ</summary>
         private void DrawPresetThumbnails(
             GUIView view, float x, ref float y, float width, Rect toolbarRect)
         {
@@ -415,31 +416,37 @@ namespace COM3D2.SceneEditor.Plugin
                     PRESET_TEX_SIZE, config.curveBgColor, config.curveLineColor);
             }
 
-            var remainHeight = toolbarRect.yMax - TOOL_PADDING_Y - y;
-            var size = Mathf.Clamp(
-                Mathf.Min(
-                    (width - TOOL_ROW_SPACING) * 0.5f,
-                    (remainHeight - TOOL_ROW_SPACING) * 0.5f),
+            var count = _presetTextures.Length;
+            // 1 行へ詰めた一辺。下限を割るほど幅が狭いときだけ、下限のまま折り返しに任せる。
+            // 端数を切り捨てて、合計幅が丸め誤差で width を越えないようにする
+            var size = Mathf.Floor(Mathf.Clamp(
+                (width - TOOL_ROW_SPACING * (count - 1)) / count,
                 PRESET_DRAW_SIZE_MIN,
-                PRESET_DRAW_SIZE_MAX);
+                PRESET_DRAW_SIZE_MAX));
+            // ツールバーの残り高さからはみ出さないよう、1 行ぶんの高さにも収める
+            var remainHeight = toolbarRect.yMax - TOOL_PADDING_Y - y;
+            size = Mathf.Max(PRESET_DRAW_SIZE_MIN, Mathf.Min(size, remainHeight));
 
-            for (var i = 0; i < _presetTextures.Length; i++)
+            var drawX = x;
+            for (var i = 0; i < count; i++)
             {
-                var tangentType = (MTEP.TangentType)i;
-                var isRightColumn = (i % 2) == 1;
+                // 右端を越えるなら次の行へ送る (行頭の 1 個は必ずその行に置く)
+                if (drawX > x && drawX + size > x + width)
+                {
+                    drawX = x;
+                    y += size + TOOL_ROW_SPACING;
+                }
 
-                view.currentPos = new Vector2(
-                    x + (isRightColumn ? size + TOOL_ROW_SPACING : 0f), y);
+                var tangentType = (MTEP.TangentType)i;
+                view.currentPos = new Vector2(drawX, y);
                 view.DrawTexture(
                     _presetTextures[i], size, size, Color.white, EventType.MouseDown,
                     _ => ApplyTangentPreset(tangentType));
 
-                // 行の最後を描いたら改行する (プリセットが奇数個でも行送りが止まらないように)
-                if (isRightColumn || i == _presetTextures.Length - 1)
-                {
-                    y += size + TOOL_ROW_SPACING;
-                }
+                drawX += size + TOOL_ROW_SPACING;
             }
+
+            y += size + TOOL_ROW_SPACING;
         }
 
         /// <summary>選択キーの片側タンジェントが全て同値ならその正規化値、
