@@ -536,6 +536,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
         }
+
+        /// <summary>選択キーフレーム側 (区間終点) の in タンジェントを走査する</summary>
         private void ForEachInTangent(Action<MTEP.TangentData> callback)
         {
             foreach (var bone in selectedBones)
@@ -551,7 +553,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>選択キーフレーム側 (区間終点) の in タンジェントを走査する</summary>
         private void ApplyAndRecord(string description)
         {
             MTEUtils.LogDebug(description);
