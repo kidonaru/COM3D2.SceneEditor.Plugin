@@ -64,7 +64,7 @@ namespace COM3D2.SceneEditor.Plugin
                 normalizedValue = 0f;
             }
 
-            // 値は上向き、GUI の Y は下向きなので符号を反転する
+            // Y 反転
             var dir = new Vector2(1f, -normalizedValue).normalized;
             if (!isOut)
             {

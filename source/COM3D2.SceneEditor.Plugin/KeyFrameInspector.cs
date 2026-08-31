@@ -116,6 +116,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (!ShouldDraw())
             {
                 _collapsedBones.Clear();
+                KeyFrameTangentDrawer.instance.CancelDrag();
                 view.DrawLabel("キーフレームが選択されていません", -1, RowHeight);
                 return;
             }
@@ -138,6 +139,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 曲線タブを離れている間はハンドルのマウスアップを拾えないので打ち切らせる
+            KeyFrameTangentDrawer.instance.CancelDrag();
             DrawValues(view);
         }
 

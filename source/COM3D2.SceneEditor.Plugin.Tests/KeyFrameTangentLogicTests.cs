@@ -74,6 +74,22 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void ハンドル位置_混在NaNは勾配0として水平に描く()
+        {
+            var pos = KeyFrameTangentLogic.GetHandlePos(true, float.NaN, 100f, 10f);
+            Assert.Equal(10f, pos.x, 3);
+            Assert.Equal(100f, pos.y, 3);
+        }
+
+        [Fact]
+        public void マウスが原点の真上なら勾配が発散して求まらない()
+        {
+            // dx = 0 は勾配が定まらない (Infinity になる) ので false
+            Assert.False(KeyFrameTangentLogic.TryGetNormalizedTangent(
+                true, new Vector2(0f, 20f), 100f, out _));
+        }
+
+        [Fact]
         public void マウスが逆側なら求まらない()
         {
             // Out ハンドルは始点より右側だけが有効
