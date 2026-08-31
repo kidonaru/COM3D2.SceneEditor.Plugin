@@ -806,25 +806,36 @@ namespace COM3D2.SceneEditor.Plugin
             return selectedBones.Contains(channel.keyBones[keyIndex]);
         }
 
-        /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)。
-        /// UpdateTangent と同じく inTangent は流入区間、outTangent は流出区間を基準にする</summary>
-        private static bool TryGetBaseSlopePerFrame(
-            CurveChannel channel, int keyIndex, bool isOut, out float baseSlope)
+        /// <summary>ハンドルの相手側キー (out は次キー、in は前キー)。
+        /// 同フレームに重なったキーは区間を成さないため対象外。
+        /// 区間の値が変わらないキーもハンドルは描くので、勾配の大小は問わない</summary>
+        private static bool TryGetNeighborIndex(
+            CurveChannel channel, int keyIndex, bool isOut, out int otherIndex)
         {
-            baseSlope = 0f;
-
-            var otherIndex = isOut ? keyIndex + 1 : keyIndex - 1;
+            otherIndex = isOut ? keyIndex + 1 : keyIndex - 1;
             if (otherIndex < 0 || otherIndex >= channel.values.Count)
             {
                 return false;
             }
 
-            var dtFrames = channel.frameNos[otherIndex] - channel.frameNos[keyIndex];
-            if (dtFrames == 0)
+            return channel.frameNos[otherIndex] != channel.frameNos[keyIndex];
+        }
+
+        /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)。
+        /// UpdateTangent と同じく inTangent は流入区間、outTangent は流出区間を基準にする。
+        /// 勾配 0 の区間では TangentData.value が normalizedValue によらず 0 になり
+        /// (UpdateValue: value = normalizedValue * baseTangent)、正規化も逆算もできないため false</summary>
+        private static bool TryGetBaseSlopePerFrame(
+            CurveChannel channel, int keyIndex, bool isOut, out float baseSlope)
+        {
+            baseSlope = 0f;
+
+            if (!TryGetNeighborIndex(channel, keyIndex, isOut, out var otherIndex))
             {
                 return false;
             }
 
+            var dtFrames = channel.frameNos[otherIndex] - channel.frameNos[keyIndex];
             baseSlope = (channel.GetKeyValue(otherIndex) - channel.GetKeyValue(keyIndex)) / dtFrames;
             return baseSlope != 0f;
         }
@@ -1462,7 +1473,11 @@ namespace COM3D2.SceneEditor.Plugin
                 for (var side = 0; side < 2; side++)
                 {
                     var isOut = side == 0;
-                    if (!TryGetBaseSlopePerFrame(channel, i, isOut, out _))
+                    // 描画に区間勾配は要らない (向きは TangentData.value だけで決まる)。
+                    // 勾配 0 の区間で掴めないハンドルもそのまま水平に描く。
+                    // ここで TryGetBaseSlopePerFrame を使うと、値が変わらない区間に面した側の
+                    // ハンドルだけが消えて、キーの片側だけ欠けて見える
+                    if (!TryGetNeighborIndex(channel, i, isOut, out _))
                     {
                         continue;
                     }
