@@ -46,11 +46,7 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly string DefaultTargetId
             = AxisIdPrefix + MTEP.TangentValueType.すべて;
 
-        /// <summary>レイヤーごとの選択中の編集対象。
-        /// Inspector とカーブエディタで同じ対象を指すようインスタンス外に置く。
-        /// レイヤーの実体はロードのたびに作り直されるため、キーは layerName にする</summary>
-        private static readonly Dictionary<string, string> TargetIdByLayer
-            = new Dictionary<string, string>();
+        private static MTEP.Config config => MTEP.ConfigManager.instance.config;
 
         private static string currentLayerName
         {
@@ -61,17 +57,23 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>選択中の編集対象の識別子 (現在のレイヤーのもの)</summary>
+        /// <summary>選択中の編集対象の識別子 (現在のレイヤーのもの)。
+        /// Inspector とカーブエディタで同じ対象を指すよう、インスタンスではなく
+        /// Config へレイヤー単位で持たせる (ゲームを再起動しても残る)</summary>
         private static string targetId
         {
-            get
+            get => config.GetTangentTargetId(currentLayerName, DefaultTargetId);
+            set
             {
-                string id;
-                return TargetIdByLayer.TryGetValue(currentLayerName, out id)
-                    ? id
-                    : DefaultTargetId;
+                // レイヤー未選択のときは保存先のキーが無いので覚えない
+                var layerName = currentLayerName;
+                if (layerName.Length == 0 || targetId == value)
+                {
+                    return;
+                }
+                config.SetTangentTargetId(layerName, value);
+                config.dirty = true;
             }
-            set { TargetIdByLayer[currentLayerName] = value; }
         }
 
         /// <summary>候補から外す軸種別 (タイムライン側は W回転 をカーブに出さないため除く)</summary>

@@ -247,6 +247,46 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        // レイヤーごとのタンジェント編集対象 (Inspector の補間曲線タブとカーブエディタで共有)。
+        // レイヤーの実体はロードのたびに作り直されるため、キーは layerName にする
+        [XmlIgnore]
+        private Dictionary<string, string> _tangentTargetIdMap = new Dictionary<string, string>();
+
+        public struct TangentTargetPair
+        {
+            public string layerName;
+            public string targetId;
+        }
+
+        [XmlElement("tangentTarget")]
+        public TangentTargetPair[] tangentTargetIdList
+        {
+            get
+            {
+                var result = new List<TangentTargetPair>(_tangentTargetIdMap.Count);
+                foreach (var pair in _tangentTargetIdMap)
+                {
+                    result.Add(new TangentTargetPair
+                    {
+                        layerName = pair.Key,
+                        targetId = pair.Value,
+                    });
+                }
+                return result.ToArray();
+            }
+            set
+            {
+                if (value == null)
+                {
+                    return;
+                }
+                foreach (var pair in value)
+                {
+                    _tangentTargetIdMap[pair.layerName] = pair.targetId;
+                }
+            }
+        }
+
         // サブウィンドウ (MTE の SubWindowInfo) は未移植のため関連設定を削除している
 
         [XmlIgnore]
@@ -328,6 +368,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void SetBoneSetMenuOpen(string name, bool value)
         {
             _boneSetMenuOpenMap[name] = value;
+        }
+
+        public string GetTangentTargetId(string layerName, string defaultTargetId)
+        {
+            string targetId;
+            if (_tangentTargetIdMap.TryGetValue(layerName, out targetId))
+            {
+                return targetId;
+            }
+            return defaultTargetId;
+        }
+
+        public void SetTangentTargetId(string layerName, string targetId)
+        {
+            _tangentTargetIdMap[layerName] = targetId;
         }
 
     }
