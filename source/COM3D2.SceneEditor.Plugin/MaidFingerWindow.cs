@@ -263,7 +263,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.currentPos.x = view.viewRect.width - view.padding.x * 2 - FocusButtonWidth;
 
                 var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
-                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f))
+                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f, tooltip: "フォーカス"))
                 {
                     FocusOnFinger(unit);
                 }

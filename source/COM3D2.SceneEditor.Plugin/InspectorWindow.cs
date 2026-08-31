@@ -456,7 +456,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawBoneFocusButton(Transform bone)
         {
             var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
-            if (_view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
+            if (_view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f, tooltip: "フォーカス"))
             {
                 SceneViewWindow.instance.FocusOnBounds(
                     new Bounds(bone.position, Vector3.one * BoneFocusBoundsSize));
@@ -616,7 +616,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel(go.name, labelWidth, RowHeight);
 
                 var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
-                if (view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f))
+                if (view.DrawTextureButton(focusIcon, HeaderFocusButtonWidth, RowHeight, 4f, tooltip: "フォーカス"))
                 {
                     // 明示的なフォーカス要求なのでオートフォーカス設定に関わらず寄せる
                     SceneViewWindow.instance.FocusOn(go, true);

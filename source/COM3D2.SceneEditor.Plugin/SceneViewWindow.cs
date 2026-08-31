@@ -410,7 +410,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (icon != null)
             {
                 view.DrawToggle(icon, value, TOOLBAR_ITEM_HEIGHT, TOOLBAR_ITEM_HEIGHT,
-                    onChanged, TOOLBAR_ICON_OFFSET);
+                    onChanged, TOOLBAR_ICON_OFFSET, label);
             }
             else
             {

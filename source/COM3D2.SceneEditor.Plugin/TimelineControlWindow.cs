@@ -675,7 +675,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             WrapIfNeeded(view, ROW_HEIGHT);
             view.BeginEnabled(enabled);
-            var changed = view.DrawToggle(icon, value, ROW_HEIGHT, ROW_HEIGHT, onChanged, ICON_TOGGLE_OFFSET);
+            var changed = view.DrawToggle(icon, value, ROW_HEIGHT, ROW_HEIGHT, onChanged, ICON_TOGGLE_OFFSET, label);
             view.EndEnabled();
             return changed;
         }
