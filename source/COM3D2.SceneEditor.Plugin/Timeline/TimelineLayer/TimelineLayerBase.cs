@@ -24,6 +24,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected List<FrameData> _keyFrames = new List<FrameData>();
         public List<FrameData> keyFrames => _keyFrames.ToList();
+        public int keyFrameCount => _keyFrames.Count;
+        public FrameData GetKeyFrameAt(int index) => _keyFrames[index];
 
         public MaidCache maidCache => maidManager.GetMaidCache(slotNo);
 

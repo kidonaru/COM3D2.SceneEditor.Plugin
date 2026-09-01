@@ -634,6 +634,32 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>フレーム内に選択中のボーンがあるか。描画ループ用に LINQ（デリゲート生成）を避けている</summary>
+        private bool HasSelectedBone(MTEP.FrameData frame)
+        {
+            foreach (var bone in frame.bones)
+            {
+                if (timelineManager.IsSelectedBone(bone))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>選択中のボーンから指定フレーム番号のものを 1 つ返す。無ければ null</summary>
+        private MTEP.BoneData FindSelectedBone(int frameNo)
+        {
+            foreach (var bone in timelineManager.selectedBones)
+            {
+                if (bone.frameNo == frameNo)
+                {
+                    return bone;
+                }
+            }
+            return null;
+        }
+
         private void DrawTimeline(Rect local, bool editEnabled, bool guiEnabled)
         {
             if (!editEnabled || texTimelineBG == null)
@@ -820,8 +846,13 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var isActiveLayer = blockLayer == timelineManager.currentLayer;
 
-                foreach (var frame in blockLayer.keyFrames)
+                // GC 対策: この二重ループはキーフレーム総数分（数千/frame）走るので、
+                // ラムダによるクロージャ生成とリストのコピーを避ける
+                // (docs/timeline-window-alloc-profiling.md)
+                var keyFrameCount = blockLayer.keyFrameCount;
+                for (var frameIndex = 0; frameIndex < keyFrameCount; frameIndex++)
                 {
+                    var frame = blockLayer.GetKeyFrameAt(frameIndex);
                     var frameNo = frame.frameNo;
 
                     view.currentPos.x = frameNo * frameWidth;
@@ -860,7 +891,7 @@ namespace COM3D2.SceneEditor.Plugin
                         if (isHeader)
                         {
                             hasVisible = frame.HasBones();
-                            isSelected = isActiveLayer && frame.bones.Any(timelineManager.IsSelectedBone);
+                            isSelected = isActiveLayer && HasSelectedBone(frame);
                         }
                         else
                         {
@@ -899,27 +930,18 @@ namespace COM3D2.SceneEditor.Plugin
                         }
 
                         // フレームのドラッグ開始。非アクティブレイヤーはまずアクティブ化してから選択する
-                        if (!areaDragInfo.isDragging && !frameDragInfo.isDragging)
+                        if (!areaDragInfo.isDragging && !frameDragInfo.isDragging &&
+                            view.InvokeActionOnDragStart(keyFrameRect, frameDragInfo, view.currentPos))
                         {
-                            view.InvokeActionOnDragStart(
-                                keyFrameRect,
-                                frameDragInfo,
-                                view.currentPos,
-                                newPos =>
-                                {
-                                    if (row.layer != timelineManager.currentLayer)
-                                    {
-                                        timelineManager.SetCurrentLayer(row.layer);
-                                    }
-                                    SelectRowFrame(row, frame, isMultiSelect);
-                                    frameDragBoneData = timelineManager.selectedBones
-                                        .Where(bone => bone.frameNo == frameNo)
-                                        .FirstOrDefault();
+                            if (row.layer != timelineManager.currentLayer)
+                            {
+                                timelineManager.SetCurrentLayer(row.layer);
+                            }
+                            SelectRowFrame(row, frame, isMultiSelect);
+                            frameDragBoneData = FindSelectedBone(frameNo);
 
-                                    // 消費しないと GUI.DragWindow が拾ってウィンドウごと動いてしまう
-                                    Event.current.Use();
-                                }
-                            );
+                            // 消費しないと GUI.DragWindow が拾ってウィンドウごと動いてしまう
+                            Event.current.Use();
                         }
 
                         var keyFrameColor = isSelected ? Color.red : Color.white;

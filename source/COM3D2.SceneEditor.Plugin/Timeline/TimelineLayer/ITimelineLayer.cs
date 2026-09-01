@@ -17,6 +17,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         bool isMoveLayer { get; }
         List<FrameData> keyFrames { get; }
 
+        /// <summary>キーフレーム数。keyFrames と違いコピーを作らない</summary>
+        int keyFrameCount { get; }
+
+        /// <summary>
+        /// index 番目のキーフレーム。keyFrames と違いコピーを作らないので毎フレーム走査する描画ループ用。
+        /// 列挙中にキーフレームを追加・削除する処理からは使わないこと。
+        /// index は直前に取得した keyFrameCount の範囲内であること（範囲外は例外）
+        /// </summary>
+        FrameData GetKeyFrameAt(int index);
+
         Maid maid { get; }
         MaidCache maidCache { get; }
         int playingFrameNo { get; }
