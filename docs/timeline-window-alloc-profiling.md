@@ -116,3 +116,20 @@ IL_0803: brfalse.s -> continue                   // ← 画面外カリングは
 - 細かい区間分割: `eval_csharp` で計測用 static クラスを定義し、`HarmonyLib.Harmony.Patch` で区間の境界メソッドに prefix を当てて `GC.GetTotalMemory(false)` を採取する。**計測後は `HarmonyLib.Harmony.UnpatchID(id)` で必ず解除する**（`UnpatchAll(string)` は obsolete でコンパイルエラー）。
 - `GUIView` のように同名型が複数アセンブリにある場合、`profile_add` は「型が複数のアセンブリに存在します」で失敗する。`AppDomain` からアセンブリを引いて自前でパッチする必要がある。
 - 実機の DLL とソースの差異が疑わしいときは `ilspycmd -il -t <型名> <ゲームフォルダの DLL>` で IL を直接確認する。
+
+## 7. 対策後の実測（2026-09-02）
+
+対処案 2・3 を実装（`a288248`）した後の再計測で、キーフレームループの確保はほぼゼロになった一方、`DrawTimeline` 全体は約 430KB/frame のままだった。残りは `DrawTimeline` から呼ぶ `TimelineCurveEditor.DrawPane` で、ボーン選択中は毎パス `CollectChannels` がチャンネルを作り直していたのが原因（初回計測時は選択なしで `DrawPane` が 0.006ms だったため見えていなかった）。入力シグネチャが変わったときだけ再構築するよう変更した（`93164e2`）。
+
+同一シーン（158 行 / 1,891 キー）、ボーン 12 個選択・12 チャンネル表示・カーブエディタ展開中、300 フレーム:
+
+| 対象 | ms/frame | alloc/frame | 備考 |
+|---|---|---|---|
+| `TimelineWindow:DrawTimeline` | 4.93 | 約 4.3 KB | 対策前 約 430 KB |
+| `TimelineCurveEditor:DrawPane` | 4.39 | 約 0.4 KB | 対策前 約 436 KB |
+| `TimelineCurveEditor:CollectChannels` | 0 | 0 | 300 フレーム中 0 回（キャッシュヒット） |
+| `TimelineCurveEditor:ComputeChannelsSignature` | 0.38 | 約 0.26 KB | 毎パス全キーフレーム走査 |
+| `TimelineCurveEditor:BuildMapping` | 1.21 | 0 | 対策前 約 70 KB |
+| `TimelineLayerBase:GetKeyFrameAt` | 0.43 | 0 | 3,750 回/frame |
+
+所要時間は 12 チャンネル分のサンプリング（`BuildMapping`）と折れ線描画（`DrawChannelCurve`、約 2.6ms）が支配的で、確保は伴わない。GC 圧としては約 100 分の 1 になった。
