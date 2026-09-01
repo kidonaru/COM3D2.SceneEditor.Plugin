@@ -103,6 +103,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return new List<BGModelStat>();
         }
 
+        /// <summary>
+        /// 配置済みかどうかだけを見る。GetModels は該当なしのときリストを作って返すため、
+        /// 毎フレーム引く用途 (GUI の行描画) ではこちらを使う
+        /// </summary>
+        public bool HasModels(string sourceName)
+        {
+            List<BGModelStat> models;
+            return _modelsMap.TryGetValue(sourceName, out models) && models.Count > 0;
+        }
+
         public ModelMaterial GetMaterial(string name)
         {
             ModelMaterial material;

@@ -36,6 +36,29 @@ namespace COM3D2.SceneEditor.Plugin
 
         private BgTabType _tabType = BgTabType.背景;
 
+        /// <summary>モデルタブ内のサブタブ</summary>
+        private enum BgModelTabType
+        {
+            追加,
+            管理,
+        }
+
+        private BgModelTabType _modelTabType = BgModelTabType.追加;
+
+        private readonly GUITreeView<BGModelNode> _modelTreeView = new GUITreeView<BGModelNode>();
+        private List<BGModelNode> _modelTreeRoots = new List<BGModelNode>();
+        // ツリーの組み直し判定用。背景の切替とモデル情報の増減で作り直す
+        private GameObject _treeBgObject = null;
+        private int _treeInfoCount = -1;
+
+        private readonly ItemRowDrawerCache<BGModelManageRowDrawer> _modelManageRowDrawers =
+            new ItemRowDrawerCache<BGModelManageRowDrawer>();
+
+        // 制御対象の変更。増減は一覧を作り替えるため、描画ループを回し切ってから
+        // 反映する (null なら変更なし)
+        private string _pendingCheckSourceName = null;
+        private bool _pendingCheckValue = false;
+
         /// <summary>選択中カテゴリ。ALL_CATEGORY なら全カテゴリ表示</summary>
         private string _category = ALL_CATEGORY;
         private string _searchText = "";
@@ -68,6 +91,43 @@ namespace COM3D2.SceneEditor.Plugin
 
         private BackgroundWindow()
         {
+            SetupModelTreeView();
+        }
+
+        /// <summary>
+        /// 背景モデルツリーのたどり方と行の見た目を教える。
+        /// GUITreeView はゲーム固有の型を知らないため、ここで橋渡しする
+        /// </summary>
+        private void SetupModelTreeView()
+        {
+            _modelTreeView.rowHeight = ROW_HEIGHT;
+
+            _modelTreeView.getId = node => node.info.gameObject.GetInstanceID();
+            _modelTreeView.getName = node => node.info.displayName;
+            _modelTreeView.isAlive = node => node.info.gameObject != null;
+            _modelTreeView.getChildCount = node => node.children.Count;
+            _modelTreeView.getChild = (node, i) => node.children[i];
+
+            _modelTreeView.getLabel = node => node.info.displayName;
+            _modelTreeView.getLabelColor = node =>
+                IsControlled(node) ? Color.green : Color.white;
+
+            // 行で変えられるのは制御対象かどうかだけ。ラベルは押しても何もしない
+            _modelTreeView.isSelected = node => false;
+            _modelTreeView.onSelected = node => { };
+
+            _modelTreeView.getChecked = IsControlled;
+            _modelTreeView.onCheckChanged = (node, isChecked) =>
+            {
+                // 反映は描画後 (理由はフィールド宣言のコメント参照)
+                _pendingCheckSourceName = node.info.sourceName;
+                _pendingCheckValue = isChecked;
+            };
+        }
+
+        private static bool IsControlled(BGModelNode node)
+        {
+            return MTEP.BGModelManager.instance.HasModels(node.info.sourceName);
         }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
@@ -132,13 +192,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawBody()
         {
             // タブはスクロールビューの外に置き、どこまでスクロールしても切り替えられるようにする
-            _tabType = _view.DrawTabs(_tabType, TAB_WIDTH, ROW_HEIGHT);
-            // DrawTabs 末尾の AddSpace(5) が縦レイアウトでは「スペース5px + margin」になるため、
-            // 通常の行間に合わせて詰める (TimelineSettingWindow と同じ流儀)
-            _view.currentPos.y -= 5 + GUIView.defaultMargin;
-
-            _view.DrawHorizontalLine(Color.gray);
-            _view.AddSpace(5);
+            _tabType = DrawTabHeader(_tabType);
 
             switch (_tabType)
             {
@@ -152,6 +206,21 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawBgModelTab();
                     break;
             }
+        }
+
+        /// <summary>タブ行と、その下の区切り線までをまとめて描く</summary>
+        private T DrawTabHeader<T>(T currentTab)
+        {
+            var nextTab = _view.DrawTabs(currentTab, TAB_WIDTH, ROW_HEIGHT);
+
+            // DrawTabs 末尾の AddSpace(5) が縦レイアウトでは「スペース5px + margin」になるため、
+            // 通常の行間に合わせて詰める (TimelineSettingWindow と同じ流儀)
+            _view.currentPos.y -= 5 + GUIView.defaultMargin;
+
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            return nextTab;
         }
 
         /// <summary>
@@ -187,7 +256,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// モデルタブ。背景モデルの配置管理で、
-        /// 配置済みのモデルは背景モデルレイヤーのキーと連動する
+        /// 配置済みのモデルは背景モデルレイヤーのキーと連動する。
+        /// 制御対象にするのは「追加」、対象になったモデルの操作は「管理」で行う
         /// </summary>
         private void DrawBgModelTab()
         {
@@ -198,6 +268,24 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            _modelTabType = DrawTabHeader(_modelTabType);
+
+            switch (_modelTabType)
+            {
+                case BgModelTabType.追加:
+                    DrawBgModelAddTab();
+                    break;
+                case BgModelTabType.管理:
+                    DrawBgModelManageTab();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 追加タブ。背景モデルの階層をツリーで出し、チェックで制御対象かどうかだけを変える
+        /// </summary>
+        private void DrawBgModelAddTab()
+        {
             var bgModelManager = MTEP.BGModelManager.instance;
             var infoList = bgModelManager.modelInfoList;
             if (infoList.Count == 0)
@@ -206,54 +294,129 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+            RebuildModelTreeIfNeeded(infoList);
+            if (_modelTreeRoots.Count == 0)
+            {
+                // 情報はあるがツリーに出せるものが無い (複製のみ・実体が消えた等)
+                _view.DrawLabel("表示できる背景モデルがありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _view.DrawTextField(_modelTreeView.searchText, -1, ROW_HEIGHT,
+                value => _modelTreeView.searchText = value);
+
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
 
             _view.SetEnabled(_view.focusedComboBox == null
                 && MTEP.StudioHackManager.instance.isPoseEditing);
 
-            // 増減は一覧を作り替えるため、描画ループを回し切ってから 1 件だけ反映する
-            string addSourceName = null;
-            string deleteSourceName = null;
-
-            foreach (var info in infoList)
-            {
-                var models = bgModelManager.GetModels(info.sourceName);
-
-                _view.BeginHorizontal();
-                {
-                    var indent = new string(' ', info.depth);
-                    var name = indent + "└" + info.displayName;
-
-                    var labelWidth = _view.viewRect.width - _view.currentPos.x - 60 - 10;
-                    var labelColor = models.Count > 0 ? Color.green : Color.white;
-                    _view.DrawLabel(name, labelWidth, ROW_HEIGHT, labelColor);
-
-                    if (_view.DrawButton("-", 20, ROW_HEIGHT, models.Count > 0))
-                    {
-                        deleteSourceName = info.sourceName;
-                    }
-
-                    _view.DrawLabel(models.Count.ToString(), 20, ROW_HEIGHT);
-
-                    if (_view.DrawButton("+", 20, ROW_HEIGHT))
-                    {
-                        addSourceName = info.sourceName;
-                    }
-                }
-                _view.EndLayout();
-            }
+            _modelTreeView.Draw(_view, _view.GetDrawRect(-1, -1));
 
             _view.SetEnabled(_view.focusedComboBox == null);
 
+            ApplyPendingCheck(bgModelManager);
+        }
+
+        /// <summary>
+        /// ツリーを組み直す。背景の切替とモデル情報の増減 (複製の追加・削除) で作り直す。
+        /// 件数比較で足りるのは 1 フレームに 1 操作しか反映しないためで、
+        /// 外部から modelInfoList がまとめて書き換わる経路が増えると成立しなくなる
+        /// </summary>
+        private void RebuildModelTreeIfNeeded(List<MTEP.BGModelInfo> infoList)
+        {
+            var bgObject = GameMain.Instance != null && GameMain.Instance.BgMgr != null
+                ? GameMain.Instance.BgMgr.BgObject
+                : null;
+
+            if (_treeBgObject == bgObject && _treeInfoCount == infoList.Count)
+            {
+                return;
+            }
+
+            _treeBgObject = bgObject;
+            _treeInfoCount = infoList.Count;
+
+            _modelTreeRoots = BGModelTree.Build(infoList);
+            _modelTreeView.SetRoots(_modelTreeRoots);
+            _modelTreeView.SetDirty();
+        }
+
+        /// <summary>チェック操作の遅延反映。制御対象から外すときは複製ぶんもまとめて消す</summary>
+        private void ApplyPendingCheck(MTEP.BGModelManager bgModelManager)
+        {
+            var sourceName = _pendingCheckSourceName;
+            if (sourceName == null)
+            {
+                return;
+            }
+            _pendingCheckSourceName = null;
+
+            if (_pendingCheckValue)
+            {
+                bgModelManager.AddModelBySourceName(sourceName);
+                return;
+            }
+
+            // GetModels が返すリストは削除で書き換わるため、先に数えた件数だけ消す
+            // (件数を見ながら回すと、消し切れないものがあったとき OnGUI 内で無限ループになる)
+            for (var count = bgModelManager.GetModels(sourceName).Count; count > 0; count--)
+            {
+                bgModelManager.DeleteModelBySourceName(sourceName);
+            }
+        }
+
+        /// <summary>
+        /// 管理タブ。制御対象のモデルを縦に並べ、表示切替・複製・削除と Transform を出す
+        /// </summary>
+        private void DrawBgModelManageTab()
+        {
+            var bgModelManager = MTEP.BGModelManager.instance;
+            var models = bgModelManager.models;
+            if (models.Count == 0)
+            {
+                _view.DrawLabel("制御対象のモデルがありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            // 増減は一覧を作り替えるため、描画ループを回し切ってから 1 件だけ反映する
+            MTEP.BGModelStat actionModel = null;
+            var action = BGModelRowAction.None;
+
+            foreach (var model in models)
+            {
+                var rowAction = _modelManageRowDrawers.Get(model.name).Draw(_view, model);
+                if (rowAction != BGModelRowAction.None)
+                {
+                    actionModel = model;
+                    action = rowAction;
+                }
+            }
+
+            _modelManageRowDrawers.PruneExcept(bgModelManager.modelNames);
+
             _view.EndScrollView();
 
-            if (deleteSourceName != null)
+            // 開閉は描画要素数を変えるため、行を描き終えてから反映する
+            foreach (var model in models)
             {
-                bgModelManager.DeleteModelBySourceName(deleteSourceName);
+                _modelManageRowDrawers.Get(model.name).ApplyPendingFold();
             }
-            if (addSourceName != null)
+
+            if (actionModel == null)
             {
-                bgModelManager.AddModelBySourceName(addSourceName);
+                return;
+            }
+
+            if (action == BGModelRowAction.Duplicate)
+            {
+                bgModelManager.AddModelBySourceName(actionModel.sourceName);
+            }
+            else if (action == BGModelRowAction.Delete)
+            {
+                bgModelManager.DeleteModel(actionModel);
             }
         }
 

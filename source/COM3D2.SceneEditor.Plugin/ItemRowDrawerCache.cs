@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -32,7 +33,22 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>選択から外れた項目のドロワーを捨てる (描画ループの最後に呼ぶ)</summary>
         public void PruneExcept(IList<MTEP.IBoneMenuItem> items)
         {
-            if (_drawers.Count == items.Count)
+            PruneExcept(name => ContainsName(items, name));
+        }
+
+        /// <summary>メニュー項目を介さず、残す名前を直接渡す版 (描画ループの最後に呼ぶ)</summary>
+        public void PruneExcept(IList<string> names)
+        {
+            PruneExcept(names.Contains);
+        }
+
+        /// <summary>
+        /// 残す判定に合致しないドロワーを捨てる。
+        /// 件数が同じでも中身が総入れ替えになることがあるため、件数比較では省略しない
+        /// </summary>
+        private void PruneExcept(Func<string, bool> shouldKeep)
+        {
+            if (_drawers.Count == 0)
             {
                 return;
             }
@@ -40,7 +56,7 @@ namespace COM3D2.SceneEditor.Plugin
             _staleNames.Clear();
             foreach (var name in _drawers.Keys)
             {
-                if (!ContainsName(items, name))
+                if (!shouldKeep(name))
                 {
                     _staleNames.Add(name);
                 }

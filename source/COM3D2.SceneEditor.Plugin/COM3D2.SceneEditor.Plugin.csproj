@@ -320,6 +320,8 @@
     <Compile Include="MenuBarWindow.cs" />
     <Compile Include="BackgroundUtils.cs" />
     <Compile Include="BackgroundWindow.cs" />
+    <Compile Include="BGModelTree.cs" />
+    <Compile Include="BGModelManageRowDrawer.cs" />
     <Compile Include="BgmUtils.cs" />
     <Compile Include="CameraWindow.cs" />
     <Compile Include="PngPlacementInspector.cs" />
