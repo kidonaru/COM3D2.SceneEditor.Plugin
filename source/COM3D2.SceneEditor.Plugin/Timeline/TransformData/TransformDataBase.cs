@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -13,6 +13,44 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private ValueData[] _values = new ValueData[0];
         public ValueData[] values => _values;
+
+        // GetValueDataList / GetInTangentDataList / GetOutTangentDataList の結果を
+        // 値種別ごとに保持するキャッシュ (添字は (int)TangentValueType)。
+        // カーブエディタや Inspector が毎パス何百回も呼ぶため、都度配列を作ると GC 圧になる。
+        // _values の要素は Initialize / Clone 以外で差し替わらず、要素内の inTangent / outTangent は
+        // InitTangent でだけ差し替わるので、その 3 箇所で捨てる。
+        // 返す配列は共有インスタンスなので、呼び出し側は書き換えないこと
+        private ValueData[][] _valueDataListCache;
+        private TangentData[][] _inTangentListCache;
+        private TangentData[][] _outTangentListCache;
+
+        private static readonly int TangentValueTypeCount
+            = System.Enum.GetValues(typeof(TangentValueType)).Length;
+
+        private void ClearValueDataListCache()
+        {
+            _valueDataListCache = null;
+            _inTangentListCache = null;
+            _outTangentListCache = null;
+        }
+
+        /// <summary>値種別添字のキャッシュから取り出し、未生成なら builder で作って格納する</summary>
+        private static T[] GetOrBuildList<T>(
+            ref T[][] cache, TangentValueType valueType, System.Func<TangentValueType, T[]> builder)
+        {
+            if (cache == null)
+            {
+                cache = new T[TangentValueTypeCount][];
+            }
+            var index = (int)valueType;
+            var list = cache[index];
+            if (list == null)
+            {
+                list = builder(valueType);
+                cache[index] = list;
+            }
+            return list;
+        }
 
         public virtual int strValueCount => 0;
 
@@ -295,6 +333,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_values.Length != length)
             {
                 _values = new ValueData[length];
+                ClearValueDataListCache();
 
                 var tangentPair = config.defaultTangentPair;
 
@@ -525,6 +564,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         isSmooth = tangentPair.isSmooth,
                     };
                 }
+
+                // タンジェント参照を差し替えたので、古い TangentData を指すキャッシュを捨てる
+                ClearValueDataListCache();
             }
 
         }
@@ -852,6 +894,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public ValueData[] GetValueDataList(TangentValueType valueType)
         {
+            return GetOrBuildList(ref _valueDataListCache, valueType, BuildValueDataList);
+        }
+
+        private ValueData[] BuildValueDataList(TangentValueType valueType)
+        {
             switch (valueType)
             {
                 case TangentValueType.X移動:
@@ -957,6 +1004,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public TangentData[] GetInTangentDataList(TangentValueType valueType)
         {
+            return GetOrBuildList(ref _inTangentListCache, valueType, BuildInTangentDataList);
+        }
+
+        public TangentData[] GetOutTangentDataList(TangentValueType valueType)
+        {
+            return GetOrBuildList(ref _outTangentListCache, valueType, BuildOutTangentDataList);
+        }
+
+        private TangentData[] BuildInTangentDataList(TangentValueType valueType)
+        {
             var dataList = GetValueDataList(valueType);
             var result = new TangentData[dataList.Length];
             for (int i = 0; i < dataList.Length; i++)
@@ -966,7 +1023,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
-        public TangentData[] GetOutTangentDataList(TangentValueType valueType)
+        private TangentData[] BuildOutTangentDataList(TangentValueType valueType)
         {
             var dataList = GetValueDataList(valueType);
             var result = new TangentData[dataList.Length];
@@ -1038,6 +1095,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ITransformData Clone()
         {
             var clone = (TransformDataBase) MemberwiseClone();
+
+            // 浅いコピーでは元インスタンスの ValueData を指すキャッシュを引き継いでしまう
+            clone.ClearValueDataListCache();
 
             clone._values = new ValueData[values.Length];
             for (int i = 0; i < values.Length; i++)
