@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -150,6 +151,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>直近の描画で使ったマッピング。ヒットテストは描画済みの座標系に合わせる</summary>
         private MTEP.CurveViewMapping _mapping = null;
         private List<CurveChannel> _channels = new List<CurveChannel>();
+        /// <summary>_channels を構築したときの入力シグネチャ。一致する間は再構築しない (GC 対策)</summary>
+        private long _channelsSignature = 0;
+        private bool _channelsValid = false;
+        private int _totalChannelCount = 0;
+        /// <summary>シグネチャ計算用の作業バッファ (選択ボーン名を初出順に並べる)</summary>
+        private readonly List<string> _signatureBoneNames = new List<string>(8);
+        /// <summary>BuildMapping の縦軸フィット用バッファ (毎 Repaint の確保を避ける)</summary>
+        private readonly List<float> _mappingValues = new List<float>(1024);
 
         private enum DragMode
         {
@@ -159,7 +168,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private DragMode _dragMode = DragMode.None;
-        /// <summary>ドラッグ対象のキー値。CurveChannel は毎フレーム作り直すため実体を直接保持する</summary>
+        /// <summary>ドラッグ対象のキー値。CurveChannel は入力が変わると作り直されるため実体を直接保持する</summary>
         private MTEP.ValueData _dragValue = null;
         /// <summary>ドラッグ対象のタンジェント</summary>
         private MTEP.TangentData _dragTangent = null;
@@ -619,8 +628,16 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos = new Vector2(paneRect.x, paneRect.y);
             view.DrawTexture(GUIView.texWhite, paneRect.width, paneRect.height, config.curveBgColor);
 
-            var totalChannelCount = 0;
-            _channels = CollectChannels(out totalChannelCount);
+            // 毎パス作り直すと数百 KB/frame 確保するため、構築入力が変わったときだけ再収集する。
+            // 値・タンジェントは ValueData の参照を共有しているので、その場編集は再構築なしで反映される
+            var signature = ComputeChannelsSignature();
+            if (!_channelsValid || signature != _channelsSignature)
+            {
+                _channels = CollectChannels(out _totalChannelCount);
+                _channelsSignature = signature;
+                _channelsValid = true;
+            }
+            var totalChannelCount = _totalChannelCount;
 
             if (_channels.Count == 0)
             {
@@ -634,10 +651,11 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 表示中の座標系は Repaint 時に確定させ、他イベントは同じ座標系でヒットテストする
+            // 表示中の座標系は Repaint 時に確定させ、他イベントは同じ座標系でヒットテストする。
+            // Euler 表示のキー値も BuildMapping 内で同じタイミングにだけ更新される
             if (Event.current.type == EventType.Repaint || _mapping == null)
             {
-                _mapping = BuildMapping(_channels, paneRect, scrollX, frameWidth);
+                _mapping = BuildMapping(_channels, paneRect, scrollX, frameWidth, _mappingValues);
             }
 
             if (Event.current.type == EventType.Repaint)
@@ -1039,6 +1057,64 @@ namespace COM3D2.SceneEditor.Plugin
             return new Vector2(keyX, keyY) + dir * HANDLE_LEN;
         }
 
+        /// <summary>
+        /// CollectChannels の入力 (レイヤー・表示種別・選択ボーン・選択ボーン名のキー列) を
+        /// 確保なしで要約したハッシュ。キー列は FrameData / BoneData / ITransformData の参照で見るので、
+        /// キーの追加・削除・移動や Undo (オブジェクト再生成) で変わる。
+        /// 値そのものは含めない (チャンネルが参照を共有していて再構築が要らないため)。
+        /// 衝突すると次に入力が変わるまで古いチャンネルを描き続けるので、確率を下げるため 64bit で畳む
+        /// </summary>
+        private long ComputeChannelsSignature()
+        {
+            var layer = currentLayer;
+            if (layer == null || selectedBones.Count == 0)
+            {
+                return 0;
+            }
+
+            unchecked
+            {
+                long hash = RuntimeHelpers.GetHashCode(layer);
+                var target = _targets.current;
+                hash = hash * 31 + (int)target.valueType;
+                hash = hash * 31 + (target.customKey != null ? target.customKey.GetHashCode() : 0);
+
+                // 選択は順序に依存しないので XOR で束ねる
+                var selectionHash = 0;
+                _signatureBoneNames.Clear();
+                foreach (var bone in selectedBones)
+                {
+                    selectionHash ^= RuntimeHelpers.GetHashCode(bone);
+                    if (!_signatureBoneNames.Contains(bone.name))
+                    {
+                        _signatureBoneNames.Add(bone.name);
+                    }
+                }
+                hash = hash * 31 + selectionHash;
+                hash = hash * 31 + selectedBones.Count;
+
+                var keyFrameCount = layer.keyFrameCount;
+                for (var i = 0; i < keyFrameCount; i++)
+                {
+                    var frame = layer.GetKeyFrameAt(i);
+                    for (var n = 0; n < _signatureBoneNames.Count; n++)
+                    {
+                        var bone = frame.GetBone(_signatureBoneNames[n]);
+                        if (bone == null || bone.transform == null)
+                        {
+                            continue;
+                        }
+                        hash = hash * 31 + frame.frameNo;
+                        hash = hash * 31 + RuntimeHelpers.GetHashCode(bone);
+                        hash = hash * 31 + RuntimeHelpers.GetHashCode(bone.transform);
+                        // 区間の潰れ方 (BuildSegmentFrames) は 1フレーム調整の設定にも依存する
+                        hash = hash * 31 + (int)layer.GetSingleFrameType(bone.transform.type);
+                    }
+                }
+                return hash;
+            }
+        }
+
         /// <summary>選択ボーンから描画対象チャンネルを収集する</summary>
         private List<CurveChannel> CollectChannels(out int totalChannelCount)
         {
@@ -1281,15 +1357,23 @@ namespace COM3D2.SceneEditor.Plugin
                 segmentEdFrames = source.segmentEdFrames,
             };
 
+            RefreshEulerKeyValues(channel);
+            return channel;
+        }
+
+        /// <summary>Euler 表示チャンネルのキー表示値を回転成分から計算し直す。
+        /// 回転成分は他所でその場編集されうるため、チャンネル再構築をスキップする Repaint パスでも呼び直す</summary>
+        private static void RefreshEulerKeyValues(CurveChannel channel)
+        {
+            channel.eulerKeyValues.Clear();
             var prev = 0f;
             for (var k = 0; k < channel.rotationValues.Count; k++)
             {
-                var raw = GetEulerAngle(ToQuaternion(channel.rotationValues[k]), axis);
+                var raw = GetEulerAngle(ToQuaternion(channel.rotationValues[k]), channel.eulerAxis);
                 var value = k == 0 ? raw : UnwrapAngle(raw, prev);
                 channel.eulerKeyValues.Add(value);
                 prev = value;
             }
-            return channel;
         }
 
         private static Quaternion ToQuaternion(MTEP.ValueData[] values)
@@ -1339,13 +1423,18 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>表示範囲をサンプリングして縦軸マッピングを決める</summary>
         private static MTEP.CurveViewMapping BuildMapping(
-            List<CurveChannel> channels, Rect paneRect, float scrollX, float frameWidth)
+            List<CurveChannel> channels, Rect paneRect, float scrollX, float frameWidth,
+            List<float> allValues)
         {
             var columnCount = Mathf.Max(2, (int)(paneRect.width / SAMPLE_STEP) + 1);
-            var allValues = new List<float>();
+            allValues.Clear();
 
             foreach (var channel in channels)
             {
+                if (channel.isEulerDisplay)
+                {
+                    RefreshEulerKeyValues(channel);
+                }
                 channel.samples.Clear();
                 for (var i = 0; i < columnCount; i++)
                 {
@@ -1421,13 +1510,13 @@ namespace COM3D2.SceneEditor.Plugin
             var frameA = channel.segmentStFrames[i];
             var frameB = channel.segmentEdFrames[i];
 
-            var comps = new float[4];
-            for (var c = 0; c < 4; c++)
-            {
-                comps[c] = EvaluateSegment(frameA, start[c], frameB, end[c], frameNo);
-            }
-            var raw = GetEulerAngle(
-                new Quaternion(comps[0], comps[1], comps[2], comps[3]), channel.eulerAxis);
+            // サンプルごとに呼ばれるので配列を作らない
+            var q = new Quaternion(
+                EvaluateSegment(frameA, start[0], frameB, end[0], frameNo),
+                EvaluateSegment(frameA, start[1], frameB, end[1], frameNo),
+                EvaluateSegment(frameA, start[2], frameB, end[2], frameNo),
+                EvaluateSegment(frameA, start[3], frameB, end[3], frameNo));
+            var raw = GetEulerAngle(q, channel.eulerAxis);
 
             var dtFrames = frameB - frameA;
             var t = dtFrames > 0 ? Mathf.Clamp01((frameNo - frameA) / (float)dtFrames) : 0f;
@@ -1535,25 +1624,21 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawValueScale(GUIView view, Rect paneRect, float legendHeight)
         {
             var centerY = paneRect.height * 0.5f;
-            var labels = new List<KeyValuePair<float, float>>
-            {
-                new KeyValuePair<float, float>(0f, _mapping.valueMax),
-                new KeyValuePair<float, float>(centerY, (_mapping.valueMin + _mapping.valueMax) * 0.5f),
-            };
+            DrawValueLabel(view, paneRect, 0f, _mapping.valueMax);
+            DrawValueLabel(view, paneRect, centerY, (_mapping.valueMin + _mapping.valueMax) * 0.5f);
 
             // ペインが低いと凡例に押し上げられて中央ラベルと交差するため、その場合は下端を省く
             var minLabelY = paneRect.height - VALUE_LABEL_HEIGHT - legendHeight;
             if (minLabelY >= centerY + VALUE_LABEL_HEIGHT)
             {
-                labels.Add(new KeyValuePair<float, float>(minLabelY, _mapping.valueMin));
+                DrawValueLabel(view, paneRect, minLabelY, _mapping.valueMin);
             }
+        }
 
-            foreach (var label in labels)
-            {
-                view.currentPos = new Vector2(paneRect.x + 2, paneRect.y + label.Key);
-                view.DrawLabel(label.Value.ToString("F2"), 60, VALUE_LABEL_HEIGHT,
-                    new Color(1f, 1f, 1f, 0.5f));
-            }
+        private static void DrawValueLabel(GUIView view, Rect paneRect, float y, float value)
+        {
+            view.currentPos = new Vector2(paneRect.x + 2, paneRect.y + y);
+            view.DrawLabel(value.ToString("F2"), 60, VALUE_LABEL_HEIGHT, new Color(1f, 1f, 1f, 0.5f));
         }
 
         /// <summary>サンプル値を SAMPLE_STEP 幅の矩形セグメントで折れ線描画する</summary>
