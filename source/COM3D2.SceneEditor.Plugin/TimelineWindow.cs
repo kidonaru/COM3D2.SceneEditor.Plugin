@@ -618,6 +618,22 @@ namespace COM3D2.SceneEditor.Plugin
             boneMenuManager.GetVisibleItems(layer, result);
         }
 
+        /// <summary>行のキーフレームを選択する。ヘッダー行 (集約表示) はフレーム内の全ボーンをまとめて選択する</summary>
+        private void SelectRowFrame(
+            LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem> row,
+            MTEP.FrameData frame,
+            bool isMultiSelect)
+        {
+            if (row.isHeader)
+            {
+                timelineManager.SelectBones(frame.bones.ToList(), isMultiSelect);
+            }
+            else
+            {
+                row.menuItem.SelectFrame(frame, isMultiSelect);
+            }
+        }
+
         private void DrawTimeline(Rect local, bool editEnabled, bool guiEnabled)
         {
             if (!editEnabled || texTimelineBG == null)
@@ -802,13 +818,6 @@ namespace COM3D2.SceneEditor.Plugin
                     blockEnd++;
                 }
 
-                // 折りたたみ中 (カテゴリ行のみでアイテム行なし) は keyFrames 走査ごとスキップする
-                if (blockEnd - blockStart == 1 && _rows[blockStart].isHeader)
-                {
-                    blockStart = blockEnd;
-                    continue;
-                }
-
                 var isActiveLayer = blockLayer == timelineManager.currentLayer;
 
                 foreach (var frame in blockLayer.keyFrames)
@@ -825,7 +834,12 @@ namespace COM3D2.SceneEditor.Plugin
                     for (var i = blockStart; i < blockEnd; i++)
                     {
                         var row = _rows[i];
-                        if (row.isHeader)
+
+                        // ヘッダー行は折りたたみ中のみレイヤー全体のキーフレームを集約表示する
+                        // (展開中は各アイテム行が表示するため重複させない)。グループヘッダーの
+                        // 集約表示 (BoneSetMenuItem.HasVisibleBone) と同じ振る舞いに揃えている
+                        var isHeader = row.isHeader;
+                        if (isHeader && !_rowState.IsCollapsed(row.layer))
                         {
                             continue;
                         }
@@ -839,13 +853,25 @@ namespace COM3D2.SceneEditor.Plugin
                             continue;
                         }
 
-                        if (!menuItem.HasVisibleBone(frame))
+                        // ヘッダー行かどうかで表示・選択の判定対象が丸ごと切り替わる。
+                        // 選択状態はアクティブレイヤーにしか存在しない
+                        bool hasVisible;
+                        bool isSelected;
+                        if (isHeader)
+                        {
+                            hasVisible = frame.HasBones();
+                            isSelected = isActiveLayer && frame.bones.Any(timelineManager.IsSelectedBone);
+                        }
+                        else
+                        {
+                            hasVisible = menuItem.HasVisibleBone(frame);
+                            isSelected = isActiveLayer && menuItem.IsSelectedFrame(frame);
+                        }
+
+                        if (!hasVisible)
                         {
                             continue;
                         }
-
-                        // 選択状態はアクティブレイヤーにしか存在しない
-                        bool isSelected = isActiveLayer && menuItem.IsSelectedFrame(frame);
 
                         var keyFrameRect = new Rect(
                                 view.currentPos.x,
@@ -860,14 +886,14 @@ namespace COM3D2.SceneEditor.Plugin
                             {
                                 if (!isSelected)
                                 {
-                                    menuItem.SelectFrame(frame, true);
+                                    SelectRowFrame(row, frame, true);
                                 }
                             }
                             else
                             {
                                 if (isSelected && !isMultiSelect)
                                 {
-                                    menuItem.SelectFrame(frame, true);
+                                    SelectRowFrame(row, frame, true);
                                 }
                             }
                         }
@@ -885,7 +911,7 @@ namespace COM3D2.SceneEditor.Plugin
                                     {
                                         timelineManager.SetCurrentLayer(row.layer);
                                     }
-                                    menuItem.SelectFrame(frame, isMultiSelect);
+                                    SelectRowFrame(row, frame, isMultiSelect);
                                     frameDragBoneData = timelineManager.selectedBones
                                         .Where(bone => bone.frameNo == frameNo)
                                         .FirstOrDefault();
@@ -898,7 +924,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                         var keyFrameColor = isSelected ? Color.red : Color.white;
 
-                        if (!menuItem.IsFullBones(frame))
+                        // ヘッダー行の集約表示は「全ボーン揃い」の判定対象が定まらないため常に通常色
+                        if (!isHeader && !menuItem.IsFullBones(frame))
                         {
                             keyFrameColor *= Color.gray;
                         }
