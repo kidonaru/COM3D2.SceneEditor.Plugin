@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -19,12 +20,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 選択状態を覚えるための識別子。
-        /// 候補は毎フレーム作り直すので添字では覚えられない。
-        /// 軸 (axis) とカスタム値でキー空間が衝突しないよう接頭辞で分ける
+        /// 候補は選択が変わると作り直されるので添字では覚えられない。
+        /// 軸 (axis) とカスタム値でキー空間が衝突しないよう接頭辞で分ける。
+        /// 毎パス照合するため、生成時に確定させておく
         /// </summary>
-        public string id => isCustom
-            ? TangentTargetList.CustomIdPrefix + customKey
-            : TangentTargetList.AxisIdPrefix + valueType;
+        public string id;
     }
 
     /// <summary>
@@ -45,6 +45,29 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly string DefaultTargetId
             = AxisIdPrefix + MTEP.TangentValueType.すべて;
+
+        /// <summary>軸種別の一覧。Enum.GetValues は呼ぶたびに配列を作るので 1 回だけにする</summary>
+        private static readonly MTEP.TangentValueType[] AllValueTypes
+            = (MTEP.TangentValueType[])Enum.GetValues(typeof(MTEP.TangentValueType));
+
+        /// <summary>軸種別ごとの候補。名前 (enum の ToString) と id は不変なので使い回す</summary>
+        private static readonly Dictionary<MTEP.TangentValueType, TangentTarget> AxisTargets
+            = BuildAxisTargets();
+
+        private static Dictionary<MTEP.TangentValueType, TangentTarget> BuildAxisTargets()
+        {
+            var map = new Dictionary<MTEP.TangentValueType, TangentTarget>(AllValueTypes.Length);
+            foreach (var valueType in AllValueTypes)
+            {
+                map[valueType] = new TangentTarget
+                {
+                    name = valueType.ToString(),
+                    valueType = valueType,
+                    id = AxisIdPrefix + valueType,
+                };
+            }
+            return map;
+        }
 
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
 
@@ -81,6 +104,10 @@ namespace COM3D2.SceneEditor.Plugin
             = new HashSet<MTEP.TangentValueType>();
 
         private readonly List<TangentTarget> _targets = new List<TangentTarget>();
+        /// <summary>直近の Update で候補を組んだときの選択ボーン集合の要約。一致する間は組み直さない</summary>
+        private int _updatedSelectionHash = 0;
+        /// <summary>初回 Update 前はハッシュが偶然一致しても組み直すためのフラグ</summary>
+        private bool _updated = false;
         /// <summary>候補へ入れ終えたカスタム値キー (重複判定用。毎フレームの確保を避ける)</summary>
         private readonly HashSet<string> _addedCustomKeys = new HashSet<string>();
 
@@ -117,13 +144,26 @@ namespace COM3D2.SceneEditor.Plugin
         /// もう一方の選択まで巻き添えで消さないため。
         /// 候補に無い間の表示・編集対象は current / currentIndex が「すべて」へ倒す
         /// </summary>
-        public void Update(IEnumerable<MTEP.BoneData> bones)
+        public void Update(HashSet<MTEP.BoneData> bones)
         {
+            // 毎パス呼ばれるので、選択が同じ間は組み直さない (GC 対策)。
+            // 候補はボーンの transform 型で決まり、Undo 等で差し替わればボーン参照も変わる
+            var hash = bones.Count;
+            foreach (var bone in bones)
+            {
+                hash ^= RuntimeHelpers.GetHashCode(bone);
+            }
+            if (_updated && hash == _updatedSelectionHash)
+            {
+                return;
+            }
+            _updatedSelectionHash = hash;
+            _updated = true;
+
             _targets.Clear();
             _targets.Add(CreateAxisTarget(MTEP.TangentValueType.すべて));
 
-            foreach (MTEP.TangentValueType valueType in
-                Enum.GetValues(typeof(MTEP.TangentValueType)))
+            foreach (var valueType in AllValueTypes)
             {
                 if (valueType == MTEP.TangentValueType.すべて
                     || excludedValueTypes.Contains(valueType))
@@ -174,14 +214,10 @@ namespace COM3D2.SceneEditor.Plugin
             return transform.GetValueDataList(target.valueType);
         }
 
-        /// <summary>軸ごとの値種別を表す候補を作る</summary>
+        /// <summary>軸ごとの値種別を表す候補</summary>
         private static TangentTarget CreateAxisTarget(MTEP.TangentValueType valueType)
         {
-            return new TangentTarget
-            {
-                name = valueType.ToString(),
-                valueType = valueType,
-            };
+            return AxisTargets[valueType];
         }
 
         /// <summary>
@@ -212,6 +248,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         name = transform.GetCustomValueName(customKey),
                         customKey = customKey,
+                        id = CustomIdPrefix + customKey,
                     });
                 }
             }
@@ -234,7 +271,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         private int IndexOf(string targetId)
         {
-            return _targets.FindIndex(target => target.id == targetId);
+            // 毎パス呼ばれるのでラムダ (クロージャ) を作らない
+            for (var i = 0; i < _targets.Count; i++)
+            {
+                if (_targets[i].id == targetId)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 }
