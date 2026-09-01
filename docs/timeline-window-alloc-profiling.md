@@ -133,3 +133,22 @@ IL_0803: brfalse.s -> continue                   // ← 画面外カリングは
 | `TimelineLayerBase:GetKeyFrameAt` | 0.43 | 0 | 3,750 回/frame |
 
 所要時間は 12 チャンネル分のサンプリング（`BuildMapping`）と折れ線描画（`DrawChannelCurve`、約 2.6ms）が支配的で、確保は伴わない。GC 圧としては約 100 分の 1 になった。
+
+## 8. 選択ボーン数が多いときの追加対策（2026-09-02）
+
+ボーンを 80 個選択した状態で再計測すると、`DrawTimeline` のキーフレームループとカーブ描画はゼロのままだったが、別の 2 経路が選択数に比例して確保していた。
+
+| 経路 | 内容 | alloc/frame（80 個選択） | 対策 |
+|---|---|---|---|
+| `TangentTargetList.Update` | カーブエディタと Inspector から毎パス呼ばれ、`Enum.GetValues`・enum の `ToString`・候補生成・`id` の連結・`FindIndex` のクロージャ | 約 24 KB | 選択集合が同じなら早期リターン、軸候補を static 化、`id` を生成時確定（`f7d33f2`） |
+| `TransformDataBase.GetValueDataList` 系 | ツールバーの `ForEachTangent`（1 パス 3 回 × 選択ボーン × 2 側）から呼ばれ、呼び出しごとに配列を生成 | 約 69 KB | transform ごとに値種別添字でキャッシュし、`Initialize` / `Clone` / `InitTangent` でだけ破棄（`20c3140`） |
+
+対策後（ボーン 17 個選択・8 チャンネル・300 フレーム）:
+
+| 対象 | ms/frame | alloc/frame |
+|---|---|---|
+| `TimelineWindow:DrawContent` | 3.7 | 約 10.7 KB |
+| `TimelineWindow:DrawTimeline` | 3.5 | 約 1.2 KB |
+| `TimelineCurveEditor:DrawSideToolbar` | 0.06 | 約 4.3 KB |
+
+初回計測の約 412 KB/frame から約 40 分の 1。残りはツールバーの `ForEachTangent` に渡すラムダや `DrawToggle` のコールバック等の小さなデリゲート生成で、選択数にはほぼ依存しない。
