@@ -71,6 +71,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.Update();
 
+            // 実体側で増減された要素数を先に取り込む (読込直後は OnLoad が
+            // タイムライン → 実体へ流し込み済みなので、ここで巻き戻ることはない)
+            postEffectManager.SyncCountsFromHost();
+
             var boneCount = 2
                 + timeline.paraffinCount
                 + timeline.distanceFogCount

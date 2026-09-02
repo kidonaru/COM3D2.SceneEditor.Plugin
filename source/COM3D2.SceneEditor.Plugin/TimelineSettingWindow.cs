@@ -261,10 +261,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            DrawElementCountSection(view);
-
-            view.DrawHorizontalLine(Color.gray);
-
             DrawLightToggleSection(view);
 
             view.DrawHorizontalLine(Color.gray);
@@ -298,33 +294,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 timeline.isGroundLinkedToBackground = newValue;
             });
-        }
-
-        /// <summary>
-        /// タイムライン上の要素数 (ポストエフェクト系) の増減。
-        /// テキスト表示数はテキストウィンドウ、サブカメラ数はカメラウィンドウへ移設済み
-        /// </summary>
-        private void DrawElementCountSection(GUIView view)
-        {
-            view.DrawLabel("要素数", 100, ROW_HEIGHT);
-
-            // 未接続時は上限が 0 になり増減行が成立しないため、先に接続を見る
-            if (!MTEP.PostEffectsBridge.isAvailable)
-            {
-                view.DrawLabel("PostEffects.Plugin に接続していません。導入するとポストエフェクトを使用できます",
-                    -1, ROW_HEIGHT, textColor: Color.gray);
-                return;
-            }
-
-            CountRowDrawer.Draw(view, "パラフィン数", ROW_HEIGHT, timeline.paraffinCount,
-                0, MTEP.PostEffectManager.MaxParaffinCount,
-                x => timeline.paraffinCount = x);
-            CountRowDrawer.Draw(view, "距離フォグ数", ROW_HEIGHT, timeline.distanceFogCount,
-                0, MTEP.PostEffectManager.MaxDistanceFogCount,
-                x => timeline.distanceFogCount = x);
-            CountRowDrawer.Draw(view, "リムライト数", ROW_HEIGHT, timeline.rimlightCount,
-                0, MTEP.PostEffectManager.MaxRimlightCount,
-                x => timeline.rimlightCount = x);
         }
 
         /// <summary>

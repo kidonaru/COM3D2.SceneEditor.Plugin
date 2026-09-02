@@ -100,7 +100,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// ポストエフェクトのタイムライン窓口。値の実体は PostEffects.Plugin が所有しており、
     /// ここは PostEffectsClient (リフレクション経由の TimelineBridge) への委譲と
     /// DTO 変換だけを持つ。未接続時は PostEffectsClient 側が既定値を返して
-    /// 書き込みを捨てるため、ここに未導入時のガードは置かない
+    /// 書き込みを捨てるため、実体への書き込みにはここでガードを置かない。
+    /// 逆向き (実体 → タイムライン) の SyncCountsFromHost だけは、取得失敗時の
+    /// 既定値でタイムラインを潰さないよう例外的にガードする
     /// </summary>
     public class PostEffectManager : ManagerBase
     {
@@ -119,55 +121,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         public int depthOfFieldMaidSlotId = -1;
-
-        // 各エフェクト数の上限。実体側 (PostEffects.Plugin) のシェーダーバッファ上限に従う。
-        // 未接続時は 0 になるので、UI 側は isAvailable でゲートしてから参照すること
-        public static int MaxParaffinCount => PostEffectsClient.maxParaffinCount;
-        public static int MaxDistanceFogCount => PostEffectsClient.maxDistanceFogCount;
-        public static int MaxRimlightCount => PostEffectsClient.maxRimlightCount;
-
-        /// <summary>パラフィン数。実体は PostEffects.Plugin 側が所有する。
-        /// タイムライン読込中は timeline 側 (TimelineXml に保存) と同期する</summary>
-        public int paraffinCount
-        {
-            get => PostEffectsClient.paraffinCount;
-            set
-            {
-                PostEffectsClient.paraffinCount = value;
-                if (timeline != null)
-                {
-                    timeline.paraffinCount = value;
-                }
-            }
-        }
-
-        /// <summary>距離フォグ数。所有者と同期規約はパラフィンと同じ</summary>
-        public int distanceFogCount
-        {
-            get => PostEffectsClient.distanceFogCount;
-            set
-            {
-                PostEffectsClient.distanceFogCount = value;
-                if (timeline != null)
-                {
-                    timeline.distanceFogCount = value;
-                }
-            }
-        }
-
-        /// <summary>リムライト数。所有者と同期規約はパラフィンと同じ</summary>
-        public int rimlightCount
-        {
-            get => PostEffectsClient.rimlightCount;
-            set
-            {
-                PostEffectsClient.rimlightCount = value;
-                if (timeline != null)
-                {
-                    timeline.rimlightCount = value;
-                }
-            }
-        }
 
         public bool paraffinEnabled
         {
@@ -215,6 +168,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 PostEffectsClient.distanceFogCount = timeline.distanceFogCount;
                 PostEffectsClient.rimlightCount = timeline.rimlightCount;
             }
+        }
+
+        /// <summary>
+        /// 実体側 (PostEffects.Plugin) の要素数をタイムラインへ取り込む。
+        /// 増減 UI は実体側にしか無いため、そこでの変更を XML 保存対象へ反映する。
+        /// 未接続・取得失敗時は 0 が返るため、タイムラインの値を潰さないよう何もしない
+        /// </summary>
+        public void SyncCountsFromHost()
+        {
+            if (timeline == null)
+            {
+                return;
+            }
+
+            if (!PostEffectsClient.TryGetCounts(out var paraffin, out var distanceFog, out var rimlight))
+            {
+                return;
+            }
+
+            timeline.paraffinCount = paraffin;
+            timeline.distanceFogCount = distanceFog;
+            timeline.rimlightCount = rimlight;
         }
 
         public void DisableAllEffects()
