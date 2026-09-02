@@ -1150,7 +1150,75 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            if (version < 32)
+            {
+                var convertedCount = ConvertPostEffectMaskValues();
+                MTEUtils.LogDebug("Convert post effect depth values to mask values count={0}", convertedCount);
+            }
+
             ConvertPlugin();
+        }
+
+        /// <summary>旧 (COM3D2 版) リムライト/パラフィンの値数。テストからも参照する</summary>
+        public const int OldRimlightValueCount = 28;
+        public const int OldParaffinValueCount = 24;
+
+        /// <summary>旧リムライト/パラフィンの Depth 系 3 値 (DepthMin/DepthMax/DepthFade) は
+        /// COM3D2.5 版で廃止され、リムライトは同じ位置がマスク設定 3 値
+        /// (MaskMode/ExcludeFace/ApplyHair) に、パラフィンは MaskMode 1 値に置き換わった。
+        /// そのまま読み込むと Depth 値がマスク設定として解釈され、マスクなしになってしまうため既定値へ戻す。
+        /// 単体テストから直接呼べるよう、Unity 依存のログ出力は呼び出し側に任せて変換件数だけ返す</summary>
+        public int ConvertPostEffectMaskValues()
+        {
+            var convertedCount = 0;
+            var rimlightTrans = TransformDataRimlight.defaultTrans;
+            var paraffinTrans = TransformDataParaffin.defaultTrans;
+
+            // レイヤークラスでは絞り込まず TransformType で判定する
+            // (将来リムライトを扱うレイヤーが増えても移行漏れにならないようにする)
+            foreach (var layer in layers)
+            {
+                foreach (var keyFrame in layer.keyFrames)
+                {
+                    if (keyFrame.bones == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var bone in keyFrame.bones)
+                    {
+                        var transform = bone.transform;
+                        if (transform == null || transform.values == null)
+                        {
+                            continue;
+                        }
+
+                        // 値数で旧形式かどうかを判別する (新形式で保存済みのデータは変換しない)
+                        if (transform.type == TransformType.Rimlight &&
+                            transform.values.Length == OldRimlightValueCount)
+                        {
+                            var values = new List<float>(transform.values);
+                            values.RemoveRange(rimlightTrans.valueCount, OldRimlightValueCount - rimlightTrans.valueCount);
+                            values[(int)TransformDataRimlight.Index.MaskMode] = rimlightTrans.maskModeInfo.defaultValue;
+                            values[(int)TransformDataRimlight.Index.ExcludeFace] = rimlightTrans.excludeFaceInfo.defaultValue;
+                            values[(int)TransformDataRimlight.Index.ApplyHair] = rimlightTrans.applyHairInfo.defaultValue;
+                            transform.values = values.ToArray();
+                            convertedCount++;
+                        }
+                        else if (transform.type == TransformType.Paraffin &&
+                            transform.values.Length == OldParaffinValueCount)
+                        {
+                            var values = new List<float>(transform.values);
+                            values.RemoveRange(paraffinTrans.valueCount, OldParaffinValueCount - paraffinTrans.valueCount);
+                            values[(int)TransformDataParaffin.Index.MaskMode] = paraffinTrans.maskModeInfo.defaultValue;
+                            transform.values = values.ToArray();
+                            convertedCount++;
+                        }
+                    }
+                }
+            }
+
+            return convertedCount;
         }
 
         public static long InsertBit(long bitValues, int index, bool value)
