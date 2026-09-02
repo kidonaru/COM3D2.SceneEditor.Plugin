@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
@@ -90,52 +90,18 @@ namespace COM3D2.SceneEditor.Plugin
             _color4FieldCache.label = colorLabelPrefix + "/色4";
         }
 
-        /// <summary>
-        /// 色1 / 色2 の行。拡張色が無効なときは色2 を色1 に合わせ、
-        /// アルファだけ別スライダー ("A2") で編集する (レイヤー UI と同じ扱い)
-        /// </summary>
+        /// <summary>色1 / 色2 の行</summary>
         private bool DrawColorPair(
             GUIView view, Color color1, Color color2,
             Color initialColor, Color initialSubColor, Action<Color, Color> onChanged)
         {
             var updated = false;
 
-            if (timeline.usePostEffectExtraColor)
-            {
-                updated |= view.DrawColor(_color1FieldCache, color1, initialColor,
-                    newValue => onChanged(newValue, color2));
-
-                updated |= view.DrawColor(_color2FieldCache, color2, initialSubColor,
-                    newValue => onChanged(color1, newValue));
-
-                return updated;
-            }
-
             updated |= view.DrawColor(_color1FieldCache, color1, initialColor,
-                newValue =>
-                {
-                    // アルファだけは色2 の値を保つ
-                    var subColor = newValue;
-                    subColor.a = color2.a;
-                    onChanged(newValue, subColor);
-                });
+                newValue => onChanged(newValue, color2));
 
-            updated |= view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "A2",
-                labelWidth = 30,
-                min = 0f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = color2.a,
-                onChanged = newValue =>
-                {
-                    var subColor = color2;
-                    subColor.a = newValue;
-                    onChanged(color1, subColor);
-                },
-            });
+            updated |= view.DrawColor(_color2FieldCache, color2, initialSubColor,
+                newValue => onChanged(color1, newValue));
 
             return updated;
         }
@@ -258,40 +224,30 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
-            if (timeline.usePostEffectExtraBlend)
-            {
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useNormalInfo,
-                    paraffin.useNormal,
-                    newValue => paraffin.useNormal = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useNormalInfo,
+                paraffin.useNormal,
+                newValue => paraffin.useNormal = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useAddInfo,
-                    paraffin.useAdd,
-                    newValue => paraffin.useAdd = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useAddInfo,
+                paraffin.useAdd,
+                newValue => paraffin.useAdd = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useMultiplyInfo,
-                    paraffin.useMultiply,
-                    newValue => paraffin.useMultiply = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useMultiplyInfo,
+                paraffin.useMultiply,
+                newValue => paraffin.useMultiply = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useOverlayInfo,
-                    paraffin.useOverlay,
-                    newValue => paraffin.useOverlay = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useOverlayInfo,
+                paraffin.useOverlay,
+                newValue => paraffin.useOverlay = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useSubstructInfo,
-                    paraffin.useSubstruct,
-                    newValue => paraffin.useSubstruct = newValue);
-            }
-            else
-            {
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useAddInfo,
-                    paraffin.useAdd,
-                    newValue => paraffin.useAdd = newValue);
-            }
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useSubstructInfo,
+                paraffin.useSubstruct,
+                newValue => paraffin.useSubstruct = newValue);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -343,40 +299,30 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
-            if (timeline.usePostEffectExtraBlend)
-            {
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useNormalInfo,
-                    distanceFog.useNormal,
-                    newValue => distanceFog.useNormal = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useNormalInfo,
+                distanceFog.useNormal,
+                newValue => distanceFog.useNormal = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useAddInfo,
-                    distanceFog.useAdd,
-                    newValue => distanceFog.useAdd = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useAddInfo,
+                distanceFog.useAdd,
+                newValue => distanceFog.useAdd = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useMultiplyInfo,
-                    distanceFog.useMultiply,
-                    newValue => distanceFog.useMultiply = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useMultiplyInfo,
+                distanceFog.useMultiply,
+                newValue => distanceFog.useMultiply = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useOverlayInfo,
-                    distanceFog.useOverlay,
-                    newValue => distanceFog.useOverlay = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useOverlayInfo,
+                distanceFog.useOverlay,
+                newValue => distanceFog.useOverlay = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useSubstructInfo,
-                    distanceFog.useSubstruct,
-                    newValue => distanceFog.useSubstruct = newValue);
-            }
-            else
-            {
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useNormalInfo,
-                    distanceFog.useNormal,
-                    newValue => distanceFog.useNormal = newValue);
-            }
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useSubstructInfo,
+                distanceFog.useSubstruct,
+                newValue => distanceFog.useSubstruct = newValue);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -469,40 +415,30 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
-            if (timeline.usePostEffectExtraBlend)
-            {
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useNormalInfo,
-                    rimlight.useNormal,
-                    newValue => rimlight.useNormal = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useNormalInfo,
+                rimlight.useNormal,
+                newValue => rimlight.useNormal = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useAddInfo,
-                    rimlight.useAdd,
-                    newValue => rimlight.useAdd = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useAddInfo,
+                rimlight.useAdd,
+                newValue => rimlight.useAdd = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useMultiplyInfo,
-                    rimlight.useMultiply,
-                    newValue => rimlight.useMultiply = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useMultiplyInfo,
+                rimlight.useMultiply,
+                newValue => rimlight.useMultiply = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useOverlayInfo,
-                    rimlight.useOverlay,
-                    newValue => rimlight.useOverlay = newValue);
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useOverlayInfo,
+                rimlight.useOverlay,
+                newValue => rimlight.useOverlay = newValue);
 
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useSubstructInfo,
-                    rimlight.useSubstruct,
-                    newValue => rimlight.useSubstruct = newValue);
-            }
-            else
-            {
-                updateTransform |= view.DrawCustomValueFloat(
-                    defaultTrans.useAddInfo,
-                    rimlight.useAdd,
-                    newValue => rimlight.useAdd = newValue);
-            }
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.useSubstructInfo,
+                rimlight.useSubstruct,
+                newValue => rimlight.useSubstruct = newValue);
 
             view.DrawHorizontalLine(Color.gray);
 

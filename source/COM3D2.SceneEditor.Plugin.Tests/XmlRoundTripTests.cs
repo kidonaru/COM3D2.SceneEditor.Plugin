@@ -46,6 +46,16 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.NotEmpty(CurrentSchemaFixtureFiles());
         }
 
+        // 現行スキーマから意図的に削除した要素。MTE 由来のフィクスチャには残っているが
+        // 保存側には出力されないため、欠損として扱わない
+        private static readonly System.Collections.Generic.HashSet<string> RemovedElementNames =
+            new System.Collections.Generic.HashSet<string>
+            {
+                // ポストエフェクトの色拡張 / ブレンド拡張の設定 (UI ごと廃止し、常に拡張表示)
+                "UsePostEffectExtra",
+                "UsePostEffectBlend",
+            };
+
         private static string SerializeToString(TimelineXml xml, XmlSerializer serializer)
         {
             using (var sw = new StringWriter())
@@ -125,6 +135,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var indexByName = new System.Collections.Generic.Dictionary<XName, int>();
             foreach (var child in original.Elements())
             {
+                if (RemovedElementNames.Contains(child.Name.LocalName)) continue;
+
                 indexByName.TryGetValue(child.Name, out var idx);
                 indexByName[child.Name] = idx + 1;
                 if (!savedGroups.TryGetValue(child.Name, out var candidates) || idx >= candidates.Count)

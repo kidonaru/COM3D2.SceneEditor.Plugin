@@ -257,7 +257,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            DrawPostEffectSection(view);
+            DrawGroundLinkSection(view);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -291,19 +291,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>ポストエフェクトの拡張と地面色の連動</summary>
-        private void DrawPostEffectSection(GUIView view)
+        /// <summary>地面色と背景表示の連動</summary>
+        private void DrawGroundLinkSection(GUIView view)
         {
-            view.DrawToggle("ポストエフェクトの色拡張", timeline.usePostEffectExtraColor, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.usePostEffectExtraColor = newValue;
-            });
-
-            view.DrawToggle("ポストエフェクトのブレンド拡張", timeline.usePostEffectExtraBlend, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.usePostEffectExtraBlend = newValue;
-            });
-
             view.DrawToggle("地面色表示を背景表示と連動", timeline.isGroundLinkedToBackground, -1, ROW_HEIGHT, newValue =>
             {
                 timeline.isGroundLinkedToBackground = newValue;

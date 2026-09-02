@@ -42,8 +42,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 isTangentModel = true,
                 isTangentModelBone = true,
                 isTangentModelShapeKey = true,
-                usePostEffectExtraColor = true,
-                usePostEffectExtraBlend = true,
             };
 
             var dst = RoundTrip(src);
@@ -63,8 +61,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(dst.isTangentModel);
             Assert.True(dst.isTangentModelBone);
             Assert.True(dst.isTangentModelShapeKey);
-            Assert.True(dst.usePostEffectExtraColor);
-            Assert.True(dst.usePostEffectExtraBlend);
         }
     }
 }

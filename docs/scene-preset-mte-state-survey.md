@@ -56,7 +56,7 @@
 
 - 実体は `<root>/Timeline/Manager/PostEffectManager.cs` 経由で Unity 側 `PostEffectController` / 各 `*EffectSettings`（マネージャは影の状態を持たず get/set のみ）。`InitPostEffects()` :127-182 が `timeline.*Count` に合わせて Add/Remove。呼び出しは `PostEffectTimelineLayer.cs:70-91`（Update 内で差分検出）。
 - ポストエフェクトの編集 UI は専用ウィンドウ未整備（`PostEffectItemInspector` + `PostEffectRowDrawer` のみ）。
-- その他の MTE 由来 count/state: `usePostEffectExtraColor`/`usePostEffectExtraBlend` (`TimelineData.cs:438-439`)、`stageLaserCountList`/`stageLightCountList` (:420-421)、`fingerBlendEnabled` (:437)、アスペクト/レターボックス (:433-435)、動画 (:444-460)、BGM/BPM (:428-431)。
+- その他の MTE 由来 count/state: `stageLaserCountList`/`stageLightCountList` (:420-421)、`fingerBlendEnabled` (:437)、アスペクト/レターボックス (:433-435)、動画 (:444-460)、BGM/BPM (:428-431)。
 
 ## 5. タイムライン非依存化の障害一覧
 
