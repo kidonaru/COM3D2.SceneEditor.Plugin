@@ -128,6 +128,7 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("サウンド", SoundWindow.instance),
                         CreateWindowItem("ライブ演出", LiveEffectWindow.instance),
                         CreateWindowItem("テキスト", TextWindow.instance),
+                        CreateWindowItem("動画", VideoWindow.instance),
                         CreateWindowItem("ライト", LightWindow.instance),
                         CreateWindowItem("PNG配置", PngPlacementWindow.instance),
                         CreateWindowItem("プリセット", PresetWindow.instance),
