@@ -293,6 +293,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Setup(timeline.psylliums);
         }
 
+        public void OnPluginEnable()
+        {
+        }
+
         public void OnPluginDisable()
         {
             Reset();

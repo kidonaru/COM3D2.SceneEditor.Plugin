@@ -61,6 +61,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
+        public virtual void OnPluginEnable()
+        {
+        }
+
         public virtual void OnPluginDisable()
         {
         }

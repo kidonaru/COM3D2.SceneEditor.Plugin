@@ -187,6 +187,14 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            public void OnPluginEnable()
+            {
+                foreach (var manager in _managers)
+                {
+                    manager.OnPluginEnable();
+                }
+            }
+
             public void OnPluginDisable()
             {
                 foreach (var manager in _managers)

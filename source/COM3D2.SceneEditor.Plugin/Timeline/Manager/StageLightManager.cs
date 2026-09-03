@@ -183,6 +183,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SetupLights(timeline.stageLightCountList);
         }
 
+        public void OnPluginEnable()
+        {
+        }
+
         public void OnPluginDisable()
         {
             Reset();

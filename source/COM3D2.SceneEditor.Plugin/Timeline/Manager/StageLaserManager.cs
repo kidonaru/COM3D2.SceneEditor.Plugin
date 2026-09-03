@@ -182,6 +182,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SetupLasers(timeline.stageLaserCountList);
         }
 
+        public void OnPluginEnable()
+        {
+        }
+
         public void OnPluginDisable()
         {
             Reset();
