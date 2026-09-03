@@ -218,7 +218,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value => _saveMaids = value);
             _view.DrawToggle("背景 (背景・ライト・PNG 配置)", _saveBackground, contentWidth, ROW_HEIGHT,
                 value => _saveBackground = value);
-            _view.DrawToggle("演出 (テキスト・サブカメラ・ポストエフェクト)", _saveEffects,
+            _view.DrawToggle("演出 (テキスト・サブカメラ・サウンド・動画)", _saveEffects,
                 contentWidth, ROW_HEIGHT, value => _saveEffects = value);
 
             foreach (var provider in ScenePresetProviderRegistry.providers)
