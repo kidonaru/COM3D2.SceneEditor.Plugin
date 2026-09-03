@@ -126,6 +126,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             var playingFileName = BgmUtils.GetPlayingFileName();
 
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる。
+            // BGM ファイル設定と曲一覧を 1 本のスクロールにまとめ、
+            // ウィンドウを縮めても下端の項目に届くようにする
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
             DrawCurrentBgmRow(view, playingFileName);
             view.DrawHorizontalLine();
             DrawBgmFileSection(view);
@@ -133,6 +138,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTextField("検索", LABEL_WIDTH, _bgmSearchText, -1, ROW_HEIGHT,
                 value => _bgmSearchText = value);
             DrawBgmList(view, playingFileName);
+
+            view.EndScrollView();
         }
 
         /// <summary>
@@ -173,7 +180,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawTextField(settings.bgmPath, 240, ROW_HEIGHT, newText => settings.bgmPath = newText);
+            view.DrawTextField(settings.bgmPath, -1, ROW_HEIGHT, newText => settings.bgmPath = newText);
 
             if (timeline == null)
             {
@@ -202,6 +209,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 label = "音量",
                 labelWidth = 50,
+                width = -1,
                 fieldType = FloatFieldType.Int,
                 min = 0,
                 max = 100,
@@ -224,6 +232,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 label = "BPM",
                 labelWidth = 50,
+                width = -1,
                 min = 1,
                 max = 300,
                 step = 0.1f,
@@ -238,6 +247,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 label = "オフセット",
                 labelWidth = 50,
+                width = -1,
                 min = -frameRate,
                 max = frameRate,
                 step = 0.1f,
@@ -272,13 +282,14 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndLayout();
         }
 
-        /// <summary>フィルタ適用済みの BGM ボタン一覧。再生中の曲はシアン表示</summary>
+        /// <summary>
+        /// フィルタ適用済みの BGM ボタン一覧。再生中の曲はシアン表示。
+        /// スクロールは呼び出し元 (DrawBgm) がタブ全体で 1 本張るのでここでは張らない
+        /// </summary>
         private void DrawBgmList(GUIView view, string playingFileName)
         {
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
-
-            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             foreach (var soundData in PhotoSoundData.data)
             {
@@ -296,8 +307,6 @@ namespace COM3D2.SceneEditor.Plugin
                     soundData.Play();
                 }
             }
-
-            view.EndScrollView();
         }
 
         /// <summary>メイドボイスレイヤーから移設した、ワンショット/ループボイスの編集</summary>
@@ -313,6 +322,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
             VoiceRowDrawer.Draw(view, maidCache, ROW_HEIGHT);
@@ -320,6 +332,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.SetEnabled(view.focusedComboBox == null);
 
             view.DrawHorizontalLine(Color.gray);
+
+            view.EndScrollView();
         }
 
         private enum SeTabType
@@ -361,9 +375,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawSeControl(GUIView view, MTEP.TimelineData timeline)
         {
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
             view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
 
             _seRowDrawer.Draw(view, timeline, ROW_HEIGHT);
+
+            view.EndScrollView();
         }
 
         private string _additionalSeName = "";

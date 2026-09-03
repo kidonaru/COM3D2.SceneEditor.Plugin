@@ -23,6 +23,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
 
+        /// <summary>スライダー・座標行のラベル幅</summary>
+        private static readonly int LABEL_WIDTH = 60;
+
+        // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
+        private const float PositionSensitivity = 0.01f;
+        private const float RotationSensitivity = 1f;
+        /// <summary>GUI 表示位置は -1〜1 の狭い範囲なので、3D 位置より細かく動かす</summary>
+        private const float NormalizedPositionSensitivity = 0.001f;
+
         private static readonly string[] VideoDisplayTypeNames = new string[]
         {
             "GUI",
@@ -33,7 +42,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
-        private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
         private static MTEP.MovieManager movieManager => MTEP.MovieManager.instance;
         private static MTEP.VideoSettings settings => movieManager.settings;
 
@@ -99,7 +107,13 @@ namespace COM3D2.SceneEditor.Plugin
             _view.Init(ToLocalRect(contentRect));
 
             _view.SetEnabled(_view.focusedComboBox == null);
+
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
             DrawVideoSetting(_view);
+
+            _view.EndScrollView();
 
             // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
@@ -154,7 +168,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawTextField(settings.path, 240, ROW_HEIGHT, newText => settings.path = newText);
+            view.DrawTextField(settings.path, -1, ROW_HEIGHT, newText => settings.path = newText);
 
             if (timeline == null)
             {
@@ -164,7 +178,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "開始位置",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = -1f,
                 max = movieManager.duration,
                 step = movieManager.frameRate > 0f ? 1f / movieManager.frameRate : 0.01f,
@@ -196,7 +211,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "音量",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
@@ -212,37 +228,41 @@ namespace COM3D2.SceneEditor.Plugin
             view.SetEnabled(true);
         }
 
+        /// <summary>
+        /// 表示位置の 1 行 (InspectorWindow と同じ XY 横並びの数値入力)。
+        /// スライダーだと軸ごとに 1 行を使い、表示形式の切替で行数が大きく変わって読みづらいため
+        /// </summary>
+        private void DrawPositionRow(
+            GUIView view,
+            Vector2 value,
+            Vector2 defaultValue,
+            Action<Vector2> onChanged)
+        {
+            view.DrawVector2Row(new GUIView.Vector2RowOption
+            {
+                label = "位置",
+                labelWidth = LABEL_WIDTH,
+                height = ROW_HEIGHT,
+                dragSensitivity = NormalizedPositionSensitivity,
+                value = value,
+                onChanged = onChanged,
+                onReset = () => onChanged(defaultValue),
+            });
+        }
+
         private void DrawGuiSetting(GUIView view)
         {
-            var guiPosition = settings.guiPosition;
-            var newGUIPosition = guiPosition;
-            for (var i = 0; i < 2; i++)
+            DrawPositionRow(view, settings.guiPosition, Vector2.zero, newValue =>
             {
-                var value = guiPosition[i];
-
-                view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = MTEP.TransformDataBase.PositionNames[i],
-                    labelWidth = 60,
-                    min = -1f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = 0f,
-                    value = value,
-                    onChanged = newValue => newGUIPosition[i] = newValue,
-                });
-            }
-
-            if (newGUIPosition != guiPosition)
-            {
-                settings.guiPosition = newGUIPosition;
+                settings.guiPosition = newValue;
                 movieManager.UpdateTransform();
-            }
+            });
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "表示サイズ",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
@@ -258,7 +278,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "透過度",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
@@ -274,60 +295,37 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawMeshSetting(GUIView view)
         {
-            var position = settings.position;
-            var newPosition = position;
-            for (var i = 0; i < 3; i++)
-            {
-                var value = position[i];
-
-                view.DrawSliderValue(new GUIView.SliderOption
+            Vector3RowDrawer.Draw(view, "位置", PositionSensitivity, LABEL_WIDTH, ROW_HEIGHT,
+                settings.position,
+                newValue =>
                 {
-                    label = MTEP.TransformDataBase.PositionNames[i],
-                    labelWidth = 60,
-                    min = -timelineConfig.positionRange,
-                    max = timelineConfig.positionRange,
-                    step = 0.01f,
-                    defaultValue = 0f,
-                    value = value,
-                    onChanged = newValue => newPosition[i] = newValue,
-                });
-            }
-
-            if (newPosition != position)
-            {
-                settings.position = newPosition;
-                movieManager.UpdateTransform();
-            }
-
-            var rotation = MTEP.TransformDataBase.GetNormalizedEulerAngles(settings.rotation);
-            var newRotation = rotation;
-            for (var i = 0; i < 3; i++)
-            {
-                var value = rotation[i];
-
-                view.DrawSliderValue(new GUIView.SliderOption
+                    settings.position = newValue;
+                    movieManager.UpdateTransform();
+                },
+                () =>
                 {
-                    label = MTEP.TransformDataBase.RotationNames[i],
-                    labelWidth = 60,
-                    min = -180f,
-                    max = 180f,
-                    step = 1f,
-                    defaultValue = 0f,
-                    value = value,
-                    onChanged = newValue => newRotation[i] = newValue,
+                    settings.position = Vector3.zero;
+                    movieManager.UpdateTransform();
                 });
-            }
 
-            if (newRotation != rotation)
-            {
-                settings.rotation = newRotation;
-                movieManager.UpdateTransform();
-            }
+            Vector3RowDrawer.Draw(view, "回転", RotationSensitivity, LABEL_WIDTH, ROW_HEIGHT,
+                MTEP.TransformDataBase.GetNormalizedEulerAngles(settings.rotation),
+                newValue =>
+                {
+                    settings.rotation = newValue;
+                    movieManager.UpdateTransform();
+                },
+                () =>
+                {
+                    settings.rotation = Vector3.zero;
+                    movieManager.UpdateTransform();
+                });
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "表示サイズ",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 5f,
                 step = 0.01f,
@@ -343,7 +341,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "透過度",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
@@ -359,35 +358,17 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawBackmostSetting(GUIView view)
         {
-            var position = settings.backmostPosition;
-            var newPosition = position;
-            for (var i = 0; i < 2; i++)
+            DrawPositionRow(view, settings.backmostPosition, Vector2.zero, newValue =>
             {
-                var value = position[i];
-
-                view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = MTEP.TransformDataBase.PositionNames[i],
-                    labelWidth = 60,
-                    min = -2f,
-                    max = 2f,
-                    step = 0.01f,
-                    defaultValue = 0f,
-                    value = value,
-                    onChanged = newValue => newPosition[i] = newValue,
-                });
-            }
-
-            if (newPosition != position)
-            {
-                settings.backmostPosition = newPosition;
+                settings.backmostPosition = newValue;
                 movieManager.UpdateMesh();
-            }
+            });
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "表示サイズ",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 2f,
                 step = 0.1f,
@@ -403,7 +384,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "透過度",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
@@ -417,37 +399,22 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
+        /// <summary>最前面表示の既定位置 (VideoSettings.frontmostPosition の初期値と揃える)</summary>
+        private static readonly Vector2 FrontmostDefaultPosition = new Vector2(-0.8f, 0.8f);
+
         private void DrawFrontmostSetting(GUIView view)
         {
-            var position = settings.frontmostPosition;
-            var newPosition = position;
-            for (var i = 0; i < 2; i++)
+            DrawPositionRow(view, settings.frontmostPosition, FrontmostDefaultPosition, newValue =>
             {
-                var value = position[i];
-
-                view.DrawSliderValue(new GUIView.SliderOption
-                {
-                    label = MTEP.TransformDataBase.PositionNames[i],
-                    labelWidth = 60,
-                    min = -2f,
-                    max = 2f,
-                    step = 0.01f,
-                    defaultValue = i == 0 ? -0.8f : 0.8f,
-                    value = value,
-                    onChanged = newValue => newPosition[i] = newValue,
-                });
-            }
-
-            if (newPosition != position)
-            {
-                settings.frontmostPosition = newPosition;
+                settings.frontmostPosition = newValue;
                 movieManager.UpdateMesh();
-            }
+            });
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "表示サイズ",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 2f,
                 step = 0.1f,
@@ -463,7 +430,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "透過度",
-                labelWidth = 60,
+                labelWidth = LABEL_WIDTH,
+                width = -1,
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
