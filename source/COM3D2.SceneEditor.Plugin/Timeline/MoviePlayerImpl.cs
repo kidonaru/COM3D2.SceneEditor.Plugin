@@ -32,17 +32,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool isDisplayOnGUI
         {
-            get => timeline.videoDisplayType == VideoDisplayType.GUI;
+            get => timeline.video.displayType == VideoDisplayType.GUI;
         }
 
         public bool isDisplayBackmost
         {
-            get => timeline.videoDisplayType == VideoDisplayType.Backmost;
+            get => timeline.video.displayType == VideoDisplayType.Backmost;
         }
 
         public bool isDisplayFrontmost
         {
-            get => timeline.videoDisplayType == VideoDisplayType.Frontmost;
+            get => timeline.video.displayType == VideoDisplayType.Frontmost;
         }
 
         public float currentTime
@@ -85,7 +85,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public float targetSeekTimeMs
         {
-            get => (currentTime + timeline.startOffsetTime + timeline.videoStartTime) * 1000f;
+            get => (currentTime + timeline.startOffsetTime + timeline.video.startTime) * 1000f;
         }
 
         public float playingTimeMs
@@ -246,19 +246,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (isDisplayOnGUI)
                 {
                     // 位置調整
-                    _displayIMGUI._x = timeline.videoGUIPosition.x;
-                    _displayIMGUI._y = timeline.videoGUIPosition.y;
+                    _displayIMGUI._x = timeline.video.guiPosition.x;
+                    _displayIMGUI._y = timeline.video.guiPosition.y;
 
                     // アスペクト比調整
                     if (_aspectRatio > 1f)
                     {
-                        _displayIMGUI._width = timeline.videoGUIScale;
-                        _displayIMGUI._height = timeline.videoGUIScale / _aspectRatio;
+                        _displayIMGUI._width = timeline.video.guiScale;
+                        _displayIMGUI._height = timeline.video.guiScale / _aspectRatio;
                     }
                     else
                     {
-                        _displayIMGUI._width = timeline.videoGUIScale * _aspectRatio;
-                        _displayIMGUI._height = timeline.videoGUIScale;
+                        _displayIMGUI._width = timeline.video.guiScale * _aspectRatio;
+                        _displayIMGUI._height = timeline.video.guiScale;
                     }
                 }
                 else if (isDisplayBackmost)
@@ -273,7 +273,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     scale.x = scale.y * _aspectRatio;
 
                     // スケール調整
-                    scale *= timeline.videoBackmostScale;
+                    scale *= timeline.video.backmostScale;
                     transform.localScale = scale;
 
                     // 位置調整
@@ -295,7 +295,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     scale.x = scale.y * _aspectRatio;
 
                     // スケール調整
-                    scale *= timeline.videoFrontmostScale;
+                    scale *= timeline.video.frontmostScale;
                     transform.localScale = scale;
 
                     // 位置調整
@@ -308,14 +308,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     var transform = gameObject.transform;
 
                     // 位置調整
-                    transform.position = timeline.videoPosition;
+                    transform.position = timeline.video.position;
 
                     // アスペクト比調整
-                    var scale = Vector3.one * timeline.videoScale;
+                    var scale = Vector3.one * timeline.video.scale;
                     scale.x = scale.y * _aspectRatio;
                     transform.localScale = scale;
 
-                    var rotation = timeline.videoRotation;
+                    var rotation = timeline.video.rotation;
                     transform.rotation = Quaternion.Euler(rotation.x, rotation.y, rotation.z);
                 }
                 
@@ -326,8 +326,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             if (mediaControl != null)
             {
-                mediaControl.SetVolume(timeline.videoVolume);
-                _mediaPlayer.m_Muted = timeline.videoVolume == 0f;
+                mediaControl.SetVolume(timeline.video.volume);
+                _mediaPlayer.m_Muted = timeline.video.volume == 0f;
             }
         }
 
@@ -386,19 +386,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var color = Color.white;
                 if (isDisplayOnGUI)
                 {
-                    color.a = timeline.videoGUIAlpha;
+                    color.a = timeline.video.guiAlpha;
                 }
                 else if (isDisplayBackmost)
                 {
-                    color.a = timeline.videoBackmostAlpha;
+                    color.a = timeline.video.backmostAlpha;
                 }
                 else if (isDisplayFrontmost)
                 {
-                    color.a = timeline.videoFrontmostAlpha;
+                    color.a = timeline.video.frontmostAlpha;
                 }
                 else
                 {
-                    color.a = timeline.videoAlpha;
+                    color.a = timeline.video.alpha;
                 }
                 return color;
             }
@@ -530,11 +530,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var offset = new Vector3(0, 0, 0);
             if (isDisplayBackmost)
             {
-                offset = new Vector3(-timeline.videoBackmostPosition.x, timeline.videoBackmostPosition.y, 0);
+                offset = new Vector3(-timeline.video.backmostPosition.x, timeline.video.backmostPosition.y, 0);
             }
             else if (isDisplayFrontmost)
             {
-                offset = new Vector3(timeline.videoFrontmostPosition.x, timeline.videoFrontmostPosition.y, 0);
+                offset = new Vector3(timeline.video.frontmostPosition.x, timeline.video.frontmostPosition.y, 0);
             }
             else
             {
@@ -622,8 +622,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 for (var i = 0; i < vertices.Length; i++)
                 {
                     var vertex = vertices[i];
-                    vertex.x -= timeline.videoBackmostPosition.x;
-                    vertex.y += timeline.videoBackmostPosition.y;
+                    vertex.x -= timeline.video.backmostPosition.x;
+                    vertex.y += timeline.video.backmostPosition.y;
                     vertices[i] = vertex;
                 }
 
@@ -641,8 +641,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 for (var i = 0; i < vertices.Length; i++)
                 {
                     var vertex = vertices[i];
-                    vertex.x += timeline.videoFrontmostPosition.x;
-                    vertex.y += timeline.videoFrontmostPosition.y;
+                    vertex.x += timeline.video.frontmostPosition.x;
+                    vertex.y += timeline.video.frontmostPosition.y;
                     vertices[i] = vertex;
                 }
 

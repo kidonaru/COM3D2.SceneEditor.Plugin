@@ -67,7 +67,7 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                timeline.videoDisplayType = type;
+                timeline.video.displayType = type;
                 movieManager.ReloadMovie();
             },
         };
@@ -334,13 +334,13 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         Title = "BGMファイルを選択してください",
                         Filter = "音楽ファイル (*.wav;*.ogg)|*.wav;*.ogg",
-                        InitialDirectory = timeline.bgmPath,
+                        InitialDirectory = timeline.bgm.bgmPath,
                     };
 
                     if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
                     {
                         var path = openFileDialog.FileName;
-                        timeline.bgmPath = path;
+                        timeline.bgm.bgmPath = path;
                         bgmManager.Load();
                     }
                 }
@@ -352,7 +352,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawTextField(timeline.bgmPath, 240, ROW_HEIGHT, newText => timeline.bgmPath = newText);
+            view.DrawTextField(timeline.bgm.bgmPath, 240, ROW_HEIGHT, newText => timeline.bgm.bgmPath = newText);
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
@@ -371,9 +371,9 @@ namespace COM3D2.SceneEditor.Plugin
                 },
             });
 
-            view.DrawToggle("BPMライン表示", timeline.isShowBPMLine, 120, ROW_HEIGHT, newValue =>
+            view.DrawToggle("BPMライン表示", timeline.bgm.isShowBPMLine, 120, ROW_HEIGHT, newValue =>
             {
-                timeline.isShowBPMLine = newValue;
+                timeline.bgm.isShowBPMLine = newValue;
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -384,8 +384,8 @@ namespace COM3D2.SceneEditor.Plugin
                 max = 300,
                 step = 0.1f,
                 defaultValue = 120,
-                value = timeline.bpm,
-                onChanged = value => timeline.bpm = value,
+                value = timeline.bgm.bpm,
+                onChanged = value => timeline.bgm.bpm = value,
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -396,8 +396,8 @@ namespace COM3D2.SceneEditor.Plugin
                 max = timeline.frameRate,
                 step = 0.1f,
                 defaultValue = 0,
-                value = timeline.bpmLineOffsetFrame,
-                onChanged = value => timeline.bpmLineOffsetFrame = value,
+                value = timeline.bgm.bpmLineOffsetFrame,
+                onChanged = value => timeline.bgm.bpmLineOffsetFrame = value,
             });
 
             view.AddSpace(10);
@@ -407,7 +407,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>動画の読み込みと表示形式ごとの配置調整 (MTE TimelineSettingUI から移植)</summary>
         private void DrawVideoSetting(GUIView view)
         {
-            var isEnabled = timeline.videoEnabled;
+            var isEnabled = timeline.video.enabled;
 
             view.BeginHorizontal();
             {
@@ -415,7 +415,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 view.DrawToggle("有効", isEnabled, 60, ROW_HEIGHT, newValue =>
                 {
-                    timeline.videoEnabled = newValue;
+                    timeline.video.enabled = newValue;
                     if (newValue)
                     {
                         movieManager.LoadMovie();
@@ -428,7 +428,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            _videoDisplayTypeComboBox.currentIndex = (int)timeline.videoDisplayType;
+            _videoDisplayTypeComboBox.currentIndex = (int)timeline.video.displayType;
             _videoDisplayTypeComboBox.DrawButton("表示形式", view);
 
             view.SetEnabled(isEnabled);
@@ -443,13 +443,13 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         Title = "動画ファイルを選択してください",
                         Filter = "動画ファイル (*.mp4;*.avi;*.wmv;*.mov;*.flv;*.mkv;*.webm)|*.mp4;*.avi;*.wmv;*.mov;*.flv;*.mkv;*.webm|すべてのファイル (*.*)|*.*",
-                        InitialDirectory = timeline.videoPath
+                        InitialDirectory = timeline.video.path
                     };
 
                     if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
                     {
                         var path = openFileDialog.FileName;
-                        timeline.videoPath = path;
+                        timeline.video.path = path;
                         movieManager.LoadMovie();
                     }
                 }
@@ -461,7 +461,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawTextField(timeline.videoPath, 240, ROW_HEIGHT, newText => timeline.videoPath = newText);
+            view.DrawTextField(timeline.video.path, 240, ROW_HEIGHT, newText => timeline.video.path = newText);
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
@@ -471,17 +471,17 @@ namespace COM3D2.SceneEditor.Plugin
                 max = movieManager.duration,
                 step = movieManager.frameRate > 0f ? 1f / movieManager.frameRate : 0.01f,
                 defaultValue = 0f,
-                value = timeline.videoStartTime,
+                value = timeline.video.startTime,
                 onChanged = newValue =>
                 {
-                    timeline.videoStartTime = newValue;
+                    timeline.video.startTime = newValue;
                     movieManager.UpdateSeekTime();
                 },
             });
 
-            if (timeline.videoDisplayType == MTEP.VideoDisplayType.GUI)
+            if (timeline.video.displayType == MTEP.VideoDisplayType.GUI)
             {
-                var guiPosition = timeline.videoGUIPosition;
+                var guiPosition = timeline.video.guiPosition;
                 var newGUIPosition = guiPosition;
                 for (var i = 0; i < 2; i++)
                 {
@@ -502,7 +502,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (newGUIPosition != guiPosition)
                 {
-                    timeline.videoGUIPosition = newGUIPosition;
+                    timeline.video.guiPosition = newGUIPosition;
                     movieManager.UpdateTransform();
                 }
 
@@ -514,10 +514,10 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 1f,
                     step = 0.01f,
                     defaultValue = 1f,
-                    value = timeline.videoGUIScale,
+                    value = timeline.video.guiScale,
                     onChanged = value =>
                     {
-                        timeline.videoGUIScale = value;
+                        timeline.video.guiScale = value;
                         movieManager.UpdateTransform();
                     },
                 });
@@ -530,17 +530,17 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 1f,
                     step = 0.01f,
                     defaultValue = 1f,
-                    value = timeline.videoGUIAlpha,
+                    value = timeline.video.guiAlpha,
                     onChanged = value =>
                     {
-                        timeline.videoGUIAlpha = value;
+                        timeline.video.guiAlpha = value;
                         movieManager.UpdateColor();
                     },
                 });
             }
-            if (timeline.videoDisplayType == MTEP.VideoDisplayType.Mesh)
+            if (timeline.video.displayType == MTEP.VideoDisplayType.Mesh)
             {
-                var position = timeline.videoPosition;
+                var position = timeline.video.position;
                 var newPosition = position;
                 for (var i = 0; i < 3; i++)
                 {
@@ -561,11 +561,11 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (newPosition != position)
                 {
-                    timeline.videoPosition = newPosition;
+                    timeline.video.position = newPosition;
                     movieManager.UpdateTransform();
                 }
 
-                var rotation = MTEP.TransformDataBase.GetNormalizedEulerAngles(timeline.videoRotation);
+                var rotation = MTEP.TransformDataBase.GetNormalizedEulerAngles(timeline.video.rotation);
                 var newRotation = rotation;
                 for (var i = 0; i < 3; i++)
                 {
@@ -586,7 +586,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (newRotation != rotation)
                 {
-                    timeline.videoRotation = newRotation;
+                    timeline.video.rotation = newRotation;
                     movieManager.UpdateTransform();
                 }
 
@@ -598,10 +598,10 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 5f,
                     step = 0.01f,
                     defaultValue = 1f,
-                    value = timeline.videoScale,
+                    value = timeline.video.scale,
                     onChanged = value =>
                     {
-                        timeline.videoScale = value;
+                        timeline.video.scale = value;
                         movieManager.UpdateTransform();
                     },
                 });
@@ -614,17 +614,17 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 1f,
                     step = 0.01f,
                     defaultValue = 1f,
-                    value = timeline.videoAlpha,
+                    value = timeline.video.alpha,
                     onChanged = value =>
                     {
-                        timeline.videoAlpha = value;
+                        timeline.video.alpha = value;
                         movieManager.UpdateColor();
                     },
                 });
             }
-            if (timeline.videoDisplayType == MTEP.VideoDisplayType.Backmost)
+            if (timeline.video.displayType == MTEP.VideoDisplayType.Backmost)
             {
-                var position = timeline.videoBackmostPosition;
+                var position = timeline.video.backmostPosition;
                 var newPosition = position;
                 for (var i = 0; i < 2; i++)
                 {
@@ -645,7 +645,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (newPosition != position)
                 {
-                    timeline.videoBackmostPosition = newPosition;
+                    timeline.video.backmostPosition = newPosition;
                     movieManager.UpdateMesh();
                 }
 
@@ -657,10 +657,10 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 2f,
                     step = 0.1f,
                     defaultValue = 1f,
-                    value = timeline.videoBackmostScale,
+                    value = timeline.video.backmostScale,
                     onChanged = value =>
                     {
-                        timeline.videoBackmostScale = value;
+                        timeline.video.backmostScale = value;
                         movieManager.UpdateTransform();
                     },
                 });
@@ -673,17 +673,17 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 1f,
                     step = 0.01f,
                     defaultValue = 0.5f,
-                    value = timeline.videoBackmostAlpha,
+                    value = timeline.video.backmostAlpha,
                     onChanged = value =>
                     {
-                        timeline.videoBackmostAlpha = value;
+                        timeline.video.backmostAlpha = value;
                         movieManager.UpdateColor();
                     },
                 });
             }
-            if (timeline.videoDisplayType == MTEP.VideoDisplayType.Frontmost)
+            if (timeline.video.displayType == MTEP.VideoDisplayType.Frontmost)
             {
-                var position = timeline.videoFrontmostPosition;
+                var position = timeline.video.frontmostPosition;
                 var newPosition = position;
                 for (var i = 0; i < 2; i++)
                 {
@@ -704,7 +704,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (newPosition != position)
                 {
-                    timeline.videoFrontmostPosition = newPosition;
+                    timeline.video.frontmostPosition = newPosition;
                     movieManager.UpdateMesh();
                 }
 
@@ -716,10 +716,10 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 2f,
                     step = 0.1f,
                     defaultValue = 0.38f,
-                    value = timeline.videoFrontmostScale,
+                    value = timeline.video.frontmostScale,
                     onChanged = value =>
                     {
-                        timeline.videoFrontmostScale = value;
+                        timeline.video.frontmostScale = value;
                         movieManager.UpdateTransform();
                     },
                 });
@@ -732,10 +732,10 @@ namespace COM3D2.SceneEditor.Plugin
                     max = 1f,
                     step = 0.01f,
                     defaultValue = 1f,
-                    value = timeline.videoFrontmostAlpha,
+                    value = timeline.video.frontmostAlpha,
                     onChanged = value =>
                     {
-                        timeline.videoFrontmostAlpha = value;
+                        timeline.video.frontmostAlpha = value;
                         movieManager.UpdateColor();
                     },
                 });
@@ -749,10 +749,10 @@ namespace COM3D2.SceneEditor.Plugin
                 max = 1f,
                 step = 0.01f,
                 defaultValue = 0.5f,
-                value = timeline.videoVolume,
+                value = timeline.video.volume,
                 onChanged = newValue =>
                 {
-                    timeline.videoVolume = newValue;
+                    timeline.video.volume = newValue;
                     movieManager.UpdateVolume();
                 },
             });

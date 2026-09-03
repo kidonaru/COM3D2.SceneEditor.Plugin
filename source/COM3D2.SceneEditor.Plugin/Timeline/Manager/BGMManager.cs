@@ -60,7 +60,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return false;
             }
 
-            var bgmPath = timeline.bgmPath;
+            var bgmPath = timeline.bgm.bgmPath;
 
             if (_audioMgr == null)
             {

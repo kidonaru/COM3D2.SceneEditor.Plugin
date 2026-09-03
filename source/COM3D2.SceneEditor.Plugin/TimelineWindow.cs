@@ -792,10 +792,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // BPMライン表示
-            if (timeline.isShowBPMLine && timeline.bpm > 0)
+            if (timeline.bgm.isShowBPMLine && timeline.bgm.bpm > 0)
             {
-                var frameNoPerBeat = timeline.frameRate * 60.0 / timeline.bpm;
-                var offsetFrame = timeline.bpmLineOffsetFrame;
+                var frameNoPerBeat = timeline.frameRate * 60.0 / timeline.bgm.bpm;
+                var offsetFrame = timeline.bgm.bpmLineOffsetFrame;
                 var beatCount = timeline.maxFrameCount / frameNoPerBeat;
                 for (var i = 1; i < beatCount; i++)
                 {

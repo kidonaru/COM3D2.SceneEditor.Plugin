@@ -26,7 +26,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private string videoPath
         {
-            get => timeline != null ? timeline.videoPath : "";
+            get => timeline != null ? timeline.video.path : "";
         }
 
         public bool isValidPath
@@ -44,7 +44,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool isEnabled
         {
-            get => isValidPath && timeline.videoEnabled;
+            get => isValidPath && timeline.video.enabled;
         }
 
         public float currentTime
@@ -75,10 +75,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void SetupImpl()
         {
-            if (_videoDisplayType != timeline.videoDisplayType)
+            if (_videoDisplayType != timeline.video.displayType)
             {
                 UnloadMovie();
-                _videoDisplayType = timeline.videoDisplayType;
+                _videoDisplayType = timeline.video.displayType;
             }
 
             if (!isEnabled)

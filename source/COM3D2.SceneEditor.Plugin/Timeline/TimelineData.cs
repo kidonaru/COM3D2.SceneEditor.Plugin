@@ -425,10 +425,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public int activeTrackIndex = -1;
 
-        public string bgmPath = "";
-        public float bpm = 120f;
-        public bool isShowBPMLine = false;
-        public float bpmLineOffsetFrame = 0f;
+        public BgmSettings bgm = new BgmSettings();
 
         public float aspectWidth = 0f;
         public float aspectHeight = 0f;
@@ -440,24 +437,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int rimlightCount = 1;
 
         // 動画
-        public bool videoEnabled = true;
-        public VideoDisplayType videoDisplayType = VideoDisplayType.GUI;
-        public string videoPath = "";
-        public Vector3 videoPosition = new Vector3(0, 0, 0);
-        public Vector3 videoRotation = new Vector3(0, 0, 0);
-        public float videoScale = 1f;
-        public float videoStartTime = 0f;
-        public float videoVolume = 0.5f;
-        public float videoAlpha = 1f;
-        public Vector2 videoGUIPosition = new Vector2(0, 0);
-        public float videoGUIScale = 1f;
-        public float videoGUIAlpha = 1f;
-        public Vector2 videoBackmostPosition = new Vector2(0, 0);
-        public float videoBackmostScale = 1f;
-        public float videoBackmostAlpha = 0.5f;
-        public Vector2 videoFrontmostPosition = new Vector2(-0.8f, 0.8f);
-        public float videoFrontmostScale = 0.38f;
-        public float videoFrontmostAlpha = 1f;
+        public VideoSettings video = new VideoSettings();
 
         // 画像出力
         public float imageOutputFrameRate = 30f;
@@ -846,10 +826,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             stageLightCountList = xml.stageLightCountList.ToList();
             additionalSeNames = xml.additionalSeNames.ToList();
             activeTrackIndex = xml.activeTrackIndex;
-            bgmPath = xml.bgmPath;
-            bpm = xml.bpm;
-            isShowBPMLine = xml.isShowBPMLine;
-            bpmLineOffsetFrame = xml.bpmLineOffsetFrame;
+            bgm.ReadFrom(xml);
             aspectWidth = xml.aspectWidth;
             aspectHeight = xml.aspectHeight;
             letterBoxAlpha = xml.letterBoxAlpha;
@@ -858,24 +835,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             paraffinCount = xml.paraffinCount;
             distanceFogCount = xml.distanceFogCount;
             rimlightCount = xml.rimlightCount;
-            videoEnabled = xml.videoEnabled;
-            videoDisplayType = xml.videoDisplayType;
-            videoPath = xml.videoPath;
-            videoPosition = xml.videoPosition;
-            videoRotation = xml.videoRotation;
-            videoScale = xml.videoScale;
-            videoStartTime = xml.videoStartTime;
-            videoVolume = xml.videoVolume;
-            videoAlpha = xml.videoAlpha;
-            videoGUIPosition = xml.videoGUIPosition;
-            videoGUIScale = xml.videoGUIScale;
-            videoGUIAlpha = xml.videoGUIAlpha;
-            videoBackmostPosition = xml.videoBackmostPosition;
-            videoBackmostScale = xml.videoBackmostScale;
-            videoBackmostAlpha = xml.videoBackmostAlpha;
-            videoFrontmostPosition = xml.videoFrontmostPosition;
-            videoFrontmostScale = xml.videoFrontmostScale;
-            videoFrontmostAlpha = xml.videoFrontmostAlpha;
+            video.ReadFrom(xml);
             imageOutputFrameRate = xml.imageOutputFrameRate;
             imageOutputFormat = xml.imageOutputFormat;
             imageOutputSize = xml.imageOutputSize;
@@ -1005,10 +965,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.stageLightCountList = stageLightCountList.ToList();
             xml.additionalSeNames = additionalSeNames.ToList();
             xml.activeTrackIndex = activeTrackIndex;
-            xml.bgmPath = bgmPath;
-            xml.bpm = bpm;
-            xml.isShowBPMLine = isShowBPMLine;
-            xml.bpmLineOffsetFrame = bpmLineOffsetFrame;
+            bgm.WriteTo(xml);
             xml.aspectWidth = aspectWidth;
             xml.aspectHeight = aspectHeight;
             xml.letterBoxAlpha = letterBoxAlpha;
@@ -1017,24 +974,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.paraffinCount = paraffinCount;
             xml.distanceFogCount = distanceFogCount;
             xml.rimlightCount = rimlightCount;
-            xml.videoEnabled = videoEnabled;
-            xml.videoDisplayType = videoDisplayType;
-            xml.videoPath = videoPath;
-            xml.videoPosition = videoPosition;
-            xml.videoRotation = videoRotation;
-            xml.videoScale = videoScale;
-            xml.videoStartTime = videoStartTime;
-            xml.videoVolume = videoVolume;
-            xml.videoAlpha = videoAlpha;
-            xml.videoGUIPosition = videoGUIPosition;
-            xml.videoGUIScale = videoGUIScale;
-            xml.videoGUIAlpha = videoGUIAlpha;
-            xml.videoBackmostPosition = videoBackmostPosition;
-            xml.videoBackmostScale = videoBackmostScale;
-            xml.videoBackmostAlpha = videoBackmostAlpha;
-            xml.videoFrontmostPosition = videoFrontmostPosition;
-            xml.videoFrontmostScale = videoFrontmostScale;
-            xml.videoFrontmostAlpha = videoFrontmostAlpha;
+            video.WriteTo(xml);
             xml.imageOutputFrameRate = imageOutputFrameRate;
             xml.imageOutputFormat = imageOutputFormat;
             xml.imageOutputSize = imageOutputSize;
