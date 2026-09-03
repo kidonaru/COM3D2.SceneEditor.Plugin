@@ -494,6 +494,8 @@
     <Compile Include="Timeline\UnityScripts\StageLaserController.cs" />
     <Compile Include="Timeline\UnityScripts\StageLight.cs" />
     <Compile Include="Timeline\UnityScripts\StageLightController.cs" />
+    <Compile Include="Timeline\BgmSettings.cs" />
+    <Compile Include="Timeline\VideoSettings.cs" />
     <Compile Include="Timeline\TimelineData.cs" />
     <Compile Include="Timeline\TimelineHistoryEntry.cs" />
     <Compile Include="Timeline\TimelineIntegration.cs" />
