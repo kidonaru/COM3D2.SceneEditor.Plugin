@@ -126,18 +126,29 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var isEnabled = settings.enabled;
 
-            view.DrawToggle("有効", isEnabled, 60, ROW_HEIGHT, newValue =>
+            view.BeginHorizontal();
             {
-                settings.enabled = newValue;
-                if (newValue)
+                view.DrawToggle("有効", isEnabled, 60, ROW_HEIGHT, newValue =>
                 {
-                    movieManager.LoadMovie();
-                }
-                else
+                    settings.enabled = newValue;
+                    if (newValue)
+                    {
+                        movieManager.LoadMovie();
+                    }
+                    else
+                    {
+                        movieManager.UnloadMovie();
+                    }
+                });
+
+                // プレビューウィンドウの表示切替。メニューバーの Window 項目と同じ経路で開閉する
+                var previewWindow = VideoPreviewWindow.instance;
+                view.DrawToggle("プレビュー", previewWindow.isShowWnd, 90, ROW_HEIGHT, _ =>
                 {
-                    movieManager.UnloadMovie();
-                }
-            });
+                    WindowManager.ToggleWindowVisible(previewWindow);
+                });
+            }
+            view.EndLayout();
 
             _videoDisplayTypeComboBox.currentIndex = (int)settings.displayType;
             _videoDisplayTypeComboBox.DrawButton("表示形式", view);
