@@ -54,6 +54,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public float frameRate => _frameRate;
 
+        /// <summary>
+        /// 現在フレームの動画テクスチャ。未読込時は null、
+        /// メタデータ確定前はサイズ 0 のダミーが返ることがあるので描画側でサイズも確認する
+        /// </summary>
+        public Texture texture
+        {
+            get
+            {
+                var producer = _mediaPlayer != null ? _mediaPlayer.TextureProducer : null;
+                return producer != null ? producer.GetTexture() : null;
+            }
+        }
+
+        /// <summary>プラットフォームによってテクスチャが上下反転しているため、描画側で補正する</summary>
+        public bool requiresVerticalFlip
+        {
+            get
+            {
+                var producer = _mediaPlayer != null ? _mediaPlayer.TextureProducer : null;
+                return producer != null && producer.RequiresVerticalFlip();
+            }
+        }
+
         public Camera targetCamera
         {
             get

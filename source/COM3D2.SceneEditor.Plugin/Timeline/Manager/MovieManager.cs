@@ -68,6 +68,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => _moviePlayerImpl != null ? _moviePlayerImpl.frameRate : 0f;
         }
 
+        /// <summary>プレビュー表示用の動画テクスチャ。未読込時は null</summary>
+        public Texture texture
+        {
+            get => _moviePlayerImpl != null ? _moviePlayerImpl.texture : null;
+        }
+
+        public bool requiresVerticalFlip
+        {
+            get => _moviePlayerImpl != null && _moviePlayerImpl.requiresVerticalFlip;
+        }
+
         private MovieManager()
         {
         }
