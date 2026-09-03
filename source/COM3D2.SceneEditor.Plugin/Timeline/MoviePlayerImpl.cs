@@ -129,9 +129,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static TimelineManager timelineManager => TimelineManager.instance;
         private static TimelineData timeline => timelineManager.timeline;
         private static ITimelineLayer currentLayer => timelineManager.currentLayer;
-        private static StudioHackManager studioHackManager => StudioHackManager.instance;
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
         private static Config config => ConfigManager.instance.config;
+        /// <summary>グリッド設定は SceneEditor 側の設定ウィンドウで編集するため、そちらの Config を見る</summary>
+        private static SceneEditor.Plugin.Config editorConfig => SceneEditor.Plugin.ConfigManager.instance.config;
         private static VideoSettings video => MovieManager.instance.settings;
         private static CameraManager cameraManager =>  CameraManager.instance;
 
@@ -502,22 +502,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _applyToMaterial.Material = videoMaterial;
         }
 
+        /// <summary>
+        /// 動画面グリッドの表示判定。設定は SceneEditor 側の Config を使い、
+        /// 表示スイッチと「編集中のみ」は他のグリッドと共通の GridRenderer.isGridEnabled に従う。
+        /// GUI 表示は DisplayIMGUI が描くため面に重ねられず対象外 (プレビューウィンドウ側で見る)
+        /// </summary>
         private bool IsGridVisible()
         {
-            if (_gridMaterial == null || studioHack == null)
+            if (_gridMaterial == null || isDisplayOnGUI)
             {
                 return false;
             }
-            if (!config.isGridVisible || !config.isGridVisibleInVideo || isDisplayOnGUI)
-            {
-                return false;
-            }
-            if (config.isGridVisibleOnlyEdit && !studioHackManager.isPoseEditing)
-            {
-                return false;
-            }
-
-            return true;
+            return editorConfig.isGridVisibleInVideo && SceneEditor.Plugin.GridRenderer.isGridEnabled;
         }
 
         public void OnRenderObject()
@@ -539,11 +535,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             GL.Begin(GL.LINES);
 
-            Color gridColor = config.gridColorInVideo;
-            gridColor.a = config.gridAlpha;
+            Color gridColor = editorConfig.gridColorInVideo;
+            gridColor.a = editorConfig.gridAlphaInVideo;
             GL.Color(gridColor);
 
-            int gridCount = config.gridCount;
+            int gridCount = Mathf.Max(editorConfig.gridCountInVideo, 1);
             float cellSize = 1f / gridCount;
             float half = 0.5f;
 

@@ -89,6 +89,38 @@ namespace COM3D2.SceneEditor.Plugin
                 ? new Rect(0f, 1f, 1f, -1f)
                 : new Rect(0f, 0f, 1f, 1f);
             GUI.DrawTextureWithTexCoords(drawRect, texture, texCoords, false);
+
+            if (config.isGridVisibleInVideo && GridRenderer.isGridEnabled)
+            {
+                DrawGrid(drawRect);
+            }
+        }
+
+        /// <summary>
+        /// 動画面を等分するグリッドを 1px 線で重ねる。
+        /// 3D 表示の動画面に MoviePlayerImpl が描くものと同じ設定を使い、
+        /// GUI 表示 (面に重ねられない) でもここで確認できるようにする
+        /// </summary>
+        private void DrawGrid(Rect videoRect)
+        {
+            var count = Mathf.Max(config.gridCountInVideo, 1);
+            var color = config.gridColorInVideo;
+            color.a = config.gridAlphaInVideo;
+
+            var prevColor = GUI.color;
+            GUI.color = color;
+
+            // 外周は動画の縁と重なるだけなので画面分割グリッドと同じく描かない
+            for (var i = 1; i < count; i++)
+            {
+                var ratio = (float)i / count;
+                var x = videoRect.x + videoRect.width * ratio;
+                var y = videoRect.y + videoRect.height * ratio;
+                GUI.DrawTexture(new Rect(x - 0.5f, videoRect.y, 1f, videoRect.height), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(videoRect.x, y - 0.5f, videoRect.width, 1f), Texture2D.whiteTexture);
+            }
+
+            GUI.color = prevColor;
         }
 
         /// <summary>領域内にアスペクト比を保って収まる中央寄せ矩形を返す</summary>

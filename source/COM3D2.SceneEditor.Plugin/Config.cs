@@ -447,6 +447,8 @@ namespace COM3D2.SceneEditor.Plugin
         public const int DefaultGridCountInDisplay = 3;
         public const float DefaultGridAlphaInDisplay = 0.3f;
         public const float DefaultGridLineWidthInDisplay = 3f;
+        public const int DefaultGridCountInVideo = 4;
+        public const float DefaultGridAlphaInVideo = 0.3f;
 
         /// <summary>グリッド全体の表示スイッチ</summary>
         public bool isGridVisible = true;
@@ -474,6 +476,13 @@ namespace COM3D2.SceneEditor.Plugin
         public Color gridColorInDisplay = Color.white;
         /// <summary>分割線の幅 (px)</summary>
         public float gridLineWidthInDisplay = DefaultGridLineWidthInDisplay;
+
+        // 動画グリッド (動画の表示面を等分する。3D 表示の動画面と動画プレビューウィンドウに描画する)
+        public bool isGridVisibleInVideo = true;
+        /// <summary>動画面の分割数</summary>
+        public int gridCountInVideo = DefaultGridCountInVideo;
+        public float gridAlphaInVideo = DefaultGridAlphaInVideo;
+        public Color gridColorInVideo = Color.white;
 
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
