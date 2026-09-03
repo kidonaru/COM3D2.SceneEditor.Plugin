@@ -374,7 +374,7 @@ sed -i -E 's/timeline\.(bgmPath|bpm|isShowBPMLine|bpmLineOffsetFrame)\b/timeline
 sed -i -E 's/timeline\.videoGUI([A-Z])/timeline.video.gui\1/g; s/timeline\.video([A-Z])/timeline.video.\l\1/g' TimelineSettingWindow.cs Timeline/Manager/MovieManager.cs Timeline/MoviePlayerImpl.cs
 ```
 
-置換後に `grep -rn 'timeline\.video\.\|timeline\.bgm\.' --include=*.cs .` で `timeline.video.enabled` / `timeline.video.displayType` / `timeline.video.path` / `timeline.video.guiPosition` / `timeline.bgm.bgmPath` の形になっていることを目視確認する。
+置換後に `grep -rn 'timeline\.video\.\|timeline\.bgm\.' --include=*.cs .` で `timeline.video.enabled` / `timeline.video.displayType` / `timeline.video.path` / `timeline.video.guiPosition` / `timeline.bgm.bgmPath` の形になっていることを目視確認する。さらに `git diff` を全行目視し、意図しない箇所 (コメント内・別シンボル) が書き換わっていないことを確認する (GNU sed の `\l` が効かない環境では `timeline.video.Enabled` のような大文字残りになるので、その場合は手で直す)。
 
 - [ ] **Step 4: 両構成をビルドし既存テストを通す**
 
@@ -393,6 +393,7 @@ git commit -m "refactor(timeline): TimelineData の BGM/動画フィールドを
 ### Task 3: BGMManager / MovieManager に settings を追加しタイムライン非依存にする
 
 **Files:**
+- Modify: `source/COM3D2.SceneEditor.Plugin/Timeline/Manager/TimelineManager.cs:38-43, 301-312`
 - Modify: `source/COM3D2.SceneEditor.Plugin/Timeline/Manager/BGMManager.cs`
 - Modify: `source/COM3D2.SceneEditor.Plugin/Timeline/Manager/MovieManager.cs`
 - Modify: `source/COM3D2.SceneEditor.Plugin/Timeline/MoviePlayerImpl.cs`
@@ -400,11 +401,42 @@ git commit -m "refactor(timeline): TimelineData の BGM/動画フィールドを
 **Interfaces:**
 - Consumes: Task 2 の `timeline.bgm` / `timeline.video`
 - Produces:
+  - `TimelineManager.onClearTimeline : static event UnityAction` (タイムライン破棄の直前、`timeline` がまだ非 null の時点で発火)
   - `BGMManager.settings : BgmSettings` (読込中は `timeline.bgm`、未読込時はマネージャ保持の standalone)
   - `MovieManager.settings : VideoSettings` (同上)
   - `BGMManager.Load()` / `Play()` / `Pause()` / `Stop()` はタイムライン未読込でも動く
 
-- [ ] **Step 1: BGMManager に settings を追加し Load / Update の timeline 依存を外す**
+**背景 (plan-review 指摘):** `TimelineManager.ClearTimeline()` は `_timeline = null` を代入するだけで各マネージャへ通知しない。通知なしだと、破棄の瞬間に `settings` が standalone の既定値へ切り替わる一方で、再生中の音声クリップ / MoviePlayerImpl の実体はそのまま残り、UI 表示と実体が乖離する。破棄直前に timeline 側の値を standalone へ写すことで、破棄後も同じ設定値で再生が続く (テキストの `_standaloneTextCount = timeline.textCount` 同期と同じ考え方)。
+
+- [ ] **Step 1: TimelineManager に破棄通知イベントを追加する**
+
+`Timeline/Manager/TimelineManager.cs` の `public static event UnityAction onSeekCurrentFrame;` の直後に追加:
+
+```csharp
+        /// <summary>
+        /// タイムライン破棄の直前 (timeline がまだ非 null の時点) に発火する。
+        /// BGM / 動画マネージャが timeline 側の設定値を standalone 値へ引き継ぐために使う
+        /// </summary>
+        public static event UnityAction onClearTimeline;
+```
+
+`ClearTimeline()`:
+
+```csharp
+            if (timeline != null)
+            {
+                _timeline.Dispose();
+```
+を
+```csharp
+            if (timeline != null)
+            {
+                onClearTimeline?.Invoke();
+                _timeline.Dispose();
+```
+に置き換える。
+
+- [ ] **Step 2: BGMManager に settings を追加し Load / Update の timeline 依存を外す**
 
 `Timeline/Manager/BGMManager.cs`:
 
@@ -419,7 +451,18 @@ git commit -m "refactor(timeline): TimelineData の BGM/動画フィールドを
         /// 未読込時はマネージャ保持の standalone 値 (TimelineTextManager.textCount と同じ方式)
         /// </summary>
         public BgmSettings settings => timeline != null ? timeline.bgm : _standaloneSettings;
+
+        /// <summary>
+        /// タイムライン破棄時に timeline 側の値を引き継ぐ。
+        /// 引き継がないと再生中のクリップはそのままなのに表示だけ既定値へ戻ってしまう
+        /// </summary>
+        private void OnClearTimeline()
+        {
+            _standaloneSettings.CopyFrom(timeline.bgm);
+        }
 ```
+
+`Init()` に `TimelineManager.onClearTimeline += OnClearTimeline;` を追加する。
 
 `Load()` の先頭:
 
@@ -474,7 +517,7 @@ git commit -m "refactor(timeline): TimelineData の BGM/動画フィールドを
 ```
 に置き換える (`Play()` から呼ばれるため未読込時の NRE を防ぐ)。
 
-- [ ] **Step 2: MovieManager に settings を追加する**
+- [ ] **Step 3: MovieManager に settings を追加する**
 
 `Timeline/Manager/MovieManager.cs`:
 
@@ -497,9 +540,75 @@ git commit -m "refactor(timeline): TimelineData の BGM/動画フィールドを
 
         private string videoPath => settings.path;
 ```
-に、`isEnabled` の `timeline.video.enabled` を `settings.enabled` に、`SetupImpl` 内の `timeline.video.displayType` (2 箇所) を `settings.displayType` に置き換える。
+に置き換える。
 
-- [ ] **Step 3: MoviePlayerImpl を settings 経由にする**
+```csharp
+        public bool isEnabled
+        {
+            get => isValidPath && timeline.video.enabled;
+        }
+```
+を
+```csharp
+        public bool isEnabled
+        {
+            get => isValidPath && settings.enabled;
+        }
+```
+に置き換える。
+
+`Init()`:
+
+```csharp
+        public override void Init()
+        {
+            TimelineManager.onStop += UpdateSeekTime;
+            TimelineManager.onAnmSpeedChanged += UpdateSpeed;
+            TimelineManager.onSeekCurrentFrame += UpdateSeekTime;
+        }
+```
+を
+```csharp
+        public override void Init()
+        {
+            TimelineManager.onStop += UpdateSeekTime;
+            TimelineManager.onAnmSpeedChanged += UpdateSpeed;
+            TimelineManager.onSeekCurrentFrame += UpdateSeekTime;
+            TimelineManager.onClearTimeline += OnClearTimeline;
+        }
+
+        /// <summary>
+        /// タイムライン破棄時に timeline 側の値を引き継ぐ。
+        /// 引き継がないと MoviePlayerImpl は残ったまま表示だけ既定値へ戻り、
+        /// 次のスライダー操作で配置が唐突にリセットされる
+        /// </summary>
+        private void OnClearTimeline()
+        {
+            _standaloneSettings.CopyFrom(timeline.video);
+        }
+```
+に置き換える。
+
+`SetupImpl()`:
+
+```csharp
+            if (_videoDisplayType != timeline.video.displayType)
+            {
+                UnloadMovie();
+                _videoDisplayType = timeline.video.displayType;
+            }
+```
+を
+```csharp
+            if (_videoDisplayType != settings.displayType)
+            {
+                UnloadMovie();
+                _videoDisplayType = settings.displayType;
+            }
+```
+に置き換える。
+
+- [ ] **Step 4: MoviePlayerImpl を settings 経由にする**
 
 `Timeline/MoviePlayerImpl.cs` の static プロパティ群 (`private static Config config => ...` の直後) に追加:
 
@@ -523,14 +632,36 @@ sed -i -E 's/timeline\.video\./video./g' Timeline/MoviePlayerImpl.cs
             // 未読込時はタイムラインのオフセットが無いため 0 として扱う
             get => (currentTime + (timeline != null ? timeline.startOffsetTime : 0f) + video.startTime) * 1000f;
 ```
-に置き換える。`Update()` / `LateUpdate()` の `timeline == null` ガードはそのまま残す (未読込時はループ再生と読込時の Transform 反映のみ)。
+に置き換える。
 
-- [ ] **Step 4: 両構成をビルドしテストを通す**
+`Update()` の `timeline == null || currentLayer == null` ガードはそのまま残す (シーク・速度同期はタイムライン駆動)。`LateUpdate()` は timeline を参照しなくなるためガードを外し、未読込時も最背面表示のカメラ追従が動くようにする:
+
+```csharp
+        public void LateUpdate()
+        {
+            // SE 追加ガード: Update と同じくタイムライン破棄直後の NRE を防ぐ
+            if (timeline == null)
+            {
+                return;
+            }
+
+            if (isDisplayBackmost)
+```
+を
+```csharp
+        public void LateUpdate()
+        {
+            // 参照先は settings とカメラだけなので、タイムライン未読込でも最背面のカメラ追従を続ける
+            if (isDisplayBackmost)
+```
+に置き換える。
+
+- [ ] **Step 5: 両構成をビルドしテストを通す**
 
 Run: MSBuild 2 本 → `dotnet test source/COM3D2.SceneEditor.Plugin.Tests`
-Expected: ビルド成功、全テスト PASS。`grep -n 'timeline\.' Timeline/MoviePlayerImpl.cs` の結果に `timeline.video` が残っていないこと
+Expected: ビルド成功、全テスト PASS。`grep -n 'timeline\.' Timeline/MoviePlayerImpl.cs` の結果に `timeline.video` が残っていないこと。`git diff` を全行目視し、sed の置換漏れ・過剰置換がないことを確認する
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 6: コミット**
 
 ```bash
 git add source/COM3D2.SceneEditor.Plugin/Timeline
@@ -1545,8 +1676,6 @@ static プロパティ群に追加:
                 return;
             }
 
-            ApplyGameBgm(src.gameBgmFile);
-
             var settings = bgmManager.settings;
             settings.bgmPath = src.bgmPath;
             settings.bpm = src.bpm;
@@ -1554,6 +1683,22 @@ static プロパティ群に追加:
             settings.bpmLineOffsetFrame = src.bpmLineOffsetFrame;
             // パスが空なら Stop だけが走る
             bgmManager.Reload();
+
+            // タイムライン BGM ファイルが読めていてタイムライン再生中なら、次フレームの
+            // BGMManager.Update が Play() → SoundMgr.StopBGM でゲーム BGM を止めてしまう。
+            // 一瞬鳴って止まるより復元しない方が分かりやすいので、警告を出してスキップする
+            var timeline = MTEP.TimelineManager.instance.timeline;
+            var isTimelinePlaying = timeline != null && timeline.defaultLayer.isAnmPlaying;
+            if (bgmManager.IsLoaded() && isTimelinePlaying)
+            {
+                if (!string.IsNullOrEmpty(src.gameBgmFile))
+                {
+                    MTEUtils.LogWarning("タイムライン BGM 再生中のためゲームBGMは復元しません: {0}", src.gameBgmFile);
+                }
+                return;
+            }
+
+            ApplyGameBgm(src.gameBgmFile);
         }
 
         private static void ApplyGameBgm(string fileName)
@@ -1656,6 +1801,8 @@ Expected: ビルド成功、全テスト PASS
 
 - ゲーム BGM を再生し、動画パスを設定して「演出」込みでプリセット保存 → XML に `<sound gameBgmFile="...">` と `<video ...>` が出る
 - BGM を停止・動画を無効にしてからプリセット読込 → BGM が再開し動画が再表示される
+- タイムライン BGM ファイルを読み込んで再生中にプリセット読込 → ゲーム BGM は復元されず警告ログが出る (タイムライン BGM は鳴り続ける)
+- タイムラインを閉じても再生中の BGM ファイル / 動画の表示設定がサウンド・動画ウィンドウに残っている
 - v29 以前のプリセットを読み込んでも BGM / 動画が変わらない
 
 - [ ] **Step 5: コミット**

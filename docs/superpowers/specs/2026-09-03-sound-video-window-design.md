@@ -42,9 +42,10 @@
 - `BGMManager.Load()` は `timeline == null` で弾かず `settings.bgmPath` を読む
 - `MovieManager` の `videoPath` / `isEnabled` / `SetupImpl` は `settings` を読む
 - `MoviePlayerImpl` の `timeline.videoXxx` 参照をすべて `MovieManager.instance.settings.xxx` へ置き換える。`timeline.startOffsetTime` は未読込時 0 として扱う
+- **タイムライン破棄時の引き継ぎ**: `TimelineManager.ClearTimeline()` は各マネージャへ通知しないため、`onClearTimeline` イベント（破棄直前、timeline がまだ非 null）を追加する。`BGMManager` / `MovieManager` はこれを購読し、`_standaloneSettings.CopyFrom(timeline.bgm / timeline.video)` で値を引き継ぐ。引き継がないと再生中のクリップ / MoviePlayerImpl の実体はそのままなのに UI 表示だけ既定値へ戻り、次の操作で配置がリセットされる
 - 未読込時の再生:
-  - BGM ファイル: `Play()` / `Pause()` / `Stop()` は既に `IsLoaded()` だけを見るため、そのまま手動再生に使える。`Update()` は `defaultLayer` が null のときは同期処理をスキップする
-  - 動画: `MoviePlayerImpl.Update` / `LateUpdate` の timeline null ガードは残す（ループ再生と表示更新のみ）。タイムライン同期（シーク・速度・再生停止追随）はタイムライン読込後にのみ働く。この制約はウィンドウの注記で示す
+  - BGM ファイル: `Play()` / `Pause()` / `Stop()` は既に `IsLoaded()` だけを見るため、そのまま手動再生に使える。`Update()` / `SeekPlayingTime()` は `timeline == null` のとき同期処理をスキップする
+  - 動画: `MoviePlayerImpl.Update` の timeline null ガードは残す（シーク・速度同期はタイムライン駆動）。`LateUpdate` は settings とカメラしか参照しなくなるためガードを外し、未読込時も最背面のカメラ追従を続ける。タイムライン同期（シーク・速度・再生停止追随）はタイムライン読込後にのみ働く。この制約はウィンドウの注記で示す
 
 ## 2. SceneEditor 側 UI
 
@@ -104,10 +105,11 @@ public class ScenePresetEffects
 ### Capture / Apply（`MteEffectsSnapshot`）
 
 - Capture: `BgmUtils.GetPlayingFileName()`（null は空文字）と `BGMManager.settings`、`MovieManager.settings` を DTO へ写す
-- Apply:
-  - ゲーム BGM: `gameBgmFile` が空なら `BgmUtils.Stop()`、それ以外は `PhotoSoundData.Get(file)` が見つかれば `Play()`。見つからなければ警告ログのみ。`BgmUtils.EnsureSoundDataLoaded()` を先に呼ぶ
+- Apply（順序: BGM ファイル → ゲーム BGM → 動画）:
   - BGM ファイル: `settings` に写してから `BGMManager.Reload()`（パスが空なら `Stop()` のみ）
-  - 動画: `settings` に写してから `MovieManager.ReloadMovie()`（`enabled` が false なら `UnloadMovie()`）
+  - ゲーム BGM: `gameBgmFile` が空なら `BgmUtils.Stop()`、それ以外は `PhotoSoundData.Get(file)` が見つかれば `Play()`。見つからなければ警告ログのみ。`BgmUtils.EnsureSoundDataLoaded()` を先に呼ぶ。
+    **競合ルール**: `BGMManager.Play()` は `SoundMgr.StopBGM` でゲーム BGM を止める（両者は排他）。タイムライン BGM ファイルが読めていて（`IsLoaded()`）かつタイムライン再生中（`timeline.defaultLayer.isAnmPlaying`）なら、直後の `BGMManager.Update()` がゲーム BGM を止めてしまうため、ゲーム BGM の復元はスキップして警告ログを出す
+  - 動画: `settings` に写してから `MovieManager.ReloadMovie()`（`enabled` が false やパス空なら `LoadMovie` が何もしないため Unload だけになる）
 
 ### UI 文言
 
