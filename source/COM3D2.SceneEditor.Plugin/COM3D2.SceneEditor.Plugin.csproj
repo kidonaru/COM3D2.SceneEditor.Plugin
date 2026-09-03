@@ -352,6 +352,7 @@
     <Compile Include="TimelineCurveEditor.cs" />
     <Compile Include="GUIMultiSelectComboBox.cs" />
     <Compile Include="VideoWindow.cs" />
+    <Compile Include="VideoPreviewWindow.cs" />
     <Compile Include="TimelineWindow.cs" />
     <Compile Include="ToolbarIcons.cs" />
     <Compile Include="TabGroup.cs" />

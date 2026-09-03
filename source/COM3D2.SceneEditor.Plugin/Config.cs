@@ -212,6 +212,13 @@ namespace COM3D2.SceneEditor.Plugin
         public int videoHeight = 420;
         public bool videoVisible = false;
 
+        // 動画プレビューウィンドウ
+        public int videoPreviewPosX = -1;
+        public int videoPreviewPosY = -1;
+        public int videoPreviewWidth = 480;
+        public int videoPreviewHeight = 270;
+        public bool videoPreviewVisible = false;
+
         // タイムライン操作ウィンドウ
         public int timelineControlPosX = -1;
         public int timelineControlPosY = -1;
