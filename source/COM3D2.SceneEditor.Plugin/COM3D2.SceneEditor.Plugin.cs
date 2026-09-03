@@ -455,6 +455,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             MTEUtils.Log("プラグインが有効になりました");
             OnLoad();
+            // ウィンドウの復元より先に、各マネージャへ有効化を通知する
+            managerRegistry.OnPluginEnable();
 
             GameViewWindow.instance.isShowWnd = true;
             MenuBarWindow.instance.isShowWnd = true;
