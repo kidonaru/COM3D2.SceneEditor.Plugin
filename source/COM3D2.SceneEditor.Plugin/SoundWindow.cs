@@ -111,11 +111,39 @@ namespace COM3D2.SceneEditor.Plugin
 
         private string _bgmSearchText = "";
 
+        private enum BgmTabType
+        {
+            ゲーム内,
+            ファイル,
+        }
+
+        private BgmTabType _bgmTabType = BgmTabType.ゲーム内;
+
         /// <summary>
-        /// ゲーム BGM の一覧表示・再生・停止と、タイムライン BGM ファイルの設定。
-        /// 一覧はフォトモードの PhotoSoundData、再生は SoundMgr.PlayBGM の同一経路を使う
+        /// ゲーム内蔵 BGM の選曲と、タイムライン BGM ファイルの設定。
+        /// 選曲経路 (PhotoSoundData / SoundMgr) とファイル再生経路 (BGMManager) は
+        /// 実体が別で操作も混ざらないため、内部タブで分ける
         /// </summary>
         private void DrawBgm(GUIView view)
+        {
+            _bgmTabType = DrawInnerTabs(_bgmTabType, 60);
+
+            switch (_bgmTabType)
+            {
+                case BgmTabType.ゲーム内:
+                    DrawGameBgm(view);
+                    break;
+                case BgmTabType.ファイル:
+                    DrawBgmFile(view);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// ゲーム内蔵 BGM の一覧表示・再生・停止。
+        /// 一覧はフォトモードの PhotoSoundData、再生は SoundMgr.PlayBGM の同一経路を使う
+        /// </summary>
+        private void DrawGameBgm(GUIView view)
         {
             if (!BgmUtils.EnsureSoundDataLoaded())
             {
@@ -126,18 +154,25 @@ namespace COM3D2.SceneEditor.Plugin
 
             var playingFileName = BgmUtils.GetPlayingFileName();
 
-            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる。
-            // BGM ファイル設定と曲一覧を 1 本のスクロールにまとめ、
-            // ウィンドウを縮めても下端の項目に届くようにする
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             DrawCurrentBgmRow(view, playingFileName);
             view.DrawHorizontalLine();
-            DrawBgmFileSection(view);
-            view.DrawHorizontalLine();
             view.DrawTextField("検索", LABEL_WIDTH, _bgmSearchText, -1, ROW_HEIGHT,
                 value => _bgmSearchText = value);
             DrawBgmList(view, playingFileName);
+
+            view.EndScrollView();
+        }
+
+        /// <summary>タイムライン BGM ファイルの設定タブ</summary>
+        private void DrawBgmFile(GUIView view)
+        {
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            DrawBgmFileSection(view);
 
             view.EndScrollView();
         }
@@ -150,8 +185,6 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawBgmFileSection(GUIView view)
         {
             var settings = bgmManager.settings;
-
-            view.DrawLabel("BGMファイル", 100, ROW_HEIGHT);
 
             view.BeginHorizontal();
             {
@@ -284,7 +317,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// フィルタ適用済みの BGM ボタン一覧。再生中の曲はシアン表示。
-        /// スクロールは呼び出し元 (DrawBgm) がタブ全体で 1 本張るのでここでは張らない
+        /// スクロールは呼び出し元 (DrawGameBgm) がタブ全体で 1 本張るのでここでは張らない
         /// </summary>
         private void DrawBgmList(GUIView view, string playingFileName)
         {
