@@ -113,5 +113,73 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 Assert.True(restored.savedEffects);
             }
         }
+
+        [Fact]
+        public void SoundAndVideo_RoundTrip_PreservesValues()
+        {
+            var data = new ScenePresetData { effects = new ScenePresetEffects() };
+            data.effects.sound = new ScenePresetSound
+            {
+                gameBgmFile = "BGM020.ogg",
+                bgmPath = @"C:\music\dance.ogg",
+                bpm = 128f,
+                isShowBPMLine = true,
+                bpmLineOffsetFrame = 1.5f,
+            };
+            data.effects.video = new ScenePresetVideo
+            {
+                enabled = false,
+                displayType = 3,
+                path = @"C:\movie\a.mp4",
+                position = new Vector3(1f, 2f, 3f),
+                rotation = new Vector3(4f, 5f, 6f),
+                scale = 2f,
+                startTime = 0.5f,
+                volume = 0.25f,
+                alpha = 0.75f,
+                guiPosition = new Vector2(0.1f, 0.2f),
+                guiScale = 0.9f,
+                guiAlpha = 0.8f,
+                backmostPosition = new Vector2(0.3f, 0.4f),
+                backmostScale = 1.1f,
+                backmostAlpha = 0.6f,
+                frontmostPosition = new Vector2(-0.7f, 0.7f),
+                frontmostScale = 0.35f,
+                frontmostAlpha = 0.5f,
+            };
+
+            var restored = RoundTrip(data);
+
+            Assert.Equal(30, ScenePresetData.CurrentVersion);
+            Assert.NotNull(restored.effects.sound);
+            Assert.Equal("BGM020.ogg", restored.effects.sound.gameBgmFile);
+            Assert.Equal(@"C:\music\dance.ogg", restored.effects.sound.bgmPath);
+            Assert.Equal(128f, restored.effects.sound.bpm);
+            Assert.True(restored.effects.sound.isShowBPMLine);
+            Assert.Equal(1.5f, restored.effects.sound.bpmLineOffsetFrame);
+
+            Assert.NotNull(restored.effects.video);
+            Assert.False(restored.effects.video.enabled);
+            Assert.Equal(3, restored.effects.video.displayType);
+            Assert.Equal(@"C:\movie\a.mp4", restored.effects.video.path);
+            Assert.Equal(new Vector3(1f, 2f, 3f), restored.effects.video.position);
+            Assert.Equal(0.5f, restored.effects.video.startTime);
+            Assert.Equal(new Vector2(-0.7f, 0.7f), restored.effects.video.frontmostPosition);
+            Assert.Equal(0.5f, restored.effects.video.frontmostAlpha);
+        }
+
+        [Fact]
+        public void V29Preset_WithoutSoundAndVideo_ReadsThemAsNull()
+        {
+            var serializer = new XmlSerializer(typeof(ScenePresetData));
+            var xml = "<ScenePresetData version=\"29\" savedEffects=\"true\"><effects /></ScenePresetData>";
+            using (var reader = new StringReader(xml))
+            {
+                var restored = (ScenePresetData)serializer.Deserialize(reader);
+                Assert.NotNull(restored.effects);
+                Assert.Null(restored.effects.sound);
+                Assert.Null(restored.effects.video);
+            }
+        }
     }
 }

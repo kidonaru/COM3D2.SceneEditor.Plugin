@@ -724,9 +724,57 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ。
+    /// サウンド (v30)。ゲーム BGM とタイムライン BGM ファイル設定。
+    /// 要素なし (null) は未記録として適用時に触らない
+    /// </summary>
+    public class ScenePresetSound
+    {
+        /// <summary>再生中のゲーム BGM のファイル名 (例 "BGM020.ogg")。空文字は無音で、適用時に停止する</summary>
+        [XmlAttribute]
+        public string gameBgmFile = "";
+
+        public string bgmPath = "";
+        public float bpm = 120f;
+        public bool isShowBPMLine;
+        public float bpmLineOffsetFrame;
+    }
+
+    /// <summary>
+    /// 動画 (v30)。MTE の VideoSettings と同じ項目。
+    /// 要素なし (null) は未記録として適用時に触らない
+    /// </summary>
+    public class ScenePresetVideo
+    {
+        [XmlAttribute]
+        public bool enabled = true;
+
+        /// <summary>VideoDisplayType の int 値 (GUI=0, Mesh=1, Backmost=2, Frontmost=3)</summary>
+        [XmlAttribute]
+        public int displayType;
+
+        public string path = "";
+        public Vector3 position;
+        public Vector3 rotation;
+        public float scale = 1f;
+        public float startTime;
+        public float volume = 0.5f;
+        public float alpha = 1f;
+        public Vector2 guiPosition;
+        public float guiScale = 1f;
+        public float guiAlpha = 1f;
+        public Vector2 backmostPosition;
+        public float backmostScale = 1f;
+        public float backmostAlpha = 0.5f;
+        public Vector2 frontmostPosition = new Vector2(-0.8f, 0.8f);
+        public float frontmostScale = 0.38f;
+        public float frontmostAlpha = 1f;
+    }
+
+    /// <summary>
+    /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ / サウンド (v30) / 動画 (v30)。
     /// 旧プリセット (要素なし) は null になり、適用時に触らない。
-    /// 各グループとも「空リスト = 保存時に実体なし」は未記録と同義として触らない。
+    /// リスト項目は「空リスト = 保存時に実体なし」を未記録と同義として触らない。
+    /// sound / video は要素なし (null) を未記録として触らない。
     /// ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担うためここには持たない
     /// </summary>
     public class ScenePresetEffects
@@ -736,6 +784,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         [XmlElement("subCamera")]
         public List<ScenePresetSubCamera> subCameras = new List<ScenePresetSubCamera>();
+
+        public ScenePresetSound sound;
+
+        public ScenePresetVideo video;
     }
 
     /// <summary>
@@ -824,7 +876,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は effects が null で読め、適用時に演出へ触らない。
         //      タイムライン未読込のシーンでも保存・復元できる。
         //      ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担う
-        public static readonly int CurrentVersion = 29;
+        // v30: effects に sound (ゲーム BGM + タイムライン BGM ファイル設定) と video (動画設定) を追加。
+        //      v9 で外したゲーム BGM を再び保存対象にする。旧形式は null で読め、適用時に触らない
+        public static readonly int CurrentVersion = 30;
 
         [XmlAttribute]
         public int version = CurrentVersion;
