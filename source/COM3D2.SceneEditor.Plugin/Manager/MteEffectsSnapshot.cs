@@ -254,27 +254,27 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static ScenePresetVideo CaptureVideo()
         {
-            var s = movieManager.settings;
+            var settings = movieManager.settings;
             return new ScenePresetVideo
             {
-                enabled = s.enabled,
-                displayType = (int)s.displayType,
-                path = s.path,
-                position = s.position,
-                rotation = s.rotation,
-                scale = s.scale,
-                startTime = s.startTime,
-                volume = s.volume,
-                alpha = s.alpha,
-                guiPosition = s.guiPosition,
-                guiScale = s.guiScale,
-                guiAlpha = s.guiAlpha,
-                backmostPosition = s.backmostPosition,
-                backmostScale = s.backmostScale,
-                backmostAlpha = s.backmostAlpha,
-                frontmostPosition = s.frontmostPosition,
-                frontmostScale = s.frontmostScale,
-                frontmostAlpha = s.frontmostAlpha,
+                enabled = settings.enabled,
+                displayType = (int)settings.displayType,
+                path = settings.path,
+                position = settings.position,
+                rotation = settings.rotation,
+                scale = settings.scale,
+                startTime = settings.startTime,
+                volume = settings.volume,
+                alpha = settings.alpha,
+                guiPosition = settings.guiPosition,
+                guiScale = settings.guiScale,
+                guiAlpha = settings.guiAlpha,
+                backmostPosition = settings.backmostPosition,
+                backmostScale = settings.backmostScale,
+                backmostAlpha = settings.backmostAlpha,
+                frontmostPosition = settings.frontmostPosition,
+                frontmostScale = settings.frontmostScale,
+                frontmostAlpha = settings.frontmostAlpha,
             };
         }
 
@@ -286,25 +286,25 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var s = movieManager.settings;
-            s.enabled = src.enabled;
-            s.displayType = (MTEP.VideoDisplayType)src.displayType;
-            s.path = src.path;
-            s.position = src.position;
-            s.rotation = src.rotation;
-            s.scale = src.scale;
-            s.startTime = src.startTime;
-            s.volume = src.volume;
-            s.alpha = src.alpha;
-            s.guiPosition = src.guiPosition;
-            s.guiScale = src.guiScale;
-            s.guiAlpha = src.guiAlpha;
-            s.backmostPosition = src.backmostPosition;
-            s.backmostScale = src.backmostScale;
-            s.backmostAlpha = src.backmostAlpha;
-            s.frontmostPosition = src.frontmostPosition;
-            s.frontmostScale = src.frontmostScale;
-            s.frontmostAlpha = src.frontmostAlpha;
+            var settings = movieManager.settings;
+            settings.enabled = src.enabled;
+            settings.displayType = (MTEP.VideoDisplayType)src.displayType;
+            settings.path = src.path;
+            settings.position = src.position;
+            settings.rotation = src.rotation;
+            settings.scale = src.scale;
+            settings.startTime = src.startTime;
+            settings.volume = src.volume;
+            settings.alpha = src.alpha;
+            settings.guiPosition = src.guiPosition;
+            settings.guiScale = src.guiScale;
+            settings.guiAlpha = src.guiAlpha;
+            settings.backmostPosition = src.backmostPosition;
+            settings.backmostScale = src.backmostScale;
+            settings.backmostAlpha = src.backmostAlpha;
+            settings.frontmostPosition = src.frontmostPosition;
+            settings.frontmostScale = src.frontmostScale;
+            settings.frontmostAlpha = src.frontmostAlpha;
             // 無効やパス空なら Unload だけが走る (LoadMovie は isEnabled を見る)
             movieManager.ReloadMovie();
         }
