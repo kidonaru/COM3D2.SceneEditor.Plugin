@@ -108,6 +108,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.SetEnabled(_view.focusedComboBox == null);
 
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 

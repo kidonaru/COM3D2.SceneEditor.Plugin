@@ -154,6 +154,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             var playingFileName = BgmUtils.GetPlayingFileName();
 
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
@@ -169,6 +172,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>タイムライン BGM ファイルの設定タブ</summary>
         private void DrawBgmFile(GUIView view)
         {
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
@@ -355,6 +361,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
@@ -408,6 +417,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawSeControl(GUIView view, MTEP.TimelineData timeline)
         {
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
@@ -438,6 +450,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
 
             view.BeginScrollView();
             {
