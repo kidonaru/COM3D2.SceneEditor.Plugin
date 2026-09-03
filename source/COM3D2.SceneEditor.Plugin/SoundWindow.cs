@@ -2,6 +2,9 @@ using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
+// UnityEngine と同名型 (Screen 等) の衝突を避けるため WinForms はエイリアスで参照する
+using WinFormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using WinFormsDialogResult = System.Windows.Forms.DialogResult;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -22,6 +25,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
+        private static MTEP.BGMManager bgmManager => MTEP.BGMManager.instance;
+        private static MTEP.TimelineData timeline => MTEP.TimelineManager.instance.timeline;
 
         private static SoundWindow _instance = null;
         public static SoundWindow instance
@@ -107,7 +112,7 @@ namespace COM3D2.SceneEditor.Plugin
         private string _bgmSearchText = "";
 
         /// <summary>
-        /// BGM の一覧表示・再生・停止。
+        /// ゲーム BGM の一覧表示・再生・停止と、タイムライン BGM ファイルの設定。
         /// 一覧はフォトモードの PhotoSoundData、再生は SoundMgr.PlayBGM の同一経路を使う
         /// </summary>
         private void DrawBgm(GUIView view)
@@ -123,9 +128,123 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawCurrentBgmRow(view, playingFileName);
             view.DrawHorizontalLine();
+            DrawBgmFileSection(view);
+            view.DrawHorizontalLine();
             view.DrawTextField("検索", LABEL_WIDTH, _bgmSearchText, -1, ROW_HEIGHT,
                 value => _bgmSearchText = value);
             DrawBgmList(view, playingFileName);
+        }
+
+        /// <summary>
+        /// タイムライン BGM ファイルの設定 (タイムライン設定ウィンドウから移設)。
+        /// 値は BGMManager.settings に入るため、タイムライン未読込でも編集できる。
+        /// 未読込時はタイムライン再生に追随しないため手動の再生/停止ボタンを出す
+        /// </summary>
+        private void DrawBgmFileSection(GUIView view)
+        {
+            var settings = bgmManager.settings;
+
+            view.DrawLabel("BGMファイル", 100, ROW_HEIGHT);
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("パス", 50, ROW_HEIGHT);
+
+                if (view.DrawButton("選択", 50, ROW_HEIGHT))
+                {
+                    var openFileDialog = new WinFormsOpenFileDialog
+                    {
+                        Title = "BGMファイルを選択してください",
+                        Filter = "音楽ファイル (*.wav;*.ogg)|*.wav;*.ogg",
+                        InitialDirectory = settings.bgmPath,
+                    };
+
+                    if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
+                    {
+                        settings.bgmPath = openFileDialog.FileName;
+                        bgmManager.Load();
+                    }
+                }
+
+                if (view.DrawButton("再読込", 80, ROW_HEIGHT))
+                {
+                    bgmManager.Reload();
+                }
+            }
+            view.EndLayout();
+
+            view.DrawTextField(settings.bgmPath, 240, ROW_HEIGHT, newText => settings.bgmPath = newText);
+
+            if (timeline == null)
+            {
+                view.BeginHorizontal();
+                {
+                    view.SetEnabled(bgmManager.IsLoaded());
+                    if (view.DrawButton("再生", 60, ROW_HEIGHT))
+                    {
+                        bgmManager.Play();
+                    }
+                    if (view.DrawButton("一時停止", 80, ROW_HEIGHT))
+                    {
+                        bgmManager.Pause();
+                    }
+                    if (view.DrawButton("停止", 60, ROW_HEIGHT))
+                    {
+                        bgmManager.Stop();
+                    }
+                    view.SetEnabled(true);
+                    view.DrawLabel("タイムライン読込後は再生に追随します", -1, ROW_HEIGHT, textColor: Color.gray);
+                }
+                view.EndLayout();
+            }
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "音量",
+                labelWidth = 50,
+                fieldType = FloatFieldType.Int,
+                min = 0,
+                max = 100,
+                step = 0,
+                defaultValue = 100,
+                value = bgmManager.volumeDance,
+                onChanged = value =>
+                {
+                    bgmManager.volumeDance = (int)value;
+                    timelineConfig.dirty = true;
+                },
+            });
+
+            view.DrawToggle("BPMライン表示", settings.isShowBPMLine, 120, ROW_HEIGHT, newValue =>
+            {
+                settings.isShowBPMLine = newValue;
+            });
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "BPM",
+                labelWidth = 50,
+                min = 1,
+                max = 300,
+                step = 0.1f,
+                defaultValue = 120,
+                value = settings.bpm,
+                onChanged = value => settings.bpm = value,
+            });
+
+            // オフセットの範囲はフレームレート依存。未読込時は既定の 30 を使う
+            var frameRate = timeline != null ? timeline.frameRate : 30f;
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "オフセット",
+                labelWidth = 50,
+                min = -frameRate,
+                max = frameRate,
+                step = 0.1f,
+                defaultValue = 0,
+                value = settings.bpmLineOffsetFrame,
+                onChanged = value => settings.bpmLineOffsetFrame = value,
+            });
         }
 
         /// <summary>再生中の曲名と停止ボタンの行</summary>

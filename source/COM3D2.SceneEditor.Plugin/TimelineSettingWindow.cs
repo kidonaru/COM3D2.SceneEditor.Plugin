@@ -103,7 +103,6 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
         private static MTEP.MovieManager movieManager => MTEP.MovieManager.instance;
-        private static MTEP.BGMManager bgmManager => MTEP.BGMManager.instance;
 
         private static TimelineSettingWindow _instance = null;
         public static TimelineSettingWindow instance
@@ -265,8 +264,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            DrawBGMSetting(view);
-
             DrawVideoSetting(view);
 
             view.DrawHorizontalLine(Color.gray);
@@ -317,91 +314,6 @@ namespace COM3D2.SceneEditor.Plugin
                 timeline.isLightCompatibilityMode = newValue;
                 // SE では互換モードの実体がないためフラグの保存のみ行う
             });
-        }
-
-        /// <summary>BGM の読み込みと BPM ライン表示 (MTE TimelineSettingUI から移植)</summary>
-        private void DrawBGMSetting(GUIView view)
-        {
-            view.DrawLabel("BGM設定", 100, ROW_HEIGHT);
-
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("BGMパス", 50, ROW_HEIGHT);
-
-                if (view.DrawButton("選択", 50, ROW_HEIGHT))
-                {
-                    var openFileDialog = new WinFormsOpenFileDialog
-                    {
-                        Title = "BGMファイルを選択してください",
-                        Filter = "音楽ファイル (*.wav;*.ogg)|*.wav;*.ogg",
-                        InitialDirectory = timeline.bgm.bgmPath,
-                    };
-
-                    if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
-                    {
-                        var path = openFileDialog.FileName;
-                        timeline.bgm.bgmPath = path;
-                        bgmManager.Load();
-                    }
-                }
-
-                if (view.DrawButton("再読込", 80, ROW_HEIGHT))
-                {
-                    bgmManager.Reload();
-                }
-            }
-            view.EndLayout();
-
-            view.DrawTextField(timeline.bgm.bgmPath, 240, ROW_HEIGHT, newText => timeline.bgm.bgmPath = newText);
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "音量",
-                labelWidth = 50,
-                fieldType = FloatFieldType.Int,
-                min = 0,
-                max = 100,
-                step = 0,
-                defaultValue = 100,
-                value = bgmManager.volumeDance,
-                onChanged = value =>
-                {
-                    bgmManager.volumeDance = (int)value;
-                    timelineConfig.dirty = true;
-                },
-            });
-
-            view.DrawToggle("BPMライン表示", timeline.bgm.isShowBPMLine, 120, ROW_HEIGHT, newValue =>
-            {
-                timeline.bgm.isShowBPMLine = newValue;
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "BPM",
-                labelWidth = 50,
-                min = 1,
-                max = 300,
-                step = 0.1f,
-                defaultValue = 120,
-                value = timeline.bgm.bpm,
-                onChanged = value => timeline.bgm.bpm = value,
-            });
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "オフセット",
-                labelWidth = 50,
-                min = -timeline.frameRate,
-                max = timeline.frameRate,
-                step = 0.1f,
-                defaultValue = 0,
-                value = timeline.bgm.bpmLineOffsetFrame,
-                onChanged = value => timeline.bgm.bpmLineOffsetFrame = value,
-            });
-
-            view.AddSpace(10);
-            view.DrawHorizontalLine(Color.gray);
         }
 
         /// <summary>動画の読み込みと表示形式ごとの配置調整 (MTE TimelineSettingUI から移植)</summary>
