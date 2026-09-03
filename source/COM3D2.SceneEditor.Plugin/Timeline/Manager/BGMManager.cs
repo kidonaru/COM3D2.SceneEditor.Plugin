@@ -30,6 +30,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private string _loadedBgmPath = "";
         private float _prevMotionTime = 0f;
 
+        /// <summary>タイムライン未読込時に使う設定。読込中は timeline 側が正</summary>
+        private readonly BgmSettings _standaloneSettings = new BgmSettings();
+
+        /// <summary>
+        /// BGM 設定。タイムライン読込中は timeline 側 (TimelineXml に保存される)、
+        /// 未読込時はマネージャ保持の standalone 値 (TimelineTextManager.textCount と同じ方式)
+        /// </summary>
+        public BgmSettings settings => timeline != null ? timeline.bgm : _standaloneSettings;
+
+        /// <summary>
+        /// タイムライン破棄時に timeline 側の値を引き継ぐ。
+        /// 引き継がないと再生中のクリップはそのままなのに表示だけ既定値へ戻ってしまう
+        /// </summary>
+        private void OnClearTimeline()
+        {
+            _standaloneSettings.CopyFrom(timeline.bgm);
+        }
+
         public int volumeDance
         {
             get => soundMgr.GetVolumeDance();
@@ -51,16 +69,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TimelineManager.onRefresh += OnRefresh;
             TimelineManager.onAnmSpeedChanged += OnAnmSpeedChanged;
             TimelineManager.onSeekCurrentFrame += OnSeekCurrentFrame;
+            TimelineManager.onClearTimeline += OnClearTimeline;
         }
 
         public bool Load()
         {
-            if (timeline == null)
-            {
-                return false;
-            }
-
-            var bgmPath = timeline.bgm.bgmPath;
+            var bgmPath = settings.bgmPath;
 
             if (_audioMgr == null)
             {
@@ -131,7 +145,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void Update()
         {
-            if (!IsLoaded())
+            // 未読込時は手動再生 (Play/Pause/Stop) のみで、タイムラインとの同期は行わない
+            if (!IsLoaded() || timeline == null)
             {
                 return;
             }
@@ -172,7 +187,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void SeekPlayingTime()
         {
-            if (IsLoaded())
+            if (IsLoaded() && timeline != null)
             {
                 var motionTime = defaultLayer.playingTime;
                 _audioMgr.audiosource.time = motionTime + timeline.startOffsetTime;

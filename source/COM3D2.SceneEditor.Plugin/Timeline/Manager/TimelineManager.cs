@@ -42,6 +42,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public static event UnityAction onAnmSpeedChanged;
         public static event UnityAction onSeekCurrentFrame;
 
+        /// <summary>
+        /// タイムライン破棄の直前 (timeline がまだ非 null の時点) に発火する。
+        /// BGM / 動画マネージャが timeline 側の設定値を standalone 値へ引き継ぐために使う
+        /// </summary>
+        public static event UnityAction onClearTimeline;
+
         private int _currentFrameNo = 0;
         public int currentFrameNo
         {
@@ -304,6 +310,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (timeline != null)
             {
+                onClearTimeline?.Invoke();
                 _timeline.Dispose();
                 _timeline = null;
                 _usingLayerInfoList = null;

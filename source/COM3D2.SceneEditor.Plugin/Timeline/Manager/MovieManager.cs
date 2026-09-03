@@ -24,10 +24,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private string videoPath
-        {
-            get => timeline != null ? timeline.video.path : "";
-        }
+        /// <summary>タイムライン未読込時に使う設定。読込中は timeline 側が正</summary>
+        private readonly VideoSettings _standaloneSettings = new VideoSettings();
+
+        /// <summary>
+        /// 動画設定。タイムライン読込中は timeline 側 (TimelineXml に保存される)、
+        /// 未読込時はマネージャ保持の standalone 値 (TimelineTextManager.textCount と同じ方式)
+        /// </summary>
+        public VideoSettings settings => timeline != null ? timeline.video : _standaloneSettings;
+
+        private string videoPath => settings.path;
 
         public bool isValidPath
         {
@@ -44,7 +50,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool isEnabled
         {
-            get => isValidPath && timeline.video.enabled;
+            get => isValidPath && settings.enabled;
         }
 
         public float currentTime
@@ -71,14 +77,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TimelineManager.onStop += UpdateSeekTime;
             TimelineManager.onAnmSpeedChanged += UpdateSpeed;
             TimelineManager.onSeekCurrentFrame += UpdateSeekTime;
+            TimelineManager.onClearTimeline += OnClearTimeline;
+        }
+
+        /// <summary>
+        /// タイムライン破棄時に timeline 側の値を引き継ぐ。
+        /// 引き継がないと MoviePlayerImpl は残ったまま表示だけ既定値へ戻り、
+        /// 次のスライダー操作で配置が唐突にリセットされる
+        /// </summary>
+        private void OnClearTimeline()
+        {
+            _standaloneSettings.CopyFrom(timeline.video);
         }
 
         private void SetupImpl()
         {
-            if (_videoDisplayType != timeline.video.displayType)
+            if (_videoDisplayType != settings.displayType)
             {
                 UnloadMovie();
-                _videoDisplayType = timeline.video.displayType;
+                _videoDisplayType = settings.displayType;
             }
 
             if (!isEnabled)
