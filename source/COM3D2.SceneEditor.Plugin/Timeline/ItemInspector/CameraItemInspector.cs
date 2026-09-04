@@ -7,7 +7,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// カメラレイヤー (CameraTimelineLayer) のメニュー項目 → メインカメラの構図編集UI。
-    /// キー化されるのは注視点・回転・距離・FOV で、項目は「カメラ」1 つだけのため
+    /// キー化されるのは追従設定・注視点・回転・距離・FOV で、項目は「カメラ」1 つだけのため
     /// 選択内容によらず CameraWindow と同じ行を出す。
     /// 逆方向: カメラに対応する SelectionManager の選択概念が無いため無し
     /// </summary>
@@ -16,6 +16,8 @@ namespace COM3D2.SceneEditor.Plugin
         private const float RowHeight = 20f;
         /// <summary>CameraWindow の LABEL_WIDTH と同じ値 (「注視点」が収まる幅)</summary>
         private const float LabelWidth = 70f;
+
+        private readonly MaidFollowRowDrawer _followRowDrawer = new MaidFollowRowDrawer();
 
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
@@ -32,9 +34,16 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            MainCameraRowDrawer.DrawTargetPosRow(view, mainCamera, LabelWidth, RowHeight);
+            var follow = MTEP.MaidFollowMainCamera.instance;
+            if (follow != null)
+            {
+                _followRowDrawer.Draw(view, follow.state, LabelWidth, RowHeight);
+                view.DrawHorizontalLine();
+            }
+
+            MainCameraRowDrawer.DrawTargetPosRow(view, mainCamera, follow, LabelWidth, RowHeight);
             view.DrawHorizontalLine();
-            MainCameraRowDrawer.DrawAngleSliders(view, mainCamera, camera, LabelWidth, RowHeight);
+            MainCameraRowDrawer.DrawAngleSliders(view, mainCamera, camera, follow, LabelWidth, RowHeight);
             view.DrawHorizontalLine();
             MainCameraRowDrawer.DrawDistanceFovSliders(
                 view, mainCamera, camera, LabelWidth, RowHeight);

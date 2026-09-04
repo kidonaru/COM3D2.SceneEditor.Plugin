@@ -295,6 +295,7 @@
     <Compile Include="MaidShapeKeyRowDrawer.cs" />
     <Compile Include="MainCameraRowDrawer.cs" />
     <Compile Include="SubCameraRowDrawer.cs" />
+    <Compile Include="MaidFollowRowDrawer.cs" />
     <Compile Include="LightRowDrawer.cs" />
     <Compile Include="AngleUtils.cs" />
     <Compile Include="BackgroundRowDrawer.cs" />
@@ -450,6 +451,8 @@
     <Compile Include="Timeline\Manager\BGModelManager.cs" />
     <Compile Include="Timeline\Manager\BGGroundManager.cs" />
     <Compile Include="Timeline\Manager\SubCameraManager.cs" />
+    <Compile Include="Timeline\Manager\MaidFollowState.cs" />
+    <Compile Include="Timeline\Manager\MaidFollowMainCamera.cs" />
     <Compile Include="Timeline\Manager\TimelineBundleManager.cs" />
     <Compile Include="Timeline\Manager\StageLightManager.cs" />
     <Compile Include="Timeline\Manager\StageLaserManager.cs" />

@@ -1,4 +1,5 @@
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -12,6 +13,13 @@ namespace COM3D2.SceneEditor.Plugin
     public class SceneViewCameraController
     {
         private readonly Transform _transform;
+
+        /// <summary>
+        /// メイド追従の設定。追従中は注視点が追従点 + オフセットになり、
+        /// 向き反映時はヨーが「メイドの向き + ヨーオフセット」になる。
+        /// コントローラは再生成されるため、状態は SceneViewWindow が保持して注入する
+        /// </summary>
+        public MTEP.MaidFollowState follow = new MTEP.MaidFollowState();
 
         // 注視点。_targetGoal が入力で動く目標値で、_target が Lerp 追従する実位置
         private Vector3 _target;
@@ -172,6 +180,31 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 追従中は注視点 (と向き反映時のヨー) を追従点基準で上書きする。
+        /// 注視点のイージングも打ち切り、メイドの動きへ遅れなく張り付かせる
+        /// </summary>
+        private void ApplyFollow()
+        {
+            Vector3 anchor;
+            Quaternion faceRotation;
+            // TryGetAnchor が false なら未追従と同じ扱い (isFollow を別に引くと解決が二重になる)
+            if (!follow.TryGetAnchor(out anchor, out faceRotation))
+            {
+                return;
+            }
+
+            _target = _targetGoal = follow.GetFollowPosition(anchor, faceRotation);
+
+            if (follow.followRotation)
+            {
+                var pitch = AngleUtils.NormalizeAngle(_transform.eulerAngles.x);
+                var yaw = faceRotation.eulerAngles.y + follow.yawOffset;
+                _transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
+                _xVelocity = 0f;
+            }
+        }
+
+        /// <summary>
         /// 毎フレーム呼ぶ。慣性・イージングを適用してカメラ位置を確定する
         /// (入力が無いフレームでも減衰・Lerp を進めるため必須)
         /// </summary>
@@ -189,6 +222,8 @@ namespace COM3D2.SceneEditor.Plugin
             _transform.Rotate(new Vector3(_yVelocity, 0f, 0f), Space.Self);
             _xVelocity *= DampeningX;
             _yVelocity *= DampeningY;
+
+            ApplyFollow();
 
             // 距離と注視点は目標値へ Lerp してイージングする
             _distance = Mathf.Lerp(_distance, _targetDistance, SmoothingZoom);

@@ -89,6 +89,10 @@ namespace COM3D2.SceneEditor.Plugin
                 showArrow = false,
             };
 
+        // 追従設定のコンボは開閉状態を持つため、Main / SceneView で分ける
+        private readonly MaidFollowRowDrawer _mainFollowRowDrawer = new MaidFollowRowDrawer();
+        private readonly MaidFollowRowDrawer _sceneViewFollowRowDrawer = new MaidFollowRowDrawer();
+
         // ---- サブカメラタブ ----
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
@@ -406,9 +410,16 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            MainCameraRowDrawer.DrawTargetPosRow(_view, mainCamera, LABEL_WIDTH, ROW_HEIGHT);
+            var follow = MTEP.MaidFollowMainCamera.instance;
+            if (follow != null)
+            {
+                _mainFollowRowDrawer.Draw(_view, follow.state, LABEL_WIDTH, ROW_HEIGHT);
+                _view.DrawHorizontalLine();
+            }
+
+            MainCameraRowDrawer.DrawTargetPosRow(_view, mainCamera, follow, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
-            MainCameraRowDrawer.DrawAngleSliders(_view, mainCamera, camera, LABEL_WIDTH, ROW_HEIGHT);
+            MainCameraRowDrawer.DrawAngleSliders(_view, mainCamera, camera, follow, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
             MainCameraRowDrawer.DrawDistanceFovSliders(_view, mainCamera, camera, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
@@ -454,11 +465,26 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // リセット先はメインカメラの初期注視点と同じ座標 (SceneView 独自の値ではない)
-            Vector3RowDrawer.Draw(_view, "注視点", MainCameraRowDrawer.PositionDragSensitivity,
-                LABEL_WIDTH, ROW_HEIGHT, controller.targetPos,
-                value => controller.targetPos = value,
-                () => controller.targetPos = MainCameraRowDrawer.DefaultTargetPos);
+            var follow = controller.follow;
+            _sceneViewFollowRowDrawer.Draw(_view, follow, LABEL_WIDTH, ROW_HEIGHT);
+            _view.DrawHorizontalLine();
+
+            if (follow.isFollow)
+            {
+                // 追従中は注視点の代わりに追従点からのオフセットを編集する (Main と同じ扱い)
+                Vector3RowDrawer.Draw(_view, "オフセット", MainCameraRowDrawer.PositionDragSensitivity,
+                    LABEL_WIDTH, ROW_HEIGHT, follow.offset,
+                    value => follow.offset = value,
+                    () => follow.offset = Vector3.zero);
+            }
+            else
+            {
+                // リセット先はメインカメラの初期注視点と同じ座標 (SceneView 独自の値ではない)
+                Vector3RowDrawer.Draw(_view, "注視点", MainCameraRowDrawer.PositionDragSensitivity,
+                    LABEL_WIDTH, ROW_HEIGHT, controller.targetPos,
+                    value => controller.targetPos = value,
+                    () => controller.targetPos = MainCameraRowDrawer.DefaultTargetPos);
+            }
 
             _view.DrawHorizontalLine();
 
@@ -467,10 +493,20 @@ namespace COM3D2.SceneEditor.Plugin
             var yaw = AngleUtils.NormalizeAngle(aroundAngle.x);
             var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
 
-            MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー", yaw, -180f, 180f, 0.1f,
-                AngleUtils.NormalizeAngle(MainCameraRowDrawer.DefaultAroundAngle.x),
-                LABEL_WIDTH, ROW_HEIGHT,
-                value => controller.aroundAngle = new Vector2(value, pitch));
+            if (follow.isFollow && follow.followRotation)
+            {
+                MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー",
+                    AngleUtils.NormalizeAngle(follow.yawOffset),
+                    -180f, 180f, 0.1f, 0f, LABEL_WIDTH, ROW_HEIGHT,
+                    value => follow.yawOffset = value);
+            }
+            else
+            {
+                MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー", yaw, -180f, 180f, 0.1f,
+                    AngleUtils.NormalizeAngle(MainCameraRowDrawer.DefaultAroundAngle.x),
+                    LABEL_WIDTH, ROW_HEIGHT,
+                    value => controller.aroundAngle = new Vector2(value, pitch));
+            }
             MainCameraRowDrawer.DrawAxisSlider(_view, "ピッチ", pitch, -90f, 90f, 0.1f,
                 MainCameraRowDrawer.DefaultAroundAngle.y, LABEL_WIDTH, ROW_HEIGHT,
                 value => controller.aroundAngle = new Vector2(yaw, value));

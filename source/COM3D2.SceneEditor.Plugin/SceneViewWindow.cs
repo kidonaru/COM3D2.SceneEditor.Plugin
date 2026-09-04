@@ -1,6 +1,7 @@
 using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -50,6 +51,12 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         private SceneViewCameraController _cameraController = null;
+
+        /// <summary>
+        /// SceneView カメラのメイド追従設定。
+        /// コントローラはシーン遷移で作り直されるため、設定はウィンドウ側で持ち越す
+        /// </summary>
+        private readonly MTEP.MaidFollowState _cameraFollow = new MTEP.MaidFollowState();
         private bool _dragging = false;
 
         /// <summary>SceneView カメラの操作状態。CameraWindow からの数値編集にも使う (非表示中は null)</summary>
@@ -167,7 +174,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _cameraController = new SceneViewCameraController(camera.transform);
+            _cameraController = new SceneViewCameraController(camera.transform)
+            {
+                follow = _cameraFollow,
+            };
         }
 
         protected override void OnResizeEnd()

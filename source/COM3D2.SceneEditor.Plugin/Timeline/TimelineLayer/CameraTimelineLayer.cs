@@ -15,6 +15,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static Camera camera => PluginUtils.MainCamera;
         private static Camera subCamera => studioHack.subCamera;
+        private static MaidFollowMainCamera mainFollow => MaidFollowMainCamera.instance;
 
         public static string CameraBoneName = "camera";
         public static string CameraDisplayName = "カメラ";
@@ -80,8 +81,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Vector3 position, eulerAngles;
             float distance, viewAngle;
 
-            var start = motion.start;
-            var end = motion.end;
+            var start = motion.start as TransformDataCamera;
+            var end = motion.end as TransformDataCamera;
 
             var t0 = motion.stFrame * timeline.frameDuration;
             var t1 = motion.edFrame * timeline.frameDuration;
@@ -116,11 +117,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             var uoCamera = GetUOCamera();
-            uoCamera.SetTargetPos(position);
             uoCamera.SetDistance(distance);
             uoCamera.SetAroundAngle(new Vector2(eulerAngles.y, eulerAngles.x));
             camera.SetRotationZ(eulerAngles.z);
             camera.fieldOfView = viewAngle;
+
+            // 追従設定は補間せず区間の始点の値を使う (サブカメラレイヤーと同じ)。
+            // 追従中は position がオフセット、向き反映中は yaw がヨーオフセットになり、
+            // 実際の注視点は MaidFollowMainCamera が LateUpdate で書く
+            var follow = mainFollow;
+            if (follow == null)
+            {
+                uoCamera.SetTargetPos(position);
+            }
+            else
+            {
+                follow.state.maidSlotNo = start.maidSlotNo;
+                follow.state.maidPointType = start.maidPointType;
+                follow.state.followRotation = start.followRotation;
+
+                if (follow.isFollow)
+                {
+                    follow.state.offset = position;
+                    follow.state.yawOffset = eulerAngles.y;
+                    follow.Apply();
+                }
+                else
+                {
+                    uoCamera.SetTargetPos(position);
+                }
+            }
 
             if (subCamera != null)
             {
@@ -156,6 +182,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             trans.position = target.position;
             trans.eulerAngles = new Vector3(angle.y, angle.x, rotZ);
             trans.scale = new Vector3(uoCamera.distance, camera.fieldOfView, 0);
+
+            // 追従中は注視点の代わりにオフセットを保存する (ApplyMotion と対称)
+            var follow = mainFollow;
+            if (follow != null)
+            {
+                trans.maidSlotNo = follow.state.maidSlotNo;
+                trans.maidPointType = follow.state.maidPointType;
+                trans.followRotation = follow.state.followRotation;
+
+                if (follow.isFollow)
+                {
+                    trans.position = follow.state.offset;
+                    if (follow.state.followRotation)
+                    {
+                        trans.eulerAngles = new Vector3(angle.y, follow.state.yawOffset, rotZ);
+                    }
+                }
+            }
 
             var bone = frame.CreateBone(trans);
             frame.UpdateBone(bone);

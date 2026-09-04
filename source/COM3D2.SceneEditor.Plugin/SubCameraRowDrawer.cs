@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -20,29 +18,13 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class SubCameraRowDrawer
     {
-        private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
         private static MTEP.SubCameraManager subCameraManager
             => MTEP.SubCameraManager.instance;
 
         /// <summary>レイヤー UI の FoV スライダーと同じ既定値</summary>
         private const float DefaultFov = 35f;
 
-        private readonly GUIComboBox<MTEP.MaidCache> _followMaidComboBox =
-            new GUIComboBox<MTEP.MaidCache>
-            {
-                getName = (maidCache, _) => maidCache == null ? "なし" : maidCache.fullName,
-            };
-
-        private readonly GUIComboBox<MTEP.MaidPointType> _followPointComboBox =
-            new GUIComboBox<MTEP.MaidPointType>
-            {
-                items = Enum.GetValues(typeof(MTEP.MaidPointType))
-                    .Cast<MTEP.MaidPointType>().ToList(),
-                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
-            };
-
-        /// <summary>先頭に「なし」(null) を含む追従メイドの選択肢</summary>
-        private readonly List<MTEP.MaidCache> _followMaidItems = new List<MTEP.MaidCache>();
+        private readonly MaidFollowRowDrawer _followRowDrawer = new MaidFollowRowDrawer();
 
         private readonly EulerOffsetCache _offsetCache = new EulerOffsetCache();
 
@@ -58,18 +40,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawToggle("有効", cameraData.visible, 100, rowHeight,
                 newValue => cameraData.visible = newValue);
 
-            DrawFollowMaidRow(view, follow, labelWidth, rowHeight);
-
-            if (follow.isFollow)
-            {
-                _followPointComboBox.currentIndex = (int)follow.maidPointType;
-                _followPointComboBox.onSelected = (type, _) => follow.maidPointType = type;
-                LabeledComboRow.Draw(view, "追従ポイント", _followPointComboBox,
-                    labelWidth, rowHeight);
-
-                view.DrawToggle("向き反映", follow.followRotation, 100, rowHeight,
-                    newValue => follow.followRotation = newValue);
-            }
+            _followRowDrawer.Draw(view, follow.state, labelWidth, rowHeight);
 
             // 追従中の位置は追従点からのオフセットになる (SubCameraData.position と同じ扱い)
             Vector3RowDrawer.Draw(view,
@@ -95,38 +66,6 @@ namespace COM3D2.SceneEditor.Plugin
             });
 
             DrawViewportRows(view, cameraData, labelWidth, rowHeight);
-        }
-
-        /// <summary>追従メイドの選択行。先頭の「なし」を選ぶと追従を解除する</summary>
-        private void DrawFollowMaidRow(
-            GUIView view, MTEP.MaidFollowSubCamera follow, float labelWidth, float rowHeight)
-        {
-            _followMaidItems.Clear();
-            _followMaidItems.Add(null);
-            _followMaidItems.AddRange(maidManager.maidCaches);
-
-            _followMaidComboBox.items = _followMaidItems;
-            _followMaidComboBox.currentIndex =
-                ToFollowMaidIndex(follow.maidSlotNo, _followMaidItems.Count);
-            _followMaidComboBox.onSelected =
-                (maidCache, index) => follow.maidSlotNo = ToFollowMaidSlotNo(index);
-
-            LabeledComboRow.Draw(view, "追従メイド", _followMaidComboBox, labelWidth, rowHeight);
-        }
-
-        /// <summary>
-        /// 追従メイドの maidSlotNo → コンボの添字。先頭に「なし」がある分 1 つずれる。
-        /// 退去などで選択肢が減ったスロット番号は末尾へ丸める
-        /// </summary>
-        public static int ToFollowMaidIndex(int maidSlotNo, int itemCount)
-        {
-            return Mathf.Clamp(maidSlotNo + 1, 0, itemCount - 1);
-        }
-
-        /// <summary>コンボの添字 → 追従メイドの maidSlotNo (「なし」は -1)</summary>
-        public static int ToFollowMaidSlotNo(int index)
-        {
-            return index - 1;
         }
 
         /// <summary>

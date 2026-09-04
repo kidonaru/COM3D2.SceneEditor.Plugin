@@ -4,94 +4,69 @@ using UnityEngine.Events;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    /// <summary>
+    /// サブカメラをメイドへ追従させる。設定と追従点の算出は MaidFollowState に委譲し、
+    /// ここでは LateUpdate でカメラ Transform へ書き込むだけを担う
+    /// </summary>
     public class MaidFollowSubCamera : MonoBehaviour
     {
         public Transform targetTransform;
-        public int maidSlotNo = -1;
-        // 既存データ互換のため、旧仕様の追従先(股)をデフォルトとする
-        public MaidPointType maidPointType = MaidPointType.Crotch;
-        public bool followRotation = false;
-        public Vector3 offset = Vector3.zero;
-        public Vector3 eulerAnglesOffset = Vector3.zero;
+        public readonly MaidFollowState state = new MaidFollowState();
 
-        protected static MaidManager maidManager => MaidManager.instance;
-
-        public MaidCache maidCache
+        public int maidSlotNo
         {
-            get
-            {
-                return maidManager.GetMaidCache(maidSlotNo);
-            }
+            get => state.maidSlotNo;
+            set => state.maidSlotNo = value;
         }
 
-        public Maid maid
+        public MaidPointType maidPointType
         {
-            get
-            {
-                if (maidCache != null)
-                {
-                    return maidCache.maid;
-                }
-                return null;
-            }
+            get => state.maidPointType;
+            set => state.maidPointType = value;
         }
+
+        public bool followRotation
+        {
+            get => state.followRotation;
+            set => state.followRotation = value;
+        }
+
+        public Vector3 offset
+        {
+            get => state.offset;
+            set => state.offset = value;
+        }
+
+        public Vector3 eulerAnglesOffset
+        {
+            get => state.eulerAnglesOffset;
+            set => state.eulerAnglesOffset = value;
+        }
+
+        public MaidCache maidCache => state.maidCache;
+        public Maid maid => state.maid;
+        public bool isFollow => state.isFollow;
 
         private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
 
-        public bool isFollow
-        {
-            get
-            {
-                return maid != null;
-            }
-        }
-
         private void LateUpdate()
         {
-            if (studioHack == null)
+            if (studioHack == null || targetTransform == null)
             {
                 return;
             }
 
-            var maidCache = this.maidCache;
-            if (maidCache == null)
+            Vector3 anchor;
+            Quaternion faceRotation;
+            if (!state.TryGetAnchor(out anchor, out faceRotation))
             {
                 return;
             }
 
-            var maid = maidCache.maid;
-            if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+            targetTransform.position = state.GetFollowPosition(anchor, faceRotation);
+            if (state.followRotation)
             {
-                return;
-            }
-
-            var targetPoint = maidCache.GetPointTransform(maidPointType);
-            if (targetTransform == null || targetPoint == null)
-            {
-                return;
-            }
-
-            if (followRotation)
-            {
-                // ボーン回転はバインドポーズ基底を含むため直接使わず、
-                // 水平方向の向き(ヨー)のみを抽出して基準にする
-                var forward = targetPoint.rotation * Vector3.forward;
-                forward.y = 0f;
-
-                var faceRotation = Quaternion.identity;
-                if (forward.sqrMagnitude > 0.0001f)
-                {
-                    faceRotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
-                }
-
-                // 向き反映時はオフセットも向き基準の回転で扱う
-                targetTransform.position = targetPoint.position + faceRotation * offset;
-                targetTransform.rotation = faceRotation * Quaternion.Euler(eulerAnglesOffset);
-            }
-            else
-            {
-                // 向き反映オフ時は基準となる向きが定まらないため、オフセットはワールド軸基準のまま加算する
-                targetTransform.position = targetPoint.position + offset;
+                targetTransform.rotation = faceRotation * Quaternion.Euler(state.eulerAnglesOffset);
             }
         }
     }

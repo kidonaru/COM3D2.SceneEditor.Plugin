@@ -1,6 +1,7 @@
 using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -22,10 +23,23 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>座標行 (Inspector の座標行と同じ形式) のドラッグ感度</summary>
         public const float PositionDragSensitivity = 0.01f;
 
-        /// <summary>注視点のワールド座標。Inspector の座標行と同じ表示形式で編集する</summary>
+        /// <summary>
+        /// 注視点のワールド座標。Inspector の座標行と同じ表示形式で編集する。
+        /// 追従中は追従点からのオフセットを編集する (追従設定は履歴対象外のため記録しない)
+        /// </summary>
         public static void DrawTargetPosRow(
-            GUIView view, CameraMain mainCamera, float labelWidth, float rowHeight)
+            GUIView view, CameraMain mainCamera, MTEP.MaidFollowMainCamera follow,
+            float labelWidth, float rowHeight)
         {
+            if (follow != null && follow.isFollow)
+            {
+                Vector3RowDrawer.Draw(view, "オフセット", PositionDragSensitivity, labelWidth, rowHeight,
+                    follow.state.offset,
+                    value => follow.state.offset = value,
+                    () => follow.state.offset = Vector3.zero);
+                return;
+            }
+
             Vector3RowDrawer.Draw(view, "注視点", PositionDragSensitivity, labelWidth, rowHeight,
                 mainCamera.GetTargetPos(),
                 value =>
@@ -42,10 +56,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 回転。GetAroundAngle は x がヨー (水平旋回)、y がピッチ (仰俯角)。
+        /// 向き反映中のヨーはメイドの向きからのオフセットを編集する。
         /// ロールは UltimateOrbitCamera が管理しないため Transform へ直接書く
         /// </summary>
         public static void DrawAngleSliders(
-            GUIView view, CameraMain mainCamera, Camera camera,
+            GUIView view, CameraMain mainCamera, Camera camera, MTEP.MaidFollowMainCamera follow,
             float labelWidth, float rowHeight)
         {
             var aroundAngle = mainCamera.GetAroundAngle();
@@ -55,12 +70,21 @@ namespace COM3D2.SceneEditor.Plugin
             var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
             var roll = AngleUtils.NormalizeAngle(camera.transform.eulerAngles.z);
 
-            DrawAxisSlider(view, "ヨー", yaw, -180f, 180f, 0.1f,
-                AngleUtils.NormalizeAngle(DefaultAroundAngle.x), labelWidth, rowHeight, value =>
-                {
-                    RecordCameraEdit("ヨー");
-                    mainCamera.SetAroundAngle(new Vector2(value, pitch));
-                });
+            if (follow != null && follow.isFollow && follow.state.followRotation)
+            {
+                DrawAxisSlider(view, "ヨー", AngleUtils.NormalizeAngle(follow.state.yawOffset),
+                    -180f, 180f, 0.1f, 0f, labelWidth, rowHeight,
+                    value => follow.state.yawOffset = value);
+            }
+            else
+            {
+                DrawAxisSlider(view, "ヨー", yaw, -180f, 180f, 0.1f,
+                    AngleUtils.NormalizeAngle(DefaultAroundAngle.x), labelWidth, rowHeight, value =>
+                    {
+                        RecordCameraEdit("ヨー");
+                        mainCamera.SetAroundAngle(new Vector2(value, pitch));
+                    });
+            }
             DrawAxisSlider(view, "ピッチ", pitch, -90f, 90f, 0.1f,
                 DefaultAroundAngle.y, labelWidth, rowHeight, value =>
                 {
