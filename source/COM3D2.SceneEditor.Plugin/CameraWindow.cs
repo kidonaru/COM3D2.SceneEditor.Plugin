@@ -32,6 +32,10 @@ namespace COM3D2.SceneEditor.Plugin
         private const int PresetCount = 10;
         private static readonly int PresetButtonWidth = 20;
 
+        /// <summary>カメラプリセット文字列の値数。8 値は追従設定を持たない旧形式</summary>
+        private const int LegacyPresetValueCount = 8;
+        private const int PresetValueCount = 11;
+
         /// <summary>保存済みプリセットの右クリックメニュー項目</summary>
         private enum PresetMenuAction
         {
@@ -315,82 +319,89 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>現在のメインカメラの構図をスロットへ保存する (新規登録・上書き共用)</summary>
         private void SavePreset(int slot)
         {
-            var mainCamera = GameMain.Instance.MainCamera;
-            var camera = mainCamera != null ? mainCamera.camera : null;
-            if (camera == null)
+            var state = CameraSnapshot.CaptureState();
+            if (state == null)
             {
                 return;
             }
 
-            config.SetCameraPreset(slot, SerializeCameraPreset(mainCamera, camera));
+            config.SetCameraPreset(slot, SerializeCameraPreset(state));
             config.dirty = true;
         }
 
         /// <summary>保存済みの構図をメインカメラへ適用する</summary>
         private void LoadPreset(int slot, string stored)
         {
-            var mainCamera = GameMain.Instance.MainCamera;
-            var camera = mainCamera != null ? mainCamera.camera : null;
-            if (camera == null)
+            var state = ParseCameraPreset(stored);
+            if (state == null)
             {
                 return;
             }
 
             MainCameraRowDrawer.RecordCameraEdit("プリセット " + slot);
-            ApplyCameraPreset(mainCamera, camera, stored);
+            CameraSnapshot.ApplyState(state);
         }
 
-        /// <summary>カメラ状態を "tx,ty,tz,dist,yaw,pitch,roll,fov" 形式へ変換する</summary>
-        private static string SerializeCameraPreset(CameraMain mainCamera, Camera camera)
+        /// <summary>
+        /// カメラ状態を "tx,ty,tz,dist,yaw,pitch,roll,fov,maidSlotNo,maidPointType,followRotation"
+        /// 形式へ変換する (追従中は tx〜tz がオフセット、向き反映中は yaw がヨーオフセット)
+        /// </summary>
+        private static string SerializeCameraPreset(ScenePresetCamera state)
         {
-            var targetPos = mainCamera.GetTargetPos();
-            var aroundAngle = mainCamera.GetAroundAngle();
             return string.Format(CultureInfo.InvariantCulture,
-                "{0:F4},{1:F4},{2:F4},{3:F4},{4:F2},{5:F2},{6:F2},{7:F2}",
-                targetPos.x, targetPos.y, targetPos.z,
-                mainCamera.GetDistance(),
-                aroundAngle.x, aroundAngle.y,
-                camera.transform.eulerAngles.z,
-                camera.fieldOfView);
+                "{0:F4},{1:F4},{2:F4},{3:F4},{4:F2},{5:F2},{6:F2},{7:F2},{8},{9},{10}",
+                state.targetPos.x, state.targetPos.y, state.targetPos.z,
+                state.distance,
+                state.yaw, state.pitch,
+                state.roll,
+                state.fov,
+                state.maidSlotNo, state.maidPointType, state.followRotation ? 1 : 0);
         }
 
-        /// <summary>保存済みプリセット文字列をカメラへ適用する。不正な文字列は無視する</summary>
-        private static void ApplyCameraPreset(CameraMain mainCamera, Camera camera, string value)
+        /// <summary>
+        /// プリセット文字列を構図へ戻す。不正な文字列は null。
+        /// 追従設定を持たない旧形式 (8 値) は未追従として読む
+        /// </summary>
+        private static ScenePresetCamera ParseCameraPreset(string value)
         {
             var parts = value.Split(',');
-            if (parts.Length != 8)
+            if (parts.Length != LegacyPresetValueCount && parts.Length != PresetValueCount)
             {
-                return;
+                return null;
             }
 
-            var values = new float[8];
-            for (var i = 0; i < 8; i++)
+            var values = new float[parts.Length];
+            for (var i = 0; i < parts.Length; i++)
             {
                 // TryParse は "NaN"/"Infinity" も受理するため、カメラが破綻しないよう弾く
                 if (!float.TryParse(parts[i], NumberStyles.Float,
                     CultureInfo.InvariantCulture, out values[i]) ||
                     float.IsNaN(values[i]) || float.IsInfinity(values[i]))
                 {
-                    return;
+                    return null;
                 }
             }
 
             // 並び順は SerializeCameraPreset の書式と一致させること
-            var targetPos = new Vector3(values[0], values[1], values[2]);
-            var distance = values[3];
-            var aroundAngle = new Vector2(values[4], values[5]);
-            var roll = values[6];
-            var fov = values[7];
+            var state = new ScenePresetCamera
+            {
+                targetPos = new Vector3(values[0], values[1], values[2]),
+                distance = values[3],
+                yaw = values[4],
+                pitch = values[5],
+                roll = values[6],
+                fov = values[7],
+            };
 
-            mainCamera.SetTargetPos(targetPos);
-            mainCamera.SetDistance(distance);
-            mainCamera.SetAroundAngle(aroundAngle);
-
-            var eulerAngles = camera.transform.eulerAngles;
-            eulerAngles.z = roll;
-            camera.transform.eulerAngles = eulerAngles;
-
-            camera.fieldOfView = fov;
+            // 手編集で範囲外になった値は、スロットは MaidManager.GetMaidCache 側、
+            // 追従点は ToMaidPointType が適用時にガードする
+            if (parts.Length == PresetValueCount)
+            {
+                state.maidSlotNo = (int)values[8];
+                state.maidPointType = (int)values[9];
+                state.followRotation = values[10] != 0f;
+            }
+            return state;
         }
 
         private void DrawMainCameraContent()

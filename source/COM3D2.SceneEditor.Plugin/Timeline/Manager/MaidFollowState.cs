@@ -32,6 +32,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isFollow => maid != null;
 
         /// <summary>
+        /// 保存データの int を追従点へ戻す。手編集や将来の enum 追加で範囲外になった値は
+        /// 既定の追従先 (股) へ倒す
+        /// </summary>
+        public static MaidPointType ToMaidPointType(int value)
+        {
+            return System.Enum.IsDefined(typeof(MaidPointType), value)
+                ? (MaidPointType)value
+                : MaidPointType.Crotch;
+        }
+
+        /// <summary>
         /// 向き反映時のヨーオフセット。オービットモデルのカメラ (Main / SceneView) は
         /// ヨーだけを向き基準にするため、eulerAnglesOffset.y をその置き場として使う
         /// </summary>

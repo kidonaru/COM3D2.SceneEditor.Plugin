@@ -4,7 +4,11 @@ using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
-    /// <summary>カメラの構図。CameraMain のオービットモデル（注視点 + 旋回角 + 距離）で保持する</summary>
+    /// <summary>
+    /// カメラの構図。CameraMain のオービットモデル（注視点 + 旋回角 + 距離）で保持する。
+    /// メイド追従中 (v31) は targetPos が追従点からのオフセット、
+    /// 向き反映中は yaw がメイドの向きからのヨーオフセットになる (カメラレイヤーと同じ規約)
+    /// </summary>
     public class ScenePresetCamera
     {
         public Vector3 targetPos;
@@ -16,6 +20,21 @@ namespace COM3D2.SceneEditor.Plugin
         public float roll;
         public float distance;
         public float fov;
+
+        /// <summary>追従先メイドのスロット番号。-1 で追従なし (v31)。旧形式は属性が無く -1 で読める</summary>
+        [XmlAttribute]
+        public int maidSlotNo = -1;
+
+        /// <summary>MaidPointType の int 値 (v31)。未追従時は参照されない</summary>
+        [XmlAttribute]
+        public int maidPointType;
+
+        [XmlAttribute]
+        public bool followRotation;
+
+        /// <summary>追従設定を持っているか (追従先が未ロードでも true)</summary>
+        [XmlIgnore]
+        public bool hasFollow => maidSlotNo >= 0;
     }
 
     /// <summary>背景の状態。id はフォトモードの PhotoBGData.id</summary>
@@ -878,7 +897,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担う
         // v30: effects に sound (ゲーム BGM + タイムライン BGM ファイル設定) と video (動画設定) を追加。
         //      v9 で外したゲーム BGM を再び保存対象にする。旧形式は null で読め、適用時に触らない
-        public static readonly int CurrentVersion = 30;
+        // v31: camera にメイド追従 (maidSlotNo / maidPointType / followRotation) を追加。
+        //      旧形式は属性が無く maidSlotNo=-1 (未追従) で読め、従来どおり注視点として適用する
+        public static readonly int CurrentVersion = 31;
 
         [XmlAttribute]
         public int version = CurrentVersion;
