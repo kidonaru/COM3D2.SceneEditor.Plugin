@@ -126,31 +126,26 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 isShowBPMLine = true,
                 bpmLineOffsetFrame = 1.5f,
             };
-            data.effects.video = new ScenePresetVideo
+            data.effects.videos.Add(new ScenePresetVideo
             {
                 enabled = false,
                 displayType = 3,
                 path = @"C:\movie\a.mp4",
                 position = new Vector3(1f, 2f, 3f),
-                rotation = new Vector3(4f, 5f, 6f),
-                scale = 2f,
                 startTime = 0.5f,
-                volume = 0.25f,
-                alpha = 0.75f,
-                guiPosition = new Vector2(0.1f, 0.2f),
-                guiScale = 0.9f,
-                guiAlpha = 0.8f,
-                backmostPosition = new Vector2(0.3f, 0.4f),
-                backmostScale = 1.1f,
-                backmostAlpha = 0.6f,
                 frontmostPosition = new Vector2(-0.7f, 0.7f),
-                frontmostScale = 0.35f,
                 frontmostAlpha = 0.5f,
-            };
+            });
+            data.effects.videos.Add(new ScenePresetVideo
+            {
+                displayType = 2,
+                path = @"C:\movie\b.mp4",
+                backmostAlpha = 0.25f,
+            });
 
             var restored = RoundTrip(data);
 
-            Assert.Equal(30, ScenePresetData.CurrentVersion);
+            Assert.Equal(32, ScenePresetData.CurrentVersion);
             Assert.NotNull(restored.effects.sound);
             Assert.Equal("BGM020.ogg", restored.effects.sound.gameBgmFile);
             Assert.Equal(@"C:\music\dance.ogg", restored.effects.sound.bgmPath);
@@ -158,14 +153,34 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(restored.effects.sound.isShowBPMLine);
             Assert.Equal(1.5f, restored.effects.sound.bpmLineOffsetFrame);
 
-            Assert.NotNull(restored.effects.video);
-            Assert.False(restored.effects.video.enabled);
-            Assert.Equal(3, restored.effects.video.displayType);
-            Assert.Equal(@"C:\movie\a.mp4", restored.effects.video.path);
-            Assert.Equal(new Vector3(1f, 2f, 3f), restored.effects.video.position);
-            Assert.Equal(0.5f, restored.effects.video.startTime);
-            Assert.Equal(new Vector2(-0.7f, 0.7f), restored.effects.video.frontmostPosition);
-            Assert.Equal(0.5f, restored.effects.video.frontmostAlpha);
+            Assert.Equal(2, restored.effects.videos.Count);
+            Assert.False(restored.effects.videos[0].enabled);
+            Assert.Equal(3, restored.effects.videos[0].displayType);
+            Assert.Equal(@"C:\movie\a.mp4", restored.effects.videos[0].path);
+            Assert.Equal(new Vector3(1f, 2f, 3f), restored.effects.videos[0].position);
+            Assert.Equal(0.5f, restored.effects.videos[0].startTime);
+            Assert.Equal(new Vector2(-0.7f, 0.7f), restored.effects.videos[0].frontmostPosition);
+            Assert.Equal(0.5f, restored.effects.videos[0].frontmostAlpha);
+            Assert.Equal(2, restored.effects.videos[1].displayType);
+            Assert.Equal(@"C:\movie\b.mp4", restored.effects.videos[1].path);
+            Assert.Equal(0.25f, restored.effects.videos[1].backmostAlpha);
+        }
+
+        [Fact]
+        public void V31Preset_SingleVideoElement_ReadsAsOneItemList()
+        {
+            var serializer = new XmlSerializer(typeof(ScenePresetData));
+            var xml = "<ScenePresetData version=\"31\" savedEffects=\"true\"><effects>"
+                + "<video enabled=\"true\" displayType=\"2\"><path>C:\\movie\\old.mp4</path><backmostAlpha>0.4</backmostAlpha></video>"
+                + "</effects></ScenePresetData>";
+            using (var reader = new StringReader(xml))
+            {
+                var restored = (ScenePresetData)serializer.Deserialize(reader);
+                Assert.Single(restored.effects.videos);
+                Assert.Equal(2, restored.effects.videos[0].displayType);
+                Assert.Equal(@"C:\movie\old.mp4", restored.effects.videos[0].path);
+                Assert.Equal(0.4f, restored.effects.videos[0].backmostAlpha);
+            }
         }
 
         [Fact]
@@ -178,7 +193,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 var restored = (ScenePresetData)serializer.Deserialize(reader);
                 Assert.NotNull(restored.effects);
                 Assert.Null(restored.effects.sound);
-                Assert.Null(restored.effects.video);
+                Assert.Empty(restored.effects.videos);
             }
         }
     }

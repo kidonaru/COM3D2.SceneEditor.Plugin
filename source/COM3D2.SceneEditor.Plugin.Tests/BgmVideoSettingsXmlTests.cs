@@ -126,13 +126,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void TimelineXml_動画リストが既にあればフラット項目は取り込まない()
         {
             var xml = new TimelineXml { version = 33, videoPath = @"C:\movie\ignored.mp4" };
-            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4" });
-            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4" });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\a.mp4" });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\b.mp4" });
 
             xml.Initialize();
 
             Assert.Equal(2, xml.videos.Count);
-            Assert.Equal(@"C:\movie.mp4", xml.videos[0].path);
+            Assert.Equal(@"C:\movie\a.mp4", xml.videos[0].path);
         }
 
         // ToXml() は末尾の StopwatchDebug が UnityEngine.Debug.Log を呼ぶため、
@@ -141,15 +141,15 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void TimelineData_動画リストはFromXmlで件数と順序が保持される()
         {
             var xml = new TimelineXml { version = TimelineData.CurrentVersion };
-            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4", displayType = VideoDisplayType.GUI });
-            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4", displayType = VideoDisplayType.Backmost });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\a.mp4", displayType = VideoDisplayType.GUI });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\b.mp4", displayType = VideoDisplayType.Backmost });
             xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\c.mp4", displayType = VideoDisplayType.Mesh });
 
             var data = new TimelineData();
             data.FromXml(xml);
 
             Assert.Equal(3, data.videos.Count);
-            Assert.Equal(@"C:\movie.mp4", data.videos[1].path);
+            Assert.Equal(@"C:\movie\b.mp4", data.videos[1].path);
             Assert.Equal(VideoDisplayType.Backmost, data.videos[1].displayType);
             Assert.Equal(@"C:\movie\c.mp4", data.videos[2].path);
             Assert.Equal(VideoDisplayType.Mesh, data.videos[2].displayType);

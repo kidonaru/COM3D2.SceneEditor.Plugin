@@ -24,7 +24,7 @@ namespace COM3D2.SceneEditor.Plugin
             CaptureTexts(data);
             CaptureSubCameras(data);
             data.sound = CaptureSound();
-            data.video = CaptureVideo();
+            CaptureVideos(data);
             return data;
         }
 
@@ -38,7 +38,7 @@ namespace COM3D2.SceneEditor.Plugin
             ApplyTexts(data);
             ApplySubCameras(data);
             ApplySound(data.sound);
-            ApplyVideo(data.video);
+            ApplyVideos(data);
         }
 
         private static void CaptureTexts(ScenePresetEffects data)
@@ -252,60 +252,71 @@ namespace COM3D2.SceneEditor.Plugin
             soundData.Play();
         }
 
-        private static ScenePresetVideo CaptureVideo()
+        private static void CaptureVideos(ScenePresetEffects data)
         {
-            var settings = movieManager.settings;
-            return new ScenePresetVideo
+            foreach (var settings in movieManager.settingsList)
             {
-                enabled = settings.enabled,
-                displayType = (int)settings.displayType,
-                path = settings.path,
-                position = settings.position,
-                rotation = settings.rotation,
-                scale = settings.scale,
-                startTime = settings.startTime,
-                volume = settings.volume,
-                alpha = settings.alpha,
-                guiPosition = settings.guiPosition,
-                guiScale = settings.guiScale,
-                guiAlpha = settings.guiAlpha,
-                backmostPosition = settings.backmostPosition,
-                backmostScale = settings.backmostScale,
-                backmostAlpha = settings.backmostAlpha,
-                frontmostPosition = settings.frontmostPosition,
-                frontmostScale = settings.frontmostScale,
-                frontmostAlpha = settings.frontmostAlpha,
-            };
+                data.videos.Add(new ScenePresetVideo
+                {
+                    enabled = settings.enabled,
+                    displayType = (int)settings.displayType,
+                    path = settings.path,
+                    position = settings.position,
+                    rotation = settings.rotation,
+                    scale = settings.scale,
+                    startTime = settings.startTime,
+                    volume = settings.volume,
+                    alpha = settings.alpha,
+                    guiPosition = settings.guiPosition,
+                    guiScale = settings.guiScale,
+                    guiAlpha = settings.guiAlpha,
+                    backmostPosition = settings.backmostPosition,
+                    backmostScale = settings.backmostScale,
+                    backmostAlpha = settings.backmostAlpha,
+                    frontmostPosition = settings.frontmostPosition,
+                    frontmostScale = settings.frontmostScale,
+                    frontmostAlpha = settings.frontmostAlpha,
+                });
+            }
         }
 
-        /// <summary>null (v29 以前 / 未記録) なら何もしない</summary>
-        private static void ApplyVideo(ScenePresetVideo src)
+        /// <summary>空 (旧プリセット / 未保存) なら触らない</summary>
+        private static void ApplyVideos(ScenePresetEffects data)
         {
-            if (src == null)
+            if (data.videos.Count == 0)
             {
                 return;
             }
 
-            var settings = movieManager.settings;
-            settings.enabled = src.enabled;
-            settings.displayType = (MTEP.VideoDisplayType)src.displayType;
-            settings.path = src.path;
-            settings.position = src.position;
-            settings.rotation = src.rotation;
-            settings.scale = src.scale;
-            settings.startTime = src.startTime;
-            settings.volume = src.volume;
-            settings.alpha = src.alpha;
-            settings.guiPosition = src.guiPosition;
-            settings.guiScale = src.guiScale;
-            settings.guiAlpha = src.guiAlpha;
-            settings.backmostPosition = src.backmostPosition;
-            settings.backmostScale = src.backmostScale;
-            settings.backmostAlpha = src.backmostAlpha;
-            settings.frontmostPosition = src.frontmostPosition;
-            settings.frontmostScale = src.frontmostScale;
-            settings.frontmostAlpha = src.frontmostAlpha;
-            // 無効やパス空なら Unload だけが走る (LoadMovie は isEnabled を見る)
+            // 手編集や破損 XML の異常値で大量生成しないよう UI と同じ上限へ丸める
+            var count = Mathf.Min(data.videos.Count, MTEP.MovieManager.MaxVideoCount);
+            movieManager.videoCount = count;
+
+            for (var i = 0; i < count; i++)
+            {
+                var src = data.videos[i];
+                var settings = movieManager.GetSettings(i);
+                settings.enabled = src.enabled;
+                settings.displayType = (MTEP.VideoDisplayType)src.displayType;
+                settings.path = src.path;
+                settings.position = src.position;
+                settings.rotation = src.rotation;
+                settings.scale = src.scale;
+                settings.startTime = src.startTime;
+                settings.volume = src.volume;
+                settings.alpha = src.alpha;
+                settings.guiPosition = src.guiPosition;
+                settings.guiScale = src.guiScale;
+                settings.guiAlpha = src.guiAlpha;
+                settings.backmostPosition = src.backmostPosition;
+                settings.backmostScale = src.backmostScale;
+                settings.backmostAlpha = src.backmostAlpha;
+                settings.frontmostPosition = src.frontmostPosition;
+                settings.frontmostScale = src.frontmostScale;
+                settings.frontmostAlpha = src.frontmostAlpha;
+            }
+
+            // 無効やパス空の本は Unload だけが走る (LoadMovie は IsEnabled を見る)
             movieManager.ReloadMovie();
         }
     }

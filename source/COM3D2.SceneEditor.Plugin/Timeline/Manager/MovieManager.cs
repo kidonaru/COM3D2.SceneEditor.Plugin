@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -352,7 +351,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             WithPlayer(index, player => player.UpdateShader());
         }
 
-        private void ForEachPlayer(Action<MoviePlayerImpl> action)
+        private void ForEachPlayer(System.Action<MoviePlayerImpl> action)
         {
             SyncPlayerListLength();
 
@@ -365,7 +364,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private void WithPlayer(int index, Action<MoviePlayerImpl> action)
+        private void WithPlayer(int index, System.Action<MoviePlayerImpl> action)
         {
             var player = GetPlayer(index);
             if (player != null)
