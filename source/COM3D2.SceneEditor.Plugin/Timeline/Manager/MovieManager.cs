@@ -5,6 +5,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     // VideoDisplayType enum は Timeline/VideoDisplayType.cs に分離定義している
 
+    /// <summary>
+    /// 動画の読込と表示を本数分まとめて扱う。
+    /// 操作系は「全本まとめて」と「index 指定の 1 本だけ」を対で用意しており、
+    /// 前者はタイムラインのイベント購読やプリセット適用、後者は動画ウィンドウの編集操作が使う。
+    /// 現時点で呼び出し元が無い対の片側も、経路が増えたときに書き分けが割れないよう残している
+    /// </summary>
     public class MovieManager : ManagerBase
     {
         public const int MinVideoCount = 1;
@@ -74,6 +80,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool IsValidPath(int index)
         {
+            if (!IsValidIndex(index))
+            {
+                return false;
+            }
+
             var path = GetSettings(index).path;
             return path.Length > 0 && System.IO.File.Exists(path);
         }
@@ -155,13 +166,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// プレイヤー側リストを settingsList の長さに合わせる。
-        /// タイムライン読込で settingsList の実体が差し替わっても添字対応を保つため、
+        /// プレイヤー側リストを settingsList の長さに合わせ、生存中のプレイヤーへ現在の設定を束ね直す。
+        /// タイムラインの読込・破棄で settingsList の実体が差し替わっても添字対応と参照先を保つため、
         /// 各操作の入口で呼ぶ。余った末尾のプレイヤーは破棄する
         /// </summary>
         private void SyncPlayerListLength()
         {
-            var count = settingsList.Count;
+            var list = settingsList;
+            var count = list.Count;
 
             while (_players.Count > count)
             {
@@ -177,6 +189,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _players.Add(null);
                 _loadedVideoPaths.Add("");
                 _loadedDisplayTypes.Add(VideoDisplayType.GUI);
+            }
+
+            // 設定は注入方式なので、実体が入れ替わったら束ね直さないと
+            // プレイヤーだけ破棄済みタイムラインの値を見続ける
+            for (var i = 0; i < _players.Count; i++)
+            {
+                if (_players[i] != null)
+                {
+                    _players[i].SetSettings(list[i]);
+                }
             }
         }
 
@@ -239,13 +261,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 return;
             }
-            _loadedVideoPaths[index] = path;
 
+            // SetupImpl は表示形式が変わっていると DestroyPlayer 経由でパスを空に戻すため、
+            // 読込済みの記録は実際に開いたあとに行う
             SetupImpl(index);
 
             if (_players[index] != null)
             {
                 _players[index].LoadMovie(path);
+                _loadedVideoPaths[index] = path;
             }
         }
 

@@ -54,6 +54,28 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 // ポストエフェクトの色拡張 / ブレンド拡張の設定 (UI ごと廃止し、常に拡張表示)
                 "UsePostEffectExtra",
                 "UsePostEffectBlend",
+
+                // v33 で動画設定は Video リストへ移した。平置き項目は読込互換専用で書き出さない
+                // (値そのものは Initialize() が <Video> の 1 本目へ引き継ぐ)
+                "VideoEnabled",
+                "VideoDisplayOnGUI",
+                "VideoDisplayType",
+                "VideoPath",
+                "VideoPosition",
+                "VideoRotation",
+                "VideoScale",
+                "VideoStartTime",
+                "VideoVolume",
+                "VideoAlpha",
+                "VideoGUIPosition",
+                "VideoGUIScale",
+                "VideoGUIAlpha",
+                "VideoBackmostPosition",
+                "VideoBackmostScale",
+                "VideoBackmostAlpha",
+                "VideoFrontmostPosition",
+                "VideoFrontmostScale",
+                "VideoFrontmostAlpha",
             };
 
         private static string SerializeToString(TimelineXml xml, XmlSerializer serializer)

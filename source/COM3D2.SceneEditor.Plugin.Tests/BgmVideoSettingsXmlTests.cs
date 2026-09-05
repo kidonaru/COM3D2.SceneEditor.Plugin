@@ -1,3 +1,5 @@
+using System.IO;
+using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using Xunit;
@@ -39,7 +41,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 enabled = false,
                 displayType = VideoDisplayType.Frontmost,
-                path = @"C:\movie	est.mp4",
+                path = @"C:\movie\test.mp4",
                 position = new Vector3(1f, 2f, 3f),
                 rotation = new Vector3(10f, 20f, 30f),
                 scale = 2.5f,
@@ -63,7 +65,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.False(dst.enabled);
             Assert.Equal(VideoDisplayType.Frontmost, dst.displayType);
-            Assert.Equal(@"C:\movie	est.mp4", dst.path);
+            Assert.Equal(@"C:\movie\test.mp4", dst.path);
             Assert.Equal(new Vector3(1f, 2f, 3f), dst.position);
             Assert.Equal(new Vector3(10f, 20f, 30f), dst.rotation);
             Assert.Equal(2.5f, dst.scale);
@@ -178,6 +180,37 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             data.FromXml(xml);
 
             Assert.Equal(MovieManager.MaxVideoCount, data.videos.Count);
+        }
+
+        [Fact]
+        public void TimelineXml_書き出しはVideoリストだけで平置き項目は出力されない()
+        {
+            var xml = new TimelineXml { version = TimelineData.CurrentVersion };
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\a.mp4" });
+
+            var serializer = new XmlSerializer(typeof(TimelineXml));
+            string written;
+            using (var writer = new StringWriter())
+            {
+                serializer.Serialize(writer, xml);
+                written = writer.ToString();
+            }
+
+            // 平置き項目を書き出すと、旧ビルドで開いたとき既定値で上書きされて設定が消える
+            Assert.DoesNotContain("<VideoPath>", written);
+            Assert.DoesNotContain("<VideoEnabled>", written);
+            Assert.DoesNotContain("<VideoFrontmostAlpha>", written);
+            Assert.Contains("<Video>", written);
+
+            // 抑止したのは書き出しだけで、読込側の互換は保つ
+            using (var reader = new StringReader(
+                "<TimelineData version=\"32\"><VideoPath>C:\\movie\\legacy.mp4</VideoPath></TimelineData>"))
+            {
+                var restored = (TimelineXml)serializer.Deserialize(reader);
+                restored.Initialize();
+                Assert.Single(restored.videos);
+                Assert.Equal(@"C:\movie\legacy.mp4", restored.videos[0].path);
+            }
         }
 
         [Fact]

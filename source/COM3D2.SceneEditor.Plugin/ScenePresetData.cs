@@ -759,8 +759,7 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// 動画 (v30)。MTE の VideoSettings と同じ項目。
-    /// 空リストは未記録として適用時に触らない
+    /// 動画 1 本分 (v30)。MTE の VideoSettings と同じ項目
     /// </summary>
     public class ScenePresetVideo
     {
@@ -793,7 +792,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ / サウンド (v30) / 動画 (v30)。
     /// 旧プリセット (要素なし) は null になり、適用時に触らない。
     /// リスト項目は「空リスト = 保存時に実体なし」を未記録と同義として触らない。
-    /// sound は要素なし (null)、video は空リストを未記録として触らない。
+    /// sound だけは要素なし (null) 判定。
     /// ポストエフェクトは PostEffects.Plugin のサイドカープリセットが担うためここには持たない
     /// </summary>
     public class ScenePresetEffects
@@ -806,7 +805,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         public ScenePresetSound sound;
 
-        /// <summary>動画 (v32 で複数化)。要素名は v30 の単体 video のままなので旧形式も 1 件として読める</summary>
+        /// <summary>
+        /// 動画 (v32 で複数化)。空リストは未記録として適用時に触らない。
+        /// 要素名は v30 の単体 video のままなので旧形式も 1 件として読める
+        /// </summary>
         [XmlElement("video")]
         public List<ScenePresetVideo> videos = new List<ScenePresetVideo>();
     }

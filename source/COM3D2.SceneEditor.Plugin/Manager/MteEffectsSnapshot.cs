@@ -280,7 +280,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>空 (旧プリセット / 未保存) なら触らない</summary>
+        /// <summary>
+        /// 空 (v31 以前 / 未保存) なら触らない。
+        /// v31 以前は動画が 1 件しか無いため、適用すると本数も 1 本へ戻る
+        /// </summary>
         private static void ApplyVideos(ScenePresetEffects data)
         {
             if (data.videos.Count == 0)

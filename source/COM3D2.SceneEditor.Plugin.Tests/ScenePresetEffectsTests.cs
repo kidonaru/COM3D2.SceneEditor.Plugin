@@ -184,7 +184,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void V29Preset_WithoutSoundAndVideo_ReadsThemAsNull()
+        public void V29Preset_WithoutSoundAndVideo_ReadsSoundAsNullAndVideosAsEmpty()
         {
             var serializer = new XmlSerializer(typeof(ScenePresetData));
             var xml = "<ScenePresetData version=\"29\" savedEffects=\"true\"><effects /></ScenePresetData>";

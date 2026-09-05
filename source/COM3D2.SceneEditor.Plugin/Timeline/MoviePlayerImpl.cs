@@ -138,12 +138,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static CameraManager cameraManager =>  CameraManager.instance;
 
         /// <summary>
+        /// 参照する設定を差し替える。タイムライン破棄で settings の実体が
+        /// standalone 側へ切り替わったとき、MovieManager が生存中のプレイヤーへ呼ぶ
+        /// </summary>
+        public void SetSettings(VideoSettings video)
+        {
+            _video = video;
+        }
+
+        /// <summary>
         /// 設定を注入して初期化する。AddComponent 直後に MovieManager が呼ぶ。
         /// Awake では設定がまだ無いため、表示形式に依存する生成はここで行う
         /// </summary>
         public void Setup(VideoSettings video)
         {
-            _video = video;
+            SetSettings(video);
 
             _mediaPlayer = gameObject.AddComponent<MediaPlayer>();
             _mediaPlayer.Events.AddListener(OnVideoEvent);
@@ -214,7 +223,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Update()
         {
-            // Setup 前 (AddComponent 直後の Awake 相当) は設定が無いため何もしない
+            // Setup 前は設定が無いため何もしない
             if (_video == null)
             {
                 return;
@@ -538,6 +547,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OnRenderObject()
         {
+            // Setup 前は設定が無いため何もしない
+            if (_video == null)
+            {
+                return;
+            }
+
             if (!IsGridVisible())
             {
                 return;

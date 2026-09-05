@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
@@ -315,7 +315,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("RimlightCount")]
         public int rimlightCount = 1;
 
-        // 以下の Video* 平置き項目は v32 以前の読込互換用。書き出しは videos リストで行い、こちらには値を入れない
+        // 以下の Video* 平置き項目は v32 以前の読込互換用。書き出し値は videos リストが持ち、
+        // こちらは既定値のまま出力される (読込時は videos が空のときだけ Initialize() が拾う)
         [XmlElement("VideoEnabled")]
         public bool videoEnabled = true;
 
@@ -373,6 +374,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("VideoFrontmostAlpha")]
         public float videoFrontmostAlpha = 1f;
 
+
+        // Video* 平置き項目は読込互換専用。ShouldSerialize で書き出しだけ抑止し、
+        // 保存ファイルには videos リスト (<Video>) だけを残す
+        public bool ShouldSerializevideoEnabled() { return false; }
+        public bool ShouldSerializevideoDisplayOnGUI() { return false; }
+        public bool ShouldSerializevideoDisplayType() { return false; }
+        public bool ShouldSerializevideoPath() { return false; }
+        public bool ShouldSerializevideoPosition() { return false; }
+        public bool ShouldSerializevideoRotation() { return false; }
+        public bool ShouldSerializevideoScale() { return false; }
+        public bool ShouldSerializevideoStartTime() { return false; }
+        public bool ShouldSerializevideoVolume() { return false; }
+        public bool ShouldSerializevideoAlpha() { return false; }
+        public bool ShouldSerializevideoGUIPosition() { return false; }
+        public bool ShouldSerializevideoGUIScale() { return false; }
+        public bool ShouldSerializevideoGUIAlpha() { return false; }
+        public bool ShouldSerializevideoBackmostPosition() { return false; }
+        public bool ShouldSerializevideoBackmostScale() { return false; }
+        public bool ShouldSerializevideoBackmostAlpha() { return false; }
+        public bool ShouldSerializevideoFrontmostPosition() { return false; }
+        public bool ShouldSerializevideoFrontmostScale() { return false; }
+        public bool ShouldSerializevideoFrontmostAlpha() { return false; }
+
         /// <summary>
         /// 動画設定 (v33 以降)。1 本目も含めて全本をここへ保存する。
         /// 旧形式からの取り込みは Initialize() が行うため、FromXml へ渡す前に Initialize() を通すこと
@@ -415,7 +439,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 videoDisplayType = videoDisplayOnGUI ? VideoDisplayType.GUI : VideoDisplayType.Mesh;
             }
 
-            // v32 以前は動画 1 本を平置き項目で保存していたため、リストが空ならそこから 1 本目を起こす
+            // 保存形式に関わらず、リストが空なら平置き項目から 1 本目を起こす
+            // (v32 以前は動画 1 本を平置き項目で保存していたため、その読込がこれに当たる)
             if (videos.Count == 0)
             {
                 videos.Add(new VideoSettingsXml

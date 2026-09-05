@@ -55,6 +55,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly GUIComboBox<int> _videoComboBox = new GUIComboBox<int>
         {
+            // 表示は 1 始まり、内部添字は 0 始まり (VideoPreviewWindow のタイトルも同じ規約)
             getName = (index, _) => "動画" + (index + 1),
             labelWidth = 70,
             buttonSize = new Vector2(150, 20),
