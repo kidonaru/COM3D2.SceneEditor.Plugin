@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -43,7 +44,25 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.MovieManager movieManager => MTEP.MovieManager.instance;
-        private static MTEP.VideoSettings settings => movieManager.settings;
+
+        /// <summary>操作対象の動画添字</summary>
+        private int _videoIndex = 0;
+
+        /// <summary>プレビューウィンドウが表示対象を合わせるために参照する</summary>
+        public int selectedIndex => _videoIndex;
+
+        private MTEP.VideoSettings settings => movieManager.GetSettings(_videoIndex);
+
+        private readonly GUIComboBox<int> _videoComboBox = new GUIComboBox<int>
+        {
+            getName = (index, _) => "動画" + (index + 1),
+            labelWidth = 70,
+            buttonSize = new Vector2(150, 20),
+            contentSize = new Vector2(150, 120),
+        };
+
+        /// <summary>コンボ選択肢 (0〜videoCount-1)。本数変更時だけ作り直す</summary>
+        private readonly List<int> _videoIndexItems = new List<int>();
 
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
         private readonly GUIView _rootView = new GUIView();
@@ -53,11 +72,6 @@ namespace COM3D2.SceneEditor.Plugin
         {
             items = Enum.GetValues(typeof(MTEP.VideoDisplayType)).Cast<MTEP.VideoDisplayType>().ToList(),
             getName = (type, index) => VideoDisplayTypeNames[index],
-            onSelected = (type, index) =>
-            {
-                settings.displayType = type;
-                movieManager.ReloadMovie();
-            },
         };
 
         private static VideoWindow _instance = null;
@@ -75,6 +89,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         private VideoWindow()
         {
+            // インスタンスメンバー (settings) を参照するため、フィールド初期化子ではなくここで設定する
+            _videoComboBox.onSelected = (index, _) => _videoIndex = index;
+            _videoDisplayTypeComboBox.onSelected = (type, index) =>
+            {
+                settings.displayType = type;
+                movieManager.ReloadMovie(_videoIndex);
+            };
         }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
@@ -114,12 +135,41 @@ namespace COM3D2.SceneEditor.Plugin
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            DrawVideoSetting(_view);
+            DrawVideoSelector(_view);
+            if (movieManager.IsValidIndex(_videoIndex))
+            {
+                DrawVideoSetting(_view);
+            }
 
             _view.EndScrollView();
 
             // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
+        }
+
+        /// <summary>動画数の増減行と操作対象コンボ</summary>
+        private void DrawVideoSelector(GUIView view)
+        {
+            CountRowDrawer.Draw(view, "動画数", ROW_HEIGHT, movieManager.videoCount,
+                MTEP.MovieManager.MinVideoCount,
+                MTEP.MovieManager.MaxVideoCount,
+                count => movieManager.videoCount = count);
+
+            var videoCount = movieManager.videoCount;
+            _videoIndex = Mathf.Clamp(_videoIndex, 0, videoCount - 1);
+
+            if (_videoIndexItems.Count != videoCount)
+            {
+                _videoIndexItems.Clear();
+                for (var i = 0; i < videoCount; i++)
+                {
+                    _videoIndexItems.Add(i);
+                }
+            }
+
+            _videoComboBox.items = _videoIndexItems;
+            _videoComboBox.currentIndex = _videoIndex;
+            _videoComboBox.DrawButton("操作対象", view);
         }
 
         private void DrawVideoSetting(GUIView view)
@@ -133,11 +183,11 @@ namespace COM3D2.SceneEditor.Plugin
                     settings.enabled = newValue;
                     if (newValue)
                     {
-                        movieManager.LoadMovie();
+                        movieManager.LoadMovie(_videoIndex);
                     }
                     else
                     {
-                        movieManager.UnloadMovie();
+                        movieManager.UnloadMovie(_videoIndex);
                     }
                 });
 
@@ -171,13 +221,13 @@ namespace COM3D2.SceneEditor.Plugin
                     if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
                     {
                         settings.path = openFileDialog.FileName;
-                        movieManager.LoadMovie();
+                        movieManager.LoadMovie(_videoIndex);
                     }
                 }
 
                 if (view.DrawButton("再読込", 80, ROW_HEIGHT))
                 {
-                    movieManager.ReloadMovie();
+                    movieManager.ReloadMovie(_videoIndex);
                 }
             }
             view.EndLayout();
@@ -189,20 +239,22 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel("タイムライン読込後にシークと再生速度が同期します", -1, ROW_HEIGHT, textColor: Color.gray);
             }
 
+            var frameRate = movieManager.GetFrameRate(_videoIndex);
+
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "開始位置",
                 labelWidth = LABEL_WIDTH,
                 width = -1,
                 min = -1f,
-                max = movieManager.duration,
-                step = movieManager.frameRate > 0f ? 1f / movieManager.frameRate : 0.01f,
+                max = movieManager.GetDuration(_videoIndex),
+                step = frameRate > 0f ? 1f / frameRate : 0.01f,
                 defaultValue = 0f,
                 value = settings.startTime,
                 onChanged = newValue =>
                 {
                     settings.startTime = newValue;
-                    movieManager.UpdateSeekTime();
+                    movieManager.UpdateSeekTime(_videoIndex);
                 },
             });
 
@@ -235,7 +287,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = newValue =>
                 {
                     settings.volume = newValue;
-                    movieManager.UpdateVolume();
+                    movieManager.UpdateVolume(_videoIndex);
                 },
             });
 
@@ -269,7 +321,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawPositionRow(view, settings.guiPosition, Vector2.zero, newValue =>
             {
                 settings.guiPosition = newValue;
-                movieManager.UpdateTransform();
+                movieManager.UpdateTransform(_videoIndex);
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -285,7 +337,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.guiScale = value;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 },
             });
 
@@ -302,7 +354,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.guiAlpha = value;
-                    movieManager.UpdateColor();
+                    movieManager.UpdateColor(_videoIndex);
                 },
             });
         }
@@ -314,12 +366,12 @@ namespace COM3D2.SceneEditor.Plugin
                 newValue =>
                 {
                     settings.position = newValue;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 },
                 () =>
                 {
                     settings.position = Vector3.zero;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 });
 
             Vector3RowDrawer.Draw(view, "回転", RotationSensitivity, LABEL_WIDTH, ROW_HEIGHT,
@@ -327,12 +379,12 @@ namespace COM3D2.SceneEditor.Plugin
                 newValue =>
                 {
                     settings.rotation = newValue;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 },
                 () =>
                 {
                     settings.rotation = Vector3.zero;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -348,7 +400,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.scale = value;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 },
             });
 
@@ -365,7 +417,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.alpha = value;
-                    movieManager.UpdateColor();
+                    movieManager.UpdateColor(_videoIndex);
                 },
             });
         }
@@ -375,7 +427,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawPositionRow(view, settings.backmostPosition, Vector2.zero, newValue =>
             {
                 settings.backmostPosition = newValue;
-                movieManager.UpdateMesh();
+                movieManager.UpdateMesh(_videoIndex);
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -391,7 +443,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.backmostScale = value;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 },
             });
 
@@ -408,7 +460,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.backmostAlpha = value;
-                    movieManager.UpdateColor();
+                    movieManager.UpdateColor(_videoIndex);
                 },
             });
         }
@@ -421,7 +473,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawPositionRow(view, settings.frontmostPosition, FrontmostDefaultPosition, newValue =>
             {
                 settings.frontmostPosition = newValue;
-                movieManager.UpdateMesh();
+                movieManager.UpdateMesh(_videoIndex);
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -437,7 +489,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.frontmostScale = value;
-                    movieManager.UpdateTransform();
+                    movieManager.UpdateTransform(_videoIndex);
                 },
             });
 
@@ -454,7 +506,7 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value =>
                 {
                     settings.frontmostAlpha = value;
-                    movieManager.UpdateColor();
+                    movieManager.UpdateColor(_videoIndex);
                 },
             });
         }

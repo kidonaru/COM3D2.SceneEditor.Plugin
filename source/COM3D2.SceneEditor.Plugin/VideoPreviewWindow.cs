@@ -14,7 +14,10 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int WINDOW_ID = 8903397;
 
         protected override int windowId => WINDOW_ID;
-        protected override string windowTitle => "動画プレビュー";
+        /// <summary>操作対象の動画を示す。VideoWindow の選択に追従する</summary>
+        protected override string windowTitle => "動画プレビュー (" + (videoIndex + 1) + ")";
+
+        private static int videoIndex => VideoWindow.instance.selectedIndex;
 
         private static readonly int ROW_HEIGHT = 20;
 
@@ -74,7 +77,7 @@ namespace COM3D2.SceneEditor.Plugin
             GUI.color = prevColor;
 
             // メタデータ確定前はサイズ 0 のダミーが返ることがあり、そのままだと FitRect が NaN になる
-            var texture = movieManager.texture;
+            var texture = movieManager.GetTexture(videoIndex);
             if (texture == null || texture.width <= 0 || texture.height <= 0)
             {
                 _view.Init(localRect);
@@ -85,7 +88,7 @@ namespace COM3D2.SceneEditor.Plugin
             var drawRect = FitRect(localRect, (float)texture.width / texture.height);
 
             // MediaFoundation 等ではテクスチャが上下反転しているため UV 側で戻す
-            var texCoords = movieManager.requiresVerticalFlip
+            var texCoords = movieManager.RequiresVerticalFlip(videoIndex)
                 ? new Rect(0f, 1f, 1f, -1f)
                 : new Rect(0f, 0f, 1f, 1f);
             GUI.DrawTextureWithTexCoords(drawRect, texture, texCoords, false);
