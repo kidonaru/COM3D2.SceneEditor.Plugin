@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine.SceneManagement;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -125,6 +126,7 @@ namespace COM3D2.SceneEditor.Plugin
                 camera.targetTexture = null;
             }
             DetachGizmoRenderer();
+            SyncFrontCameraTarget();
             RestoreUICameras();
             DestroyClearCamera();
             ReleaseRenderTexture();
@@ -308,6 +310,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // 最大化中はRTを持たないため、サイズ追従も targetTexture の保険も不要。
                 // UI表示ONの間は新たに出たUIカメラも隠さない
+                SyncFrontCameraTarget();
                 if (!isUIVisible)
                 {
                     HideUICameras(camera);
@@ -323,8 +326,31 @@ namespace COM3D2.SceneEditor.Plugin
                 camera.targetTexture = renderTexture;
             }
 
+            // 動画の最前面表示は遅れて生成されうるので、RT の割当も毎フレーム見直す
+            SyncFrontCameraTarget();
+
             // モード中に新たに有効化されたUIカメラ (ダイアログ等) も隠す
             HideUICameras(camera);
+        }
+
+        /// <summary>
+        /// 動画の最前面表示カメラを GameView と同じ RT へ向ける。
+        /// 画面へ直接描かせるとエディタウィンドウの下に潜って見えなくなるため、
+        /// ウィンドウ化中はゲーム画面と同じ RT に重ねる (最大化中とモード外は直接描画へ戻す)
+        /// </summary>
+        private void SyncFrontCameraTarget()
+        {
+            var frontCamera = MTEP.CameraManager.instance.createdFrontCamera;
+            if (frontCamera == null)
+            {
+                return;
+            }
+
+            var target = (isWindowMode && !isMaximized) ? renderTexture : null;
+            if (frontCamera.targetTexture != target)
+            {
+                frontCamera.targetTexture = target;
+            }
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
@@ -466,6 +492,13 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // ギアメニューのカメラはモード中も表示・操作可能なままにする
                     if (sysUICamera != null && cam == sysUICamera.GetComponent<Camera>())
+                    {
+                        continue;
+                    }
+
+                    // 動画の最前面表示は NGUI レイヤーを使うが、ゲーム UI ではなく
+                    // 編集中も見せる描画物なので隠す対象から外す
+                    if (cam == MTEP.CameraManager.instance.createdFrontCamera)
                     {
                         continue;
                     }

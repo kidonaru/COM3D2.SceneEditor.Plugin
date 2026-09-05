@@ -34,6 +34,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 生成済みの前面カメラ。未生成なら null。
+        /// 毎フレームの判定に使うため、frontCamera と違って生成を伴わない
+        /// </summary>
+        public Camera createdFrontCamera => _frontCamera;
+
         private CameraManager()
         {
         }
