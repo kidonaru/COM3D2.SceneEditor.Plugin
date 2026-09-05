@@ -132,11 +132,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static Config config => ConfigManager.instance.config;
         /// <summary>グリッド設定は SceneEditor 側の設定ウィンドウで編集するため、そちらの Config を見る</summary>
         private static SceneEditor.Plugin.Config editorConfig => SceneEditor.Plugin.ConfigManager.instance.config;
-        private static VideoSettings video => MovieManager.instance.settings;
+        /// <summary>この面が表示する動画の設定。MovieManager が生成直後に Setup で注入する</summary>
+        private VideoSettings _video;
+        private VideoSettings video => _video;
         private static CameraManager cameraManager =>  CameraManager.instance;
 
-        public void Awake()
+        /// <summary>
+        /// 設定を注入して初期化する。AddComponent 直後に MovieManager が呼ぶ。
+        /// Awake では設定がまだ無いため、表示形式に依存する生成はここで行う
+        /// </summary>
+        public void Setup(VideoSettings video)
         {
+            _video = video;
+
             _mediaPlayer = gameObject.AddComponent<MediaPlayer>();
             _mediaPlayer.Events.AddListener(OnVideoEvent);
 
@@ -206,6 +214,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Update()
         {
+            // Setup 前 (AddComponent 直後の Awake 相当) は設定が無いため何もしない
+            if (_video == null)
+            {
+                return;
+            }
+
             // SE 追加ガード: タイムラインを閉じた直後は本コンポーネントが
             // 1 フレーム生き残るため、timeline/currentLayer の null で NRE しないようにする
             if (timeline == null || currentLayer == null)
@@ -251,6 +265,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void LateUpdate()
         {
+            // Setup 前は設定が無いため何もしない
+            if (_video == null)
+            {
+                return;
+            }
+
             // 参照先は settings とカメラだけなので、タイムライン未読込でも最背面のカメラ追従を続ける
             if (isDisplayBackmost)
             {

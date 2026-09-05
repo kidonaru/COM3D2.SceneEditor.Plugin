@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -9,10 +11,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public const int MinVideoCount = 1;
         public const int MaxVideoCount = 4;
 
-        private MoviePlayerImpl _moviePlayerImpl = null;
-
-        private VideoDisplayType _videoDisplayType = VideoDisplayType.GUI;
-        private string _loadedVideoPath = "";
+        /// <summary>index ごとのプレイヤー。未読込は null。settingsList と同じ長さに保つ</summary>
+        private readonly List<MoviePlayerImpl> _players = new List<MoviePlayerImpl>();
+        private readonly List<string> _loadedVideoPaths = new List<string>();
+        private readonly List<VideoDisplayType> _loadedDisplayTypes = new List<VideoDisplayType>();
 
         private static MovieManager _instance;
         public static MovieManager instance
@@ -28,58 +30,95 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>タイムライン未読込時に使う設定。読込中は timeline 側が正</summary>
-        private readonly VideoSettings _standaloneSettings = new VideoSettings();
+        private readonly List<VideoSettings> _standaloneSettingsList = new List<VideoSettings> { new VideoSettings() };
 
         /// <summary>
-        /// 動画設定。タイムライン読込中は timeline 側 (TimelineXml に保存される)、
+        /// 動画設定の一覧。タイムライン読込中は timeline 側 (TimelineXml に保存される)、
         /// 未読込時はマネージャ保持の standalone 値 (TimelineTextManager.textCount と同じ方式)
         /// </summary>
-        public VideoSettings settings => timeline != null ? timeline.videos[0] : _standaloneSettings;
+        public List<VideoSettings> settingsList => timeline != null ? timeline.videos : _standaloneSettingsList;
 
-        private string videoPath => settings.path;
-
-        public bool isValidPath
+        public int videoCount
         {
-            get
+            get => settingsList.Count;
+            set
             {
-                if (videoPath.Length == 0)
+                var count = Mathf.Clamp(value, MinVideoCount, MaxVideoCount);
+                var list = settingsList;
+
+                // 減らす分はプレイヤーを先に破棄する (設定を消してから Unload すると添字がずれる)
+                while (list.Count > count)
                 {
-                    return false;
+                    UnloadMovie(list.Count - 1);
+                    list.RemoveAt(list.Count - 1);
                 }
 
-                return System.IO.File.Exists(videoPath);
+                // 増やした分はパス未設定の既定値。ユーザーがパスを選んだ時点で読み込む
+                while (list.Count < count)
+                {
+                    list.Add(new VideoSettings());
+                }
+
+                SyncPlayerListLength();
             }
         }
 
-        public bool isEnabled
+        public bool IsValidIndex(int index)
         {
-            get => isValidPath && settings.enabled;
+            return index >= 0 && index < settingsList.Count;
         }
 
-        public float currentTime
+        public VideoSettings GetSettings(int index)
         {
-            get => _moviePlayerImpl != null ? _moviePlayerImpl.currentTime : 0f;
+            return settingsList[index];
         }
 
-        public float duration
+        public bool IsValidPath(int index)
         {
-            get => _moviePlayerImpl != null ? _moviePlayerImpl.duration : 0f;
+            var path = GetSettings(index).path;
+            return path.Length > 0 && System.IO.File.Exists(path);
         }
 
-        public float frameRate
+        public bool IsEnabled(int index)
         {
-            get => _moviePlayerImpl != null ? _moviePlayerImpl.frameRate : 0f;
+            return IsValidPath(index) && GetSettings(index).enabled;
+        }
+
+        private MoviePlayerImpl GetPlayer(int index)
+        {
+            SyncPlayerListLength();
+            return IsValidIndex(index) ? _players[index] : null;
+        }
+
+        public float GetCurrentTime(int index)
+        {
+            var player = GetPlayer(index);
+            return player != null ? player.currentTime : 0f;
+        }
+
+        public float GetDuration(int index)
+        {
+            var player = GetPlayer(index);
+            return player != null ? player.duration : 0f;
+        }
+
+        public float GetFrameRate(int index)
+        {
+            var player = GetPlayer(index);
+            return player != null ? player.frameRate : 0f;
         }
 
         /// <summary>プレビュー表示用の動画テクスチャ。未読込時は null</summary>
-        public Texture texture
+        public Texture GetTexture(int index)
         {
-            get => _moviePlayerImpl != null ? _moviePlayerImpl.texture : null;
+            var player = GetPlayer(index);
+            return player != null ? player.texture : null;
         }
 
-        public bool requiresVerticalFlip
+        public bool RequiresVerticalFlip(int index)
         {
-            get => _moviePlayerImpl != null && _moviePlayerImpl.requiresVerticalFlip;
+            var player = GetPlayer(index);
+            return player != null && player.requiresVerticalFlip;
         }
 
         private MovieManager()
@@ -101,59 +140,134 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private void OnClearTimeline()
         {
-            _standaloneSettings.CopyFrom(timeline.videos[0]);
-        }
+            _standaloneSettingsList.Clear();
 
-        private void SetupImpl()
-        {
-            if (_videoDisplayType != settings.displayType)
+            foreach (var src in timeline.videos)
             {
-                UnloadMovie();
-                _videoDisplayType = settings.displayType;
+                var copy = new VideoSettings();
+                copy.CopyFrom(src);
+                _standaloneSettingsList.Add(copy);
             }
 
-            if (!isEnabled)
+            if (_standaloneSettingsList.Count == 0)
+            {
+                _standaloneSettingsList.Add(new VideoSettings());
+            }
+        }
+
+        /// <summary>
+        /// プレイヤー側リストを settingsList の長さに合わせる。
+        /// タイムライン読込で settingsList の実体が差し替わっても添字対応を保つため、
+        /// 各操作の入口で呼ぶ。余った末尾のプレイヤーは破棄する
+        /// </summary>
+        private void SyncPlayerListLength()
+        {
+            var count = settingsList.Count;
+
+            while (_players.Count > count)
+            {
+                var last = _players.Count - 1;
+                DestroyPlayer(last);
+                _players.RemoveAt(last);
+                _loadedVideoPaths.RemoveAt(last);
+                _loadedDisplayTypes.RemoveAt(last);
+            }
+
+            while (_players.Count < count)
+            {
+                _players.Add(null);
+                _loadedVideoPaths.Add("");
+                _loadedDisplayTypes.Add(VideoDisplayType.GUI);
+            }
+        }
+
+        private void DestroyPlayer(int index)
+        {
+            if (_players[index] != null)
+            {
+                Object.Destroy(_players[index].gameObject);
+                _players[index] = null;
+            }
+            _loadedVideoPaths[index] = "";
+        }
+
+        private void SetupImpl(int index)
+        {
+            var settings = GetSettings(index);
+
+            if (_loadedDisplayTypes[index] != settings.displayType)
+            {
+                UnloadMovie(index);
+                _loadedDisplayTypes[index] = settings.displayType;
+            }
+
+            if (!IsEnabled(index))
             {
                 return;
             }
 
-            if (_moviePlayerImpl == null)
+            if (_players[index] == null)
             {
                 var guid = System.Guid.NewGuid().ToString();
-                var gameObject = new GameObject("MoviePlayer_" + guid);
-                _moviePlayerImpl = gameObject.AddComponent<MoviePlayerImpl>();
+                var gameObject = new GameObject("MoviePlayer_" + index + "_" + guid);
+                var player = gameObject.AddComponent<MoviePlayerImpl>();
+                player.Setup(settings);
+                _players[index] = player;
             }
         }
 
         public void LoadMovie()
         {
-            if (!isEnabled)
+            SyncPlayerListLength();
+
+            for (var i = 0; i < settingsList.Count; i++)
+            {
+                LoadMovie(i);
+            }
+        }
+
+        public void LoadMovie(int index)
+        {
+            SyncPlayerListLength();
+
+            if (!IsValidIndex(index) || !IsEnabled(index))
             {
                 return;
             }
 
-            if (_loadedVideoPath == videoPath)
+            var path = GetSettings(index).path;
+            if (_loadedVideoPaths[index] == path)
             {
                 return;
             }
-            _loadedVideoPath = videoPath;
+            _loadedVideoPaths[index] = path;
 
-            SetupImpl();
+            SetupImpl(index);
 
-            if (_moviePlayerImpl != null)
+            if (_players[index] != null)
             {
-                _moviePlayerImpl.LoadMovie(videoPath);
+                _players[index].LoadMovie(path);
             }
         }
 
         public void UnloadMovie()
         {
-            if (_moviePlayerImpl != null)
+            SyncPlayerListLength();
+
+            for (var i = 0; i < _players.Count; i++)
             {
-                Object.Destroy(_moviePlayerImpl.gameObject);
-                _moviePlayerImpl = null;
+                DestroyPlayer(i);
             }
-            _loadedVideoPath = "";
+        }
+
+        public void UnloadMovie(int index)
+        {
+            SyncPlayerListLength();
+
+            if (IsValidIndex(index))
+            {
+                DestroyPlayer(index);
+            }
         }
 
         public void ReloadMovie()
@@ -162,59 +276,101 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             LoadMovie();
         }
 
+        public void ReloadMovie(int index)
+        {
+            UnloadMovie(index);
+            LoadMovie(index);
+        }
+
         public void UpdateTransform()
         {
-            if (_moviePlayerImpl != null)
-            {
-                _moviePlayerImpl.UpdateTransform();
-            }
+            ForEachPlayer(player => player.UpdateTransform());
+        }
+
+        public void UpdateTransform(int index)
+        {
+            WithPlayer(index, player => player.UpdateTransform());
         }
 
         public void UpdateVolume()
         {
-            if (_moviePlayerImpl != null)
-            {
-                _moviePlayerImpl.UpdateVolume();
-            }
+            ForEachPlayer(player => player.UpdateVolume());
+        }
+
+        public void UpdateVolume(int index)
+        {
+            WithPlayer(index, player => player.UpdateVolume());
         }
 
         public void UpdateSpeed()
         {
-            if (_moviePlayerImpl != null)
-            {
-                _moviePlayerImpl.UpdateSpeed();
-            }
+            ForEachPlayer(player => player.UpdateSpeed());
+        }
+
+        public void UpdateSpeed(int index)
+        {
+            WithPlayer(index, player => player.UpdateSpeed());
         }
 
         public void UpdateSeekTime()
         {
-            if (_moviePlayerImpl != null)
-            {
-                _moviePlayerImpl.UpdateSeekTime();
-            }
+            ForEachPlayer(player => player.UpdateSeekTime());
+        }
+
+        public void UpdateSeekTime(int index)
+        {
+            WithPlayer(index, player => player.UpdateSeekTime());
         }
 
         public void UpdateColor()
         {
-            if (_moviePlayerImpl != null)
-            {
-                _moviePlayerImpl.UpdateColor();
-            }
+            ForEachPlayer(player => player.UpdateColor());
+        }
+
+        public void UpdateColor(int index)
+        {
+            WithPlayer(index, player => player.UpdateColor());
         }
 
         public void UpdateMesh()
         {
-            if (_moviePlayerImpl != null)
-            {
-                _moviePlayerImpl.UpdateMesh();
-            }
+            ForEachPlayer(player => player.UpdateMesh());
+        }
+
+        public void UpdateMesh(int index)
+        {
+            WithPlayer(index, player => player.UpdateMesh());
         }
 
         public void UpdateShader()
         {
-            if (_moviePlayerImpl != null)
+            ForEachPlayer(player => player.UpdateShader());
+        }
+
+        public void UpdateShader(int index)
+        {
+            WithPlayer(index, player => player.UpdateShader());
+        }
+
+        private void ForEachPlayer(Action<MoviePlayerImpl> action)
+        {
+            SyncPlayerListLength();
+
+            foreach (var player in _players)
             {
-                _moviePlayerImpl.UpdateShader();
+                if (player != null)
+                {
+                    action(player);
+                }
+            }
+        }
+
+        private void WithPlayer(int index, Action<MoviePlayerImpl> action)
+        {
+            var player = GetPlayer(index);
+            if (player != null)
+            {
+                action(player);
             }
         }
 
