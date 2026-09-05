@@ -11,13 +11,18 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class VideoPreviewWindow : EditorSubWindow
     {
+        /// <summary>
+        /// 先頭の ID。動画の添字を足したものを各ウィンドウの ID にするため、
+        /// WINDOW_ID 〜 WINDOW_ID + MaxVideoCount - 1 を予約済みとして扱う
+        /// </summary>
         public static readonly int WINDOW_ID = 8903397;
 
-        protected override int windowId => WINDOW_ID;
-        /// <summary>操作対象の動画を示す。VideoWindow の選択に追従する</summary>
+        protected override int windowId => WINDOW_ID + videoIndex;
+        /// <summary>番号は VideoWindow の操作対象コンボと同じ 1 始まり</summary>
         protected override string windowTitle => "動画プレビュー (" + (videoIndex + 1) + ")";
 
-        private static int videoIndex => VideoWindow.instance.selectedIndex;
+        /// <summary>このウィンドウが表示する動画の添字</summary>
+        private readonly int videoIndex;
 
         private static readonly int ROW_HEIGHT = 20;
 
@@ -28,43 +33,60 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly GUIView _view = new GUIView();
 
-        private static VideoPreviewWindow _instance = null;
-        public static VideoPreviewWindow instance
+        private static VideoPreviewWindow[] _instances = null;
+
+        /// <summary>動画本数の上限ぶんのウィンドウ。登録とメニュー生成で使う</summary>
+        public static VideoPreviewWindow[] instances
         {
             get
             {
-                if (_instance == null)
+                if (_instances == null)
                 {
-                    _instance = new VideoPreviewWindow();
+                    _instances = new VideoPreviewWindow[MTEP.MovieManager.MaxVideoCount];
+                    for (var i = 0; i < _instances.Length; i++)
+                    {
+                        _instances[i] = new VideoPreviewWindow(i);
+                    }
                 }
-                return _instance;
+                return _instances;
             }
         }
 
-        private VideoPreviewWindow()
+        public static VideoPreviewWindow GetInstance(int index)
         {
+            var list = instances;
+            return list[Mathf.Clamp(index, 0, list.Length - 1)];
         }
+
+        private VideoPreviewWindow(int videoIndex)
+        {
+            this.videoIndex = videoIndex;
+        }
+
+        private Config.VideoPreviewPlacement placement => config.GetVideoPreview(videoIndex);
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
-            x = config.videoPreviewPosX;
-            y = config.videoPreviewPosY;
-            width = config.videoPreviewWidth;
-            height = config.videoPreviewHeight;
+            var placement = this.placement;
+            x = placement.posX;
+            y = placement.posY;
+            width = placement.width;
+            height = placement.height;
         }
 
         protected override void StorePlacement(int x, int y, int width, int height)
         {
-            config.videoPreviewPosX = x;
-            config.videoPreviewPosY = y;
-            config.videoPreviewWidth = width;
-            config.videoPreviewHeight = height;
+            var placement = this.placement;
+            placement.posX = x;
+            placement.posY = y;
+            placement.width = width;
+            placement.height = height;
         }
 
         public override bool savedVisible
         {
-            get => config.videoPreviewVisible;
-            set => config.videoPreviewVisible = value;
+            get => placement.visible;
+            set => placement.visible = value;
         }
 
         protected override void DrawContent()
@@ -75,6 +97,14 @@ namespace COM3D2.SceneEditor.Plugin
             GUI.color = BackgroundColor;
             GUI.DrawTexture(localRect, Texture2D.whiteTexture);
             GUI.color = prevColor;
+
+            // 動画本数を減らすと番号だけ残るため、参照する前に本数を確認する
+            if (!movieManager.IsValidIndex(videoIndex))
+            {
+                _view.Init(localRect);
+                _view.DrawLabel("この番号の動画はありません", -1, ROW_HEIGHT, textColor: Color.gray);
+                return;
+            }
 
             var settings = movieManager.GetSettings(videoIndex);
             if (settings.displayType != MTEP.VideoDisplayType.GUI)

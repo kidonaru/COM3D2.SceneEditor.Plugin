@@ -49,9 +49,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>操作対象の動画添字</summary>
         private int _videoIndex = 0;
 
-        /// <summary>プレビューウィンドウが表示対象を合わせるために参照する</summary>
-        public int selectedIndex => _videoIndex;
-
         private MTEP.VideoSettings settings => movieManager.GetSettings(_videoIndex);
 
         private readonly GUIComboBox<int> _videoComboBox = new GUIComboBox<int>
@@ -193,8 +190,8 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                 });
 
-                // プレビューウィンドウの表示切替。メニューバーの Window 項目と同じ経路で開閉する
-                var previewWindow = VideoPreviewWindow.instance;
+                // プレビューウィンドウの表示切替。操作対象の動画に対応する 1 枚を開閉する
+                var previewWindow = VideoPreviewWindow.GetInstance(_videoIndex);
                 view.DrawToggle("プレビュー", previewWindow.isShowWnd, 90, ROW_HEIGHT, _ =>
                 {
                     WindowManager.ToggleWindowVisible(previewWindow);

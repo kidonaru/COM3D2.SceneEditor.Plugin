@@ -129,7 +129,12 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("ライブ演出", LiveEffectWindow.instance),
                         CreateWindowItem("テキスト", TextWindow.instance),
                         CreateWindowItem("動画", VideoWindow.instance),
-                        CreateWindowItem("動画プレビュー", VideoPreviewWindow.instance),
+                        new MenuItem
+                        {
+                            label = "動画プレビュー",
+                            isOn = () => false,
+                            buildSubItems = BuildVideoPreviewItems,
+                        },
                         CreateWindowItem("ライト", LightWindow.instance),
                         CreateWindowItem("PNG配置", PngPlacementWindow.instance),
                         CreateWindowItem("プリセット", PresetWindow.instance),
@@ -329,6 +334,23 @@ namespace COM3D2.SceneEditor.Plugin
                 isOn = () => window.isShowWnd,
                 toggle = () => WindowManager.ToggleWindowVisible(window),
             };
+        }
+
+        /// <summary>
+        /// 動画プレビューのサブメニュー項目を組み立てる。
+        /// プレビューは動画 1 本につき 1 枚あるため、Window メニュー直下ではなく
+        /// 番号付きのサブメニューにまとめる
+        /// </summary>
+        private MenuItem[] BuildVideoPreviewItems()
+        {
+            var windows = VideoPreviewWindow.instances;
+            var items = new MenuItem[windows.Length];
+
+            for (var i = 0; i < windows.Length; i++)
+            {
+                items[i] = CreateWindowItem("動画" + (i + 1), windows[i]);
+            }
+            return items;
         }
 
         /// <summary>

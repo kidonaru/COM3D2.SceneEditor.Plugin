@@ -2,6 +2,7 @@
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -212,12 +213,34 @@ namespace COM3D2.SceneEditor.Plugin
         public int videoHeight = 420;
         public bool videoVisible = false;
 
-        // 動画プレビューウィンドウ
-        public int videoPreviewPosX = -1;
-        public int videoPreviewPosY = -1;
-        public int videoPreviewWidth = 480;
-        public int videoPreviewHeight = 270;
-        public bool videoPreviewVisible = false;
+        /// <summary>動画プレビューウィンドウ 1 枚分の配置 (-1 は未初期化)</summary>
+        public class VideoPreviewPlacement
+        {
+            public int posX = -1;
+            public int posY = -1;
+            public int width = 480;
+            public int height = 270;
+            public bool visible = false;
+        }
+
+        // 動画プレビューウィンドウ (動画の添字ごとに 1 件)
+        [XmlElement("videoPreview")]
+        public List<VideoPreviewPlacement> videoPreviews = new List<VideoPreviewPlacement>();
+
+        /// <summary>
+        /// 添字に対応するプレビュー配置。足りない分は既定値で埋めて返すため、
+        /// 旧バージョンの Config を読んでも欠番で落ちない
+        /// </summary>
+        public VideoPreviewPlacement GetVideoPreview(int index)
+        {
+            index = Mathf.Clamp(index, 0, MTEP.MovieManager.MaxVideoCount - 1);
+
+            while (videoPreviews.Count <= index)
+            {
+                videoPreviews.Add(new VideoPreviewPlacement());
+            }
+            return videoPreviews[index];
+        }
 
         // タイムライン操作ウィンドウ
         public int timelineControlPosX = -1;
