@@ -240,24 +240,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel("タイムライン読込後にシークと再生速度が同期します", -1, ROW_HEIGHT, textColor: Color.gray);
             }
 
-            var frameRate = movieManager.GetFrameRate(_videoIndex);
-
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "開始位置",
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = -1f,
-                max = movieManager.GetDuration(_videoIndex),
-                step = frameRate > 0f ? 1f / frameRate : 0.01f,
-                defaultValue = 0f,
-                value = settings.startTime,
-                onChanged = newValue =>
-                {
-                    settings.startTime = newValue;
-                    movieManager.UpdateSeekTime(_videoIndex);
-                },
-            });
+            DrawStartTimeAndVolumeRow(view);
 
             switch (settings.displayType)
             {
@@ -275,24 +258,68 @@ namespace COM3D2.SceneEditor.Plugin
                     break;
             }
 
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "音量",
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = 0f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = settings.volume,
-                onChanged = newValue =>
-                {
-                    settings.volume = newValue;
-                    movieManager.UpdateVolume(_videoIndex);
-                },
-            });
-
             view.SetEnabled(true);
+        }
+
+        /// <summary>2 値を 1 行に並べるときの数値入力欄の幅</summary>
+        private static readonly int PAIR_FIELD_WIDTH = 60;
+
+        /// <summary>
+        /// 開始位置と音量の 1 行。どちらも 1 値なのでスライダーで 2 行使うより、
+        /// ドラッグ数値入力を横に並べたほうが表示形式ごとの設定行を見渡しやすい
+        /// </summary>
+        private void DrawStartTimeAndVolumeRow(GUIView view)
+        {
+            var frameRate = movieManager.GetFrameRate(_videoIndex);
+            var duration = movieManager.GetDuration(_videoIndex);
+
+            view.BeginHorizontal();
+            {
+                view.DrawDragFloatField(new GUIView.DragFloatFieldOption
+                {
+                    label = "開始位置",
+                    labelWidth = LABEL_WIDTH,
+                    fieldWidth = PAIR_FIELD_WIDTH,
+                    height = ROW_HEIGHT,
+                    // 1px で 1 フレーム動かす。メタデータ未確定時は秒単位の細かさで代替する
+                    dragSensitivity = frameRate > 0f ? 1f / frameRate : 0.01f,
+                    value = settings.startTime,
+                    minValue = -1f,
+                    maxValue = duration > 0f ? duration : float.MaxValue,
+                    onChanged = newValue =>
+                    {
+                        settings.startTime = newValue;
+                        movieManager.UpdateSeekTime(_videoIndex);
+                    },
+                    onReset = () =>
+                    {
+                        settings.startTime = 0f;
+                        movieManager.UpdateSeekTime(_videoIndex);
+                    },
+                });
+
+                view.DrawDragFloatField(new GUIView.DragFloatFieldOption
+                {
+                    label = "音量",
+                    labelWidth = LABEL_WIDTH,
+                    fieldWidth = PAIR_FIELD_WIDTH,
+                    height = ROW_HEIGHT,
+                    value = settings.volume,
+                    minValue = 0f,
+                    maxValue = 1f,
+                    onChanged = newValue =>
+                    {
+                        settings.volume = newValue;
+                        movieManager.UpdateVolume(_videoIndex);
+                    },
+                    onReset = () =>
+                    {
+                        settings.volume = 0f;
+                        movieManager.UpdateVolume(_videoIndex);
+                    },
+                });
+            }
+            view.EndLayout();
         }
 
         /// <summary>
