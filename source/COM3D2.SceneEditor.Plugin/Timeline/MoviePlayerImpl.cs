@@ -7,7 +7,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     public class MoviePlayerImpl : MonoBehaviour
     {
         private MediaPlayer _mediaPlayer = null;
-        private DisplayIMGUI _displayIMGUI = null;
         private MeshFilter _meshFilter = null;
         private MeshRenderer _meshRenderer = null;
         private ApplyToMaterial _applyToMaterial = null;
@@ -157,14 +156,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _mediaPlayer = gameObject.AddComponent<MediaPlayer>();
             _mediaPlayer.Events.AddListener(OnVideoEvent);
 
-            if (isDisplayOnGUI)
-            {
-                _displayIMGUI = gameObject.AddComponent<DisplayIMGUI>();
-                _displayIMGUI._mediaPlayer = _mediaPlayer;
-                _displayIMGUI._scaleMode = ScaleMode.ScaleToFit;
-                _displayIMGUI._fullScreen = false;
-            }
-            else
+            // プレビュー形式はプレビューウィンドウがテクスチャを直接描くため、
+            // ゲーム画面側の描画コンポーネントは作らない
+            if (!isDisplayOnGUI)
             {
                 gameObject.layer = layerMask;
                 _meshRenderer = gameObject.AddComponent<MeshRenderer>();
@@ -199,7 +193,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void OnDestroy()
         {
             _mediaPlayer = null;
-            _displayIMGUI = null;
             _meshFilter = null;
             _meshRenderer = null;
         }
@@ -290,23 +283,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void UpdateTransform()
         {
+            // プレビュー形式はゲーム空間に置く物が無いので配置の更新も要らない
+            if (isDisplayOnGUI)
+            {
+                return;
+            }
+
             if (_mediaPlayer != null && _mediaPlayer.Info != null)
             {
-                if (isDisplayOnGUI)
-                {
-                    // アスペクト比調整
-                    if (_aspectRatio > 1f)
-                    {
-                        _displayIMGUI._width = video.guiScale;
-                        _displayIMGUI._height = video.guiScale / _aspectRatio;
-                    }
-                    else
-                    {
-                        _displayIMGUI._width = video.guiScale * _aspectRatio;
-                        _displayIMGUI._height = video.guiScale;
-                    }
-                }
-                else if (isDisplayBackmost)
+                if (isDisplayBackmost)
                 {
                     var transform = gameObject.transform;
                     var camera = targetCamera;
@@ -429,11 +414,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get
             {
                 var color = Color.white;
-                if (isDisplayOnGUI)
-                {
-                    color.a = video.guiAlpha;
-                }
-                else if (isDisplayBackmost)
+                if (isDisplayBackmost)
                 {
                     color.a = video.backmostAlpha;
                 }
@@ -451,25 +432,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void UpdateColor()
         {
-            if (isDisplayOnGUI)
+            // プレビュー形式は透過度をプレビューウィンドウ側で反映する
+            if (_meshRenderer == null)
             {
-                if (_displayIMGUI != null)
-                {
-                    var color = videoColor;
-                    _displayIMGUI._alphaBlend = color.a != 1f;
-                    _displayIMGUI._color = color;
-                }
+                return;
             }
-            else
-            {
-                if (_meshRenderer != null)
-                {
-                    var color = videoColor;
-                    _meshRenderer.material.SetColor("_Color", color);
-                    _meshRenderer.material.SetFloat("_ZWrite", (color.a == 1f) ? 1f : 0f);
-                    _meshRenderer.sortingOrder = GetSortingOrder();
-                }
-            }
+
+            var color = videoColor;
+            _meshRenderer.material.SetColor("_Color", color);
+            _meshRenderer.material.SetFloat("_ZWrite", (color.a == 1f) ? 1f : 0f);
+            _meshRenderer.sortingOrder = GetSortingOrder();
         }
 
         private int GetSortingOrder()
@@ -530,7 +502,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// 動画面グリッドの表示判定。設定は SceneEditor 側の Config を使い、
         /// 表示スイッチと「編集中のみ」は他のグリッドと共通の GridRenderer.isGridEnabled に従う。
-        /// GUI 表示は DisplayIMGUI が描くため面に重ねられず対象外 (プレビューウィンドウ側で見る)
+        /// プレビュー形式はゲーム空間に動画面が無いため対象外 (プレビューウィンドウ側で描く)
         /// </summary>
         private bool IsGridVisible()
         {

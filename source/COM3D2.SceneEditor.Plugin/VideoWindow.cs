@@ -33,9 +33,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>GUI 表示位置は -1〜1 の狭い範囲なので、3D 位置より細かく動かす</summary>
         private const float NormalizedPositionSensitivity = 0.001f;
 
+        // enum 名 (GUI) は XML 互換のため据え置き、表示名だけ実態に合わせる
         private static readonly string[] VideoDisplayTypeNames = new string[]
         {
-            "GUI",
+            "プレビュー",
             "3Dビュー",
             "最背面",
             "最前面",
