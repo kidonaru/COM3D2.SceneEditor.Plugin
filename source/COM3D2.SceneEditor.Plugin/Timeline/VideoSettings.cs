@@ -49,49 +49,51 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             frontmostAlpha = src.frontmostAlpha;
         }
 
-        // TimelineXml の要素名 (video 接頭辞) は互換維持のため変えない
-        public void ReadFrom(TimelineXml xml)
+        public void ReadFrom(VideoSettingsXml xml)
         {
-            enabled = xml.videoEnabled;
-            displayType = xml.videoDisplayType;
-            path = xml.videoPath;
-            position = xml.videoPosition;
-            rotation = xml.videoRotation;
-            scale = xml.videoScale;
-            startTime = xml.videoStartTime;
-            volume = xml.videoVolume;
-            alpha = xml.videoAlpha;
-            guiPosition = xml.videoGUIPosition;
-            guiScale = xml.videoGUIScale;
-            guiAlpha = xml.videoGUIAlpha;
-            backmostPosition = xml.videoBackmostPosition;
-            backmostScale = xml.videoBackmostScale;
-            backmostAlpha = xml.videoBackmostAlpha;
-            frontmostPosition = xml.videoFrontmostPosition;
-            frontmostScale = xml.videoFrontmostScale;
-            frontmostAlpha = xml.videoFrontmostAlpha;
+            enabled = xml.enabled;
+            displayType = xml.displayType;
+            path = xml.path;
+            position = xml.position;
+            rotation = xml.rotation;
+            scale = xml.scale;
+            startTime = xml.startTime;
+            volume = xml.volume;
+            alpha = xml.alpha;
+            guiPosition = xml.guiPosition;
+            guiScale = xml.guiScale;
+            guiAlpha = xml.guiAlpha;
+            backmostPosition = xml.backmostPosition;
+            backmostScale = xml.backmostScale;
+            backmostAlpha = xml.backmostAlpha;
+            frontmostPosition = xml.frontmostPosition;
+            frontmostScale = xml.frontmostScale;
+            frontmostAlpha = xml.frontmostAlpha;
         }
 
-        public void WriteTo(TimelineXml xml)
+        public VideoSettingsXml ToXml()
         {
-            xml.videoEnabled = enabled;
-            xml.videoDisplayType = displayType;
-            xml.videoPath = path;
-            xml.videoPosition = position;
-            xml.videoRotation = rotation;
-            xml.videoScale = scale;
-            xml.videoStartTime = startTime;
-            xml.videoVolume = volume;
-            xml.videoAlpha = alpha;
-            xml.videoGUIPosition = guiPosition;
-            xml.videoGUIScale = guiScale;
-            xml.videoGUIAlpha = guiAlpha;
-            xml.videoBackmostPosition = backmostPosition;
-            xml.videoBackmostScale = backmostScale;
-            xml.videoBackmostAlpha = backmostAlpha;
-            xml.videoFrontmostPosition = frontmostPosition;
-            xml.videoFrontmostScale = frontmostScale;
-            xml.videoFrontmostAlpha = frontmostAlpha;
+            return new VideoSettingsXml
+            {
+                enabled = enabled,
+                displayType = displayType,
+                path = path,
+                position = position,
+                rotation = rotation,
+                scale = scale,
+                startTime = startTime,
+                volume = volume,
+                alpha = alpha,
+                guiPosition = guiPosition,
+                guiScale = guiScale,
+                guiAlpha = guiAlpha,
+                backmostPosition = backmostPosition,
+                backmostScale = backmostScale,
+                backmostAlpha = backmostAlpha,
+                frontmostPosition = frontmostPosition,
+                frontmostScale = frontmostScale,
+                frontmostAlpha = frontmostAlpha,
+            };
         }
     }
 }

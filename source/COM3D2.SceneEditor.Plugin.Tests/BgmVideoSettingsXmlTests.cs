@@ -33,13 +33,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void VideoSettings_TimelineXmlとの往復で値が保持される()
+        public void VideoSettings_VideoSettingsXmlとの往復で値が保持される()
         {
             var src = new VideoSettings
             {
                 enabled = false,
                 displayType = VideoDisplayType.Frontmost,
-                path = @"C:\movie\test.mp4",
+                path = @"C:\movie	est.mp4",
                 position = new Vector3(1f, 2f, 3f),
                 rotation = new Vector3(10f, 20f, 30f),
                 scale = 2.5f,
@@ -57,14 +57,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 frontmostAlpha = 0.2f,
             };
 
-            var xml = new TimelineXml();
-            src.WriteTo(xml);
+            var xml = src.ToXml();
             var dst = new VideoSettings();
             dst.ReadFrom(xml);
 
             Assert.False(dst.enabled);
             Assert.Equal(VideoDisplayType.Frontmost, dst.displayType);
-            Assert.Equal(@"C:\movie\test.mp4", dst.path);
+            Assert.Equal(@"C:\movie	est.mp4", dst.path);
             Assert.Equal(new Vector3(1f, 2f, 3f), dst.position);
             Assert.Equal(new Vector3(10f, 20f, 30f), dst.rotation);
             Assert.Equal(2.5f, dst.scale);
@@ -80,6 +79,60 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(new Vector2(-0.5f, 0.5f), dst.frontmostPosition);
             Assert.Equal(0.4f, dst.frontmostScale);
             Assert.Equal(0.2f, dst.frontmostAlpha);
+        }
+
+        [Fact]
+        public void TimelineXml_旧形式のフラット動画項目はInitializeで1件目として取り込まれる()
+        {
+            var xml = new TimelineXml
+            {
+                version = 10,
+                videoEnabled = false,
+                videoDisplayType = VideoDisplayType.Backmost,
+                videoPath = @"C:\movie\legacy.mp4",
+                videoStartTime = 2f,
+                videoBackmostAlpha = 0.3f,
+            };
+
+            xml.Initialize();
+
+            Assert.Single(xml.videos);
+            Assert.False(xml.videos[0].enabled);
+            Assert.Equal(VideoDisplayType.Backmost, xml.videos[0].displayType);
+            Assert.Equal(@"C:\movie\legacy.mp4", xml.videos[0].path);
+            Assert.Equal(2f, xml.videos[0].startTime);
+            Assert.Equal(0.3f, xml.videos[0].backmostAlpha);
+        }
+
+        [Fact]
+        public void TimelineXml_version4未満はDisplayOnGUIと開始オフセットを変換してから取り込む()
+        {
+            var xml = new TimelineXml
+            {
+                version = 3,
+                videoDisplayOnGUI = false,
+                videoStartTime = 5f,
+                startOffsetTime = 1f,
+            };
+
+            xml.Initialize();
+
+            Assert.Single(xml.videos);
+            Assert.Equal(VideoDisplayType.Mesh, xml.videos[0].displayType);
+            Assert.Equal(4f, xml.videos[0].startTime);
+        }
+
+        [Fact]
+        public void TimelineXml_動画リストが既にあればフラット項目は取り込まない()
+        {
+            var xml = new TimelineXml { version = 33, videoPath = @"C:\movie\ignored.mp4" };
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4" });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4" });
+
+            xml.Initialize();
+
+            Assert.Equal(2, xml.videos.Count);
+            Assert.Equal(@"C:\movie.mp4", xml.videos[0].path);
         }
 
         [Fact]

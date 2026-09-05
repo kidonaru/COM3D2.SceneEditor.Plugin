@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
@@ -73,6 +73,67 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int areaCount;
         [XmlElement("PatternCount")]
         public int patternCount;
+    }
+
+    /// <summary>
+    /// 動画 1 本分の保存形式。
+    /// 旧形式は TimelineXml 直下に Video 接頭辞付きで平置きされていたため、こちらは接頭辞なし
+    /// </summary>
+    public class VideoSettingsXml
+    {
+        [XmlElement("Enabled")]
+        public bool enabled = true;
+
+        [XmlElement("DisplayType")]
+        public VideoDisplayType displayType = VideoDisplayType.GUI;
+
+        [XmlElement("Path")]
+        public string path = "";
+
+        [XmlElement("Position")]
+        public Vector3 position = new Vector3(0, 0, 0);
+
+        [XmlElement("Rotation")]
+        public Vector3 rotation = new Vector3(0, 0, 0);
+
+        [XmlElement("Scale")]
+        public float scale = 1f;
+
+        [XmlElement("StartTime")]
+        public float startTime = 0f;
+
+        [XmlElement("Volume")]
+        public float volume = 0.5f;
+
+        [XmlElement("Alpha")]
+        public float alpha = 1f;
+
+        [XmlElement("GUIPosition")]
+        public Vector2 guiPosition = new Vector2(0, 0);
+
+        [XmlElement("GUIScale")]
+        public float guiScale = 1f;
+
+        [XmlElement("GUIAlpha")]
+        public float guiAlpha = 1f;
+
+        [XmlElement("BackmostPosition")]
+        public Vector2 backmostPosition = new Vector2(0, 0);
+
+        [XmlElement("BackmostScale")]
+        public float backmostScale = 1f;
+
+        [XmlElement("BackmostAlpha")]
+        public float backmostAlpha = 0.5f;
+
+        [XmlElement("FrontmostPosition")]
+        public Vector2 frontmostPosition = new Vector2(-0.8f, 0.8f);
+
+        [XmlElement("FrontmostScale")]
+        public float frontmostScale = 0.38f;
+
+        [XmlElement("FrontmostAlpha")]
+        public float frontmostAlpha = 1f;
     }
 
     [XmlRoot("TimelineData")]
@@ -254,6 +315,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("RimlightCount")]
         public int rimlightCount = 1;
 
+        // 以下の Video* 平置き項目は v32 以前の読込互換用。書き出しは videos リストで行い、こちらには値を入れない
         [XmlElement("VideoEnabled")]
         public bool videoEnabled = true;
 
@@ -311,6 +373,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("VideoFrontmostAlpha")]
         public float videoFrontmostAlpha = 1f;
 
+        /// <summary>
+        /// 動画設定 (v33 以降)。1 本目も含めて全本をここへ保存する。
+        /// 旧形式からの取り込みは Initialize() が行うため、FromXml へ渡す前に Initialize() を通すこと
+        /// </summary>
+        [XmlElement("Video")]
+        public List<VideoSettingsXml> videos = new List<VideoSettingsXml>();
+
         [XmlElement("ImageOutputFrameRate")]
         public float imageOutputFrameRate = 30f;
 
@@ -344,6 +413,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 // 旧バージョンでは動画表示タイプがbool
                 videoDisplayType = videoDisplayOnGUI ? VideoDisplayType.GUI : VideoDisplayType.Mesh;
+            }
+
+            // v32 以前は動画 1 本を平置き項目で保存していたため、リストが空ならそこから 1 本目を起こす
+            if (videos.Count == 0)
+            {
+                videos.Add(new VideoSettingsXml
+                {
+                    enabled = videoEnabled,
+                    displayType = videoDisplayType,
+                    path = videoPath,
+                    position = videoPosition,
+                    rotation = videoRotation,
+                    scale = videoScale,
+                    startTime = videoStartTime,
+                    volume = videoVolume,
+                    alpha = videoAlpha,
+                    guiPosition = videoGUIPosition,
+                    guiScale = videoGUIScale,
+                    guiAlpha = videoGUIAlpha,
+                    backmostPosition = videoBackmostPosition,
+                    backmostScale = videoBackmostScale,
+                    backmostAlpha = videoBackmostAlpha,
+                    frontmostPosition = videoFrontmostPosition,
+                    frontmostScale = videoFrontmostScale,
+                    frontmostAlpha = videoFrontmostAlpha,
+                });
             }
 
             if (version < 6)
@@ -1147,7 +1242,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (version < 32)
             {
                 var convertedCount = ConvertPostEffectMaskValues();
-                MTEUtils.LogDebug("Convert post effect depth values to mask values count={0}", convertedCount);
+                // 変換対象が無いときはログを出さない (他の移行処理と同じく変換した分だけ記録する)
+                if (convertedCount > 0)
+                {
+                    MTEUtils.LogDebug("Convert post effect depth values to mask values count={0}", convertedCount);
+                }
             }
 
             ConvertPlugin();

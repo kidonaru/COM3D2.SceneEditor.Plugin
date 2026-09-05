@@ -835,7 +835,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             paraffinCount = xml.paraffinCount;
             distanceFogCount = xml.distanceFogCount;
             rimlightCount = xml.rimlightCount;
-            video.ReadFrom(xml);
+            video.ReadFrom(xml.videos[0]);
             imageOutputFrameRate = xml.imageOutputFrameRate;
             imageOutputFormat = xml.imageOutputFormat;
             imageOutputSize = xml.imageOutputSize;
@@ -974,7 +974,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.paraffinCount = paraffinCount;
             xml.distanceFogCount = distanceFogCount;
             xml.rimlightCount = rimlightCount;
-            video.WriteTo(xml);
+            xml.videos.Add(video.ToXml());
             xml.imageOutputFrameRate = imageOutputFrameRate;
             xml.imageOutputFormat = imageOutputFormat;
             xml.imageOutputSize = imageOutputSize;
