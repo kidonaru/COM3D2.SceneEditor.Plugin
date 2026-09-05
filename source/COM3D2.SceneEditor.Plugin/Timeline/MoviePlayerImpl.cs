@@ -213,7 +213,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _isStarted = false;
             _seekState = SeekState.None;
 
-            UpdateVolume();
+            UpdateVisible();
             UpdateTransform();
             UpdateSpeed();
         }
@@ -356,15 +356,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 有効・無効をゲーム画面側へ反映する。
+        /// 無効でもプレビューでテクスチャを見られるよう、プレイヤー自体は生かしたまま
+        /// 描画と音声だけを止める
+        /// </summary>
+        public void UpdateVisible()
+        {
+            if (_meshRenderer != null)
+            {
+                _meshRenderer.enabled = video.enabled;
+            }
+
+            UpdateVolume();
+        }
+
         public void UpdateVolume()
         {
             if (mediaControl != null)
             {
-                mediaControl.SetVolume(video.volume);
-                _mediaPlayer.m_Muted = video.volume == 0f;
+                // 無効中はゲーム画面に映らないので音も鳴らさない
+                var volume = video.enabled ? video.volume : 0f;
+                mediaControl.SetVolume(volume);
+                _mediaPlayer.m_Muted = volume == 0f;
             }
         }
 
+        /// <summary>
+        /// 再生速度をタイムラインへ追従させる。無効な動画も対象に含めるのは、
+        /// プレビューで再生位置に合った絵を見せるため (その分デコード負荷は残る)
+        /// </summary>
         public void UpdateSpeed()
         {
             if (mediaControl != null)
@@ -506,11 +527,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// 動画面グリッドの表示判定。設定は SceneEditor 側の Config を使い、
         /// 表示スイッチと「編集中のみ」は他のグリッドと共通の GridRenderer.isGridEnabled に従う。
-        /// プレビュー形式はゲーム空間に動画面が無いため対象外 (プレビューウィンドウ側で描く)
+        /// プレビュー形式はゲーム空間に動画面が無いため対象外 (プレビューウィンドウ側で描く)。
+        /// 無効な動画も UpdateVisible でゲーム画面表示ごと止めるためグリッドは出さない
         /// </summary>
         private bool IsGridVisible()
         {
-            if (_gridMaterial == null || isPreviewOnly)
+            if (_gridMaterial == null || isPreviewOnly || !video.enabled)
             {
                 return false;
             }

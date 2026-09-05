@@ -317,7 +317,7 @@ namespace COM3D2.SceneEditor.Plugin
                 settings.frontmostAlpha = src.frontmostAlpha;
             }
 
-            // 無効やパス空の本は Unload だけが走る (LoadMovie は IsEnabled を見る)
+            // パス空の本は Unload だけが走る (LoadMovie は IsValidPath を見る)
             movieManager.ReloadMovie();
         }
     }

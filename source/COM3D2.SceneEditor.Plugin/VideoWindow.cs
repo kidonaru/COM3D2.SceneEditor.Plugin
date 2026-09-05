@@ -180,14 +180,10 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawToggle("有効", isEnabled, 60, ROW_HEIGHT, newValue =>
                 {
                     settings.enabled = newValue;
-                    if (newValue)
-                    {
-                        movieManager.LoadMovie(_videoIndex);
-                    }
-                    else
-                    {
-                        movieManager.UnloadMovie(_videoIndex);
-                    }
+                    // 無効化しても読込は解除しない (プレビューでは見られるようにするため)。
+                    // パス入力だけして未読込のまま有効化する経路があるので読込は試みる
+                    movieManager.LoadMovie(_videoIndex);
+                    movieManager.UpdateVisible(_videoIndex);
                 });
 
                 // プレビューウィンドウの表示切替。操作対象の動画に対応する 1 枚を開閉する
@@ -259,9 +255,6 @@ namespace COM3D2.SceneEditor.Plugin
             view.SetEnabled(true);
         }
 
-        /// <summary>2 値を 1 行に並べるときの数値入力欄の幅</summary>
-        private static readonly int PAIR_FIELD_WIDTH = 60;
-
         /// <summary>
         /// 開始位置と音量の 1 行。どちらも 1 値なのでスライダーで 2 行使うより、
         /// ドラッグ数値入力を横に並べたほうが表示形式ごとの設定行を見渡しやすい
@@ -270,6 +263,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var frameRate = movieManager.GetFrameRate(_videoIndex);
             var duration = movieManager.GetDuration(_videoIndex);
+            var fieldWidth = PairFieldWidth(view);
 
             view.BeginHorizontal();
             {
@@ -277,12 +271,12 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     label = "開始位置",
                     labelWidth = LABEL_WIDTH,
-                    fieldWidth = PAIR_FIELD_WIDTH,
+                    fieldWidth = fieldWidth,
                     height = ROW_HEIGHT,
                     // 1px で 1 フレーム動かす。メタデータ未確定時は秒単位の細かさで代替する
                     dragSensitivity = frameRate > 0f ? 1f / frameRate : 0.01f,
                     value = settings.startTime,
-                    minValue = -1f,
+                    minValue = -10f,
                     maxValue = duration > 0f ? duration : float.MaxValue,
                     onChanged = newValue =>
                     {
@@ -300,7 +294,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     label = "音量",
                     labelWidth = LABEL_WIDTH,
-                    fieldWidth = PAIR_FIELD_WIDTH,
+                    fieldWidth = fieldWidth,
                     height = ROW_HEIGHT,
                     value = settings.volume,
                     minValue = 0f,
@@ -318,6 +312,17 @@ namespace COM3D2.SceneEditor.Plugin
                 });
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// 1 行に 2 つ並べる数値入力欄の幅。ラベル・リセットボタン・余白を除いた
+        /// 残り幅を等分し、ウィンドウ幅の変更に追従させる (DrawVector2Row と同じ考え方)
+        /// </summary>
+        private static float PairFieldWidth(GUIView view)
+        {
+            var available = view.viewRect.width - view.padding.x * 2;
+            available -= (LABEL_WIDTH + GUIView.ResetButtonWidth + view.margin * 2) * 2;
+            return Mathf.Max(available / 2f, GUIView.Vector3FieldMinWidth);
         }
 
         /// <summary>

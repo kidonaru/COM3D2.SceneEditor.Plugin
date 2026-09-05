@@ -89,11 +89,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return path.Length > 0 && System.IO.File.Exists(path);
         }
 
-        public bool IsEnabled(int index)
-        {
-            return IsValidPath(index) && GetSettings(index).enabled;
-        }
-
         private MoviePlayerImpl GetPlayer(int index)
         {
             SyncPlayerListLength();
@@ -222,7 +217,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _loadedDisplayTypes[index] = settings.displayType;
             }
 
-            if (!IsEnabled(index))
+            // 無効でもプレビューでは中身を確認できるようにするため、パスさえ有効なら生成する
+            if (!IsValidPath(index))
             {
                 return;
             }
@@ -251,7 +247,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             SyncPlayerListLength();
 
-            if (!IsValidIndex(index) || !IsEnabled(index))
+            if (!IsValidIndex(index) || !IsValidPath(index))
             {
                 return;
             }
@@ -343,6 +339,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void UpdateSeekTime(int index)
         {
             WithPlayer(index, player => player.UpdateSeekTime());
+        }
+
+        public void UpdateVisible()
+        {
+            ForEachPlayer(player => player.UpdateVisible());
+        }
+
+        public void UpdateVisible(int index)
+        {
+            WithPlayer(index, player => player.UpdateVisible());
         }
 
         public void UpdateColor()

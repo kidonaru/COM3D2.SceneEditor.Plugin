@@ -5,9 +5,9 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 表示形式が「プレビュー」の動画をウィンドウ内に描画する。
-    /// ゲーム画面には出さずここだけに映すための表示形式で、
-    /// 表示サイズ (ウィンドウサイズ比) と透過度を反映する
+    /// 動画をウィンドウ内に描画する。表示形式や有効・無効に関係なく
+    /// MediaPlayer のテクスチャを直接描くため、ゲーム画面に出していない動画も確認できる。
+    /// 表示形式「プレビュー」のときだけ表示サイズ (ウィンドウサイズ比) と透過度を反映する
     /// </summary>
     public class VideoPreviewWindow : EditorSubWindow
     {
@@ -32,6 +32,20 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.MovieManager movieManager => MTEP.MovieManager.instance;
 
         private readonly GUIView _view = new GUIView();
+
+        /// <summary>
+        /// 表示サイズと透過度は表示形式「プレビュー」専用の設定なので、
+        /// ゲーム画面にも出す表示形式では等倍・不透明で描く
+        /// </summary>
+        private bool usesPreviewSettings
+            => movieManager.IsValidIndex(videoIndex)
+                && movieManager.GetSettings(videoIndex).displayType == MTEP.VideoDisplayType.GUI;
+
+        private float previewScale
+            => usesPreviewSettings ? movieManager.GetSettings(videoIndex).guiScale : 1f;
+
+        protected override float windowAlpha
+            => usesPreviewSettings ? movieManager.GetSettings(videoIndex).guiAlpha : 1f;
 
         private static VideoPreviewWindow[] _instances = null;
 
@@ -93,24 +107,17 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var localRect = ToLocalRect(contentRect);
 
+            // ウィンドウ全体に掛かっている不透明度 (windowAlpha) を打ち消さないよう掛け合わせる
             var prevColor = GUI.color;
-            GUI.color = BackgroundColor;
+            GUI.color = new Color(
+                BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, BackgroundColor.a * prevColor.a);
             GUI.DrawTexture(localRect, Texture2D.whiteTexture);
             GUI.color = prevColor;
 
             // 動画本数を減らすと番号だけ残るため、参照する前に本数を確認する
             if (!movieManager.IsValidIndex(videoIndex))
             {
-                _view.Init(localRect);
-                _view.DrawLabel("この番号の動画はありません", -1, ROW_HEIGHT, textColor: Color.gray);
-                return;
-            }
-
-            var settings = movieManager.GetSettings(videoIndex);
-            if (settings.displayType != MTEP.VideoDisplayType.GUI)
-            {
-                _view.Init(localRect);
-                _view.DrawLabel("表示形式が「プレビュー」ではありません", -1, ROW_HEIGHT, textColor: Color.gray);
+                DrawPlaceholder(localRect, "この番号の動画はありません");
                 return;
             }
 
@@ -118,8 +125,7 @@ namespace COM3D2.SceneEditor.Plugin
             var texture = movieManager.GetTexture(videoIndex);
             if (texture == null || texture.width <= 0 || texture.height <= 0)
             {
-                _view.Init(localRect);
-                _view.DrawLabel("動画が読み込まれていません", -1, ROW_HEIGHT, textColor: Color.gray);
+                DrawPlaceholder(localRect, "動画が読み込まれていません");
                 return;
             }
 
@@ -129,17 +135,14 @@ namespace COM3D2.SceneEditor.Plugin
                 : new Rect(0f, 0f, 1f, 1f);
 
             // 領域いっぱいまで拡大するため、はみ出した分はグループでクリップする
-            var drawRect = CoverRect(localRect, (float)texture.width / texture.height, settings.guiScale);
+            var drawRect = CoverRect(localRect, (float)texture.width / texture.height, previewScale);
             drawRect.x -= localRect.x;
             drawRect.y -= localRect.y;
 
             GUI.BeginGroup(localRect);
             {
-                // 透過度は動画にだけ効かせ、グリッドは設定どおりの色で描く
-                var prevTextureColor = GUI.color;
-                GUI.color = new Color(1f, 1f, 1f, settings.guiAlpha);
+                // 透過度はウィンドウ全体 (windowAlpha) に掛かっているのでここでは触らない
                 GUI.DrawTextureWithTexCoords(drawRect, texture, texCoords, true);
-                GUI.color = prevTextureColor;
 
                 if (config.isGridVisibleInVideo && GridRenderer.isGridEnabled)
                 {
@@ -150,6 +153,21 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 動画を描けないときの案内文。
+        /// DrawLabel は色指定つきだと GUI.color を白へ戻すため、
+        /// ウィンドウ全体に掛けた不透明度 (windowAlpha) を自前で戻す
+        /// </summary>
+        private void DrawPlaceholder(Rect localRect, string message)
+        {
+            var prevColor = GUI.color;
+
+            _view.Init(localRect);
+            _view.DrawLabel(message, -1, ROW_HEIGHT, textColor: Color.gray);
+
+            GUI.color = prevColor;
+        }
+
+        /// <summary>
         /// 動画面を等分するグリッドを 1px 線で重ねる。
         /// 3D 表示の動画面に MoviePlayerImpl が描くものと同じ設定を使い、
         /// ゲーム画面に動画面を持たないプレビュー形式でもここで確認できるようにする
@@ -157,10 +175,11 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawGrid(Rect videoRect)
         {
             var count = Mathf.Max(config.gridCountInVideo, 1);
-            var color = config.gridColorInVideo;
-            color.a = config.gridAlphaInVideo;
-
             var prevColor = GUI.color;
+
+            var color = config.gridColorInVideo;
+            color.a = config.gridAlphaInVideo * prevColor.a;
+
             GUI.color = color;
 
             // 外周は動画の縁と重なるだけなので画面分割グリッドと同じく描かない

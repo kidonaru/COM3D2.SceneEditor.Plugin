@@ -41,6 +41,12 @@ namespace COM3D2.SceneEditor.Plugin
         protected virtual float contentTopMargin => 0f;
 
         /// <summary>
+        /// ウィンドウ全体に掛ける不透明度。1 で従来どおり不透明。
+        /// 枠ごと透かしたいウィンドウ (動画プレビュー) が下げる
+        /// </summary>
+        protected virtual float windowAlpha => 1f;
+
+        /// <summary>
         /// コンテンツの空き領域（どのコントロールも押下を消費しなかった場所）の
         /// 左ドラッグでウィンドウ移動を許可するか。コンテンツ全域が
         /// カメラ操作である SceneView は false にする
@@ -240,7 +246,19 @@ namespace COM3D2.SceneEditor.Plugin
 
             // グループ時はタブバーを自前描画するのでタイトルは空にする (push された状態で判定する)
             var title = _tabTitles != null ? "" : windowTitle;
-            _windowRect = GUI.Window(windowId, _windowRect, DrawWindow, title, GUIView.gsWin);
+
+            // 枠も中身もまとめて透かすため、ウィンドウの描画中だけ GUI.color を下げる
+            var prevColor = GUI.color;
+            GUI.color = WithAlpha(prevColor, prevColor.a * windowAlpha);
+            try
+            {
+                _windowRect = GUI.Window(windowId, _windowRect, DrawWindow, title, GUIView.gsWin);
+            }
+            finally
+            {
+                // 描画中に例外が出ても下げた不透明度を残さない (以降の全ウィンドウに波及するため)
+                GUI.color = prevColor;
+            }
 
             // タブ切替メニューはホスト矩形にクリップされないよう別ウィンドウとして描く
             TabBarDrawer.DrawContextMenuWindow(
@@ -317,8 +335,8 @@ namespace COM3D2.SceneEditor.Plugin
                 LOCK_BUTTON_WIDTH,
                 CLOSE_BUTTON_HEIGHT);
             var oldColor = GUI.color;
-            // ロック中はアクセントカラーで塗って状態を示す
-            GUI.color = isLocked ? ACCENT_COLOR : Color.white;
+            // ロック中はアクセントカラーで塗って状態を示す (windowAlpha を消さないよう不透明度は引き継ぐ)
+            GUI.color = WithAlpha(isLocked ? ACCENT_COLOR : Color.white, oldColor.a);
             TooltipDrawer.RegisterIfHovered(lockRect, DockableWindowBase.GetLockTooltip(isLocked));
             if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
             {
@@ -341,7 +359,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var oldColor = GUI.color;
-            GUI.color = WithAlpha(ACCENT_COLOR, 0.4f);
+            GUI.color = WithAlpha(ACCENT_COLOR, 0.4f * oldColor.a);
             GUI.DrawTexture(new Rect(0, 0, _windowRect.width, HEADER_HEIGHT), Texture2D.whiteTexture);
             GUI.color = oldColor;
         }
