@@ -249,6 +249,7 @@
     <Compile Include="Manager\History\SnapshotFactory.cs" />
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />
+    <Compile Include="Manager\SkirtHookDriftPatch.cs" />
     <Compile Include="Manager\PngPlacementManager.cs" />
     <Compile Include="Manager\StudioLightManager.cs" />
     <Compile Include="Manager\ToastManager.cs" />

@@ -356,6 +356,9 @@ namespace COM3D2.SceneEditor.Plugin
                 // マネージャの Update ループには乗らない (isEnable は自前で見ている)
                 ScreenshotHotkeyPatch.Init();
 
+                // ゲーム側のスカート物理の累積誤差を抑える。UI の有効状態に関係なく常時効かせる
+                SkirtHookDriftPatch.Init();
+
                 managerRegistry.RegisterManager(ConfigManager.instance);
                 managerRegistry.RegisterManager(InputRemapper.instance);
                 managerRegistry.RegisterManager(WindowManager.instance);
