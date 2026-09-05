@@ -775,9 +775,8 @@ namespace COM3D2.SceneEditor.Plugin
         public Vector3 rotation;
         public float scale = 1f;
         public float startTime;
-        public float volume = 0.5f;
+        public float volume = 0f;
         public float alpha = 1f;
-        public Vector2 guiPosition;
         public float guiScale = 1f;
         public float guiAlpha = 1f;
         public Vector2 backmostPosition;

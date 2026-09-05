@@ -103,13 +103,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float startTime = 0f;
 
         [XmlElement("Volume")]
-        public float volume = 0.5f;
+        public float volume = 0f;
 
         [XmlElement("Alpha")]
         public float alpha = 1f;
-
-        [XmlElement("GUIPosition")]
-        public Vector2 guiPosition = new Vector2(0, 0);
 
         [XmlElement("GUIScale")]
         public float guiScale = 1f;
@@ -347,9 +344,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("VideoAlpha")]
         public float videoAlpha = 1f;
 
-        [XmlElement("VideoGUIPosition")]
-        public Vector2 videoGUIPosition = new Vector2(0, 0);
-
         [XmlElement("VideoGUIScale")]
         public float videoGUIScale = 1f;
 
@@ -387,7 +381,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool ShouldSerializevideoStartTime() { return false; }
         public bool ShouldSerializevideoVolume() { return false; }
         public bool ShouldSerializevideoAlpha() { return false; }
-        public bool ShouldSerializevideoGUIPosition() { return false; }
         public bool ShouldSerializevideoGUIScale() { return false; }
         public bool ShouldSerializevideoGUIAlpha() { return false; }
         public bool ShouldSerializevideoBackmostPosition() { return false; }
@@ -454,7 +447,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     startTime = videoStartTime,
                     volume = videoVolume,
                     alpha = videoAlpha,
-                    guiPosition = videoGUIPosition,
                     guiScale = videoGUIScale,
                     guiAlpha = videoGUIAlpha,
                     backmostPosition = videoBackmostPosition,

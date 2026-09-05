@@ -48,7 +48,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 startTime = 1.25f,
                 volume = 0.3f,
                 alpha = 0.9f,
-                guiPosition = new Vector2(0.1f, 0.2f),
                 guiScale = 0.8f,
                 guiAlpha = 0.7f,
                 backmostPosition = new Vector2(0.3f, 0.4f),
@@ -72,7 +71,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(1.25f, dst.startTime);
             Assert.Equal(0.3f, dst.volume);
             Assert.Equal(0.9f, dst.alpha);
-            Assert.Equal(new Vector2(0.1f, 0.2f), dst.guiPosition);
             Assert.Equal(0.8f, dst.guiScale);
             Assert.Equal(0.7f, dst.guiAlpha);
             Assert.Equal(new Vector2(0.3f, 0.4f), dst.backmostPosition);
@@ -230,6 +228,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal("b.mp4", videoCopy.path);
             Assert.Equal(VideoDisplayType.Mesh, videoCopy.displayType);
             Assert.Equal(0.1f, videoCopy.frontmostAlpha);
+        }
+
+        [Fact]
+        public void VideoSettings_音量の既定値は0()
+        {
+            var settings = new VideoSettings();
+
+            Assert.Equal(0f, settings.volume);
         }
     }
 }

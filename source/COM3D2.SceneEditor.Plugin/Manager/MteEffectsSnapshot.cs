@@ -267,7 +267,6 @@ namespace COM3D2.SceneEditor.Plugin
                     startTime = settings.startTime,
                     volume = settings.volume,
                     alpha = settings.alpha,
-                    guiPosition = settings.guiPosition,
                     guiScale = settings.guiScale,
                     guiAlpha = settings.guiAlpha,
                     backmostPosition = settings.backmostPosition,
@@ -308,7 +307,6 @@ namespace COM3D2.SceneEditor.Plugin
                 settings.startTime = src.startTime;
                 settings.volume = src.volume;
                 settings.alpha = src.alpha;
-                settings.guiPosition = src.guiPosition;
                 settings.guiScale = src.guiScale;
                 settings.guiAlpha = src.guiAlpha;
                 settings.backmostPosition = src.backmostPosition;

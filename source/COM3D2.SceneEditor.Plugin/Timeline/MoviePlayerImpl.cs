@@ -294,10 +294,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 if (isDisplayOnGUI)
                 {
-                    // 位置調整
-                    _displayIMGUI._x = video.guiPosition.x;
-                    _displayIMGUI._y = video.guiPosition.y;
-
                     // アスペクト比調整
                     if (_aspectRatio > 1f)
                     {

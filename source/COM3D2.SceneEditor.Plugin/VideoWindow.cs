@@ -283,7 +283,7 @@ namespace COM3D2.SceneEditor.Plugin
                 min = 0f,
                 max = 1f,
                 step = 0.01f,
-                defaultValue = 0.5f,
+                defaultValue = 0f,
                 value = settings.volume,
                 onChanged = newValue =>
                 {
@@ -319,12 +319,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawGuiSetting(GUIView view)
         {
-            DrawPositionRow(view, settings.guiPosition, Vector2.zero, newValue =>
-            {
-                settings.guiPosition = newValue;
-                movieManager.UpdateTransform(_videoIndex);
-            });
-
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "表示サイズ",

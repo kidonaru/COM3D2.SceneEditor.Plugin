@@ -15,9 +15,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Vector3 rotation = new Vector3(0, 0, 0);
         public float scale = 1f;
         public float startTime = 0f;
-        public float volume = 0.5f;
+        // 動画の音は既定で鳴らさない (BGM と重なって驚くのを避ける)
+        public float volume = 0f;
         public float alpha = 1f;
-        public Vector2 guiPosition = new Vector2(0, 0);
         public float guiScale = 1f;
         public float guiAlpha = 1f;
         public Vector2 backmostPosition = new Vector2(0, 0);
@@ -38,7 +38,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             startTime = src.startTime;
             volume = src.volume;
             alpha = src.alpha;
-            guiPosition = src.guiPosition;
             guiScale = src.guiScale;
             guiAlpha = src.guiAlpha;
             backmostPosition = src.backmostPosition;
@@ -60,7 +59,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             startTime = xml.startTime;
             volume = xml.volume;
             alpha = xml.alpha;
-            guiPosition = xml.guiPosition;
             guiScale = xml.guiScale;
             guiAlpha = xml.guiAlpha;
             backmostPosition = xml.backmostPosition;
@@ -84,7 +82,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 startTime = startTime,
                 volume = volume,
                 alpha = alpha,
-                guiPosition = guiPosition,
                 guiScale = guiScale,
                 guiAlpha = guiAlpha,
                 backmostPosition = backmostPosition,
