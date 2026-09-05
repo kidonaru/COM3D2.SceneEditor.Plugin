@@ -76,7 +76,7 @@ namespace COM3D2.SceneEditor.Plugin
             GUI.DrawTexture(localRect, Texture2D.whiteTexture);
             GUI.color = prevColor;
 
-            // メタデータ確定前はサイズ 0 のダミーが返ることがあり、そのままだと FitRect が NaN になる
+            // メタデータ確定前はサイズ 0 のダミーが返ることがあり、そのままだと CoverRect が NaN になる
             var texture = movieManager.GetTexture(videoIndex);
             if (texture == null || texture.width <= 0 || texture.height <= 0)
             {
@@ -85,18 +85,26 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var drawRect = FitRect(localRect, (float)texture.width / texture.height);
-
             // MediaFoundation 等ではテクスチャが上下反転しているため UV 側で戻す
             var texCoords = movieManager.RequiresVerticalFlip(videoIndex)
                 ? new Rect(0f, 1f, 1f, -1f)
                 : new Rect(0f, 0f, 1f, 1f);
-            GUI.DrawTextureWithTexCoords(drawRect, texture, texCoords, false);
 
-            if (config.isGridVisibleInVideo && GridRenderer.isGridEnabled)
+            // 領域いっぱいまで拡大するため、はみ出した分はグループでクリップする
+            var drawRect = CoverRect(localRect, (float)texture.width / texture.height);
+            drawRect.x -= localRect.x;
+            drawRect.y -= localRect.y;
+
+            GUI.BeginGroup(localRect);
             {
-                DrawGrid(drawRect);
+                GUI.DrawTextureWithTexCoords(drawRect, texture, texCoords, false);
+
+                if (config.isGridVisibleInVideo && GridRenderer.isGridEnabled)
+                {
+                    DrawGrid(drawRect);
+                }
             }
+            GUI.EndGroup();
         }
 
         /// <summary>
@@ -126,12 +134,12 @@ namespace COM3D2.SceneEditor.Plugin
             GUI.color = prevColor;
         }
 
-        /// <summary>領域内にアスペクト比を保って収まる中央寄せ矩形を返す</summary>
-        private static Rect FitRect(Rect area, float aspectRatio)
+        /// <summary>領域をアスペクト比を保って覆う中央寄せ矩形を返す。短辺側は領域からはみ出す</summary>
+        private static Rect CoverRect(Rect area, float aspectRatio)
         {
             var width = area.width;
             var height = width / aspectRatio;
-            if (height > area.height)
+            if (height < area.height)
             {
                 height = area.height;
                 width = height * aspectRatio;
