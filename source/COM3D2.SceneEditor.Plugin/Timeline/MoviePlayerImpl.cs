@@ -29,7 +29,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public SeekState _seekState = SeekState.None;
 
-        public bool isDisplayOnGUI
+        /// <summary>
+        /// プレビューウィンドウにだけ映す表示形式か。
+        /// enum 名 (GUI) は XML 互換のため据え置いているが、ゲーム画面には何も出さない
+        /// </summary>
+        public bool isPreviewOnly
         {
             get => video.displayType == VideoDisplayType.GUI;
         }
@@ -158,7 +162,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             // プレビュー形式はプレビューウィンドウがテクスチャを直接描くため、
             // ゲーム画面側の描画コンポーネントは作らない
-            if (!isDisplayOnGUI)
+            if (!isPreviewOnly)
             {
                 gameObject.layer = layerMask;
                 _meshRenderer = gameObject.AddComponent<MeshRenderer>();
@@ -284,7 +288,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void UpdateTransform()
         {
             // プレビュー形式はゲーム空間に置く物が無いので配置の更新も要らない
-            if (isDisplayOnGUI)
+            if (isPreviewOnly)
             {
                 return;
             }
@@ -506,7 +510,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private bool IsGridVisible()
         {
-            if (_gridMaterial == null || isDisplayOnGUI)
+            if (_gridMaterial == null || isPreviewOnly)
             {
                 return false;
             }

@@ -229,7 +229,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 添字に対応するプレビュー配置。足りない分は既定値で埋めて返すため、
-        /// 旧バージョンの Config を読んでも欠番で落ちない
+        /// 旧バージョンの Config を読んでも欠番で落ちない。
+        /// 呼び出し元も添字を丸めるが、壊れた Config を直接読んでも上限を超えないようここでも丸める
         /// </summary>
         public VideoPreviewPlacement GetVideoPreview(int index)
         {

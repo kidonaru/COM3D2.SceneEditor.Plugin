@@ -30,7 +30,7 @@ namespace COM3D2.SceneEditor.Plugin
         // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
-        /// <summary>GUI 表示位置は -1〜1 の狭い範囲なので、3D 位置より細かく動かす</summary>
+        /// <summary>最背面・最前面の位置は -1〜1 の狭い範囲なので、3D 位置より細かく動かす</summary>
         private const float NormalizedPositionSensitivity = 0.001f;
 
         // enum 名 (GUI) は XML 互換のため据え置き、表示名だけ実態に合わせる
@@ -342,6 +342,10 @@ namespace COM3D2.SceneEditor.Plugin
             });
         }
 
+        /// <summary>
+        /// プレビュー形式の設定。値はプレビューウィンドウが毎フレーム直接読むため、
+        /// 他の表示形式と違って変更後の反映呼び出しは要らない
+        /// </summary>
         private void DrawGuiSetting(GUIView view)
         {
             view.DrawSliderValue(new GUIView.SliderOption
@@ -354,11 +358,7 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.01f,
                 defaultValue = 1f,
                 value = settings.guiScale,
-                onChanged = value =>
-                {
-                    settings.guiScale = value;
-                    movieManager.UpdateTransform(_videoIndex);
-                },
+                onChanged = value => settings.guiScale = value,
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -371,11 +371,7 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.01f,
                 defaultValue = 1f,
                 value = settings.guiAlpha,
-                onChanged = value =>
-                {
-                    settings.guiAlpha = value;
-                    movieManager.UpdateColor(_videoIndex);
-                },
+                onChanged = value => settings.guiAlpha = value,
             });
         }
 
