@@ -36,11 +36,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>全レイヤーのメニュー選択を解除する (行の選択ハイライトはレイヤーをまたぐため)</summary>
         public void UnselectAll()
         {
-            foreach (var setMenuItem in allMenuItems)
+            foreach (var layer in timelineManager.layers)
             {
-                setMenuItem.isSelectedMenu = false;
+                foreach (var setMenuItem in layer.allMenuItems)
+                {
+                    setMenuItem.isSelectedMenu = false;
+                }
             }
         }
 

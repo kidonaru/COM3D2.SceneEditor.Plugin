@@ -74,6 +74,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public int currentLayerIndex = 0;
 
+        /// <summary>
+        /// 編集基準のレイヤー (ポーズ編集・A/D ボタン・カーブ表示・ペースト先・範囲/全選択の対象)。
+        /// キーフレーム選択自体はレイヤーをまたいで selectedBones に保持され、ここには縛られない
+        /// </summary>
         public override ITimelineLayer currentLayer
         {
             get
@@ -510,6 +514,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return selectedBones.Contains(bone);
         }
 
+        /// <summary>アクティブレイヤーの範囲を選択へ追加する (他レイヤーの既存選択には影響しない)</summary>
         public void SelectFramesRange(int startFrameNo, int endFrameNo)
         {
             if (config.isEasyEdit)
@@ -800,6 +805,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // 選択は複数レイヤーにまたがるので、各ボーンの所属レイヤー単位で後処理する
+            var affectedLayers = CollectSelectedLayers();
             foreach (var bone in selectedBones)
             {
                 var frame = bone.parentFrame;
@@ -808,11 +815,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     frame.RemoveBone(bone);
                 }
             }
-            currentLayer.CleanFrames();
-            currentLayer.ApplyCurrentFrame(true);
+            CleanAndApplyLayers(affectedLayers);
             selectedBones.Clear();
 
             RequestHistory("キーフレーム削除");
+        }
+
+        /// <summary>選択中ボーンが属する全レイヤーへ現在フレームを反映する</summary>
+        public void ApplyCurrentFrameToSelectedLayers()
+        {
+            foreach (var layer in CollectSelectedLayers())
+            {
+                layer.ApplyCurrentFrame(true);
+            }
+        }
+
+        /// <summary>選択中ボーンの所属レイヤー集合 (操作ごとの呼び出しなので都度生成する)</summary>
+        private HashSet<ITimelineLayer> CollectSelectedLayers()
+        {
+            var result = new HashSet<ITimelineLayer>();
+            foreach (var bone in selectedBones)
+            {
+                var layer = bone.parentLayer;
+                if (layer != null)
+                {
+                    result.Add(layer);
+                }
+            }
+            return result;
+        }
+
+        private static void CleanAndApplyLayers(IEnumerable<ITimelineLayer> layers)
+        {
+            foreach (var layer in layers)
+            {
+                layer.CleanFrames();
+                layer.ApplyCurrentFrame(true);
+            }
         }
 
         public void MoveSelectedBones(int delta)
@@ -831,7 +870,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             foreach (var selectedBone in selectedBones)
             {
                 var selectedFrame = selectedBone.parentFrame;
-                var targetFrame = currentLayer.GetFrame(selectedFrame.frameNo + delta);
+                var targetFrame = selectedBone.parentLayer.GetFrame(selectedFrame.frameNo + delta);
 
                 // 移動先のボーンが重複していたら移動しない
                 if (targetFrame != null)
@@ -866,17 +905,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 sortedBones.Sort((a, b) => b.frameNo - a.frameNo);
             }
 
+            var affectedLayers = CollectSelectedLayers();
             foreach (var selectedBone in sortedBones)
             {
                 var targetFrameNo = selectedBone.frameNo + delta;
                 var sourceFrame = selectedBone.parentFrame;
+                // RemoveBone で parentFrame が外れる前に所属レイヤーを確保する
+                var layer = selectedBone.parentLayer;
                 sourceFrame.RemoveBone(selectedBone);
 
-                currentLayer.SetBone(targetFrameNo, selectedBone);
+                layer.SetBone(targetFrameNo, selectedBone);
             }
 
-            currentLayer.CleanFrames();
-            currentLayer.ApplyCurrentFrame(true);
+            CleanAndApplyLayers(affectedLayers);
 
             RequestHistory("キーフレーム移動");
         }
@@ -1049,13 +1090,72 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SetActiveTrack(activeTrack, true);
         }
 
-        [XmlRoot("Layer")]
         public class CopyLayerData
         {
             [XmlElement("ClassName")]
             public string className;
             [XmlElement("Frame")]
             public List<FrameXml> frames;
+        }
+
+        /// <summary>
+        /// クリップボード形式。選択が複数レイヤーにまたがるためレイヤー単位のリストで持つ
+        /// (MTE の単一 Layer ルート形式とは互換しない)
+        /// </summary>
+        [XmlRoot("Layers")]
+        public class CopyTimelineData
+        {
+            [XmlElement("Layer")]
+            public List<CopyLayerData> layers = new List<CopyLayerData>();
+        }
+
+        private static void WriteClipboard(CopyTimelineData data)
+        {
+            var serializer = new XmlSerializer(typeof(CopyTimelineData));
+            using (var writer = new StringWriter())
+            {
+                serializer.Serialize(writer, data);
+                GUIUtility.systemCopyBuffer = writer.ToString();
+            }
+        }
+
+        private static CopyTimelineData ReadClipboard()
+        {
+            var serializer = new XmlSerializer(typeof(CopyTimelineData));
+            using (var reader = new StringReader(GUIUtility.systemCopyBuffer))
+            {
+                return (CopyTimelineData) serializer.Deserialize(reader);
+            }
+        }
+
+        /// <summary>
+        /// ペースト先レイヤーを決める。アクティブレイヤーが同名ならそれを優先し、
+        /// そうでなければ同名 (スロット付きならアクティブと同じスロット優先) のレイヤーを探す
+        /// </summary>
+        private ITimelineLayer FindPasteTargetLayer(string className)
+        {
+            if (currentLayer.layerName == className)
+            {
+                return currentLayer;
+            }
+
+            ITimelineLayer fallback = null;
+            foreach (var layer in layers)
+            {
+                if (layer.layerName != className)
+                {
+                    continue;
+                }
+                if (!layer.hasSlotNo || layer.slotNo == currentLayer.slotNo)
+                {
+                    return layer;
+                }
+                if (fallback == null)
+                {
+                    fallback = layer;
+                }
+            }
+            return fallback;
         }
 
         public void CopyFramesToClipboard()
@@ -1066,37 +1166,46 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var copyFrameData = new CopyLayerData
-            {
-                className = currentLayer.layerName
-            };
-
-            var tmpFrames = new Dictionary<int, FrameData>();
+            // レイヤー → フレーム番号 → 一時フレーム。選択ボーンを所属レイヤーごとに束ねる
+            var layerFrames = new Dictionary<ITimelineLayer, Dictionary<int, FrameData>>();
             foreach (var bone in selectedBones)
             {
+                var layer = bone.parentLayer;
+                if (layer == null)
+                {
+                    continue;
+                }
+
+                Dictionary<int, FrameData> tmpFrames;
+                if (!layerFrames.TryGetValue(layer, out tmpFrames))
+                {
+                    tmpFrames = new Dictionary<int, FrameData>();
+                    layerFrames[layer] = tmpFrames;
+                }
+
                 FrameData tmpFrame;
                 if (!tmpFrames.TryGetValue(bone.frameNo, out tmpFrame))
                 {
-                    tmpFrame = currentLayer.CreateFrame(bone.frameNo);
+                    tmpFrame = layer.CreateFrame(bone.frameNo);
                     tmpFrames[bone.frameNo] = tmpFrame;
                 }
 
                 tmpFrame.UpdateBone(bone);
             }
-            copyFrameData.frames = tmpFrames.Values
-                .Select(frame => frame.ToXml())
-                .ToList();
+
+            var copyData = new CopyTimelineData();
+            foreach (var pair in layerFrames)
+            {
+                copyData.layers.Add(new CopyLayerData
+                {
+                    className = pair.Key.layerName,
+                    frames = pair.Value.Values.Select(frame => frame.ToXml()).ToList(),
+                });
+            }
 
             try
             {
-                var serializer = new XmlSerializer(typeof(CopyLayerData));
-                using (var writer = new StringWriter())
-                {
-                    serializer.Serialize(writer, copyFrameData);
-                    var framesXml = writer.ToString();
-                    GUIUtility.systemCopyBuffer = framesXml;
-                }
-
+                WriteClipboard(copyData);
                 MTEUtils.Log("クリップボードにコピーしました");
             }
             catch (Exception e)
@@ -1117,22 +1226,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var tmpFrame = currentLayer.CreateFrame(currentFrameNo);
             currentLayer.UpdateFrame(tmpFrame);
 
-            var copyFrameData = new CopyLayerData
+            var copyData = new CopyTimelineData();
+            copyData.layers.Add(new CopyLayerData
             {
                 className = currentLayer.layerName,
                 frames = new List<FrameXml> { tmpFrame.ToXml() }
-            };
+            });
 
             try
             {
-                var serializer = new XmlSerializer(typeof(CopyLayerData));
-                using (var writer = new StringWriter())
-                {
-                    serializer.Serialize(writer, copyFrameData);
-                    var framesXml = writer.ToString();
-                    GUIUtility.systemCopyBuffer = framesXml;
-                }
-
+                WriteClipboard(copyData);
                 MTEUtils.Log("クリップボードにコピーしました");
             }
             catch (Exception e)
@@ -1146,51 +1249,72 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             try
             {
-                var data = GUIUtility.systemCopyBuffer;
-                var serializer = new XmlSerializer(typeof(CopyLayerData));
-                using (var reader = new StringReader(data))
-                {
-                    var copyFrameData = (CopyLayerData) serializer.Deserialize(reader);
+                var copyData = ReadClipboard();
 
-                    if (copyFrameData.className != currentLayer.layerName)
+                // レイヤーごとにペースト先を決める。1 つも一致しなければエラーにする
+                var targets = new List<KeyValuePair<ITimelineLayer, CopyLayerData>>();
+                foreach (var layerData in copyData.layers)
+                {
+                    if (layerData.frames == null || layerData.frames.Count == 0)
                     {
-                        MTEUtils.ShowDialog("ペーストするレイヤーが一致しません");
-                        return;
+                        continue;
                     }
 
-                    if (copyFrameData.frames.Count == 0)
+                    var target = FindPasteTargetLayer(layerData.className);
+                    if (target == null)
+                    {
+                        MTEUtils.LogWarning("ペースト先のレイヤーが見つかりません: " + layerData.className);
+                        continue;
+                    }
+                    targets.Add(new KeyValuePair<ITimelineLayer, CopyLayerData>(target, layerData));
+                }
+
+                if (targets.Count == 0)
+                {
+                    if (copyData.layers.Count == 0)
                     {
                         MTEUtils.LogWarning("ペーストするキーフレームがありません");
-                        return;
                     }
-
-                    var framesXml = copyFrameData.frames;
-                    var minFrameNo = framesXml.Min(frame => frame.frameNo);
-                    foreach (var frameXml in framesXml)
+                    else
                     {
-                        var tmpFrame = currentLayer.CreateFrame(frameXml);
+                        MTEUtils.ShowDialog("ペーストするレイヤーが一致しません");
+                    }
+                    return;
+                }
+
+                // レイヤー間の相対位置を保つため、最小フレーム番号は全レイヤーで揃える
+                var minFrameNo = targets.Min(pair => pair.Value.frames.Min(frame => frame.frameNo));
+                foreach (var pair in targets)
+                {
+                    var layer = pair.Key;
+                    foreach (var frameXml in pair.Value.frames)
+                    {
+                        var tmpFrame = layer.CreateFrame(frameXml);
                         if (flip)
                         {
                             tmpFrame.Flip();
                         }
 
                         var frameNo = currentFrameNo + tmpFrame.frameNo - minFrameNo;
-                        currentLayer.UpdateBones(frameNo, tmpFrame.bones);
-                    }
-
-                    timeline.AdjustMaxFrameNo();
-
-                    if (flip)
-                    {
-                        RequestHistory("反転ペースト");
-                    }
-                    else
-                    {
-                        RequestHistory("ペースト");
+                        layer.UpdateBones(frameNo, tmpFrame.bones);
                     }
                 }
 
-                currentLayer.ApplyCurrentFrame(true);
+                timeline.AdjustMaxFrameNo();
+
+                if (flip)
+                {
+                    RequestHistory("反転ペースト");
+                }
+                else
+                {
+                    RequestHistory("ペースト");
+                }
+
+                foreach (var pair in targets)
+                {
+                    pair.Key.ApplyCurrentFrame(true);
+                }
             }
             catch (Exception e)
             {
@@ -1217,43 +1341,40 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 var pathDic = boneDataArray.GetPathDic();
 
-                var data = GUIUtility.systemCopyBuffer;
-                var serializer = new XmlSerializer(typeof(CopyLayerData));
-                using (var reader = new StringReader(data))
+                // ポーズはアクティブレイヤーのメイドにしか適用できないので、同名レイヤーのデータだけ使う
+                var copyData = ReadClipboard();
+                var copyFrameData = copyData.layers
+                    .FirstOrDefault(layerData => layerData.className == currentLayer.layerName);
+                if (copyFrameData == null)
                 {
-                    var copyFrameData = (CopyLayerData) serializer.Deserialize(reader);
+                    MTEUtils.ShowDialog("ペーストするレイヤーが一致しません");
+                    return;
+                }
 
-                    if (copyFrameData.className != currentLayer.layerName)
+                if (copyFrameData.frames == null || copyFrameData.frames.Count == 0)
+                {
+                    MTEUtils.LogWarning("ペーストするキーフレームがありません");
+                    return;
+                }
+
+                var framesXml = copyFrameData.frames;
+                foreach (var frameXml in framesXml)
+                {
+                    var tmpFrame = currentLayer.CreateFrame(frameXml);
+
+                    foreach (var tmpBone in tmpFrame.bones)
                     {
-                        MTEUtils.ShowDialog("ペーストするレイヤーが一致しません");
-                        return;
-                    }
-
-                    if (copyFrameData.frames.Count == 0)
-                    {
-                        MTEUtils.LogWarning("ペーストするキーフレームがありません");
-                        return;
-                    }
-
-                    var framesXml = copyFrameData.frames;
-                    foreach (var frameXml in framesXml)
-                    {
-                        var tmpFrame = currentLayer.CreateFrame(frameXml);
-
-                        foreach (var tmpBone in tmpFrame.bones)
+                        var path = maidCache.GetBonePath(tmpBone.name);
+                        CacheBoneDataArray.BoneData bone;
+                        if (pathDic.TryGetValue(path, out bone))
                         {
-                            var path = maidCache.GetBonePath(tmpBone.name);
-                            CacheBoneDataArray.BoneData bone;
-                            if (pathDic.TryGetValue(path, out bone))
+                            if (tmpBone.transform.hasRotation)
                             {
-                                if (tmpBone.transform.hasRotation)
-                                {
-                                    bone.transform.localRotation = tmpBone.transform.rotation;
-                                }
-                                if (tmpBone.transform.hasPosition)
-                                {
-                                     bone.transform.localPosition = tmpBone.transform.position;
-                                }
+                                bone.transform.localRotation = tmpBone.transform.rotation;
+                            }
+                            if (tmpBone.transform.hasPosition)
+                            {
+                                 bone.transform.localPosition = tmpBone.transform.position;
                             }
                         }
                     }
@@ -1351,6 +1472,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var current = currentLayer;
 
+            // 選択はレイヤーをまたいで保持するので、削除レイヤーのボーンを残さない
+            // (残すと破棄済みレイヤーへ CleanFrames/ApplyCurrentFrame が飛ぶ)
+            selectedBones.RemoveWhere(bone => bone.parentLayer == layer);
+
             layer.Dispose();
             timeline.RemoveLayer(layer);
             _usingLayerInfoList = null;
@@ -1363,8 +1488,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void SetCurrentLayer(ITimelineLayer layer)
         {
-            UnselectAll();
-
+            // 選択はレイヤーをまたいで保持するため、ここでは解除しない
             bool isPoseEditing = studioHackManager.isPoseEditing;
             if (isPoseEditing)
             {

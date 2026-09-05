@@ -266,7 +266,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     bone.transform.Reset();
                     MTEUtils.LogDebug("キーフレームを初期化します：" + bone.name);
-                    currentLayer.ApplyCurrentFrame(true);
+                    bone.parentLayer.ApplyCurrentFrame(true);
                 }
 
                 if (view.DrawButton("削除", HeaderButtonWidth, RowHeight))
@@ -323,6 +323,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
             _pendingDeleteBone = null;
 
+            // RemoveBone で parentFrame が外れる前に所属レイヤーを確保する
+            var layer = bone.parentLayer;
             var frame = bone.parentFrame;
             if (frame != null)
             {
@@ -332,8 +334,8 @@ namespace COM3D2.SceneEditor.Plugin
             selectedBones.Remove(bone);
             _collapsedBones.Remove(bone);
 
-            currentLayer.CleanFrames();
-            currentLayer.ApplyCurrentFrame(true);
+            layer.CleanFrames();
+            layer.ApplyCurrentFrame(true);
 
             MTEUtils.LogDebug("キーフレームを削除します：" + bone.name);
             timelineManager.RequestHistory("キーフレーム削除");
@@ -604,7 +606,8 @@ namespace COM3D2.SceneEditor.Plugin
         private void Apply(MTEP.BoneData bone)
         {
             MTEUtils.LogDebug("キーフレームを更新します：" + bone.name);
-            currentLayer.ApplyCurrentFrame(true);
+            // 選択は複数レイヤーにまたがるため、所属レイヤーへ反映する
+            bone.parentLayer.ApplyCurrentFrame(true);
         }
     }
 }

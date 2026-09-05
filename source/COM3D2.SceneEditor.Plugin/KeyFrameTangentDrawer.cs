@@ -150,7 +150,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 hasTangent = true;
 
-                var prevBone = currentLayer.GetPrevBone(bone);
+                var prevBone = bone.parentLayer.GetPrevBone(bone);
                 if (prevBone == null)
                 {
                     continue;
@@ -198,13 +198,14 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return false;
             }
-            if (currentLayer.GetSingleFrameType(bone.transform.type) == MTEP.SingleFrameType.None)
+            var layer = bone.parentLayer;
+            if (layer.GetSingleFrameType(bone.transform.type) == MTEP.SingleFrameType.None)
             {
                 return false;
             }
             // loopSearch を既定 (true) にすると、次キーが無くても先頭や自分自身へ
             // 回り込んだボーンが返り、最後の区間を判別できなくなる
-            return currentLayer.GetNextBone(bone.frameNo, bone.name, false) != null;
+            return layer.GetNextBone(bone.frameNo, bone.name, false) != null;
         }
 
         private void EnsureTextures()
@@ -571,8 +572,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>選択キーフレームの前キー側 (区間始点) の out タンジェントを走査する</summary>
         private void ForEachOutTangent(Action<MTEP.TangentData> callback)
         {
-            foreach (var prevBone in currentLayer.GetPrevBones(selectedBones))
+            foreach (var bone in selectedBones)
             {
+                // 選択は複数レイヤーにまたがるので、前キーは所属レイヤーから引く
+                var prevBone = bone.parentLayer.GetPrevBone(bone);
+                if (prevBone == null)
+                {
+                    continue;
+                }
                 foreach (var data in TangentTargetList.GetTangents(prevBone.transform, _targets.current, isOut: true))
                 {
                     callback(data);
@@ -599,7 +606,8 @@ namespace COM3D2.SceneEditor.Plugin
         private void ApplyAndRecord(string description)
         {
             MTEUtils.LogDebug(description);
-            currentLayer.ApplyCurrentFrame(true);
+            // 選択は複数レイヤーにまたがるので、関係するレイヤー全部へ反映する
+            timelineManager.ApplyCurrentFrameToSelectedLayers();
             // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
             timelineManager.RequestHistory(description);
         }

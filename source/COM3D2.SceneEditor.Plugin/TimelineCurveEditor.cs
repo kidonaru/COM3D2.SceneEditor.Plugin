@@ -568,7 +568,7 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var bone in selectedBones)
             {
                 var transform = bone.transform;
-                if (transform == null)
+                if (transform == null || bone.parentLayer != currentLayer)
                 {
                     continue;
                 }
@@ -1084,6 +1084,10 @@ namespace COM3D2.SceneEditor.Plugin
                 _signatureBoneNames.Clear();
                 foreach (var bone in selectedBones)
                 {
+                    if (bone.parentLayer != layer)
+                    {
+                        continue;
+                    }
                     selectionHash ^= RuntimeHelpers.GetHashCode(bone);
                     if (!_signatureBoneNames.Contains(bone.name))
                     {
@@ -1126,10 +1130,15 @@ namespace COM3D2.SceneEditor.Plugin
                 return channels;
             }
 
-            // 選択順に依存しないよう、ボーン名は初出順で束ねる
+            // 選択順に依存しないよう、ボーン名は初出順で束ねる。
+            // 選択は複数レイヤーにまたがるが、カーブはアクティブレイヤー分だけ表示する
             var boneNames = new List<string>();
             foreach (var bone in selectedBones)
             {
+                if (bone.parentLayer != currentLayer)
+                {
+                    continue;
+                }
                 if (!boneNames.Contains(bone.name))
                 {
                     boneNames.Add(bone.name);

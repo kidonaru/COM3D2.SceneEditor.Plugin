@@ -780,8 +780,8 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                // 選択ハイライトはアクティブレイヤーの行のみ
-                if (row.layer == timelineManager.currentLayer && row.menuItem.isSelectedMenu)
+                // 選択ハイライトはレイヤーをまたいで表示する
+                if (row.menuItem.isSelectedMenu)
                 {
                     view.DrawTexture(
                         texWhite,
@@ -831,8 +831,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTexture(texWhite, 2, -1, Color.green);
 
             // キーフレーム表示。行リストを同一レイヤーの連続ブロックごとに走査する。
-            // ループ内の SetCurrentLayer で描画途中にアクティブが変わると、そのフレームは
-            // 処理済みブロックだけ旧アクティブ基準の色のままになるが、次フレームで収束する
+            // 選択はレイヤーをまたいで保持されるので、アクティブレイヤーは選択判定に関与しない
             var adjustY = (frameHeight - frameWidth) / 2;
             var blockStart = 0;
             while (blockStart < _rows.Count)
@@ -843,8 +842,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     blockEnd++;
                 }
-
-                var isActiveLayer = blockLayer == timelineManager.currentLayer;
 
                 // GC 対策: この二重ループはキーフレーム総数分（数千/frame）走るので、
                 // ラムダによるクロージャ生成とリストのコピーを避ける
@@ -884,19 +881,18 @@ namespace COM3D2.SceneEditor.Plugin
                             continue;
                         }
 
-                        // ヘッダー行かどうかで表示・選択の判定対象が丸ごと切り替わる。
-                        // 選択状態はアクティブレイヤーにしか存在しない
+                        // ヘッダー行かどうかで表示・選択の判定対象が丸ごと切り替わる
                         bool hasVisible;
                         bool isSelected;
                         if (isHeader)
                         {
                             hasVisible = frame.HasBones();
-                            isSelected = isActiveLayer && HasSelectedBone(frame);
+                            isSelected = HasSelectedBone(frame);
                         }
                         else
                         {
                             hasVisible = menuItem.HasVisibleBone(frame);
-                            isSelected = isActiveLayer && menuItem.IsSelectedFrame(frame);
+                            isSelected = menuItem.IsSelectedFrame(frame);
                         }
 
                         if (!hasVisible)
@@ -910,8 +906,8 @@ namespace COM3D2.SceneEditor.Plugin
                                 frameWidth,
                                 frameWidth);
 
-                        // エリア選択範囲内のキーフレームを選択
-                        if (isActiveLayer && areaDragInfo.isDragging)
+                        // エリア選択範囲内のキーフレームを選択 (全レイヤー対象)
+                        if (areaDragInfo.isDragging)
                         {
                             if (areaDragRect.Overlaps(keyFrameRect))
                             {
@@ -929,7 +925,7 @@ namespace COM3D2.SceneEditor.Plugin
                             }
                         }
 
-                        // フレームのドラッグ開始。非アクティブレイヤーはまずアクティブ化してから選択する
+                        // フレームのドラッグ開始。クリックしたレイヤーを編集基準 (アクティブ) にする
                         if (!areaDragInfo.isDragging && !frameDragInfo.isDragging &&
                             view.InvokeActionOnDragStart(keyFrameRect, frameDragInfo, view.currentPos))
                         {
@@ -1342,8 +1338,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var menuItem = row.menuItem;
 
                 var diplayName = menuItem.displayName;
-                // 選択ハイライトはアクティブレイヤーの行にだけ意味を持つ
-                var isSelected = isActiveLayerRow && menuItem.isSelectedMenu;
+                var isSelected = menuItem.isSelectedMenu;
 
                 view.currentPos.x = indent;
 
@@ -1377,7 +1372,7 @@ namespace COM3D2.SceneEditor.Plugin
                     EventType.MouseDown,
                     (pos) =>
                     {
-                        // 非アクティブレイヤーの行はまずアクティブ化してから選択する
+                        // クリックしたレイヤーを編集基準 (アクティブ) にしてから選択する
                         if (row.layer != timelineManager.currentLayer)
                         {
                             timelineManager.SetCurrentLayer(row.layer);
