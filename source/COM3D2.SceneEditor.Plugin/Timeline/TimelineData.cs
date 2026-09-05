@@ -217,7 +217,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class TimelineData
     {
-        public static readonly int CurrentVersion = 32;
+        public static readonly int CurrentVersion = 33;
         public static readonly TimelineData DefaultTimeline = new TimelineData();
 
         public int version = 0;
@@ -437,7 +437,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int rimlightCount = 1;
 
         // 動画
-        public VideoSettings video = new VideoSettings();
+        /// <summary>動画設定。常に 1 件以上、最大 MovieManager.MaxVideoCount 件</summary>
+        public List<VideoSettings> videos = new List<VideoSettings> { new VideoSettings() };
 
         // 画像出力
         public float imageOutputFrameRate = 30f;
@@ -835,7 +836,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             paraffinCount = xml.paraffinCount;
             distanceFogCount = xml.distanceFogCount;
             rimlightCount = xml.rimlightCount;
-            video.ReadFrom(xml.videos[0]);
+            videos.Clear();
+            foreach (var videoXml in xml.videos)
+            {
+                if (videos.Count >= MovieManager.MaxVideoCount)
+                {
+                    break;
+                }
+                var video = new VideoSettings();
+                video.ReadFrom(videoXml);
+                videos.Add(video);
+            }
+            // 動画ウィンドウは常に 1 本目を編集対象にするため、空にはしない
+            if (videos.Count == 0)
+            {
+                videos.Add(new VideoSettings());
+            }
             imageOutputFrameRate = xml.imageOutputFrameRate;
             imageOutputFormat = xml.imageOutputFormat;
             imageOutputSize = xml.imageOutputSize;
@@ -974,7 +990,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.paraffinCount = paraffinCount;
             xml.distanceFogCount = distanceFogCount;
             xml.rimlightCount = rimlightCount;
-            xml.videos.Add(video.ToXml());
+            foreach (var video in videos)
+            {
+                xml.videos.Add(video.ToXml());
+            }
             xml.imageOutputFrameRate = imageOutputFrameRate;
             xml.imageOutputFormat = imageOutputFormat;
             xml.imageOutputSize = imageOutputSize;

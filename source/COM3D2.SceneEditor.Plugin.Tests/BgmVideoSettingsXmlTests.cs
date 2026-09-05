@@ -135,6 +135,51 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(@"C:\movie.mp4", xml.videos[0].path);
         }
 
+        // ToXml() は末尾の StopwatchDebug が UnityEngine.Debug.Log を呼ぶため、
+        // Unity ランタイム外のテストホストでは実行できない。ここでは読込方向だけ固定する
+        [Fact]
+        public void TimelineData_動画リストはFromXmlで件数と順序が保持される()
+        {
+            var xml = new TimelineXml { version = TimelineData.CurrentVersion };
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4", displayType = VideoDisplayType.GUI });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie.mp4", displayType = VideoDisplayType.Backmost });
+            xml.videos.Add(new VideoSettingsXml { path = @"C:\movie\c.mp4", displayType = VideoDisplayType.Mesh });
+
+            var data = new TimelineData();
+            data.FromXml(xml);
+
+            Assert.Equal(3, data.videos.Count);
+            Assert.Equal(@"C:\movie.mp4", data.videos[1].path);
+            Assert.Equal(VideoDisplayType.Backmost, data.videos[1].displayType);
+            Assert.Equal(@"C:\movie\c.mp4", data.videos[2].path);
+            Assert.Equal(VideoDisplayType.Mesh, data.videos[2].displayType);
+        }
+
+        [Fact]
+        public void TimelineData_動画リストが空なら既定値1件になる()
+        {
+            var data = new TimelineData();
+            data.FromXml(new TimelineXml { version = TimelineData.CurrentVersion });
+
+            Assert.Single(data.videos);
+            Assert.Equal("", data.videos[0].path);
+        }
+
+        [Fact]
+        public void TimelineData_動画リストは最大本数で切り詰められる()
+        {
+            var xml = new TimelineXml { version = TimelineData.CurrentVersion };
+            for (var i = 0; i < MovieManager.MaxVideoCount + 2; i++)
+            {
+                xml.videos.Add(new VideoSettingsXml { path = "v" + i });
+            }
+
+            var data = new TimelineData();
+            data.FromXml(xml);
+
+            Assert.Equal(MovieManager.MaxVideoCount, data.videos.Count);
+        }
+
         [Fact]
         public void CopyFrom_全項目を写す()
         {

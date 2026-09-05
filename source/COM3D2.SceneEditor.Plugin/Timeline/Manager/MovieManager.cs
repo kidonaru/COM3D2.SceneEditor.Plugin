@@ -6,6 +6,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class MovieManager : ManagerBase
     {
+        public const int MinVideoCount = 1;
+        public const int MaxVideoCount = 4;
+
         private MoviePlayerImpl _moviePlayerImpl = null;
 
         private VideoDisplayType _videoDisplayType = VideoDisplayType.GUI;
@@ -31,7 +34,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// 動画設定。タイムライン読込中は timeline 側 (TimelineXml に保存される)、
         /// 未読込時はマネージャ保持の standalone 値 (TimelineTextManager.textCount と同じ方式)
         /// </summary>
-        public VideoSettings settings => timeline != null ? timeline.video : _standaloneSettings;
+        public VideoSettings settings => timeline != null ? timeline.videos[0] : _standaloneSettings;
 
         private string videoPath => settings.path;
 
@@ -98,7 +101,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private void OnClearTimeline()
         {
-            _standaloneSettings.CopyFrom(timeline.video);
+            _standaloneSettings.CopyFrom(timeline.videos[0]);
         }
 
         private void SetupImpl()
