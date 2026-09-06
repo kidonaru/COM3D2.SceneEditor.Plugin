@@ -63,11 +63,6 @@ namespace COM3D2.SceneEditor.Plugin
             public readonly MaidIKChain[] chains = new MaidIKChain[4];
             public readonly Transform[] midBones = new Transform[4];
             public readonly Transform[] tipBones = new Transform[4];
-
-            // ドリフト防止（PositonCorrection 相当）用の初期 localPosition
-            public readonly Vector3[] rootLocalPos = new Vector3[4];
-            public readonly Vector3[] midLocalPos = new Vector3[4];
-            public readonly Vector3[] tipLocalPos = new Vector3[4];
             public readonly Transform[] rootBones = new Transform[4];
 
             public MaidEntry()
@@ -212,9 +207,6 @@ namespace COM3D2.SceneEditor.Plugin
                 entry.rootBones[i] = root;
                 entry.midBones[i] = mid;
                 entry.tipBones[i] = tip;
-                entry.rootLocalPos[i] = root.localPosition;
-                entry.midLocalPos[i] = mid.localPosition;
-                entry.tipLocalPos[i] = tip.localPosition;
             }
 
             _entries.Add(maid, entry);
@@ -498,6 +490,16 @@ namespace COM3D2.SceneEditor.Plugin
                     targetPosition.y = entry.holdParams.floorHeight + entry.holdParams.footBaseOffset;
                 }
 
+                // FABRIK はボーン位置も動かし得るため、解く前の localPosition を退避して
+                // 解いた後に戻し伸縮を防ぐ。ボディロード直後は体型モーフ適用前で骨長が
+                // 一時的に素の値になるため、固定の初期値ではなく毎回その場の値を使う
+                var rootBone = entry.rootBones[index];
+                var midBone = entry.midBones[index];
+                var tipBone = entry.tipBones[index];
+                var savedRootLocalPos = rootBone.localPosition;
+                var savedMidLocalPos = midBone.localPosition;
+                var savedTipLocalPos = tipBone.localPosition;
+
                 entry.chains[index].Solve(
                     IsJoint(type) ? MaidIKChainPoint.Joint : MaidIKChainPoint.Tip,
                     targetPosition);
@@ -507,10 +509,9 @@ namespace COM3D2.SceneEditor.Plugin
                     AdjustFootGrounding(entry, index);
                 }
 
-                // FABRIK はボーン位置も動かし得るため、初期 localPosition へ戻して伸縮を防ぐ
-                entry.rootBones[index].localPosition = entry.rootLocalPos[index];
-                entry.midBones[index].localPosition = entry.midLocalPos[index];
-                entry.tipBones[index].localPosition = entry.tipLocalPos[index];
+                rootBone.localPosition = savedRootLocalPos;
+                midBone.localPosition = savedMidLocalPos;
+                tipBone.localPosition = savedTipLocalPos;
             }
         }
 
