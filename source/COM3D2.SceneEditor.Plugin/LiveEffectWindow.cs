@@ -1263,7 +1263,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 view.EndLayout();
 
-                view.DrawToggle("位置/角度/サイズを反映しない", timelineConfig.psylliumAreaCopyIgnoreTransform, 200, 20, newValue =>
+                view.DrawToggle("位置/角度/サイズ/配置を反映しない", timelineConfig.psylliumAreaCopyIgnoreTransform, 250, 20, newValue =>
                 {
                     timelineConfig.psylliumAreaCopyIgnoreTransform = newValue;
                 });

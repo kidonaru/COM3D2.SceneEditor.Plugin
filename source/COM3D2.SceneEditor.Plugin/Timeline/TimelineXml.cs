@@ -73,6 +73,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int areaCount;
         [XmlElement("PatternCount")]
         public int patternCount;
+        [XmlElement("Placement")]
+        public List<PsylliumPlacement> placements = new List<PsylliumPlacement>();
     }
 
     /// <summary>

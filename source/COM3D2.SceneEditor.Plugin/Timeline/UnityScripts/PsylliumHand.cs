@@ -20,6 +20,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int randomPositionIndex;
         public int randomRotationIndex;
         public Vector3 basePosition;
+        public Quaternion placementRotation = Quaternion.identity;
         public bool isLeftHand;
 
         public PsylliumBarConfig barConfig
@@ -105,8 +106,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var randomPosition = pattern.GetRandomAnimationPosition(randomPositionIndex);
             var randomRotation = pattern.GetRandomAnimationRotation(randomRotationIndex);
 
-            position += basePosition + randomPosition;
-            rotation *= randomRotation;
+            position = basePosition + placementRotation * (position + randomPosition);
+            rotation = placementRotation * rotation * randomRotation;
 
             _calculatedPosition = position;
             _calculatedRotation = rotation;

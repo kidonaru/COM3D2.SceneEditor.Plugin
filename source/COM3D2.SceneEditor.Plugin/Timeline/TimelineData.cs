@@ -146,6 +146,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         public int areaCount;
         public int patternCount;
+        public List<PsylliumPlacement> placements = new List<PsylliumPlacement>();
 
         public TimelinePsylliumData()
         {
@@ -155,6 +156,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             areaCount = xml.areaCount;
             patternCount = xml.patternCount;
+            placements = (xml.placements ?? new List<PsylliumPlacement>()).Select(p => p.Clone()).ToList();
         }
 
         public TimelinePsylliumXml ToXml()
@@ -163,6 +165,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 areaCount = areaCount,
                 patternCount = patternCount,
+                placements = placements.Select(p => p.Clone()).ToList(),
             };
             return xml;
         }

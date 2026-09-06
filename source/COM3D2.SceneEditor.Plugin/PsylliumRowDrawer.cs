@@ -249,6 +249,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>エリアのパラメータ行</summary>
         public void DrawAreaRows(GUIView view, PsylliumArea area)
         {
+            DrawPlacementRows(view, area);
             var areaConfig = area.areaConfig;
             var transformCache = view.GetTransformCache();
             var defaultTrans = TransformDataPsylliumArea.defaultTrans;
@@ -408,6 +409,66 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 area.Refresh();
             }
+        }
+
+        private string _placementMessage = "";
+
+        private void DrawPlacementRows(GUIView view, PsylliumArea area)
+        {
+            view.DrawLabel(area.placement == null ? "配置: 矩形" :
+                "配置: " + area.placement.points.Count + " 席（メッシュ）", -1, 20);
+            if (view.DrawButton("配置 XML を読み込む", 180, 20))
+            {
+                using (var dialog = new System.Windows.Forms.OpenFileDialog
+                {
+                    Title = "Blender から書き出したサイリウム配置を選択",
+                    Filter = "サイリウム配置 (*.xml)|*.xml",
+                })
+                {
+                    if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        try
+                        {
+                            if (Mathf.Abs(Mathf.DeltaAngle(0, area.areaConfig.rotation.x)) > 0.001f ||
+                                Mathf.Abs(Mathf.DeltaAngle(0, area.areaConfig.rotation.z)) > 0.001f)
+                                throw new System.InvalidOperationException("読み込み時はエリアの X/Z 角度を 0 にしてください。");
+                            var placement = PsylliumPlacement.Load(dialog.FileName);
+                            // 外部 XML はコントローラー座標。エリアの既存キーを保ったまま合わせる。
+                            var inverse = Quaternion.Inverse(Quaternion.Euler(area.areaConfig.rotation));
+                            foreach (var point in placement.points)
+                            {
+                                var local = inverse * (point.position - area.areaConfig.position);
+                                var forward = inverse * (Quaternion.Euler(0, point.yaw, 0) * Vector3.forward);
+                                point.x = local.x;
+                                point.y = local.y;
+                                point.z = local.z;
+                                point.yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+                            }
+                            area.SetPlacement(placement);
+                            PsylliumManager.instance.UpdateTimelineData();
+                            area.Refresh();
+                            _placementMessage = "配置を読み込みました。タイムラインを保存してください。";
+                        }
+                        catch (System.Exception ex)
+                        {
+                            _placementMessage = "配置を読み込めません: " + ex.Message;
+                            MTEUtils.LogError(_placementMessage);
+                        }
+                    }
+                }
+            }
+            if (area.placement != null)
+            {
+                view.DrawLabel("席幅・列幅・SX/SY は矩形配置で使用します", -1, 20);
+                if (view.DrawButton("矩形配置に戻す", 180, 20))
+                {
+                    area.SetPlacement(null);
+                    PsylliumManager.instance.UpdateTimelineData();
+                    area.Refresh();
+                    _placementMessage = "矩形配置に戻しました。";
+                }
+            }
+            if (_placementMessage.Length > 0) view.DrawLabel(_placementMessage, -1, 40);
         }
     }
 }

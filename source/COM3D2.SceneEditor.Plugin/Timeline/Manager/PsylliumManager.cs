@@ -223,7 +223,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateTimelineData();
         }
 
-        private void UpdateTimelineData()
+        public void UpdateTimelineData()
         {
             if (timeline == null)
             {
@@ -237,6 +237,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var psylliumData = new TimelinePsylliumData();
                 psylliumData.areaCount = controller.areas.Count;
                 psylliumData.patternCount = controller.patterns.Count;
+                foreach (var area in controller.areas)
+                {
+                    if (area.placement == null) continue;
+                    var placement = area.placement.Clone();
+                    placement.areaIndex = area.index;
+                    psylliumData.placements.Add(placement);
+                }
                 timeline.psylliums.Add(psylliumData);
             }
         }
@@ -282,6 +289,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 while (controller.patterns.Count > patternCount)
                 {
                     RemovePattern(i, false);
+                }
+
+                // 再読込時は既存の配置を必ず消し、旧 XML では矩形配置へ戻す。
+                foreach (var area in controller.areas)
+                    area.SetPlacement(null);
+                foreach (var placement in psylliumData.placements)
+                {
+                    if (placement.areaIndex < 0 || placement.areaIndex >= controller.areas.Count)
+                    {
+                        MTEUtils.LogError("サイリウム配置のエリア番号が範囲外です: " + placement.areaIndex);
+                        continue;
+                    }
+                    controller.areas[placement.areaIndex].SetPlacement(placement);
                 }
             }
 

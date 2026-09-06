@@ -516,6 +516,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void FromConfig(PsylliumAreaConfig config)
         {
             position = config.position;
+            eulerAngles = config.rotation;
             size = config.size;
             seatDistance = config.seatDistance;
             randomPositionRange = config.randomPositionRange;
@@ -543,6 +544,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public PsylliumAreaConfig ToConfig()
         {
             _config.position = position;
+            _config.rotation = eulerAngles;
             _config.size = size;
             _config.seatDistance = seatDistance;
             _config.randomPositionRange = randomPositionRange;

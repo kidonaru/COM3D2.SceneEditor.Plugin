@@ -458,6 +458,7 @@
     <Compile Include="Timeline\Manager\StageLightManager.cs" />
     <Compile Include="Timeline\Manager\StageLaserManager.cs" />
     <Compile Include="Timeline\Manager\PsylliumManager.cs" />
+    <Compile Include="Timeline\PsylliumPlacement.cs" />
     <Compile Include="Timeline\Manager\PostEffectManager.cs" />
     <Compile Include="Timeline\Manager\PostEffectsBridge.cs" />
     <Compile Include="Timeline\Manager\PngObjectTimelineManager.cs" />

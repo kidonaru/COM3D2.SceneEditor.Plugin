@@ -49,6 +49,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public PsylliumAreaConfig areaConfig = new PsylliumAreaConfig();
 
+        // キー再生による areaConfig の置き換えで配置点が消えないよう分離する。
+        public PsylliumPlacement placement { get; private set; }
+
+        public void SetPlacement(PsylliumPlacement value)
+        {
+            if (value != null) value.Validate();
+            placement = value == null ? null : value.Clone();
+            refreshRequired = true;
+        }
+
         public List<PsylliumHand> hands;
         public bool refreshRequired;
     
@@ -220,51 +230,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             seatDistance.x = Mathf.Max(0.01f, seatDistance.x);
             seatDistance.y = Mathf.Max(0.01f, seatDistance.y);
 
-            for (float x = -halfAreaSize.x; x < halfAreaSize.x; x += seatDistance.x)
+            if (placement != null)
             {
-                for (float z = -halfAreaSize.y; z < halfAreaSize.y; z += seatDistance.y)
+                foreach (var point in placement.points)
                 {
-                    var randomValues = new PsylliumRandomValues(controller, areaConfig);
-
-                    // 基準位置を計算
-                    var basePosition = new Vector3(x, 0, z) + randomValues.basePosition * barConfig.baseScale;
-
-                    // 左手と右手の位置を計算
-                    var leftHandPos = basePosition + new Vector3(halfHandSpacing, 0f, 0f);
-                    var rightHandPos = basePosition + new Vector3(-halfHandSpacing, 0f, 0f);
-
-                    if (randomValues.leftCount > 0)
+                    if (!RefreshSeat(point.position, Quaternion.Euler(0, point.yaw, 0), halfHandSpacing)) break;
+                }
+            }
+            else
+            {
+                bool full = false;
+                for (float x = -halfAreaSize.x; x < halfAreaSize.x && !full; x += seatDistance.x)
+                {
+                    for (float z = -halfAreaSize.y; z < halfAreaSize.y; z += seatDistance.y)
                     {
-                        var hand = GetOrCreateHand();
-                        if (hand == null) return;
-
-                        hand.UpdatePsylliums(
-                            leftHandPos,
-                            randomValues.leftCount,
-                            randomValues.patternIndex,
-                            randomValues.timeIndex,
-                            randomValues.timeShiftParam,
-                            randomValues.leftColorIndexes,
-                            randomValues.leftRandomPositionIndex,
-                            randomValues.leftRandomRotationIndex,
-                            true);
-                    }
-
-                    if (randomValues.rightCount > 0)
-                    {
-                        var hand = GetOrCreateHand();
-                        if (hand == null) return;
-
-                        hand.UpdatePsylliums(
-                            rightHandPos,
-                            randomValues.rightCount,
-                            randomValues.patternIndex,
-                            randomValues.timeIndex,
-                            randomValues.timeShiftParam,
-                            randomValues.rightColorIndexes,
-                            randomValues.rightRandomPositionIndex,
-                            randomValues.rightRandomRotationIndex,
-                            false);
+                        if (RefreshSeat(new Vector3(x, 0, z), Quaternion.identity, halfHandSpacing)) continue;
+                        full = true;
+                        break;
                     }
                 }
             }
@@ -277,10 +259,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             refreshRequired = false;
         }
 
+        private bool RefreshSeat(Vector3 position, Quaternion rotation, float halfHandSpacing)
+        {
+            var randomValues = new PsylliumRandomValues(controller, areaConfig);
+            var basePosition = position + rotation * (randomValues.basePosition * barConfig.baseScale);
+            var spacing = rotation * new Vector3(halfHandSpacing, 0f, 0f);
+            if (randomValues.leftCount > 0)
+            {
+                var hand = GetOrCreateHand();
+                if (hand == null) return false;
+                hand.placementRotation = rotation;
+                hand.UpdatePsylliums(basePosition + spacing, randomValues.leftCount,
+                    randomValues.patternIndex, randomValues.timeIndex, randomValues.timeShiftParam,
+                    randomValues.leftColorIndexes, randomValues.leftRandomPositionIndex,
+                    randomValues.leftRandomRotationIndex, true);
+            }
+            if (randomValues.rightCount > 0)
+            {
+                var hand = GetOrCreateHand();
+                if (hand == null) return false;
+                hand.placementRotation = rotation;
+                hand.UpdatePsylliums(basePosition - spacing, randomValues.rightCount,
+                    randomValues.patternIndex, randomValues.timeIndex, randomValues.timeShiftParam,
+                    randomValues.rightColorIndexes, randomValues.rightRandomPositionIndex,
+                    randomValues.rightRandomRotationIndex, false);
+            }
+            return true;
+        }
+
         public void CopyFrom(PsylliumArea src, bool ignoreTransform)
         {
             areaConfig.CopyFrom(src.areaConfig, ignoreTransform);
+            if (!ignoreTransform) SetPlacement(src.placement);
             Refresh();
+#if COM3D2
+            PsylliumManager.instance.UpdateTimelineData();
+#endif
         }
     }
 }
