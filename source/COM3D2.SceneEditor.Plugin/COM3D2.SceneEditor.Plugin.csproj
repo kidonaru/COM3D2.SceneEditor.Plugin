@@ -214,6 +214,7 @@
     <Compile Include="Manager\ConfigManager.cs" />
     <Compile Include="Manager\GameViewManager.cs" />
     <Compile Include="Manager\BoneLineRenderer.cs" />
+    <Compile Include="Manager\EditDragState.cs" />
     <Compile Include="Manager\GizmoRenderer.cs" />
     <Compile Include="Manager\GridRenderer.cs" />
     <Compile Include="Manager\GuiWindowTracker.cs" />

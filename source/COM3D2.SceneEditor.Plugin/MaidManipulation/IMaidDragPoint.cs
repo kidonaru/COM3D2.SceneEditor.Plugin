@@ -46,14 +46,22 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static string draggingBoneName { get; private set; }
 
+        /// <summary>
+        /// ドラッグ点を掴んでいるか。ボーン名は取れないことがある (ボーン未解決の点) ため、
+        /// 掴み状態そのものは draggingBoneName と別に持つ
+        /// </summary>
+        public static bool isDragging { get; private set; }
+
         public static void BeginDrag(string boneName)
         {
             draggingBoneName = boneName;
+            isDragging = true;
         }
 
         public static void EndDrag()
         {
             draggingBoneName = null;
+            isDragging = false;
         }
 
         /// <summary>

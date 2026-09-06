@@ -788,8 +788,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var isDragging = IsGizmoDragging(SceneViewManager.instance.gizmoRenderer)
-                || IsGizmoDragging(GameViewManager.instance.gizmoRenderer);
+            var isDragging = EditDragState.isGizmoDragging;
 
             if (isDragging || _wasGizmoDragging)
             {
@@ -809,11 +808,6 @@ namespace COM3D2.SceneEditor.Plugin
                 NotifyEdited(maid, selectedBone);
             }
             _wasGizmoDragging = isDragging;
-        }
-
-        private static bool IsGizmoDragging(GizmoRenderer gizmo)
-        {
-            return gizmo != null && gizmo.isDragging;
         }
 
         private void UpdateStores()

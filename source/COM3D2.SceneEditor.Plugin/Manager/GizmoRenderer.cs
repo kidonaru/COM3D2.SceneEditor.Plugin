@@ -158,30 +158,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
-        /// <summary>ドラッグ中のギズモの対象 Transform。掴んでいなければ null</summary>
-        public Transform draggingTarget => isDragging ? _activeDragGizmo.target : null;
-
-        /// <summary>
-        /// いずれかのビューでギズモが掴んでいる Transform。掴んでいなければ null。
-        /// SceneView と GameView のどちらで掴んでもよい
-        /// </summary>
-        public static Transform GetDraggingTarget()
-        {
-            var sceneView = SceneViewManager.instance.gizmoRenderer;
-            if (sceneView != null && sceneView.draggingTarget != null)
-            {
-                return sceneView.draggingTarget;
-            }
-
-            var gameView = GameViewManager.instance.gizmoRenderer;
-            if (gameView != null && gameView.draggingTarget != null)
-            {
-                return gameView.draggingTarget;
-            }
-
-            return null;
-        }
-
         private static SelectionManager selectionManager => SelectionManager.instance;
 
         private static Config config => ConfigManager.instance.config;
