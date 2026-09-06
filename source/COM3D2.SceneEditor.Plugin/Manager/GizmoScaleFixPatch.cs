@@ -15,8 +15,13 @@ namespace COM3D2.SceneEditor.Plugin
     /// FoV を動かすと tan の周期をまたいで符号反転や発散を起こし、
     /// ギズモが消える・反転する・極端に巨大化する。
     ///
-    /// IL の書き換えでしか直せないため Transpiler で 2 箇所だけ差し替える。
-    /// 具体的な書き換え内容は RenderGizmosTranspiler を参照
+    /// IL の書き換えでしか直せないため Transpiler で差し替える。
+    /// 具体的な書き換え内容は RenderGizmosTranspiler を参照。
+    ///
+    /// あわせて、SceneView の描画パスだけ Camera.main を SceneView カメラへ差し替え、
+    /// ギズモの大きさと回転リングの表裏を SceneView 基準で描く。
+    /// 掴み判定はゲーム画面基準のままにするため、差し替えたパスでは
+    /// Prefix/Postfix で判定用の状態を退避・復元する
     /// </summary>
     public static class GizmoScaleFixPatch
     {
@@ -40,6 +45,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>Transpiler が書き換えを行えたか。Init 側で成否を報告するために使う</summary>
         private static bool _patched = false;
+
+        /// <summary>差し替え対象。Camera.main のゲッター名</summary>
+        private const string CAMERA_MAIN_GETTER = "get_main";
+
+        /// <summary>Camera.main を差し替えた件数。ゲーム更新で数が変わったことに気付くためログへ出す</summary>
+        private static int _replacedCameraMainCount = 0;
 
         /// <summary>
         /// 掴み判定へ漏れる private フィールドの名前。
@@ -114,7 +125,8 @@ namespace COM3D2.SceneEditor.Plugin
                     throw new Exception("RenderGizmos の IL パターンが一致しませんでした");
                 }
 
-                MTEUtils.Log("GizmoRender.RenderGizmos のフックに成功しました");
+                MTEUtils.Log("GizmoRender.RenderGizmos のフックに成功しました (Camera.main の差し替え: "
+                    + _replacedCameraMainCount + " 箇所)");
             }
             catch (Exception e)
             {
@@ -287,6 +299,19 @@ namespace COM3D2.SceneEditor.Plugin
             // fieldOfView の直後に Deg2Rad の乗算を挿し込む
             codes.Insert(fovIndex + 4, new CodeInstruction(OpCodes.Ldc_R4, Mathf.Deg2Rad));
             codes.Insert(fovIndex + 5, new CodeInstruction(OpCodes.Mul));
+
+            // SceneView の描画パスでは参照カメラを差し替える。
+            // FoV パターンの検出が get_main の並びを見ているため、検出が済んでから置き換える
+            var getRenderCamera = AccessTools.Method(typeof(GizmoScaleFixPatch), nameof(GetRenderCamera));
+            _replacedCameraMainCount = 0;
+            for (var i = 0; i < codes.Count; i++)
+            {
+                if (IsCall(codes[i], OpCodes.Call, CAMERA_MAIN_GETTER))
+                {
+                    codes[i] = new CodeInstruction(OpCodes.Call, getRenderCamera);
+                    _replacedCameraMainCount++;
+                }
+            }
 
             _patched = true;
             return codes;
