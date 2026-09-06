@@ -53,7 +53,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private const string LEGACY_PLUGIN_ID = "COM3D2.RenderGizmosScaleFix.Plugin";
 
-        /// <summary>差し替え対象。Camera.main のゲッター名</summary>
+        /// <summary>Camera.main のゲッター名。FoV パターンの検出と差し替えの両方で使う</summary>
         private const string CAMERA_MAIN_GETTER = "get_main";
 
         /// <summary>Camera.main を差し替えた件数。ゲーム更新で数が変わったことに気付くためログへ出す</summary>
@@ -277,7 +277,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 描画は差し替えたカメラ基準で終わっているので、掴み判定が読む状態だけ
-        /// Camera.main 基準の値へ戻す
+        /// Camera.main 基準の値へ戻す。
+        ///
+        /// ゲーム側の RenderGizmos 本体が例外を投げた場合は Harmony が Postfix を呼ばないため、
+        /// 退避値は 1 フレーム分戻らない。ただしそのときは GL.PushMatrix が対にならず
+        /// 描画自体が既に壊れているので、Finalizer を足してまで守るには見合わない
         /// </summary>
         private static void RenderGizmosPostfix(GizmoRender __instance, bool __state)
         {
@@ -316,6 +320,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var codes = new List<CodeInstruction>(instructions);
 
+            // 再 Init やホットリロードで 2 度目以降が失敗したときに前回の成枟を引きずらないよう、
+            // 先に未適用へ戻す
+            _patched = false;
+            _replacedCameraMainCount = 0;
+
             var fovIndex = FindFovPattern(codes);
             if (fovIndex < 0)
             {
@@ -330,9 +339,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 後ろから書き換えれば、挿入によって前方の添字がずれない
-            codes[divisorIndex] = new CodeInstruction(OpCodes.Ldc_R4, LENS_DIVISOR);
+            Replace(codes[divisorIndex], OpCodes.Ldc_R4, LENS_DIVISOR);
 
-            codes[fovIndex] = new CodeInstruction(OpCodes.Ldc_R4, 2f);
+            Replace(codes[fovIndex], OpCodes.Ldc_R4, 2f);
             // fieldOfView の直後に Deg2Rad の乗算を挿し込む
             codes.Insert(fovIndex + 4, new CodeInstruction(OpCodes.Ldc_R4, Mathf.Deg2Rad));
             codes.Insert(fovIndex + 5, new CodeInstruction(OpCodes.Mul));
@@ -345,7 +354,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (IsCall(codes[i], OpCodes.Call, CAMERA_MAIN_GETTER))
                 {
-                    codes[i] = new CodeInstruction(OpCodes.Call, getRenderCamera);
+                    Replace(codes[i], OpCodes.Call, getRenderCamera);
                     _replacedCameraMainCount++;
                 }
             }
@@ -363,7 +372,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (IsConstant(codes[i], -2f)
                     && IsConstant(codes[i + 1], 0.5f)
-                    && IsCall(codes[i + 2], OpCodes.Call, "get_main")
+                    && IsCall(codes[i + 2], OpCodes.Call, CAMERA_MAIN_GETTER)
                     && IsCall(codes[i + 3], OpCodes.Callvirt, "get_fieldOfView"))
                 {
                     return i;
@@ -393,11 +402,26 @@ namespace COM3D2.SceneEditor.Plugin
             return code.opcode == OpCodes.Ldc_R4 && code.operand is float && (float)code.operand == value;
         }
 
+        /// <summary>
+        /// operand の ToString は "UnityEngine.Camera get_main()" の形なので、名前の直後の
+        /// 括弧まで含めて見る。単なる部分一致だと get_main が get_mainTexture にも当たる
+        /// </summary>
         private static bool IsCall(CodeInstruction code, OpCode opcode, string methodName)
         {
             return code.opcode == opcode
                 && code.operand != null
-                && code.operand.ToString().Contains(methodName);
+                && code.operand.ToString().Contains(methodName + "(");
+        }
+
+        /// <summary>
+        /// 命令を作り直さず中身だけ差し替える。
+        /// new CodeInstruction で置き換えると元の命令に付いていた
+        /// labels (分岐先) と blocks (try/catch 境界) が落ちてしまうため
+        /// </summary>
+        private static void Replace(CodeInstruction code, OpCode opcode, object operand)
+        {
+            code.opcode = opcode;
+            code.operand = operand;
         }
     }
 }
