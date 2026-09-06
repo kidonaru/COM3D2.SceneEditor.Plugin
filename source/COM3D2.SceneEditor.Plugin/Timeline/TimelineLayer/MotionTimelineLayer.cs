@@ -356,6 +356,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             ikHoldController.SetAnime(maid, holdType, start.isAnime);
             ikHoldController.SetHold(maid, holdType, start.isHold);
+
+            // アニメ指定なしの固定は IK 目標をキー間で補間しない。
+            // 補間するとフレーム移動で復元したキーのポーズが IK 解決結果で上書きされてしまうため、
+            // anm 復元直後のボーン位置をそのまま目標にする。
+            // 編集モード外でも毎 LateUpdate ここを通るが、そこではアニメ指定なしの固定は
+            // 解かれない（MaidIKHoldController.LateUpdate 参照）ので目標の取り直しは無害
+            if (!start.isAnime)
+            {
+                ikHoldController.SetTargetPosition(maid, holdType,
+                    ikHoldController.GetPointPosition(maid, holdType));
+                return;
+            }
+
             ikHoldController.SetTargetPosition(maid, holdType, PluginUtils.HermiteVector3(
                 t0,
                 t1,

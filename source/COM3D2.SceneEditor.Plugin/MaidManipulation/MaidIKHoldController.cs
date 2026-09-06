@@ -261,6 +261,13 @@ namespace COM3D2.SceneEditor.Plugin
             entry.entities[(int)type].isAnime = anime;
         }
 
+        /// <summary>固定対象ボーンの現在ワールド座標。エントリを作れなければ Vector3.zero</summary>
+        public Vector3 GetPointPosition(Maid maid, MaidIKHoldType type)
+        {
+            var entry = GetOrCreateEntry(maid);
+            return entry != null ? GetPointPosition(entry, type) : Vector3.zero;
+        }
+
         /// <summary>固定点の目標ワールド座標。エントリ未作成なら Vector3.zero</summary>
         public Vector3 GetTargetPosition(Maid maid, MaidIKHoldType type)
         {
