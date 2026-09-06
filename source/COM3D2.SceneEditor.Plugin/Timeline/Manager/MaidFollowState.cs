@@ -74,6 +74,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return false;
             }
 
+            if (IsGrabbedByGizmo(maid))
+            {
+                return false;
+            }
+
             var targetPoint = maidCache.GetPointTransform(maidPointType);
             if (targetPoint == null)
             {
@@ -89,6 +94,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 faceRotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
             }
             return true;
+        }
+
+        /// <summary>
+        /// 対象メイド (またはその配下のボーン) をギズモで掴んでいる最中か。
+        /// 掴んだまま追従すると「カメラが動く → ドラッグ点のスクリーン位置がずれる →
+        /// さらにメイドが動く」の自己励起ループになり、移動が止まらなくなるため、
+        /// ドラッグ中は追従を止める
+        /// </summary>
+        private static bool IsGrabbedByGizmo(Maid maid)
+        {
+            var dragging = SceneEditor.Plugin.GizmoRenderer.GetDraggingTarget();
+            var maidTransform = maid.transform;
+            if (dragging == null || maidTransform == null)
+            {
+                return false;
+            }
+
+            // メイドルートを掴んだ場合と配下のボーンを掴んだ場合の両方を拾う
+            return dragging.IsChildOf(maidTransform) || maidTransform.IsChildOf(dragging);
         }
 
         /// <summary>
