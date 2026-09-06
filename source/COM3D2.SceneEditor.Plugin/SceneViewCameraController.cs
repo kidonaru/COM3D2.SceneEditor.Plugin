@@ -5,7 +5,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// ゲーム内カメラ (UltimateOrbitCamera) と同じ操作感の SceneView カメラ操作。
-    /// 右ドラッグ (または Alt+左ドラッグ) で注視点周りを回転 + WASD/QE で注視点移動、
+    /// 右ドラッグで注視点周りを回転 + WASD/QE で注視点移動、
     /// 中ドラッグでパン (注視点の平行移動)、ホイールズーム、F で選択対象へフォーカス。
     /// 回転は速度への減衰 (慣性)、ズーム・注視点移動は目標値への Lerp でイージングし、
     /// パラメータは実機の UltimateOrbitCamera から採取した値に合わせている
@@ -141,7 +141,7 @@ namespace COM3D2.SceneEditor.Plugin
             _lastAppliedRotation = _transform.rotation;
         }
 
-        /// <summary>右ドラッグ / Alt+左ドラッグ: 注視点周りの回転。値は Input.GetAxis("Mouse X/Y")</summary>
+        /// <summary>右ドラッグ: 注視点周りの回転。値は Input.GetAxis("Mouse X/Y")</summary>
         public void Rotate(Vector2 mouseAxis)
         {
             _xVelocity += mouseAxis.x * RotateSpeedX;

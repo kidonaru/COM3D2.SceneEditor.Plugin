@@ -506,9 +506,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             // 3. 左クリック開始: 自前ギズモ → 外部ギズモ → ボーンピック → 選択の順に試す。
             //    ギズモ類はハンドルの明示 UI なのでシーン内容 (関節・オブジェクト) より優先する
-            //    (Alt 押下中はオービット操作)
             else if (Input.GetMouseButtonDown(0) &&
-                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt) &&
                 sceneViewManager.isActive && IsSceneViewActiveAt(guiPos))
             {
                 var rtPoint = GuiToRtPoint(guiPos);
@@ -628,12 +626,6 @@ namespace COM3D2.SceneEditor.Plugin
                 _dragging = true;
                 _cameraController.Rotate(mouseAxis);
                 UpdateFlyThrough();
-            }
-            else if (Input.GetMouseButton(0) &&
-                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
-            {
-                _dragging = true;
-                _cameraController.Rotate(mouseAxis);
             }
             else if (Input.GetMouseButton(2))
             {
