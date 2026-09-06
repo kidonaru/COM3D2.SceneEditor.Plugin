@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using COM3D2.MotionTimelineEditor;
 using HarmonyLib;
@@ -45,6 +46,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>Transpiler が書き換えを行えたか。Init 側で成否を報告するために使う</summary>
         private static bool _patched = false;
+
+        /// <summary>
+        /// 移植元の単体プラグイン。同じ RenderGizmos を Transpiler で書き換えるため併存できない。
+        /// Harmony の owner id は BepInPlugin の GUID と同じ
+        /// </summary>
+        private const string LEGACY_PLUGIN_ID = "COM3D2.RenderGizmosScaleFix.Plugin";
 
         /// <summary>差し替え対象。Camera.main のゲッター名</summary>
         private const string CAMERA_MAIN_GETTER = "get_main";
@@ -93,6 +100,13 @@ namespace COM3D2.SceneEditor.Plugin
                 if (original == null)
                 {
                     throw new Exception("GizmoRender.RenderGizmos が見つかりません");
+                }
+
+                if (HasLegacyPluginPatch(original))
+                {
+                    throw new Exception(LEGACY_PLUGIN_ID
+                        + " が同じメソッドをパッチしています。二重適用を避けるため本体側の修正を見送ります。"
+                        + @"BepInEx\plugins から同 DLL を削除してください");
                 }
 
                 foreach (var name in new[] { GENERAL_LENS_FIELD, U_FORWARD_FIELD, R_FORWARD_FIELD, F_FORWARD_FIELD })
@@ -163,6 +177,29 @@ namespace COM3D2.SceneEditor.Plugin
             _fForwardRef = null;
             _renderCamera = null;
             _harmony = null;
+        }
+
+        /// <summary>
+        /// 旧プラグインが同じメソッドを既にパッチしているか。
+        /// ロード順によっては後からパッチされて検知できないが、
+        /// 併存に気付けるようにするのが目的なので完全な防御は狙わない
+        /// </summary>
+        private static bool HasLegacyPluginPatch(MethodBase original)
+        {
+            var info = Harmony.GetPatchInfo(original);
+            if (info == null)
+            {
+                return false;
+            }
+
+            foreach (var owner in info.Owners)
+            {
+                if (owner == LEGACY_PLUGIN_ID)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
