@@ -581,6 +581,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             maidManager.OnMotionUpdated(maid);
 
             this.isAnmPlaying = isAnmPlaying;
+
+            // 編集モード中に anm を作り直しても停止状態を保つ。PlayAnm が有効化した anm を
+            // speed=0 のまま残すと、Unity が毎フレームキーのポーズをサンプルし、
+            // LateUpdate の IK 固定と交互にボーンを書いてポーズがブレるため
+            if (studioHackManager.isPoseEditing && !isAnmPlaying)
+            {
+                MaidMotionState.StopMotion(maid);
+            }
+
             maidCache.playingFrameNoFloat = playingFrameNoFloat;
 
             var stopwatch = new StopwatchDebug();
