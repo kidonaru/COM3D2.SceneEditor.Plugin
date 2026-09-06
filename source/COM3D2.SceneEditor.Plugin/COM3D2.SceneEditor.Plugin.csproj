@@ -215,7 +215,6 @@
     <Compile Include="Manager\GameViewManager.cs" />
     <Compile Include="Manager\BoneLineRenderer.cs" />
     <Compile Include="Manager\GizmoRenderer.cs" />
-    <Compile Include="Manager\GizmoScaleFixPatch.cs" />
     <Compile Include="Manager\GridRenderer.cs" />
     <Compile Include="Manager\GuiWindowTracker.cs" />
     <Compile Include="Manager\InputRemapper.cs" />

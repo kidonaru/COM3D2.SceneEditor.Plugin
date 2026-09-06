@@ -388,9 +388,6 @@ namespace COM3D2.SceneEditor.Plugin
                 // ゲーム側のスカート物理の累積誤差を抑える。UI の有効状態に関係なく常時効かせる
                 SkirtHookDriftPatch.Init();
 
-                // FoV 変更時にゲーム側のギズモサイズが破綻するのを直す。こちらも常時効かせる
-                GizmoScaleFixPatch.Init();
-
                 managerRegistry.RegisterManager(ConfigManager.instance);
                 managerRegistry.RegisterManager(InputRemapper.instance);
                 managerRegistry.RegisterManager(WindowManager.instance);
