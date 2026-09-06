@@ -42,6 +42,30 @@ namespace COM3D2.SceneEditor.Plugin
         private static bool _patched = false;
 
         /// <summary>
+        /// 掴み判定へ漏れる private フィールドの名前。
+        /// generalLens はハンドルの当たり範囲、*Forward は回転リングの表側判定に使われる
+        /// </summary>
+        private const string GENERAL_LENS_FIELD = "generalLens";
+        private const string U_FORWARD_FIELD = "uForward";
+        private const string R_FORWARD_FIELD = "rForward";
+        private const string F_FORWARD_FIELD = "fForward";
+
+        /// <summary>毎フレームの reflection を避けるため Init で一度だけ作る型付きアクセサ</summary>
+        private static AccessTools.FieldRef<GizmoRender, float> _generalLensRef = null;
+        private static AccessTools.FieldRef<GizmoRender, Vector3> _uForwardRef = null;
+        private static AccessTools.FieldRef<GizmoRender, Vector3> _rForwardRef = null;
+        private static AccessTools.FieldRef<GizmoRender, Vector3> _fForwardRef = null;
+
+        /// <summary>
+        /// Prefix と Postfix の間で共有する退避。RenderGizmos はメインスレッドで再入しないため
+        /// 1 組のバッファを使い回してフレーム毎の確保を避ける
+        /// </summary>
+        private static float _savedGeneralLens = 0f;
+        private static Vector3 _savedUForward = Vector3.zero;
+        private static Vector3 _savedRForward = Vector3.zero;
+        private static Vector3 _savedFForward = Vector3.zero;
+
+        /// <summary>
         /// パッチを適用する。プラグイン初期化から 1 回だけ呼ばれるが、
         /// 二重パッチは Harmony の例外になるため保険を残す
         /// </summary>
@@ -60,10 +84,28 @@ namespace COM3D2.SceneEditor.Plugin
                     throw new Exception("GizmoRender.RenderGizmos が見つかりません");
                 }
 
+                foreach (var name in new[] { GENERAL_LENS_FIELD, U_FORWARD_FIELD, R_FORWARD_FIELD, F_FORWARD_FIELD })
+                {
+                    if (AccessTools.Field(typeof(GizmoRender), name) == null)
+                    {
+                        throw new Exception(name + " が見つかりません");
+                    }
+                }
+                _generalLensRef = AccessTools.FieldRefAccess<GizmoRender, float>(GENERAL_LENS_FIELD);
+                _uForwardRef = AccessTools.FieldRefAccess<GizmoRender, Vector3>(U_FORWARD_FIELD);
+                _rForwardRef = AccessTools.FieldRefAccess<GizmoRender, Vector3>(R_FORWARD_FIELD);
+                _fForwardRef = AccessTools.FieldRefAccess<GizmoRender, Vector3>(F_FORWARD_FIELD);
+
                 var transpiler = AccessTools.Method(typeof(GizmoScaleFixPatch), nameof(RenderGizmosTranspiler));
+                var prefix = AccessTools.Method(typeof(GizmoScaleFixPatch), nameof(RenderGizmosPrefix));
+                var postfix = AccessTools.Method(typeof(GizmoScaleFixPatch), nameof(RenderGizmosPostfix));
 
                 _harmony = new Harmony(PluginInfo.PluginFullName + ".GizmoScaleFix");
-                _harmony.Patch(original, transpiler: new HarmonyMethod(transpiler));
+                _harmony.Patch(
+                    original,
+                    prefix: new HarmonyMethod(prefix),
+                    postfix: new HarmonyMethod(postfix),
+                    transpiler: new HarmonyMethod(transpiler));
 
                 if (!_patched)
                 {
@@ -102,6 +144,12 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogException(e);
             }
+
+            _generalLensRef = null;
+            _uForwardRef = null;
+            _rForwardRef = null;
+            _fForwardRef = null;
+            _renderCamera = null;
             _harmony = null;
         }
 
@@ -144,6 +192,64 @@ namespace COM3D2.SceneEditor.Plugin
 
             overridden = false;
             return Camera.main;
+        }
+
+        /// <summary>
+        /// 参照カメラを解決してキャッシュし、差し替えるパスなら掴み判定用の状態を退避する。
+        /// __state で Postfix へ「復元が必要か」を伝える。
+        /// 毎フレーム走るため例外は握り潰し、ゲーム側の描画を止めない
+        /// </summary>
+        private static void RenderGizmosPrefix(GizmoRender __instance, out bool __state)
+        {
+            __state = false;
+            try
+            {
+                bool overridden;
+                _renderCamera = ResolveRenderCamera(out overridden);
+                if (!overridden)
+                {
+                    return;
+                }
+
+                _savedGeneralLens = _generalLensRef(__instance);
+                _savedUForward = _uForwardRef(__instance);
+                _savedRForward = _rForwardRef(__instance);
+                _savedFForward = _fForwardRef(__instance);
+                __state = true;
+            }
+            catch (Exception e)
+            {
+                // 退避に失敗したら復元もしない。ギズモは Camera.main 基準で描かれるだけで済む
+                _renderCamera = null;
+                __state = false;
+                MTEUtils.LogException(e);
+            }
+        }
+
+        /// <summary>
+        /// 描画は差し替えたカメラ基準で終わっているので、掴み判定が読む状態だけ
+        /// Camera.main 基準の値へ戻す
+        /// </summary>
+        private static void RenderGizmosPostfix(GizmoRender __instance, bool __state)
+        {
+            _renderCamera = null;
+
+            if (!__state)
+            {
+                return;
+            }
+
+            try
+            {
+                _generalLensRef(__instance) = _savedGeneralLens;
+                _uForwardRef(__instance) = _savedUForward;
+                _rForwardRef(__instance) = _savedRForward;
+                _fForwardRef(__instance) = _savedFForward;
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
         }
 
         /// <summary>
