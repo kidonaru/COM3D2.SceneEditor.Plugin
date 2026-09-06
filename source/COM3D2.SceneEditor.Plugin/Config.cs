@@ -15,11 +15,12 @@ namespace COM3D2.SceneEditor.Plugin
         Undo,
         Redo,
         EditModeToggle,
+        WindowsHiddenToggle,
     }
 
     public class Config
     {
-        public static readonly int CurrentVersion = 1;
+        public static readonly int CurrentVersion = 2;
 
         [XmlAttribute]
         public int version = 0;
@@ -521,7 +522,8 @@ namespace COM3D2.SceneEditor.Plugin
             { KeyBindType.GizmoScale, new KeyBind("C") },
             { KeyBindType.Undo, new KeyBind("Ctrl+Z") },
             { KeyBindType.Redo, new KeyBind("Ctrl+X") },
-            { KeyBindType.EditModeToggle, new KeyBind("Tab") },
+            { KeyBindType.EditModeToggle, new KeyBind("F1") },
+            { KeyBindType.WindowsHiddenToggle, new KeyBind("Tab") },
         };
 
         public struct KeyBindPair
@@ -561,6 +563,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void ConvertVersion()
         {
+            // v2: 編集モード切替を Tab から F1 へ移し、Tab はウィンドウ非表示に充てた。
+            // 旧設定の Tab を残すと両方に Tab が割り当たり同時に発動するため、既定値へ寄せる
+            if (version < 2 && GetKeyName(KeyBindType.EditModeToggle) == "Tab")
+            {
+                keyBinds[KeyBindType.EditModeToggle] = new KeyBind("F1");
+                keyBinds[KeyBindType.WindowsHiddenToggle] = new KeyBind("Tab");
+                dirty = true;
+            }
             version = CurrentVersion;
         }
 

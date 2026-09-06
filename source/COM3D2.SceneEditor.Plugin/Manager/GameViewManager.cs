@@ -116,7 +116,7 @@ namespace COM3D2.SceneEditor.Plugin
             isMaximized = false;
             isUIVisible = false;
             // 隠したままモードを抜けると、次にモードへ入ったときウィンドウが出てこない
-            WindowManager.instance.isWindowsHidden = false;
+            WindowManager.instance.ResetWindowsHidden();
 
             // メインカメラが取得できない状況でも、NGUIカメラの復元とリソース解放は必ず行う。
             // ここで打ち切るとUIが消えたまま戻らなくなる

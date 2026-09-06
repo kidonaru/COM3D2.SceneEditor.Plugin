@@ -16,10 +16,48 @@ namespace COM3D2.SceneEditor.Plugin
         /// プラグインのウィンドウを一時的に隠しているか。
         /// isShowWnd を書き換えずに描画だけ止めるため、復帰時は配置・タブ・連結がそのまま戻る。
         /// 一時的な表示切替なので config へは保存しない (セッション限り)。
-        /// 復帰手段はメニューバーの「ウィンドウ表示」トグルだけなので、
-        /// あちらに表示条件を付けるならここから戻れる経路も併せて用意すること
+        /// 復帰手段はメニューバーの「ウィンドウ表示」トグルとキーバインドだけなので、
+        /// あちらに表示条件を付けるならここから戻れる経路も併せて用意すること。
+        /// GameView の最大化も連動させるため、書き換えは SetWindowsHidden 経由で行う
         /// </summary>
-        public bool isWindowsHidden { get; set; }
+        public bool isWindowsHidden { get; private set; }
+
+        /// <summary>非表示に入る前に GameView が最大化されていたか。復帰時に元の表示へ戻すために覚える</summary>
+        private bool _wasMaximizedBeforeHidden = false;
+
+        /// <summary>
+        /// ウィンドウの一時非表示を切り替える。
+        /// 非表示中はゲーム画面だけを見たい場面なので GameView を最大化し、
+        /// 復帰時は非表示前がウィンドウ表示だったときだけウィンドウ化へ戻す
+        /// </summary>
+        public void SetWindowsHidden(bool hidden)
+        {
+            if (isWindowsHidden == hidden)
+            {
+                return;
+            }
+
+            isWindowsHidden = hidden;
+            if (hidden)
+            {
+                _wasMaximizedBeforeHidden = gameViewManager.isMaximized;
+                gameViewManager.SetMaximized(true);
+            }
+            else if (!_wasMaximizedBeforeHidden)
+            {
+                gameViewManager.SetMaximized(false);
+            }
+        }
+
+        /// <summary>
+        /// 非表示状態を最大化と連動させずに落とす。
+        /// ExitWindowMode のように GameView 側が自前で状態を畳む経路で使う
+        /// </summary>
+        public void ResetWindowsHidden()
+        {
+            isWindowsHidden = false;
+            _wasMaximizedBeforeHidden = false;
+        }
 
         private static WindowManager _instance = null;
         public static WindowManager instance

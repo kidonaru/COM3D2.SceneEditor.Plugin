@@ -339,7 +339,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             else
             {
-                var keyName = timelineConfig.GetKeyName(MTEP.KeyBindType.EditMode);
+                var keyName = config.GetKeyName(KeyBindType.EditModeToggle);
                 view.DrawLabel("[" + keyName + "]キーで編集モードに切り替えます", width, ROW_HEIGHT, Color.white);
             }
         }

@@ -241,7 +241,7 @@ namespace COM3D2.SceneEditor.Plugin
                     toggle = () =>
                     {
                         var manager = WindowManager.instance;
-                        manager.isWindowsHidden = !manager.isWindowsHidden;
+                        manager.SetWindowsHidden(!manager.isWindowsHidden);
                     },
                 },
             };

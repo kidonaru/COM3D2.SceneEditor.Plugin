@@ -162,7 +162,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool isUIVisible
         {
             get => !SE.WindowManager.instance.isWindowsHidden;
-            set => SE.WindowManager.instance.isWindowsHidden = !value;
+            set => SE.WindowManager.instance.SetWindowsHidden(!value);
         }
 
         public override bool Init()

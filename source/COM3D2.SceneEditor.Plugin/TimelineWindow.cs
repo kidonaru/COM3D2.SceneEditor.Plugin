@@ -388,10 +388,6 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineManager.Play();
                 }
             }
-            if (tc.GetKeyDown(MTEP.KeyBindType.EditMode))
-            {
-                studioHackManager.isPoseEditing = !studioHackManager.isPoseEditing;
-            }
             if (tc.GetKeyDown(MTEP.KeyBindType.Copy))
             {
                 timelineManager.CopyFramesToClipboard();

@@ -130,6 +130,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             { KeyBindType.AddKeyFrameAll, new KeyBind("Shift+Return") },
             { KeyBindType.RemoveKeyFrame, new KeyBind("Backspace") },
             { KeyBindType.Play, new KeyBind("Space") },
+            // 編集モード切替は SE 本体の KeyBindType.EditModeToggle に統合済みで、ここでは未使用
             { KeyBindType.EditMode, new KeyBind("F1") },
             { KeyBindType.Copy, new KeyBind("Ctrl+C") },
             { KeyBindType.Paste, new KeyBind("Ctrl+V") },

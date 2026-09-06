@@ -3,6 +3,7 @@ using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityInjector;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 using UnityInjector.Attributes;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -161,6 +162,7 @@ namespace COM3D2.SceneEditor.Plugin
                     UpdateGizmoToolKey();
                     UpdateHistoryKey();
                     UpdateEditModeKey();
+                    UpdateWindowsHiddenKey();
                     managerRegistry.Update();
                 }
             }
@@ -218,8 +220,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// キー入力で編集モードを切り替える。
-        /// テキスト入力中 (keyboardControl 保持中) は Tab のフォーカス移動と
-        /// 取り合いになるため無視する
+        /// タイムライン側 (StudioHackManager.isPoseEditing) を経由すると再生停止と
+        /// ボーン表示の追従も一緒に行えるため、そちらを優先する。
+        /// テキスト入力中 (keyboardControl 保持中) は誤発動を防ぐため無視する
         /// </summary>
         private void UpdateEditModeKey()
         {
@@ -230,8 +233,34 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (config.GetKeyDown(KeyBindType.EditModeToggle))
             {
-                var manager = MaidManipulateManager.instance;
-                manager.isEditMode = !manager.isEditMode;
+                var studioHackManager = MTEP.StudioHackManager.instance;
+                if (studioHackManager.studioHack != null)
+                {
+                    studioHackManager.isPoseEditing = !studioHackManager.isPoseEditing;
+                }
+                else
+                {
+                    var manager = MaidManipulateManager.instance;
+                    manager.isEditMode = !manager.isEditMode;
+                }
+            }
+        }
+
+        /// <summary>
+        /// キー入力でウィンドウの一時非表示を切り替える。
+        /// 既定キーの Tab は GUI のフォーカス移動にも使われるため、
+        /// テキスト入力中 (keyboardControl 保持中) は無視する
+        /// </summary>
+        private void UpdateWindowsHiddenKey()
+        {
+            if (GUIUtility.keyboardControl != 0)
+            {
+                return;
+            }
+
+            if (config.GetKeyDown(KeyBindType.WindowsHiddenToggle))
+            {
+                windowManager.SetWindowsHidden(!windowManager.isWindowsHidden);
             }
         }
 
