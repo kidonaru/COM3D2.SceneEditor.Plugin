@@ -106,6 +106,47 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// Prefix が解決した参照カメラ。RenderGizmos は再入しないため 1 個で足りる。
+        /// Prefix・本体・Postfix が必ず同じカメラを見ることを保証し、
+        /// 解決コストも RenderGizmos 1 回につき 1 度で済ませる
+        /// </summary>
+        private static Camera _renderCamera = null;
+
+        /// <summary>
+        /// RenderGizmos が参照するカメラを返す。Transpiler が Camera.main の呼び出しを
+        /// これに差し替えるため、Camera.get_main と同じ「引数なし・戻り値 Camera」で揃えている。
+        /// Prefix が走らなかった場合の保険として Camera.main へ落とす
+        /// </summary>
+        public static Camera GetRenderCamera()
+        {
+            return _renderCamera != null ? _renderCamera : Camera.main;
+        }
+
+        /// <summary>
+        /// 描画中のカメラから参照カメラを解決する。
+        ///
+        /// SceneView は専用カメラで描くため、Camera.main のままだとギズモの大きさも
+        /// 回転リングの表裏もゲーム画面基準になってしまう。描画中のカメラが SceneView なら
+        /// そちらを返して見た目を正す。
+        ///
+        /// SceneView 以外のカメラ (MTEFrontCamera 等のオーバーレイ) と、
+        /// SceneView がオルソ投影のときは Camera.main へ落とす。
+        /// オルソでは Mathf.Tan(fov/2) もカメラ位置からの距離も意味を持たないため
+        /// </summary>
+        private static Camera ResolveRenderCamera(out bool overridden)
+        {
+            var current = Camera.current;
+            if (current != null && !current.orthographic && current == SceneViewManager.instance.sceneCamera)
+            {
+                overridden = true;
+                return current;
+            }
+
+            overridden = false;
+            return Camera.main;
+        }
+
+        /// <summary>
         /// generalLens の計算式を差し替える。
         ///   -2f * Mathf.Tan(0.5f * fieldOfView)          * magnitude / 50f
         /// → 2f * Mathf.Tan(0.5f * fieldOfView * Deg2Rad) * magnitude / 4f
