@@ -11,6 +11,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(BGTimelineLayer);
         public override string layerName => nameof(BGTimelineLayer);
 
+        /// <summary>
+        /// 背景を消しているときのボーンメニュー表示名。
+        /// この状態の背景名 (BgMgr.GetBGName()) は空文字で、そのままだと行が無名になる
+        /// </summary>
+        private const string NoBgDisplayName = "背景なし";
+
         private List<string> _allBoneNames = new List<string>();
         public override List<string> allBoneNames => _allBoneNames;
 
@@ -32,11 +38,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 var boneNameSet = new HashSet<string>(GetExistBoneNames());
 
-                var currentBgName = bgMgr.GetBGName();
-                if (!string.IsNullOrEmpty(currentBgName))
-                {
-                    boneNameSet.Add(currentBgName);
-                }
+                // 背景なし (空文字) も背景ありと同じく現在の状態として行を出す。
+                // 除外すると、背景を消した状態はキーを打つまで一覧に現れない
+                boneNameSet.Add(bgMgr.GetBGName());
 
                 _allBoneNames.Clear();
                 _allBoneNames.AddRange(boneNameSet);
@@ -47,7 +51,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 foreach (var boneName in allBoneNames)
                 {
-                    var displayName = photoBGManager.GetDisplayName(boneName);
+                    var displayName = string.IsNullOrEmpty(boneName)
+                        ? NoBgDisplayName
+                        : photoBGManager.GetDisplayName(boneName);
                     var menuItem = new BoneMenuItem(boneName, displayName);
                     allMenuItems.Add(menuItem);
                 }
