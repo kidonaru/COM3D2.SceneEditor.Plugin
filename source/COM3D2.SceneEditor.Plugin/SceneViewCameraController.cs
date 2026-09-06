@@ -5,8 +5,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// ゲーム内カメラ (UltimateOrbitCamera) と同じ操作感の SceneView カメラ操作。
-    /// 右ドラッグで注視点周りを回転 + WASD/QE で注視点移動、
-    /// 中ドラッグでパン (注視点の平行移動)、ホイールズーム、F で選択対象へフォーカス。
+    /// 右ドラッグで注視点周りを回転、中ドラッグでパン (注視点の平行移動)、ホイールズーム、F で選択対象へフォーカス。
     /// 回転は速度への減衰 (慣性)、ズーム・注視点移動は目標値への Lerp でイージングし、
     /// パラメータは実機の UltimateOrbitCamera から採取した値に合わせている
     /// </summary>
@@ -51,8 +50,6 @@ namespace COM3D2.SceneEditor.Plugin
         // 実機は 25 だが、広いステージを俯瞰できるよう上限だけ広げている
         private const float MaxDistance = 100f;
 
-        private const float FlySpeed = 2f;          // m/s
-        private const float FlyFastMultiplier = 4f;
         // フォーカス時のバウンズ半径に対する距離倍率 (画面に余白を持って収まる見た目の調整値)
         private const float FocusDistanceFactor = 2.5f;
 
@@ -158,17 +155,6 @@ namespace COM3D2.SceneEditor.Plugin
         public void Zoom(float scrollAxis)
         {
             _targetDistance = Mathf.Clamp(_targetDistance - scrollAxis * ZoomSpeed, MinDistance, MaxDistance);
-        }
-
-        /// <summary>右ボタン押下中の WASD/QE: 注視点ごと移動するフライスルー</summary>
-        public void Fly(Vector3 localDir, float deltaTime, bool fast)
-        {
-            if (localDir.sqrMagnitude < 0.0001f)
-            {
-                return;
-            }
-            var speed = FlySpeed * (fast ? FlyFastMultiplier : 1f);
-            _targetGoal += _transform.TransformDirection(localDir.normalized) * speed * deltaTime;
         }
 
         /// <summary>F キー: 対象のバウンズ全体が収まる距離まで寄る</summary>

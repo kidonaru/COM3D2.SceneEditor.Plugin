@@ -625,7 +625,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _dragging = true;
                 _cameraController.Rotate(mouseAxis);
-                UpdateFlyThrough();
             }
             else if (Input.GetMouseButton(2))
             {
@@ -648,21 +647,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 FocusOn(selectionManager.selectedObject, true);
             }
-        }
-
-        /// <summary>右ボタン押下中の WASD/QE フライスルー</summary>
-        private void UpdateFlyThrough()
-        {
-            var dir = Vector3.zero;
-            if (Input.GetKey(KeyCode.W)) dir += Vector3.forward;
-            if (Input.GetKey(KeyCode.S)) dir += Vector3.back;
-            if (Input.GetKey(KeyCode.A)) dir += Vector3.left;
-            if (Input.GetKey(KeyCode.D)) dir += Vector3.right;
-            if (Input.GetKey(KeyCode.E)) dir += Vector3.up;
-            if (Input.GetKey(KeyCode.Q)) dir += Vector3.down;
-
-            _cameraController.Fly(dir, Time.deltaTime,
-                Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
         }
 
         /// <summary>ortho 中はピボット距離から表示範囲を毎フレーム同期し、ホイールズームを効かせる</summary>
