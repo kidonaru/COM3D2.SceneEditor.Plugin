@@ -248,13 +248,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 HideOverlay(hidden, ring);
             }
-
-            // ボーン編集の回転ギズモは Alt 押下中だけ出る。Alt を押したままメニューを
-            // クリックされると写り込むため、これも止める
-            foreach (var gizmo in UnityEngine.Object.FindObjectsOfType<ModelGizmoRender>())
-            {
-                HideOverlay(hidden, gizmo);
-            }
         }
 
         private static void HideOverlay(List<Behaviour> hidden, Behaviour behaviour)

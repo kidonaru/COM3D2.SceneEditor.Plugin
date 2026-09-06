@@ -168,7 +168,6 @@
     <Compile Include="MTEUtils\WindowManagerBase.cs" />
     <Compile Include="MTEUtils\WindowResizeController.cs" />
     <Compile Include="MaidManipulation\EulerOffsetCache.cs" />
-    <Compile Include="MaidManipulation\GizmoRenderHack.cs" />
     <Compile Include="MaidManipulation\IMaidDragPoint.cs" />
     <Compile Include="MaidManipulation\MaidBoneGizmoController.cs" />
     <Compile Include="MaidManipulation\MaidBoneRotateDragPoint.cs" />
@@ -203,7 +202,6 @@
     <Compile Include="MaidManipulation\MaidMaterialEditManager.cs" />
     <Compile Include="MaidManipulation\ModelShapeKeyEditManager.cs" />
     <Compile Include="MaidManipulation\ModelMaterialEditManager.cs" />
-    <Compile Include="MaidManipulation\ModelGizmoRender.cs" />
     <Compile Include="MaidManipulation\SlotBoneManager.cs" />
     <Compile Include="MaidManipulation\SlotQualifiedNames.cs" />
     <Compile Include="MaidManipulation\BoneEditStore.cs" />
