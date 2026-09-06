@@ -265,6 +265,13 @@ namespace COM3D2.SceneEditor.Plugin
             point.maid = maid;
             point.entries = new[] { new MaidBoneRotateDragPoint.Entry(pelvis, 1f, 1f) };
             point.followBone = pelvis;
+            // 中心 (Bip01) は骨盤と同じ位置にあるため、専用の点は置かず Shift ドラッグで移動させる。
+            // 見つからなくても骨盤の回転は使えるので、警告だけ出して移動なしで続ける
+            point.moveBone = CMT.SearchObjName(bones, "Bip01", false);
+            if (point.moveBone == null)
+            {
+                MTEUtils.LogWarning("中心のボーンが見つかりません: Bip01");
+            }
             // MM の MouseDrag3 ido==3/6 と同じ感度。横方向は上体と逆符号（+x/6）
             point.pitchDivisor = 4f;
             point.yawDivisor = 6f;

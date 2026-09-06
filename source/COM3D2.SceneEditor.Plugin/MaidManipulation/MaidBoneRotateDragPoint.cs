@@ -6,7 +6,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// ボーン回転用の汎用ドラッグ点（MultipleMaids の MouseDrag3/MouseDrag4 系を整理移植）。
     /// 通常ドラッグはカメラ基準の傾げ（重み付きで複数ボーンへ配分可能）、
     /// Ctrl ドラッグはローカル X 軸まわりのひねり。
-    /// 上体（4 ボーン配分）・骨盤・手の甲（_IK_hand）をこの 1 クラスで扱う
+    /// 上体（4 ボーン配分）・骨盤・手の甲（_IK_hand）をこの 1 クラスで扱う。
+    /// <see cref="moveBone"/> を設定した点（骨盤）は Shift ドラッグでそのボーンを平行移動する
     /// </summary>
     public class MaidBoneRotateDragPoint : MonoBehaviour, IMaidDragPoint
     {
@@ -38,13 +39,28 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ひねりの感度。delta.x / twistDivisor</summary>
         public float twistDivisor = 1.5f;
 
+        /// <summary>
+        /// Shift ドラッグで平行移動するボーン（骨盤点なら中心 Bip01）。null なら移動モードなし。
+        /// 中心は骨盤と同じ位置にあり専用の点を置くと重なって掴めないため、骨盤点に同居させる
+        /// </summary>
+        public Transform moveBone;
+
         private bool _isDragging = false;
 
         /// <summary>ドラッグ開始時にひねりモードだったか。途中でキーを離しても切り替わらないよう固定する</summary>
         private bool _isTwistMode = false;
 
+        /// <summary>ドラッグ開始時に移動モードだったか。ひねりと同じく開始時点で固定する</summary>
+        private bool _isMoveMode = false;
+
         private Vector3 _mouseDownPos;
         private Vector3[] _baseAngles;
+
+        /// <summary>移動モードで掴んだ時点の moveBone のスクリーン座標。奥行き (z) を保つために使う</summary>
+        private Vector3 _moveScreenPoint;
+
+        /// <summary>移動モードでの、ポインタ位置をワールドへ戻した点から moveBone までのずれ</summary>
+        private Vector3 _moveOffset;
 
         /// <summary>ドラッグ中の座標変換に使うカメラ。掴んだ側を覚えて二重駆動を防ぐ</summary>
         private Camera _dragCamera = null;
@@ -65,6 +81,11 @@ namespace COM3D2.SceneEditor.Plugin
         private static bool IsCtrlHeld()
         {
             return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        }
+
+        private static bool IsShiftHeld()
+        {
+            return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         }
 
         /// <summary>ボーンギズモを掴む操作と取り合いにならないよう、Alt 中はドラッグしない</summary>
@@ -95,15 +116,33 @@ namespace COM3D2.SceneEditor.Plugin
 
             _dragCamera = camera;
             _mouseDownPos = pointerPos;
-            _isTwistMode = IsCtrlHeld();
+            // Shift+Ctrl 同時押しは移動を優先する
+            _isMoveMode = moveBone != null && IsShiftHeld();
+            _isTwistMode = !_isMoveMode && IsCtrlHeld();
 
+            MaidMotionState.StopMotion(maid);
+
+            if (_isMoveMode)
+            {
+                BeginMove(camera, pointerPos);
+            }
+            else
+            {
+                BeginRotate();
+            }
+
+            _isDragging = true;
+            MaidDragBoneTracker.BeginDrag(GetTrackedBoneName());
+            return true;
+        }
+
+        private void BeginRotate()
+        {
             _baseAngles = new Vector3[entries.Length];
             for (var i = 0; i < entries.Length; i++)
             {
                 _baseAngles[i] = entries[i].bone.localEulerAngles;
             }
-
-            MaidMotionState.StopMotion(maid);
 
             var targetBones = new Transform[entries.Length];
             for (var i = 0; i < entries.Length; i++)
@@ -113,12 +152,33 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 "ボーン回転: " + (followBone != null ? followBone.name : GetPrimaryBoneName()),
                 targetBones);
+        }
 
-            _isDragging = true;
-            // 点ごとに異なる追従先ボーンを報告する (共有 entries の代表ボーンだと全点同じになる)
-            MaidDragBoneTracker.BeginDrag(
-                followBone != null ? followBone.name : GetPrimaryBoneName());
-            return true;
+        /// <summary>
+        /// 移動モードの開始。IK ドラッグ点と同じく、掴んだ時点の奥行きを保ったまま
+        /// ポインタをワールドへ戻し、その点からボーンまでのずれを覚えておく
+        /// </summary>
+        private void BeginMove(Camera camera, Vector3 pointerPos)
+        {
+            _moveScreenPoint = camera.WorldToScreenPoint(moveBone.position);
+            _moveOffset = moveBone.position - camera.ScreenToWorldPoint(
+                new Vector3(pointerPos.x, pointerPos.y, _moveScreenPoint.z));
+
+            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                "ボーン移動: " + moveBone.name, new[] { moveBone });
+        }
+
+        /// <summary>
+        /// 掴み中として報告するボーン名。移動モードは移動対象、それ以外は追従先を優先する
+        /// (共有 entries の代表ボーンだと上体の全点が同じ名前になるため)
+        /// </summary>
+        private string GetTrackedBoneName()
+        {
+            if (_isMoveMode)
+            {
+                return moveBone.name;
+            }
+            return followBone != null ? followBone.name : GetPrimaryBoneName();
         }
 
         /// <summary>
@@ -141,6 +201,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (!_isDragging || !IsReady())
             {
+                return;
+            }
+
+            if (_isMoveMode)
+            {
+                ApplyMove(pointerPos);
                 return;
             }
 
@@ -242,6 +308,18 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>カメラに正対する平面上でボーンを平行移動する（IK ドラッグ点と同じ座標変換）</summary>
+        private void ApplyMove(Vector3 pointerPos)
+        {
+            if (_dragCamera == null || moveBone == null)
+            {
+                return;
+            }
+
+            var pos = new Vector3(pointerPos.x, pointerPos.y, _moveScreenPoint.z);
+            moveBone.position = _dragCamera.ScreenToWorldPoint(pos) + _moveOffset;
+        }
+
         /// <summary>ローカル X 軸まわりのひねり（MouseDrag3 ido==5/6 と同型）</summary>
         private void ApplyTwist(Vector3 delta)
         {
@@ -261,9 +339,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>掴んだ点自身のボーンを選択し、Inspector を専用表示で開く</summary>
         private void SelectBoneInInspector()
         {
-            // 上体 4 点は entries を共有しており代表ボーンでは全点同じになるため、
-            // 追従先ボーン (点ごとに異なる) を優先する
-            var boneName = followBone != null ? followBone.name : GetPrimaryBoneName();
+            // Shift クリックなら移動対象、それ以外は追従先ボーンを選ぶ
+            var boneName = GetTrackedBoneName();
             var def = MaidBoneSliderController.FindDef(boneName)
                 ?? MaidBoneSliderController.FindDef(GetPrimaryBoneName());
             if (def == null)
