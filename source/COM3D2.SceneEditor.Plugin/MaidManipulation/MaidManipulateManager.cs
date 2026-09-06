@@ -170,6 +170,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ボーン回転ギズモ。修飾キーで表示グループが切り替わる</summary>
         public MaidBoneGizmoController boneGizmoController = new MaidBoneGizmoController();
 
+        public override void Init()
+        {
+            // ボーンギズモの実体はカメラごとの GizmoRenderer が持つため、
+            // 「どのボーンに出すか」と「掴んだときに何をするか」をここで繋ぐ
+            boneGizmoController.RegisterGizmoHooks();
+        }
+
         /// <summary>IK 終端と頭部のドラッグ点</summary>
         public MaidDragPointController dragPointController = new MaidDragPointController();
 
