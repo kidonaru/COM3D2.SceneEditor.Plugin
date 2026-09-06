@@ -5,7 +5,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// IK 固定ウィンドウ。MTE の「IK固定」相当で、四肢の空間固定と足の接地を操作する。
-    /// 固定ごとの「アニメ」指定を ON にすると、モーション再生中も固定が効く
+    /// 「IKアニメーション」で有効にした箇所は、モーション再生中も固定が効く
     /// </summary>
     public class MaidIKWindow : MaidWindowBase
     {
@@ -24,7 +24,6 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         private static readonly int ToggleWidth = 90;
-        private static readonly int AnimeToggleWidth = 60;
         private static readonly int PairButtonWidth = 50;
 
         private static MaidIKWindow _instance = null;
@@ -79,6 +78,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawHoldToggles(target);
             view.DrawHorizontalLine();
+            DrawAnimeToggles(target);
+            view.DrawHorizontalLine();
             DrawGrounding(target);
 
             view.EndScrollView();
@@ -90,11 +91,11 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("IK固定", 60, ROW_HEIGHT);
 
-                // 固定が効くのはボーン編集（編集モード）中か、「アニメ」指定の箇所だけ。
+                // 固定が効くのはボーン編集（編集モード）中か、「IKアニメーション」指定の箇所だけ。
                 // モード外ならその条件を出す
                 if (!MaidManipulateManager.instance.isEditMode)
                 {
-                    view.DrawLabel("※編集モード外は「アニメ」指定の箇所のみ有効", -1, ROW_HEIGHT,
+                    view.DrawLabel("※編集モード外は「IKアニメーション」で有効にした箇所のみ有効", -1, ROW_HEIGHT,
                         textColor: Color.yellow);
                 }
             }
@@ -107,30 +108,17 @@ namespace COM3D2.SceneEditor.Plugin
                     foreach (var type in pair)
                     {
                         var holdType = type;
-                        var isHold = holdController.GetHold(target, holdType);
-
                         view.DrawToggle(MaidIKHoldController.GetHoldTypeName(holdType),
-                            isHold, ToggleWidth, ROW_HEIGHT,
+                            holdController.GetHold(target, holdType), ToggleWidth, ROW_HEIGHT,
                             newValue =>
                             {
                                 HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
                                     "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
                                 holdController.SetHold(target, holdType, newValue);
                             });
-
-                        // 再生中も固定を効かせる指定。固定 OFF では効かないので押させない
-                        view.DrawToggle("アニメ", holdController.GetAnime(target, holdType),
-                            AnimeToggleWidth, ROW_HEIGHT, isHold,
-                            newValue =>
-                            {
-                                HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
-                                    "IKアニメ: " + MaidIKHoldController.GetHoldTypeName(holdType));
-                                holdController.SetAnime(target, holdType, newValue);
-                            });
                     }
 
-                    var allHold = holdController.GetHold(target, pair[0])
-                        && holdController.GetHold(target, pair[1]);
+                    var allHold = IsPairHeld(target, pair);
                     if (view.DrawButton(allHold ? "解除" : "固定", PairButtonWidth, ROW_HEIGHT))
                     {
                         HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
@@ -143,6 +131,54 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 view.EndLayout();
             }
+        }
+
+        /// <summary>再生中も固定を効かせる指定。固定 OFF の箇所は効かないので押させない</summary>
+        private void DrawAnimeToggles(Maid target)
+        {
+            view.DrawLabel("IKアニメーション", -1, ROW_HEIGHT);
+
+            foreach (var pair in HoldTypePairs)
+            {
+                view.BeginHorizontal();
+                {
+                    foreach (var type in pair)
+                    {
+                        var holdType = type;
+                        view.DrawToggle(MaidIKHoldController.GetHoldTypeName(holdType),
+                            holdController.GetAnime(target, holdType), ToggleWidth, ROW_HEIGHT,
+                            holdController.GetHold(target, holdType),
+                            newValue =>
+                            {
+                                HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
+                                    "IKアニメ: " + MaidIKHoldController.GetHoldTypeName(holdType));
+                                holdController.SetAnime(target, holdType, newValue);
+                            });
+                    }
+
+                    var allHold = IsPairHeld(target, pair);
+                    var allAnime = holdController.GetAnime(target, pair[0])
+                        && holdController.GetAnime(target, pair[1]);
+                    if (view.DrawButton(allAnime ? "無効" : "有効", PairButtonWidth, ROW_HEIGHT,
+                        allHold))
+                    {
+                        HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
+                            allAnime ? "IKアニメ無効" : "IKアニメ有効");
+                        foreach (var type in pair)
+                        {
+                            holdController.SetAnime(target, type, !allAnime);
+                        }
+                    }
+                }
+                view.EndLayout();
+            }
+        }
+
+        /// <summary>左右ペアの両方が固定されているか</summary>
+        private bool IsPairHeld(Maid target, MaidIKHoldType[] pair)
+        {
+            return holdController.GetHold(target, pair[0])
+                && holdController.GetHold(target, pair[1]);
         }
 
         private void DrawGrounding(Maid target)
