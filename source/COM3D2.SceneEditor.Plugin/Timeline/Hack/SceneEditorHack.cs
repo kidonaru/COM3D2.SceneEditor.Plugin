@@ -80,7 +80,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>ボーン/IK の表示。SE の「ボーン表示」トグルがそのまま実体</summary>
+        /// <summary>
+        /// ボーン/IK の表示。SE の「ボーン表示」トグルの生値がそのまま実体で、
+        /// 実際に出ているか (編集モードとの AND) は isBoneEditing が持つ。
+        /// ポーズ編集モードには追従させない (StudioHackManager.isPoseEditing 参照)
+        /// </summary>
         public override bool isIKVisible
         {
             get => manipulateManager.isBoneVisible;

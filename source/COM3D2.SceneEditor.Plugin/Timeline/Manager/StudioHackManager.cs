@@ -15,13 +15,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private bool _isPoseEditing = false;
 
         /// <summary>
-        /// ポーズ編集モード。ボーン/IK 表示 (SE の「ボーン表示」トグル) を追従させる。
-        ///
-        /// 選択中のレイヤー種別で表示可否を決める条件は持たない
-        /// (条件付きにすると、レイヤーの都合でトグルが落ち、
-        /// ユーザーには理由が分からないまま消えてしまう)。
-        ///
-        /// 同じ理由で、値が変わらない再設定でトグルを塗り直させてもいけない
+        /// ポーズ編集モード。
+        /// ボーン表示トグルは追従させない (モード外はボーン自体が出ないため、
+        /// トグルの値はユーザーが決めた表示設定として保つ)
         /// </summary>
         public bool isPoseEditing
         {
@@ -31,7 +27,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_studioHack != null)
                 {
                     _studioHack.isPoseEditing = value;
-                    _studioHack.isIKVisible = value;
                 }
             }
         }

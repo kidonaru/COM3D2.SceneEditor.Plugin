@@ -151,9 +151,11 @@ namespace COM3D2.SceneEditor.Plugin
             // ボーン選択中はギズモの操作対象を選択オブジェクトから差し替える。
             // SelectionManager は「ボーンヒットはメイドルートへ丸める」規約なので経由しない。
             // ただしポーズ定義を持つボーン (Bip01 系) は Inspector がひねり/曲げ表示に切り替わり、
-            // 編集経路もモーション停止を伴うスライダー側になるためギズモは出さない
+            // 編集経路もモーション停止を伴うスライダー側になるためギズモは出さない。
+            // 骨格線と同じく編集モード＋ボーン表示 (isBoneEditing) 中だけ出す
             GizmoRenderer.externalTargetProvider = () =>
-                editMode && selectedBone != null && !selectionManager.hasBoneSelection
+                editMode && MaidManipulateManager.instance.isBoneEditing
+                    && selectedBone != null && !selectionManager.hasBoneSelection
                     ? selectedBone.gameObject : null;
 
             // モデルの増減で group が振り直され、モデル修飾名が変わる
@@ -796,14 +798,6 @@ namespace COM3D2.SceneEditor.Plugin
                 if (!_wasGizmoDragging)
                 {
                     BeginEditHistory(maid, "ボーン編集: " + selectedBone.name, new[] { selectedBone });
-
-                    if (!isModelMode)
-                    {
-                        // ボーンを動かし始めたらメニューバーの編集モード (isEditMode) へ自動遷移する。
-                        // 本クラスの editMode (ウィンドウ表示状態) とは別物。
-                        // ドラッグ点・ボーンギズモ経由の遷移は MaidManipulateManager.Update が担う
-                        MaidManipulateManager.instance.isEditMode = true;
-                    }
                 }
                 NotifyEdited(maid, selectedBone);
             }

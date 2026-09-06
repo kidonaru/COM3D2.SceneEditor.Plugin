@@ -71,7 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
             && SceneEditorPlugin.instance.isEnable
             && isHostActive()
             && boneEditManager.editMode
-            && MaidManipulateManager.instance.isBoneVisible;
+            && MaidManipulateManager.instance.isBoneEditing;
 
         private void OnPostRender()
         {

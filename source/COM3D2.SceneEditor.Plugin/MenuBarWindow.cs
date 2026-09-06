@@ -42,6 +42,8 @@ namespace COM3D2.SceneEditor.Plugin
             public Action toggle;
             /// <summary>表示条件。null は常時表示</summary>
             public Func<bool> visible;
+            /// <summary>操作可否。null は常時操作可 (バートグルのみ参照する)</summary>
+            public Func<bool> enabled;
             /// <summary>
             /// サブメニューの項目構築。設定した項目はクリックで横にサブポップアップを開く。
             /// 設定した場合 toggle は呼ばれない（クリックは開閉専用になる）
@@ -228,6 +230,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     label = "ボーン表示",
                     isOn = () => MaidManipulateManager.instance.isBoneVisible,
+                    // ボーンは編集モード中しか出さないため、モード外では触らせない
+                    enabled = () => MaidManipulateManager.instance.isEditMode,
                     toggle = () =>
                     {
                         var manager = MaidManipulateManager.instance;
@@ -463,7 +467,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 view.DrawToggle(toggle.label, toggle.isOn(), TOGGLE_BUTTON_WIDTH, ITEM_HEIGHT,
-                    _ => toggle.toggle());
+                    toggle.enabled == null || toggle.enabled(), _ => toggle.toggle());
             }
 
             view.EndLayout();

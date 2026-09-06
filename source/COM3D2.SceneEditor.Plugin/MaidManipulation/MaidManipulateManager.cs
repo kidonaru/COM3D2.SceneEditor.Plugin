@@ -229,8 +229,18 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>ボーン表示。メニューバーのトグルと連動し、白丸とボーンギズモの出し分けに使う</summary>
+        /// <summary>
+        /// ボーン表示トグル。メニューバーのトグルと連動する。
+        /// 実際に出すかは編集モードとの AND (isBoneEditing) で決まる
+        /// </summary>
         public bool isBoneVisible { get; set; } = true;
+
+        /// <summary>
+        /// 白丸・ボーンギズモを実際に出すか。
+        /// 編集モード外はポーズを触れない (レイヤーが値を書き戻す) ため、
+        /// ボーン表示が ON でも出さない
+        /// </summary>
+        public bool isBoneEditing => isEditMode && isBoneVisible;
 
         /// <summary>操作対象として扱える状態か（実体が残っているか）。非表示中も操作対象に残す</summary>
         private static bool IsAlive(Maid maid)
@@ -248,18 +258,8 @@ namespace COM3D2.SceneEditor.Plugin
             // 上書きされて編集が消えるため、座標を触る操作の対象から外す
             var movableMaid = IsVisible(activeMaid) ? activeMaid : null;
 
-            // ギズモ・ドラッグ点は「ボーン表示」ON のときだけ出す。
-            // 編集モード OFF でも表示・操作でき、掴んだ時点で編集モードへ入る
-            var isBoneEditing = isBoneVisible;
-
-            // ドラッグ点・ボーンギズモを掴んだら編集モードへ自動遷移する
-            // (ボーン編集ウィンドウの選択ボーンギズモは BoneEditManager.RecordGizmoDrag が担う)
-            if (MaidDragBoneTracker.draggingBoneName != null
-                || boneGizmoController.grabbedBoneName != null)
-            {
-                isEditMode = true;
-            }
-
+            // ギズモ・ドラッグ点は編集モードと「ボーン表示」の両方が ON のときだけ出す
+            // (isBoneEditing)。
             // 非表示の間はギズモコンポーネントを付けたままにしない
             // (呼出済みの全メイドへ常時アタッチされ、描画・ログのコストが残るため)
             boneGizmoController.SetTarget(isBoneEditing ? movableMaid : null);

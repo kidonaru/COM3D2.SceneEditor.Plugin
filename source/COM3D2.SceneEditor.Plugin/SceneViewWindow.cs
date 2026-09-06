@@ -574,7 +574,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             if (camera == null || !IsSceneViewActiveAt(guiPos) ||
-                !MaidManipulateManager.instance.isBoneVisible)
+                !MaidManipulateManager.instance.isBoneEditing)
             {
                 MaidDragPointRing.SetSceneHovered(null);
                 // 次に領域へ入ったら位置が同じでも引き直す

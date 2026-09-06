@@ -152,7 +152,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 指関節ごとのドラッグ点を出すトグル。表示条件は体のドラッグ点と
-                // 同じ（ボーン表示 ON）なので、OFF 中に押しても点は出ない
+                // 同じ（編集モード＋ボーン表示 ON）なので、OFF 中に押しても点は出ない
                 view.DrawToggle("個別編集", maidManager.isFingerEditMode, 80, ROW_HEIGHT,
                     value => maidManager.isFingerEditMode = value);
 
