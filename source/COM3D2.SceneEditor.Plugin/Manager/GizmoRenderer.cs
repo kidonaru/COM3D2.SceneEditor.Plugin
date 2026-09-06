@@ -266,9 +266,26 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// プールから添字 index のギズモを取り出す。足りなければ 1 件だけ伸ばす。
+        /// List を縮めずに使い回す方針の単一の窓口 (伸長はここでしか行わない)
+        /// </summary>
+        private static TransformGizmo AcquirePooledGizmo<T>(
+            List<TransformGizmo> gizmos, List<T> targets, int index)
+        {
+            if (index >= gizmos.Count)
+            {
+                gizmos.Add(new TransformGizmo());
+                targets.Add(default(T));
+            }
+            return gizmos[index];
+        }
+
+        /// <summary>
         /// ボーン回転ギズモの対象を組み直す。
         /// _gizmo が担当しているボーン (ボーン編集ウィンドウの選択ボーン) は
-        /// 同じ Transform に 2 個描かれてしまうため除く
+        /// 同じ Transform に 2 個描かれてしまうため除く。
+        /// 呼び出し元の SyncGizmo がドラッグ中は呼ばないよう抑止しているため、
+        /// _gizmo.target は「ドラッグ中でない現在の選択」として読んでよい
         /// </summary>
         private void RebuildBoneGizmos()
         {
@@ -295,13 +312,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                if (_boneGizmoCount >= _boneGizmos.Count)
-                {
-                    _boneGizmos.Add(new TransformGizmo());
-                    _boneGizmoTargets.Add(null);
-                }
-
-                var gizmo = _boneGizmos[_boneGizmoCount];
+                var gizmo = AcquirePooledGizmo(_boneGizmos, _boneGizmoTargets, _boneGizmoCount);
                 gizmo.target = bone;
                 // ボーンギズモは回転専用・ローカル軸固定。共有 UI 設定には追従させない
                 // (Alt を押した瞬間に移動ギズモが出てボーンが平行移動できてしまうため)
@@ -356,13 +367,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ギズモを 1 件ぶん確保して対象と表示設定を反映する</summary>
         private void AddMaidGizmo(GameObject go)
         {
-            if (_maidGizmoCount >= _maidGizmos.Count)
-            {
-                _maidGizmos.Add(new TransformGizmo());
-                _maidGizmoTargets.Add(null);
-            }
-
-            var gizmo = _maidGizmos[_maidGizmoCount];
+            var gizmo = AcquirePooledGizmo(_maidGizmos, _maidGizmoTargets, _maidGizmoCount);
             gizmo.target = go.transform;
             gizmo.tool = currentTool;
             gizmo.useLocalSpace = useLocalSpace;
