@@ -637,11 +637,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 label = Path.GetFileName(label);
             }
 
+            var fallbackType = ResolveFallbackType(fileName);
+
             if (!string.IsNullOrEmpty(fileName))
             {
                 fileName = Path.GetFileName(fileName);
 
-                if (GameUty.IsExistFile(fileName))
+                // menu 名の引き直しは .menu を持つ MOD アイテムだけの話なので、
+                // 背景オブジェクトではファイル検索ごと省く
+                if (fallbackType == StudioModelType.Mod && GameUty.IsExistFile(fileName))
                 {
                     var menu = ModMenuLoader.Load(fileName);
                     if (menu != null)
@@ -653,7 +657,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var info = new OfficialObjectInfo
             {
-                type = StudioModelType.Mod,
+                type = fallbackType,
                 label = label,
                 fileName = string.IsNullOrEmpty(fileName) ? label : fileName,
                 myRoomId = myRoomId,
@@ -662,6 +666,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _officialObjectLabelMap[label] = info;
 
             return info;
+        }
+
+        /// <summary>MOD の nei で宣言されるアセットバンドル拡張子</summary>
+        public const string AssetBgExtension = ".asset_bg";
+
+        /// <summary>
+        /// 公式データに無いファイル名の種別を決める（テストから直接呼ぶため public）。
+        /// タイムライン XML は種別を保存せず name から引き直すため、
+        /// 外部プラグインが配置した .asset_bg を Mod と取り違えると復元に失敗する
+        /// </summary>
+        public static StudioModelType ResolveFallbackType(string fileName)
+        {
+            if (!string.IsNullOrEmpty(fileName)
+                && fileName.EndsWith(AssetBgExtension, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return StudioModelType.Asset;
+            }
+            return StudioModelType.Mod;
         }
 
         public void RegisterPhotoBGObject(PhotoBGObjectData data)
