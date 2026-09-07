@@ -87,6 +87,8 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIView.DragInfo frameDragInfo = new GUIView.DragInfo();
         private MTEP.BoneData frameDragBoneData = null;
         private readonly GUIView.DragInfo areaDragInfo = new GUIView.DragInfo();
+        /// <summary>フレーム番号バー (シークバー) のドラッグ状態</summary>
+        private readonly GUIView.DragInfo _seekDragInfo = new GUIView.DragInfo();
         private Rect areaDragRect = new Rect();
         private readonly GUIView.DragInfo _menuWidthDraggableInfo = new GUIView.DragInfo();
 
@@ -1049,16 +1051,23 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos.y = 0;
             view.DrawTexture(texWhite, -1, FRAME_LABEL_HEIGHT, timelineLabelBgColor);
 
-            // フレーム移動
-            view.InvokeActionOnEvent(
-                -1,
-                FRAME_LABEL_HEIGHT,
-                EventType.MouseDown,
-                (pos) =>
+            // フレーム移動 (シークバー)。押下位置へシークし、そのままドラッグでも追従させる。
+            // DragInfo.pos にバー内 X を持たせ、移動量は InvokeActionOnDragging が加算してくれる
+            var seekRect = view.GetDrawRect(-1, FRAME_LABEL_HEIGHT);
+            var seekStartX = Event.current.mousePosition.x - seekRect.x;
+            if (view.InvokeActionOnDragStart(seekRect, _seekDragInfo, new Vector2(seekStartX, 0f)))
+            {
+                SeekByBarPosition(seekStartX, scrollPosition.x, frameWidth);
+                // 消費しないと GUI.DragWindow が拾ってウィンドウごと動いてしまう
+                Event.current.Use();
+            }
+            if (_seekDragInfo.isDragging)
+            {
+                view.InvokeActionOnDragging(_seekDragInfo, pos =>
                 {
-                    var frameNo = (int)((scrollPosition.x + pos.x) / frameWidth);
-                    timelineManager.SeekCurrentFrame(frameNo);
+                    SeekByBarPosition(pos.x, scrollPosition.x, frameWidth);
                 });
+            }
 
             // フレーム番号表示
             var frameLabelWidth = 50;
@@ -1220,6 +1229,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             var name = GetLayerDisplayName(currentLayer, false);
             return visibleCount > 1 ? name + " 他" + (visibleCount - 1) : name;
+        }
+
+        /// <summary>シークバー上の X 座標から現在フレームを決める。バー外へ出た分は端にクランプする</summary>
+        private static void SeekByBarPosition(float barX, float scrollX, float frameWidth)
+        {
+            var frameNo = (int)((scrollX + barX) / frameWidth);
+            frameNo = Mathf.Clamp(frameNo, 0, timeline.maxFrameNo);
+            if (frameNo != timelineManager.currentFrameNo)
+            {
+                timelineManager.SeekCurrentFrame(frameNo);
+            }
         }
 
         private void DrawBoneMenu(Rect local, bool editEnabled, bool guiEnabled)
