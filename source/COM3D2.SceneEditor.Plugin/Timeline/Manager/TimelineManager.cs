@@ -1827,17 +1827,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// 編集開始時のスナップショットから変化したパラメータを、編集対象レイヤー全てにキーフレーム登録する
         /// </summary>
-        public void AddKeyFrameDiff()
+        /// <param name="quiet">true なら登録しなかった理由の情報ログを出さない (自動登録用)</param>
+        public void AddKeyFrameDiff(bool quiet = false)
         {
             if (initialEditFrame == null)
             {
-                MTEUtils.Log("編集モード中のみキーフレームの登録ができます");
+                if (!quiet)
+                {
+                    MTEUtils.Log("編集モード中のみキーフレームの登録ができます");
+                }
                 return;
             }
 
             if (maid == null)
             {
-                MTEUtils.LogError("メイドが配置されていません");
+                if (!quiet)
+                {
+                    MTEUtils.LogError("メイドが配置されていません");
+                }
                 return;
             }
 
@@ -1860,7 +1867,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (changedLayers.Count == 0)
             {
-                MTEUtils.Log("変更がないのでキーフレームの登録をスキップしました");
+                if (!quiet)
+                {
+                    MTEUtils.Log("変更がないのでキーフレームの登録をスキップしました");
+                }
                 return;
             }
 

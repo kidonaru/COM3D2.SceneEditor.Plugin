@@ -61,6 +61,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>履歴が変化した (追加/undo/redo/ジャンプ/クリア)。ウィンドウ更新用</summary>
         public event Action onChanged;
 
+        /// <summary>
+        /// 内部操作 (BeforeEdit 経由) が値の変更を伴って 1 件確定した。
+        /// タイムラインの自動キーフレーム登録が購読する。
+        /// 外部プラグインの登録 (AddEntry 直接) や undo/redo では発火しない
+        /// </summary>
+        public event Action<HistoryEntry> onEditCommitted;
+
         /// <summary>確定待ちの操作。同一 (メイド, スコープ) の連続変更をまとめる</summary>
         private HistoryEntry _pending;
 
@@ -136,7 +143,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private void CommitPending()
+        /// <param name="notify">確定を onEditCommitted で通知するか。プラグイン無効化時の掃き出しでは通知しない</param>
+        private void CommitPending(bool notify = true)
         {
             var pending = _pending;
             _pending = null;
@@ -156,6 +164,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             AddEntry(pending);
+
+            // AddEntry は適用中 (_isApplying) に受け付けないため、履歴に載らない操作は通知しない
+            if (notify && !_isApplying)
+            {
+                onEditCommitted?.Invoke(pending);
+            }
         }
 
         /// <summary>
@@ -357,7 +371,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 無効化中は Update が回らず確定待ちが滞留するため、この時点で確定する
             if (_pending != null)
             {
-                CommitPending();
+                CommitPending(notify: false);
             }
         }
 
