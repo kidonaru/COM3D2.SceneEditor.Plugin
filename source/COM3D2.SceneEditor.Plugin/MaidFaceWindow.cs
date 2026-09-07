@@ -46,39 +46,6 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
-        /// <summary>キー化していないときに選べる向け先。毎フレーム複製しないよう控えておく</summary>
-        private static readonly List<MaidLookMode> UnkeyedLookModes =
-            MaidLookBridge.GetSelectableModes();
-
-        private readonly GUIComboBox<MaidLookMode> _lookModeComboBox = new GUIComboBox<MaidLookMode>
-        {
-            getName = (mode, _) => mode.ToString(),
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 100),
-        };
-
-        /// <summary>メイドモードの注視対象。呼出済みメイドから選ぶ</summary>
-        private readonly GUIComboBox<Maid> _lookMaidComboBox = new GUIComboBox<Maid>
-        {
-            getName = (maid, _) => maid.status.fullNameJpStyle,
-        };
-
-        /// <summary>メイドモードで見る部位。タイムラインのキーと同じ列挙を使う</summary>
-        private readonly GUIComboBox<MTEP.MaidPointType> _lookMaidPointComboBox =
-            new GUIComboBox<MTEP.MaidPointType>
-            {
-                items = new List<MTEP.MaidPointType>((MTEP.MaidPointType[])
-                    Enum.GetValues(typeof(MTEP.MaidPointType))),
-                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
-            };
-
-        /// <summary>モデルモードの注視対象。スタジオモデルから選ぶ</summary>
-        private readonly GUIComboBox<MTEP.StudioModelStat> _lookModelComboBox =
-            new GUIComboBox<MTEP.StudioModelStat>
-            {
-                getName = (model, _) => model.displayName,
-            };
-
         /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
         private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
 
@@ -86,7 +53,7 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly EyesPosRowDrawer _eyesPosRowDrawer = new EyesPosRowDrawer();
 
         /// <summary>
-        /// 目線種別。顔/瞳の追従トグルのプリセットで、書き込み先はタイムライン全体の設定。
+        /// 目線種別。顔/瞳の追従フラグを決める設定で、書き込み先はタイムライン全体の設定。
         /// 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
         /// 開いている間にタイムラインが閉じられた場合に備えて null を弾く
         /// </summary>
@@ -105,9 +72,6 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                 },
             };
-
-        private static MaidLookController lookController
-            => MaidManipulateManager.instance.lookController;
 
         /// <summary>カテゴリ一覧のキャッシュ。毎フレームの再構築を避ける</summary>
         private List<string> _presetCategories = null;
@@ -286,16 +250,14 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 視線タブ。SE の向け先とタイムラインのキー化設定を 1 セクションで描く。
-        /// 向け先 (trsLookTarget) の所有者は MaidLookController で、
-        /// 「視線をキー化」が有効な間はタイムラインの注視先がそれを駆動する
-        /// (MaidLookBridge を参照)。そのため両者を並べず、
-        /// キー化の有無で有効になる行を切り替える
+        /// 視線タブ。向け先 (trsLookTarget) の所有者は MaidLookController だが、
+        /// 入口はタイムラインの注視先キー (MaidCache) に一本化しており、
+        /// MaidLookBridge がそれをコントローラへ流す。
+        /// 顔・瞳の追従フラグは「メイド目線」が決めるため、ここでは個別に出さない
         /// </summary>
         private void DrawLookContent(GUIView view, Maid target)
         {
             var timeline = MTEP.TimelineManager.instance.timeline;
-            var mode = lookController.GetMode(target);
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -303,30 +265,45 @@ namespace COM3D2.SceneEditor.Plugin
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            DrawLookKeyToggleRow(view, timeline);
-
-            // キー化トグルの反映は同じ描画中に起きるため、以降の行はトグル後の値で決める
-            var isKeyed = timeline != null;
-
-            DrawLookTargetRows(view, target, mode, isKeyed);
-            DrawEyeMoveTypeRow(view, timeline);
-            DrawHeadToCamRow(view, target);
-            DrawLookDirectionSliders(view, target, mode, isKeyed);
-
-            if (isKeyed)
-            {
-                DrawKeyedLookResetRow(view, target);
-            }
-
+            DrawTimelineLookSection(view, target, timeline);
             DrawEyesPosSection(view, target, timeline);
 
             view.EndScrollView();
         }
 
         /// <summary>
+        /// メイド目線・注視先・顔向きキー。書き込み先はタイムライン設定と MaidCache で、
+        /// タイムライン未読込のときは編集できないため案内だけ出す
+        /// </summary>
+        private void DrawTimelineLookSection(GUIView view, Maid target, MTEP.TimelineData timeline)
+        {
+            if (timeline == null)
+            {
+                view.DrawLabel("タイムライン未読込のため視線は編集できません",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+            if (maidCache == null)
+            {
+                view.DrawLabel("タイムライン側の対象メイドが見つかりません",
+                    -1, ROW_HEIGHT, textColor: Color.yellow);
+                return;
+            }
+
+            DrawEyeMoveTypeRow(view, timeline);
+            _timelineLookRowDrawer.DrawLookAtTargetRows(view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
+
+            view.AddSpace(5);
+            _timelineLookRowDrawer.DrawLookDirectionRows(view, maidCache, LABEL_WIDTH);
+
+            DrawKeyedLookResetRow(view, maidCache);
+        }
+
+        /// <summary>
         /// 瞳位置・瞳サイズ。
-        /// 書き込み先は瞳の Transform (MaidCache 経由) で「視線をキー化」には依らないため、
-        /// キー化の有無に関わらず出す
+        /// 書き込み先は瞳の Transform (MaidCache 経由) で、注視先やメイド目線には依らない
         /// </summary>
         private void DrawEyesPosSection(GUIView view, Maid target, MTEP.TimelineData timeline)
         {
@@ -356,236 +333,23 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 顔向き左右/上下。キー化中はタイムラインの顔向きキー (MaidCache) を編集し、
-        /// 注視先が手動のときだけ効く。キー化していなければ SE の顔向きを編集し、
-        /// 向け先が「方向指定」のときだけ効く
+        /// 目線種別。顔・瞳の追従とそらしをまとめて決める (MaidLookBridge.ApplyEyeMoveType)。
+        /// 「無し」がタイムラインに視線を動かさせない指定になる
         /// </summary>
-        private void DrawLookDirectionSliders(
-            GUIView view, Maid target, MaidLookMode mode, bool isKeyed)
-        {
-            view.AddSpace(5);
-
-            if (isKeyed)
-            {
-                var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
-                if (maidCache != null)
-                {
-                    _timelineLookRowDrawer.DrawLookDirectionRows(view, maidCache, LABEL_WIDTH);
-                }
-                return;
-            }
-
-            // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を
-            // 基準値へ戻してしまう。BeginEnabled は入れ子にできないため、
-            // 基準値そのものを動かす SetEnabled で囲む
-            view.SetEnabled(mode == MaidLookMode.方向指定);
-            DrawLookSlider(view, target, "顔向き左右", lookController.GetLookX(target),
-                value => lookController.SetLook(target, value, lookController.GetLookY(target)));
-            DrawLookSlider(view, target, "顔向き上下", lookController.GetLookY(target),
-                value => lookController.SetLook(target, lookController.GetLookX(target), value));
-            view.SetEnabled(true);
-        }
-
-        /// <summary>
-        /// 視線をキー化するか (タイムラインの「顔/瞳の固定化」)。
-        /// タイムライン全体の設定なので、対象メイドを問わず同じ値を出す
-        /// </summary>
-        private void DrawLookKeyToggleRow(GUIView view, MTEP.TimelineData timeline)
-        {
-            if (timeline == null)
-            {
-                view.DrawLabel("タイムライン未読込のため視線はキー化されません",
-                    -1, ROW_HEIGHT, textColor: Color.gray);
-                return;
-            }
-
-        }
-
-        /// <summary>
-        /// 向け先の行。キー化の有無で選択肢と書き込み先だけが変わり、
-        /// 行の構成 (向け先 → 対象の指定) は変えない
-        /// </summary>
-        private void DrawLookTargetRows(
-            GUIView view, Maid target, MaidLookMode mode, bool isKeyed)
-        {
-            if (isKeyed)
-            {
-                var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
-                if (maidCache == null)
-                {
-                    view.DrawLabel("タイムライン側の対象メイドが見つかりません",
-                        -1, ROW_HEIGHT, textColor: Color.yellow);
-                    return;
-                }
-                _timelineLookRowDrawer.DrawLookAtTargetRows(
-                    view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
-                return;
-            }
-
-            _lookModeComboBox.items = UnkeyedLookModes;
-            _lookModeComboBox.currentIndex = UnkeyedLookModes.IndexOf(mode);
-            _lookModeComboBox.onSelected = (newMode, _) =>
-            {
-                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線の向け先");
-                lookController.SetMode(target, newMode);
-            };
-            DrawLabeledComboBox("向け先", _lookModeComboBox);
-
-            // 対象の指定はキー化中の行 (向け先の直下に対象が続く) と並びを揃える
-            if (mode == MaidLookMode.メイド)
-            {
-                DrawLookMaidRows(view, target);
-            }
-            else if (mode == MaidLookMode.モデル)
-            {
-                DrawLookModelRow(view, target);
-            }
-            else if (mode == MaidLookMode.オブジェクト)
-            {
-                DrawLookObjectRows(view, target);
-            }
-        }
-
-        /// <summary>目線種別。顔/瞳の追従トグルをまとめて切り替えるプリセット</summary>
         private void DrawEyeMoveTypeRow(GUIView view, MTEP.TimelineData timeline)
         {
-            if (timeline == null)
-            {
-                return;
-            }
-
             _eyeMoveTypeComboBox.currentIndex = (int) timeline.eyeMoveType;
             DrawLabeledComboBox("メイド目線", _eyeMoveTypeComboBox);
         }
 
-        /// <summary>顔・目の追従トグル。向け先と独立で、頭ボーンのドラッグでも落ちる</summary>
-        private void DrawHeadToCamRow(GUIView view, Maid target)
-        {
-            var body = target.body0;
-            view.BeginHorizontal();
-            {
-                // BeginEnabled はネスト非対応のため、無効化は各 DrawToggle の enabled 引数で個別に指定する
-                view.DrawToggle("顔を向ける", body != null && body.boHeadToCam, 95, ROW_HEIGHT,
-                    body != null, value =>
-                    {
-                        // カメラ追従は Pose スナップショットに含まれるため Pose で記録する
-                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "顔を向ける");
-                        body.boHeadToCam = value;
-                    });
-                view.DrawToggle("目を向ける", body != null && body.boEyeToCam, 95, ROW_HEIGHT,
-                    body != null, value =>
-                    {
-                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "目を向ける");
-                        body.boEyeToCam = value;
-                    });
-            }
-            view.EndLayout();
-        }
-
-        /// <summary>メイドモードの注視対象と部位。キー化中は同じ行を TimelineLookRowDrawer が描く</summary>
-        private void DrawLookMaidRows(GUIView view, Maid target)
-        {
-            var maids = MTEUtils.GetReadyMaidList();
-            var targetMaid = lookController.GetTargetMaid(target);
-
-            _lookMaidComboBox.items = maids;
-            // 未選択のときは currentIndex が -1 になりボタン文字列が決まらないため、既定名で埋める
-            // (先頭のメイドへ丸めると、選んでいないメイドが選択済みに見えてしまう)
-            _lookMaidComboBox.defaultName = targetMaid == null ? "未選択" : null;
-            _lookMaidComboBox.currentIndex = maids.IndexOf(targetMaid);
-            _lookMaidComboBox.onSelected = (selected, _) =>
-            {
-                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視対象の指定");
-                lookController.SetMaidTarget(
-                    target, selected, lookController.GetMaidPointType(target));
-            };
-            DrawLabeledComboBox("メイド", _lookMaidComboBox);
-
-            _lookMaidPointComboBox.currentIndex = (int) lookController.GetMaidPointType(target);
-            _lookMaidPointComboBox.onSelected = (pointType, _) =>
-            {
-                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視ポイントの指定");
-                lookController.SetMaidTarget(
-                    target, lookController.GetTargetMaid(target), pointType);
-            };
-            DrawLabeledComboBox("ポイント", _lookMaidPointComboBox);
-        }
-
-        /// <summary>モデルモードの注視対象。キー化中は同じ行を TimelineLookRowDrawer が描く</summary>
-        private void DrawLookModelRow(GUIView view, Maid target)
-        {
-            var models = MTEP.StudioModelManager.instance.models;
-            var modelName = lookController.GetTargetModelName(target);
-
-            _lookModelComboBox.items = models;
-            // 未選択・モデルが消えたときは currentIndex が -1 になりボタン文字列が決まらないため既定名で埋める
-            var index = models.FindIndex(model => model.name == modelName);
-            _lookModelComboBox.defaultName = index >= 0 ? null : "未選択";
-            _lookModelComboBox.currentIndex = index;
-            _lookModelComboBox.onSelected = (selected, _) =>
-            {
-                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視対象の指定");
-                lookController.SetModelTarget(target, selected.name);
-            };
-            DrawLabeledComboBox("モデル", _lookModelComboBox);
-        }
-
-        /// <summary>オブジェクトモードの注視対象。Hierarchy の選択をそのまま指定できる</summary>
-        private void DrawLookObjectRows(GUIView view, Maid target)
-        {
-            var current = lookController.GetTarget(target);
-            var selected = SelectionManager.instance.selectedObject;
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("注視対象", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-                view.DrawLabel(current != null ? current.name : "未設定", 150, ROW_HEIGHT);
-            }
-            view.EndLayout();
-
-            // 選択が無いときは押しても何も起きないため無効化する
-            if (view.DrawButton("選択中のオブジェクトを指定", 200, ROW_HEIGHT, selected != null))
-            {
-                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視対象の指定");
-                lookController.SetTarget(target, selected.transform);
-            }
-        }
-
         /// <summary>キー化される視線の初期化。書き込み先は MaidCache のため履歴は記録しない</summary>
-        private void DrawKeyedLookResetRow(GUIView view, Maid target)
+        private void DrawKeyedLookResetRow(GUIView view, MTEP.MaidCache maidCache)
         {
-            var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
-            if (maidCache == null)
-            {
-                return;
-            }
-
             if (view.DrawButton("タイムライン視線を初期化", 190, ROW_HEIGHT))
             {
                 maidCache.lookDirection = Vector2.zero;
                 maidCache.lookAtTargetType = MTEP.LookAtTargetType.None;
             }
-        }
-
-        /// <summary>顔向きスライダー 1 本。値域はフォトモードに合わせて -1〜1</summary>
-        private void DrawLookSlider(
-            GUIView view, Maid target, string label, float value, Action<float> onChanged)
-        {
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = -1f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = value,
-                onChanged = newValue =>
-                {
-                    HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線: " + label);
-                    onChanged(newValue);
-                },
-            });
         }
 
         /// <summary>

@@ -201,8 +201,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// boHeadToCam を倒すだけだと HeadToCamPer がフェードし終えるまで Slerp が効き続けるので、
         /// 追従の割合そのものも 0 にする。
         /// 離した後も追従は切ったままにする。戻すと回した頭が即カメラ向きへ引かれて操作が無に帰すため。
-        /// 追従の再開は「顔をカメラへ」トグル（MaidOperationWindow）でユーザーが選ぶ
-        /// （顔向きドラッグ MaidFaceDragPoint も同じ扱い）
+        /// 追従の再開は表情ウィンドウ視線タブの「メイド目線」を選び直すか、
+        /// タイムラインの再生 (UpdateHeadLook) で行う（顔向きドラッグ MaidFaceDragPoint も同じ扱い）
         /// </summary>
         private void StopHeadToCamWhileGrabbingHead()
         {

@@ -13,8 +13,6 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly BoneTrsMap _bones = new BoneTrsMap();
         private Quaternion _eyeL;
         private Quaternion _eyeR;
-        private bool _headToCam;
-        private bool _eyeToCam;
 
         /// <summary>記録時の視線の向け先。ボーンが動かない切替も履歴に残すために持つ</summary>
         private MaidLookMode _lookMode;
@@ -56,8 +54,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 snapshot._eyeL = body.quaDefEyeL;
                 snapshot._eyeR = body.quaDefEyeR;
-                snapshot._headToCam = body.boHeadToCam;
-                snapshot._eyeToCam = body.boEyeToCam;
             }
 
             var lookController = MaidManipulateManager.instance.lookController;
@@ -194,8 +190,14 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 body.quaDefEyeL = _eyeL;
                 body.quaDefEyeR = _eyeR;
-                body.boHeadToCam = _headToCam;
-                body.boEyeToCam = _eyeToCam;
+            }
+
+            // 追従フラグはメイド目線の持ち物なので記録せず、復元後にメイド目線で塗り直す。
+            // 頭ドラッグが切った追従も、ドラッグ前へ戻す Undo ではここで戻る
+            var timeline = MTEP.TimelineManager.instance.timeline;
+            if (timeline != null)
+            {
+                MaidLookBridge.ApplyEyeMoveType(maid, timeline.eyeMoveType);
             }
 
             MaidManipulateManager.instance.lookController.SetState(
@@ -241,8 +243,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (Quaternion.Angle(_eyeL, o._eyeL) >= 0.01f
                 || Quaternion.Angle(_eyeR, o._eyeR) >= 0.01f
-                || _headToCam != o._headToCam
-                || _eyeToCam != o._eyeToCam
                 || _lookMode != o._lookMode
                 || Mathf.Abs(_lookX - o._lookX) >= 0.001f
                 || Mathf.Abs(_lookY - o._lookY) >= 0.001f

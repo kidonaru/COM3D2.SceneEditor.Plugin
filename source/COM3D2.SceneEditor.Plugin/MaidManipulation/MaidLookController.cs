@@ -248,7 +248,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 保持している状態から trsLookTarget を決め直す。
-        /// boHeadToCam / boEyeToCam はウィンドウのトグルの持ち物なのでここでは触らない。
+        /// boHeadToCam / boEyeToCam はメイド目線 (MaidLookBridge.ApplyEyeMoveType) の持ち物なのでここでは触らない。
         ///
         /// TBody.LoadBody_R は基礎ボディの差し替え時に trsLookTarget をカメラへ戻すため、
         /// ドラッグ点を作り直すタイミングからも呼んで焼き直す

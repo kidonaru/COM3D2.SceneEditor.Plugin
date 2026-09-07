@@ -71,7 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _isEyeMode ? "目線操作" : "顔向き操作",
                 _isEyeMode ? null : new[] { neckBone });
 
-            // 追従が効いたままだと LateUpdate で上書きされるため切る
+            // 追従が効いたままだと LateUpdate で上書きされるため切る。戻すのは「メイド目線」の選び直し
             maid.body0.boHeadToCam = false;
             maid.body0.boEyeToCam = false;
 
