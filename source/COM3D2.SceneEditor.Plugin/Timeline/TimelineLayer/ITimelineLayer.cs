@@ -67,7 +67,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void OutputAnm();
         void OutputDCM(XElement songElement);
         void AddKeyFrameAll();
-        void AddKeyFrameDiff();
+        /// <summary>編集開始時のスナップショットとの差分だけをキーフレームへ登録し、登録したボーン数を返す。
+        /// 適用と履歴登録は行わないので、呼び出し側 (TimelineManager.AddKeyFrameDiff) でまとめて行う</summary>
+        int AddKeyFrameDiffBones();
         void AddKeyFrames(IEnumerable<string> boneNames);
         void RemoveKeyFrames(IEnumerable<string> boneNames);
 

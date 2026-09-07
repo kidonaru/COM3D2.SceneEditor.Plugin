@@ -30,7 +30,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public HashSet<BoneData> selectedBones = new HashSet<BoneData>();
         private int prevPlayingFrameNo = -1;
         public string errorMessage = "";
+        /// <summary>アクティブレイヤーの編集開始時スナップショット。null なら編集モード外</summary>
         public FrameData initialEditFrame;
+        /// <summary>編集対象レイヤーごとの編集開始時スナップショット。差分登録の基準になる</summary>
+        private readonly Dictionary<ITimelineLayer, FrameData> _initialEditFrames = new Dictionary<ITimelineLayer, FrameData>();
         public Vector3 initialEditPosition = Vector3.zero;
         public Quaternion initialEditRotation = Quaternion.identity;
         private bool isPrevPoseEditing;
@@ -1794,13 +1797,104 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 編集モードでキーフレーム登録の対象になるレイヤー。
+        /// アクティブレイヤーに加え、スロットを持たないレイヤーとアクティブメイドのスロットのレイヤーを含む
+        /// </summary>
+        public IEnumerable<ITimelineLayer> editTargetLayers
+        {
+            get
+            {
+                var current = currentLayer;
+                var slotNo = maidManager.maidSlotNo;
+                foreach (var layer in layers)
+                {
+                    if (layer == current || !layer.hasSlotNo || layer.slotNo == slotNo)
+                    {
+                        yield return layer;
+                    }
+                }
+            }
+        }
+
+        /// <summary>レイヤーの編集開始時スナップショット。編集対象外か編集モード外なら null</summary>
+        public FrameData GetInitialEditFrame(ITimelineLayer layer)
+        {
+            FrameData frame;
+            return _initialEditFrames.TryGetValue(layer, out frame) ? frame : null;
+        }
+
+        /// <summary>
+        /// 編集開始時のスナップショットから変化したパラメータを、編集対象レイヤー全てにキーフレーム登録する
+        /// </summary>
+        public void AddKeyFrameDiff()
+        {
+            if (initialEditFrame == null)
+            {
+                MTEUtils.Log("編集モード中のみキーフレームの登録ができます");
+                return;
+            }
+
+            if (maid == null)
+            {
+                MTEUtils.LogError("メイドが配置されていません");
+                return;
+            }
+
+            var changedLayers = new List<ITimelineLayer>();
+            foreach (var layer in editTargetLayers)
+            {
+                try
+                {
+                    if (layer.AddKeyFrameDiffBones() > 0)
+                    {
+                        changedLayers.Add(layer);
+                    }
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogError("キーフレーム登録に失敗しました layer={0}", layer.layerName);
+                    MTEUtils.LogException(e);
+                }
+            }
+
+            if (changedLayers.Count == 0)
+            {
+                MTEUtils.Log("変更がないのでキーフレームの登録をスキップしました");
+                return;
+            }
+
+            foreach (var layer in changedLayers)
+            {
+                layer.ApplyCurrentFrame(true);
+            }
+
+            RequestHistory("キーフレーム登録");
+        }
+
         public void OnPoseEditUpdated()
         {
             OnPoseEditEnd();
 
-            var frame = currentLayer.CreateFrame(currentFrameNo);
-            currentLayer.UpdateFrame(frame, initialEdit: true);
-            initialEditFrame = frame;
+            // MotionTimelineLayer.UpdateFrame は initialEditFrame の有無で挙動を変えるため、
+            // 全レイヤーのスナップショットを取り終えてから initialEditFrame を設定する
+            foreach (var layer in editTargetLayers)
+            {
+                try
+                {
+                    var tmpFrame = layer.CreateFrame(currentFrameNo);
+                    layer.UpdateFrame(tmpFrame, initialEdit: true);
+                    _initialEditFrames[layer] = tmpFrame;
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogError("編集開始時のスナップショット取得に失敗したため、このレイヤーは次のシークまでキーフレーム登録の対象外になります layer={0}", layer.layerName);
+                    MTEUtils.LogException(e);
+                }
+            }
+
+            // initialEditFrame は既存コード互換のためのアクティブレイヤー分のエイリアス
+            initialEditFrame = GetInitialEditFrame(currentLayer);
 
             if (maid != null)
             {
@@ -1820,6 +1914,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void OnPoseEditEnd()
         {
+            _initialEditFrames.Clear();
+
             if (initialEditFrame != null)
             {
                 initialEditFrame = null;

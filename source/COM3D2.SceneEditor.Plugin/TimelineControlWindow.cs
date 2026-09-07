@@ -493,7 +493,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawGroupLabel(view, "キーフレーム", 50);
             if (view.DrawButton("登録", 50, ROW_HEIGHT, studioHackManager.isPoseEditing))
             {
-                currentLayer.AddKeyFrameDiff();
+                timelineManager.AddKeyFrameDiff();
             }
 
             WrapIfNeeded(view, 60);

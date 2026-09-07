@@ -501,36 +501,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             timelineManager.RequestHistory("キーフレーム全登録");
         }
 
-        public void AddKeyFrameDiff()
+        public int AddKeyFrameDiffBones()
         {
-            if (timelineManager.initialEditFrame == null)
+            var initialFrame = timelineManager.GetInitialEditFrame(this);
+            if (initialFrame == null || maid == null)
             {
-                MTEUtils.Log("編集モード中のみキーフレームの登録ができます");
-                return;
-            }
-
-            var maid = this.maid;
-            if (maid == null)
-            {
-                MTEUtils.LogError("メイドが配置されていません");
-                return;
+                return 0;
             }
 
             var tmpFrame = CreateFrame(timelineManager.currentFrameNo);
             UpdateFrame(tmpFrame);
 
-            var diffBones = tmpFrame.GetDiffBones(timelineManager.initialEditFrame);
+            var diffBones = tmpFrame.GetDiffBones(initialFrame);
             if (diffBones.Count == 0)
             {
-                MTEUtils.Log("変更がないのでキーフレームの登録をスキップしました");
-                return;
+                return 0;
             }
 
             UpdateBones(timelineManager.currentFrameNo, diffBones);
-
-            ApplyCurrentFrame(true);
-
-            timelineManager.RequestHistory("キーフレーム登録");
+            return diffBones.Count;
         }
 
         public void AddKeyFrames(IEnumerable<string> boneNames)

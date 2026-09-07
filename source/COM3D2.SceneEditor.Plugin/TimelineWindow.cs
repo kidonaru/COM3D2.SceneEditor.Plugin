@@ -199,22 +199,20 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var timelineManager = MTEP.TimelineManager.instance;
-            var currentLayer = timelineManager.currentLayer;
             // 編集モード外 (initialEditFrame 未設定) のドラッグはキーフレーム登録の対象外
-            if (currentLayer == null || timelineManager.initialEditFrame == null)
+            if (timelineManager.currentLayer == null || timelineManager.initialEditFrame == null)
             {
                 return;
             }
 
-            // 指ドラッグ等は選択同期を経ずレイヤーが別メイドを指したままになり得るため、
-            // アクティブレイヤーの対象メイドと一致する場合のみ登録する
-            var maidCache = currentLayer.maidCache;
-            if (!currentLayer.hasSlotNo || maidCache == null || maidCache.maid != maid)
+            // 指ドラッグ等は選択同期を経ずアクティブメイドが別メイドのままになり得るため、
+            // 登録対象 (アクティブメイドのスロット) と一致する場合のみ登録する
+            if (maid == null || MTEP.MaidManager.instance.maid != maid)
             {
                 return;
             }
 
-            currentLayer.AddKeyFrameDiff();
+            timelineManager.AddKeyFrameDiff();
         }
 
         private bool _syncingSelection = false;
@@ -341,7 +339,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (tc.GetKeyDown(MTEP.KeyBindType.AddKeyFrame))
             {
-                currentLayer.AddKeyFrameDiff();
+                timelineManager.AddKeyFrameDiff();
             }
             if (tc.GetKeyDown(MTEP.KeyBindType.AddKeyFrameAll))
             {
