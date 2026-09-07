@@ -152,6 +152,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>アイコントグルの内側余白 (ボタン枠と絵の間)</summary>
         private const float ICON_TOGGLE_OFFSET = 4f;
 
+        /// <summary>フレーム操作アイコンボタンの幅と内側余白</summary>
+        private const float FRAME_BUTTON_WIDTH = 25f;
+        private const float FRAME_ICON_OFFSET = 4f;
+
+        /// <summary>現在フレーム欄のラベル幅と入力幅</summary>
+        private const float FRAME_LABEL_WIDTH = 50f;
+        private const float FRAME_FIELD_WIDTH = 50f;
+
         /// <summary>自動登録 ON の色。録画中を連想させる赤にして他トグルと区別する</summary>
         private static readonly Color AUTO_KEY_ON_COLOR = new Color(1f, 0.3f, 0.3f);
 
@@ -367,15 +375,29 @@ namespace COM3D2.SceneEditor.Plugin
 
             var newFrameNo = timelineManager.currentFrameNo;
 
-            // シークボタン群 (|< .< < [num] > >. >|) は分断すると操作しにくいため見出しごとまとめて折り返す
-            DrawGroupLabel(view, "フレーム操作", 25 * 6 + 50);
+            // 現在フレームはラベルドラッグでも動かせる
+            WrapIfNeeded(view, FRAME_LABEL_WIDTH + GUIView.defaultMargin + FRAME_FIELD_WIDTH);
+            view.DrawDragIntField(new GUIView.DragIntFieldOption
+            {
+                label = "フレーム",
+                labelWidth = FRAME_LABEL_WIDTH,
+                value = newFrameNo,
+                minValue = 0,
+                maxValue = timeline.maxFrameNo,
+                fieldWidth = FRAME_FIELD_WIDTH,
+                height = ROW_HEIGHT,
+                onChanged = value => newFrameNo = value,
+            });
+
+            // シークボタン群 (|< .< < ▶ > >. >|) は分断すると操作しにくいためまとめて折り返す
+            WrapIfNeeded(view, FRAME_BUTTON_WIDTH * 7);
             view.margin = 0;
             {
-                if (view.DrawButton("|<", 25, ROW_HEIGHT))
+                if (DrawFrameButton(view, ToolbarIcons.Kind.SkipStart, "|<", "先頭へ"))
                 {
                     newFrameNo = 0;
                 }
-                if (view.DrawRepeatButton(".<", 25, ROW_HEIGHT))
+                if (DrawFrameRepeatButton(view, ToolbarIcons.Kind.PrevKey, ".<", "前のキーへ"))
                 {
                     var prevFrame = timelineManager.GetPrevFrame(newFrameNo);
                     if (prevFrame != null)
@@ -383,24 +405,32 @@ namespace COM3D2.SceneEditor.Plugin
                         newFrameNo = prevFrame.frameNo;
                     }
                 }
-                if (view.DrawRepeatButton("<", 25, ROW_HEIGHT))
+                if (DrawFrameRepeatButton(view, ToolbarIcons.Kind.PrevFrame, "<", "前のフレームへ"))
                 {
                     newFrameNo--;
                 }
 
-                view.DrawIntField(new GUIView.IntFieldOption
+                // 再生/停止は列の中央
+                if (currentLayer.isAnmPlaying)
                 {
-                    value = newFrameNo,
-                    width = 50,
-                    height = ROW_HEIGHT,
-                    onChanged = value => newFrameNo = value,
-                });
+                    if (DrawFrameButton(view, ToolbarIcons.Kind.Pause, "■", "停止"))
+                    {
+                        timelineManager.Pause();
+                    }
+                }
+                else
+                {
+                    if (DrawFrameButton(view, ToolbarIcons.Kind.Play, "▶", "再生"))
+                    {
+                        timelineManager.Play();
+                    }
+                }
 
-                if (view.DrawRepeatButton(">", 25, ROW_HEIGHT))
+                if (DrawFrameRepeatButton(view, ToolbarIcons.Kind.NextFrame, ">", "次のフレームへ"))
                 {
                     newFrameNo++;
                 }
-                if (view.DrawRepeatButton(">.", 25, ROW_HEIGHT))
+                if (DrawFrameRepeatButton(view, ToolbarIcons.Kind.NextKey, ">.", "次のキーへ"))
                 {
                     var nextFrame = timelineManager.GetNextFrame(newFrameNo);
                     if (nextFrame != null)
@@ -408,7 +438,7 @@ namespace COM3D2.SceneEditor.Plugin
                         newFrameNo = nextFrame.frameNo;
                     }
                 }
-                if (view.DrawButton(">|", 25, ROW_HEIGHT))
+                if (DrawFrameButton(view, ToolbarIcons.Kind.SkipEnd, ">|", "最終へ"))
                 {
                     newFrameNo = timeline.maxFrameNo;
                 }
@@ -419,22 +449,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 timelineManager.SeekCurrentFrame(newFrameNo);
                 TimelineWindow.instance.FixScrollPosition();
-            }
-
-            WrapIfNeeded(view, 20);
-            if (currentLayer.isAnmPlaying)
-            {
-                if (view.DrawButton("■", 20, ROW_HEIGHT))
-                {
-                    timelineManager.Pause();
-                }
-            }
-            else
-            {
-                if (view.DrawButton("▶", 20, ROW_HEIGHT))
-                {
-                    timelineManager.Play();
-                }
             }
 
             WrapIfNeeded(view, 60 + GUIView.defaultMargin + 50 + GUIView.ResetButtonWidth);
@@ -450,6 +464,28 @@ namespace COM3D2.SceneEditor.Plugin
                 onChanged = value => timelineManager.anmSpeed = value,
                 onReset = () => timelineManager.anmSpeed = DEFAULT_ANM_SPEED,
             });
+        }
+
+        /// <summary>フレーム操作のアイコンボタン。アイコンを読み込めなければ文字ボタンで代替する</summary>
+        private static bool DrawFrameButton(GUIView view, ToolbarIcons.Kind kind, string fallbackText, string tooltip)
+        {
+            var icon = ToolbarIcons.GetTexture(kind);
+            if (icon == null)
+            {
+                return view.DrawButton(fallbackText, FRAME_BUTTON_WIDTH, ROW_HEIGHT);
+            }
+            return view.DrawTextureButton(icon, FRAME_BUTTON_WIDTH, ROW_HEIGHT, FRAME_ICON_OFFSET, true, null, tooltip);
+        }
+
+        /// <summary>フレーム操作のアイコンリピートボタン (押し続けで連続移動)</summary>
+        private static bool DrawFrameRepeatButton(GUIView view, ToolbarIcons.Kind kind, string fallbackText, string tooltip)
+        {
+            var icon = ToolbarIcons.GetTexture(kind);
+            if (icon == null)
+            {
+                return view.DrawRepeatButton(fallbackText, FRAME_BUTTON_WIDTH, ROW_HEIGHT);
+            }
+            return view.DrawTextureRepeatButton(icon, FRAME_BUTTON_WIDTH, ROW_HEIGHT, FRAME_ICON_OFFSET, tooltip);
         }
 
         private void DrawKeyFrameControls(GUIView view)
