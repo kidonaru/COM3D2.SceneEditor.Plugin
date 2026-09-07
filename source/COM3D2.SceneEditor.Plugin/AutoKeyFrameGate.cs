@@ -8,7 +8,11 @@ namespace COM3D2.SceneEditor.Plugin
     {
         /// <param name="isAutoKeyFrame">「自動登録」トグルの状態</param>
         /// <param name="isEditing">タイムラインの編集モード中か (編集開始時スナップショットがあるか)</param>
-        /// <param name="editedMaid">操作対象のメイド。ライト・カメラ等メイドに紐づかない操作は null</param>
+        /// <param name="editedMaid">
+        /// 操作対象のメイド。ライト・カメラ等メイドに紐づかない操作は null。
+        /// ここは参照比較しかしないため、Unity の破棄済みオブジェクト (fake-null) の判定は
+        /// 呼び出し側で済ませてから渡すこと
+        /// </param>
         /// <param name="activeMaid">タイムラインのアクティブメイド。未配置なら null</param>
         public static bool ShouldRegister(
             bool isAutoKeyFrame, bool isEditing, object editedMaid, object activeMaid)

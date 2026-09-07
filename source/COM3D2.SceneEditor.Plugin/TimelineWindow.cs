@@ -212,15 +212,22 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void TryAutoKeyFrame(Maid editedMaid)
         {
+            // 破棄済みメイドは Unity の == では null 扱いだが object の参照比較では null にならず、
+            // メイドに紐づかない操作と取り違えられる。純粋ロジックへ渡す前にここで弾く
+            if (!ReferenceEquals(editedMaid, null) && editedMaid == null)
+            {
+                return;
+            }
+
             var timelineManager = MTEP.TimelineManager.instance;
             var isEditing = timelineManager.currentLayer != null
                 && timelineManager.initialEditFrame != null;
 
             if (!AutoKeyFrameGate.ShouldRegister(
-                MTEP.ConfigManager.instance.config.isAutoKeyFrame,
-                isEditing,
-                editedMaid,
-                MTEP.MaidManager.instance.maid))
+                isAutoKeyFrame: MTEP.ConfigManager.instance.config.isAutoKeyFrame,
+                isEditing: isEditing,
+                editedMaid: editedMaid,
+                activeMaid: MTEP.MaidManager.instance.maid))
             {
                 return;
             }
