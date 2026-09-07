@@ -22,28 +22,23 @@ namespace COM3D2.SceneEditor.Plugin
         private static MaidLookController lookController
             => MaidManipulateManager.instance.lookController;
 
-        /// <summary>キー化中に選べる向け先。「無し」は None が方向指定と衝突するため出さない</summary>
-        private static readonly MaidLookMode[] KeyedModes =
+        /// <summary>
+        /// 向け先の選択肢。キーの注視先種別に写せる値だけを出す。
+        /// 「無し」は None が方向指定と衝突するため出さず、そらし演出は目線種別で表す。
+        /// 「オブジェクト」は任意 Transform の同定情報が int 3 値のキーに収まらないため出さない
+        /// </summary>
+        private static readonly MaidLookMode[] SelectableModes =
         {
-            MaidLookMode.カメラ, MaidLookMode.メイド,
+            MaidLookMode.カメラ, MaidLookMode.マウス, MaidLookMode.メイド,
             MaidLookMode.モデル, MaidLookMode.方向指定,
         };
 
-        /// <summary>キー化していないときに選べる向け先 (SE の全モード)</summary>
-        private static readonly MaidLookMode[] UnkeyedModes =
-        {
-            MaidLookMode.カメラ, MaidLookMode.マウス, MaidLookMode.方向指定,
-            MaidLookMode.メイド, MaidLookMode.モデル,
-            MaidLookMode.オブジェクト, MaidLookMode.無し,
-        };
-
         /// <summary>
-        /// 向け先の選択肢。キー化の有無で選べる値だけが変わり、語彙は共通にする。
-        /// コンボボックスへ渡す List を呼び出し側が持ち回るため、毎回複製して返す
+        /// 向け先の選択肢。コンボボックスへ渡す List を呼び出し側が持ち回るため、毎回複製して返す
         /// </summary>
-        public static List<MaidLookMode> GetSelectableModes(bool useHeadKey)
+        public static List<MaidLookMode> GetSelectableModes()
         {
-            return new List<MaidLookMode>(useHeadKey ? KeyedModes : UnkeyedModes);
+            return new List<MaidLookMode>(SelectableModes);
         }
 
         /// <summary>キーの注視先種別を統合列挙へ写す (UI 表示用)</summary>
@@ -53,6 +48,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 case MTEP.LookAtTargetType.Camera:
                     return MaidLookMode.カメラ;
+                case MTEP.LookAtTargetType.Mouse:
+                    return MaidLookMode.マウス;
                 case MTEP.LookAtTargetType.Maid:
                     return MaidLookMode.メイド;
                 case MTEP.LookAtTargetType.Model:
@@ -64,7 +61,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 統合列挙をキーの注視先種別へ写す。
-        /// キー化できない値 (マウス・任意オブジェクト・無し) は、顔向きキーで駆動する
+        /// キー化できない値 (任意オブジェクト・無し) は、顔向きキーで駆動する
         /// None へ丸める (選択肢には出さないが、外部から渡っても壊れないようにする)
         /// </summary>
         public static MTEP.LookAtTargetType ToTargetType(MaidLookMode mode)
@@ -73,6 +70,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 case MaidLookMode.カメラ:
                     return MTEP.LookAtTargetType.Camera;
+                case MaidLookMode.マウス:
+                    return MTEP.LookAtTargetType.Mouse;
                 case MaidLookMode.メイド:
                     return MTEP.LookAtTargetType.Maid;
                 case MaidLookMode.モデル:
@@ -83,33 +82,27 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// タイムライン設定から SE の向け先モードを決める。
-        /// null は「SE 側の向け先を変更しない」を意味する。
+        /// タイムラインの注視先から SE の向け先モードを決める。
         ///
         /// 注視先が無い (種別 None または対象が未解決) ときは、顔向きキーが
         /// 効くよう「方向指定」にする。ただし視線そらし中は TBody の演出が
-        /// trsLookTarget == null を要求するため「無し」へ倒す
+        /// trsLookTarget == null を要求するため「無し」へ倒す。
+        /// カメラとマウスは対象の同定が要らないため、常にそのまま写す
         /// </summary>
-        /// <param name="useHeadKey">タイムラインの「視線をキー化」</param>
         /// <param name="targetType">タイムラインの注視先種別</param>
         /// <param name="hasTarget">注視先の Transform が解決できたか</param>
         /// <param name="isEyeSorashi">目線種別が視線そらしか</param>
-        public static MaidLookMode? ResolveLookMode(
-            bool useHeadKey,
+        public static MaidLookMode ResolveLookMode(
             MTEP.LookAtTargetType targetType,
             bool hasTarget,
             bool isEyeSorashi)
         {
-            // キー化が無効ならタイムラインは向け先を持たない。SE の設定が正
-            if (!useHeadKey)
-            {
-                return null;
-            }
-
             switch (targetType)
             {
                 case MTEP.LookAtTargetType.Camera:
                     return MaidLookMode.カメラ;
+                case MTEP.LookAtTargetType.Mouse:
+                    return MaidLookMode.マウス;
                 case MTEP.LookAtTargetType.Maid:
                     // メイド注視は SE 側にも同じ概念があるためそのまま写す
                     if (hasTarget)

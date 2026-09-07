@@ -48,7 +48,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>キー化していないときに選べる向け先。毎フレーム複製しないよう控えておく</summary>
         private static readonly List<MaidLookMode> UnkeyedLookModes =
-            MaidLookBridge.GetSelectableModes(false);
+            MaidLookBridge.GetSelectableModes();
 
         private readonly GUIComboBox<MaidLookMode> _lookModeComboBox = new GUIComboBox<MaidLookMode>
         {

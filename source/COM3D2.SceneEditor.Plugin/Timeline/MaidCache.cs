@@ -28,6 +28,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Camera,
         Maid,
         Model,
+        /// <summary>
+        /// マウスカーソル位置。注視点の生成と追従は SE の MaidLookController が担う。
+        /// キー値は int のため末尾に足し、既存 XML の値をずらさない
+        /// </summary>
+        Mouse,
     }
 
     public partial class MaidCache
@@ -552,17 +557,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var lookAtTarget = GetLookAtTarget();
             var lookMode = SEP.MaidLookBridge.ResolveLookMode(
-                timeline.useHeadKey, lookAtTargetType, lookAtTarget != null,
+                lookAtTargetType, lookAtTarget != null,
                 SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType));
-            if (lookMode == null)
-            {
-                return;
-            }
 
             // メイド注視・モデル注視は Transform ではなく対象の同定情報で渡し、
             // 実際の Transform は SE のコントローラが適用のたびに引き直す
             SEP.MaidLookBridge.ApplyLookMode(
-                maid, lookMode.Value, lookAtTarget, _lookDirection,
+                maid, lookMode, lookAtTarget, _lookDirection,
                 GetLookAtMaid(), lookAtMaidPointType, GetLookAtModelName());
 
             // そらし演出は trsLookTarget == null かつ非ロックが条件のため、常にロックを解く

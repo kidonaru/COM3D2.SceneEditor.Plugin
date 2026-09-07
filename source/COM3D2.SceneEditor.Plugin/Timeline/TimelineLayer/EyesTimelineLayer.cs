@@ -265,6 +265,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     switch (targetType)
                     {
                         case LookAtTargetType.Camera:
+                        case LookAtTargetType.Mouse:
                             break;
                         case LookAtTargetType.Maid:
                             trans.targetIndex = maidCache.lookAtTargetIndex;

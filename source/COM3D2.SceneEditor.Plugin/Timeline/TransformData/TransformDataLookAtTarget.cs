@@ -21,6 +21,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             "カメラ",
             "メイド",
             "モデル",
+            "マウス",
         };
 
         public TransformDataLookAtTarget()
