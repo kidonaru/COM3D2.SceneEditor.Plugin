@@ -306,7 +306,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawLookKeyToggleRow(view, timeline);
 
             // キー化トグルの反映は同じ描画中に起きるため、以降の行はトグル後の値で決める
-            var isKeyed = TimelineLookRowDrawer.IsHeadKeyEnabled;
+            var isKeyed = timeline != null;
 
             DrawLookTargetRows(view, target, mode, isKeyed);
             DrawEyeMoveTypeRow(view, timeline);
@@ -399,8 +399,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            view.DrawToggle("視線をキー化", timeline.useHeadKey, 130, ROW_HEIGHT,
-                value => timeline.useHeadKey = value);
         }
 
         /// <summary>

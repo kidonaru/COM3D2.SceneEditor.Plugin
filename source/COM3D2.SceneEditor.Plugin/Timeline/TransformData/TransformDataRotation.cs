@@ -1,4 +1,5 @@
 using UnityEngine;
+using SEP = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -12,13 +13,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasTangent => true;
 
+        /// <summary>
+        /// 頭はメイド目線が顔を向ける系のとき隠す。視線が頭を駆動している間は
+        /// 回転キーが効かないため。胸は物理無効の設定に従う
+        /// </summary>
         public override bool isHidden
         {
             get
             {
                 if (isHead)
                 {
-                    return !timeline.useHeadKey;
+                    return SEP.MaidLookBridge.IsHeadToCam(timeline.eyeMoveType);
                 }
 
                 if (isBustL)

@@ -9,10 +9,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Theory]
         [InlineData("EyesRot", EyesItemInspector.RowKind.LookDirection)]
         [InlineData("LookAtTarget", EyesItemInspector.RowKind.LookAtTarget)]
-        [InlineData("EyesPosL", EyesItemInspector.RowKind.Unsupported)]
-        [InlineData("EyesPosR", EyesItemInspector.RowKind.Unsupported)]
-        [InlineData("EyesScaL", EyesItemInspector.RowKind.Unsupported)]
-        [InlineData("EyesScaR", EyesItemInspector.RowKind.Unsupported)]
+        [InlineData("EyesPosL", EyesItemInspector.RowKind.EyesPos)]
+        [InlineData("EyesPosR", EyesItemInspector.RowKind.EyesPos)]
+        [InlineData("EyesScaL", EyesItemInspector.RowKind.EyesPos)]
+        [InlineData("EyesScaR", EyesItemInspector.RowKind.EyesPos)]
         public void ResolveRowKind_項目名から編集UI種別を求める(
             string itemName, EyesItemInspector.RowKind expected)
         {

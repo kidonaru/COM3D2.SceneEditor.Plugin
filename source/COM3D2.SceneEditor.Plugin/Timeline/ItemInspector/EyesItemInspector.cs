@@ -62,10 +62,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 固定化が無効だと視線の編集はキー化されないため、表情ウィンドウと同じ案内を出す。
-            // 瞳の位置・サイズは固定化に依らずキー化されるため、この案内の対象外
-            var isHeadKeyEnabled = TimelineLookRowDrawer.IsHeadKeyEnabled;
-
             foreach (var item in items)
             {
                 var rowKind = ResolveRowKind(item.name);
@@ -83,13 +79,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     var eyesType = MTEP.EyesTimelineLayer.EyesTypeMap[item.name];
                     _eyesPosRowDrawer.DrawEyesSliderRows(view, maidCache, eyesType);
-                    continue;
-                }
-
-                if (!isHeadKeyEnabled)
-                {
-                    view.DrawLabel(TimelineLookRowDrawer.HeadKeyDisabledMessage,
-                        -1, RowHeight, textColor: Color.yellow);
                     continue;
                 }
 

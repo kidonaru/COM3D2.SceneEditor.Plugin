@@ -51,6 +51,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         private static readonly System.Collections.Generic.HashSet<string> RemovedElementNames =
             new System.Collections.Generic.HashSet<string>
             {
+                // 「視線をキー化」は撤去し、メイド目線 (EyeMoveType) で表す
+                "UseHeadKey",
+
                 // ポストエフェクトの色拡張 / ブレンド拡張の設定 (UI ごと廃止し、常に拡張表示)
                 "UsePostEffectExtra",
                 "UsePostEffectBlend",

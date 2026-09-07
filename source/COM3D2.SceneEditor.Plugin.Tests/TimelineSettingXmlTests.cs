@@ -29,7 +29,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 directoryName = "テストフォルダ",
                 frameRate = 60f,
-                useHeadKey = true,
+                eyeMoveType = Maid.EyeMoveType.目と顔を向ける,
                 useMuneKeyL = true,
                 useMuneKeyR = true,
                 isLoopAnm = false,
@@ -48,7 +48,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Equal("テストフォルダ", dst.directoryName);
             Assert.Equal(60f, dst.frameRate);
-            Assert.True(dst.useHeadKey);
+            Assert.Equal(Maid.EyeMoveType.目と顔を向ける, dst.eyeMoveType);
             Assert.True(dst.useMuneKeyL);
             Assert.True(dst.useMuneKeyR);
             Assert.False(dst.isLoopAnm);
@@ -61,6 +61,21 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(dst.isTangentModel);
             Assert.True(dst.isTangentModelBone);
             Assert.True(dst.isTangentModelShapeKey);
+        }
+
+        [Fact]
+        public void メイド目線を持たない旧XMLは無しとして読める()
+        {
+            // 旧 SE / MTE 産の XML は UseHeadKey を持ち EyeMoveType を持たない。
+            // UseHeadKey は読み飛ばし、メイド目線は既定 (無し) になる
+            var xml = "<?xml version=\"1.0\" encoding=\"utf-16\"?>"
+                + "<TimelineData><UseHeadKey>true</UseHeadKey></TimelineData>";
+            var serializer = new XmlSerializer(typeof(TimelineXml));
+            using (var reader = new StringReader(xml))
+            {
+                var dst = (TimelineXml) serializer.Deserialize(reader);
+                Assert.Equal(Maid.EyeMoveType.無し, dst.eyeMoveType);
+            }
         }
     }
 }

@@ -15,31 +15,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class TimelineLookRowDrawer
     {
-        public const string HeadKeyDisabledMessage =
-            "表情ウィンドウの視線タブで「視線をキー化」を有効にしてください";
-
-        /// <summary>
-        /// タイムライン視線がキー化される状態か。
-        /// 参照するのは TimelineData 側のフラグ。
-        /// タイムライン未読込 (timeline == null) も false を返すため、
-        /// 「固定化が無効」と案内する呼び出し側は timeline が非 null であることを
-        /// 事前に保証すること (未読込と固定化オフで案内文が混ざらないようにするため)
-        /// </summary>
-        public static bool IsHeadKeyEnabled
-        {
-            get
-            {
-                var timeline = MTEP.TimelineManager.instance.timeline;
-                return timeline != null && timeline.useHeadKey;
-            }
-        }
-
         /// <summary>向け先の選択肢。毎フレーム複製しないよう控えておく</summary>
         private static readonly List<MaidLookMode> SelectableLookModes =
             MaidLookBridge.GetSelectableModes();
 
         /// <summary>
-        /// キー化中の向け先コンボ。SE の向け先と同じ語彙 (MaidLookMode) を使い、
+        /// 向け先コンボ。SE の向け先と同じ語彙 (MaidLookMode) を使い、
         /// 書き込み先だけが MaidCache のキー指定値になる
         /// </summary>
         private readonly GUIComboBox<MaidLookMode> _lookModeComboBox =
@@ -62,7 +43,7 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
             };
 
-        /// <summary>キー化中のモデル注視の対象。番号 (modelNames の添字) で書き込む</summary>
+        /// <summary>モデル注視の対象。番号 (modelNames の添字) で書き込む</summary>
         private readonly GUIComboBox<MTEP.StudioModelStat> _targetModelComboBox =
             new GUIComboBox<MTEP.StudioModelStat>
             {
@@ -70,9 +51,7 @@ namespace COM3D2.SceneEditor.Plugin
             };
 
         /// <summary>
-        /// キー化中の向け先の行 (対象がメイドのときはメイド・ポイントの行も続けて出す)。
-        /// キー化していないときの SE の「向け先」行と同じ語彙・同じラベルにして、
-        /// キー化の切り替えで行が入れ替わらないようにする
+        /// 向け先の行 (対象がメイドのときはメイド・ポイントの行も続けて出す)
         /// </summary>
         public void DrawLookAtTargetRows(
             GUIView view, MTEP.MaidCache maidCache, float labelWidth, float rowHeight)

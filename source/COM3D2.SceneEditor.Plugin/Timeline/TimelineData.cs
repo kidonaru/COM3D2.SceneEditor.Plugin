@@ -312,22 +312,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private bool _useHeadKey = false;
-        public bool useHeadKey
-        {
-            get => _useHeadKey;
-            set
-            {
-                if (_useHeadKey == value)
-                {
-                    return;
-                }
-
-                _useHeadKey = value;
-                maidManager.UpdateHeadLook();
-            }
-        }
-
         public int maxExistFrameNo
         {
             get
@@ -806,7 +790,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             directoryName = xml.directoryName;
             useMuneKeyL = xml.useMuneKeyL;
             useMuneKeyR = xml.useMuneKeyR;
-            useHeadKey = xml.useHeadKey;
+            eyeMoveType = xml.eyeMoveType;
             isLoopAnm = xml.isLoopAnm;
             isBackgroundVisible = xml.isBackgroundVisible;
             isGroundLinkedToBackground = xml.isGroundLinkedToBackground;
@@ -960,7 +944,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.directoryName = directoryName;
             xml.useMuneKeyL = useMuneKeyL;
             xml.useMuneKeyR = useMuneKeyR;
-            xml.useHeadKey = useHeadKey;
+            xml.eyeMoveType = eyeMoveType;
             xml.isLoopAnm = isLoopAnm;
             xml.isBackgroundVisible = isBackgroundVisible;
             xml.isGroundLinkedToBackground = isGroundLinkedToBackground;

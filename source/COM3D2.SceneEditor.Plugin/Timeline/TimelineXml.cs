@@ -203,8 +203,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("UseMuneKeyR")]
         public bool useMuneKeyR;
     
-        [XmlElement("UseHeadKey")]
-        public bool useHeadKey = false;
+        /// <summary>メイド目線。旧形式 (要素なし) は既定の 無し で読む</summary>
+        [XmlElement("EyeMoveType")]
+        public Maid.EyeMoveType eyeMoveType = Maid.EyeMoveType.無し;
 
         [XmlElement("IsLoopAnm")]
         public bool isLoopAnm = true;
