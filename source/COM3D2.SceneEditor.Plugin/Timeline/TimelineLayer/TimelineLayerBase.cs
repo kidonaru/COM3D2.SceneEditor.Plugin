@@ -513,6 +513,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateFrame(tmpFrame);
 
             var diffBones = tmpFrame.GetDiffBones(initialFrame);
+
+            // ドラッグ完了と操作履歴の確定で自動登録が 2 回走ることがあるため、
+            // 現在フレームに同じ値で登録済みのボーンは除いて 2 回目を no-op にする
+            var existingFrame = GetFrame(timelineManager.currentFrameNo);
+            if (existingFrame != null)
+            {
+                diffBones.RemoveAll(bone =>
+                {
+                    var existingBone = existingFrame.GetBone(bone.name);
+                    return existingBone != null && bone.transform.Equals(existingBone.transform);
+                });
+            }
+
             if (diffBones.Count == 0)
             {
                 return 0;
