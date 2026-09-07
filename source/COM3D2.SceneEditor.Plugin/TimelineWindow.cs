@@ -1063,9 +1063,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
             if (_seekDragInfo.isDragging)
             {
+                // コールバックはマウスが動いたフレームだけ呼ばれるため、端で止めたまま
+                // スクロールし続けることはない
                 view.InvokeActionOnDragging(_seekDragInfo, pos =>
                 {
                     SeekByBarPosition(pos.x, scrollPosition.x, frameWidth);
+                    // 現在フレームが見えるように追従スクロールする
+                    FixScrollPosition();
                 });
             }
 
