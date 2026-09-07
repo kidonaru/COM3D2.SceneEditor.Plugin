@@ -1827,6 +1827,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// 編集開始時のスナップショットから変化したパラメータを、編集対象レイヤー全てにキーフレーム登録する
         /// </summary>
+        /// <summary>
+        /// カメラレイヤーへの差分キーフレーム登録を見送るか。
+        /// カメラはカメラ同期で常時動いており、他の操作のたびに意図しないキーフレームが
+        /// 増えてしまうため自動登録の対象から外す。
+        /// 非アクティブかつカメラ同期 OFF のカメラレイヤーは再生に反映されない
+        /// (CameraTimelineLayer.ApplyPlayData) ため、手動の「登録」でも登録しない
+        /// </summary>
+        private bool ShouldSkipCameraKeyFrame(ITimelineLayer layer, bool isAuto)
+        {
+            return isAuto || (!layer.isCurrent && !config.isCameraSync);
+        }
+
         /// <param name="isAuto">
         /// 操作確定を契機とした自動登録か。true なら登録しなかった理由の情報ログを出さず、
         /// カメラレイヤーを対象から外す
@@ -1854,9 +1866,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var changedLayers = new List<ITimelineLayer>();
             foreach (var layer in editTargetLayers)
             {
-                // カメラはカメラ同期で常時動いており、他の操作のたびに意図しないキーフレームが
-                // 増えてしまうため自動登録の対象から外す (手動の「登録」では従来通り登録する)
-                if (isAuto && layer.isCameraLayer)
+                if (layer.isCameraLayer && ShouldSkipCameraKeyFrame(layer, isAuto))
                 {
                     continue;
                 }
