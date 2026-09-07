@@ -229,16 +229,15 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // まばたき中は全カテゴリのモーフ値が毎フレーム上書きされるため、明示的に切り替えられるようにする。
                 // 表示は「編集した表情を固定するか」の視点に揃えるため、まばたきの反転として扱う。
-                // 表情レイヤー再生中はタイムラインがまばたきを抑止するため編集不可にする (設定は解除時に復元される)
-                var isForceOverride = !MaidFaceMorphController.GetMabataki(target);
-                view.SetEnabled(!MaidFaceMorphController.IsMabatakiSuppressed(target));
+                // 表情レイヤー再生中はキー値が実効値になる。再生中の変更が次フレームで戻るのは
+                // モーフ行と同じ挙動なので、ここでは無効化しない
+                var isForceOverride = MaidFaceMorphController.IsForceOverride(target);
                 view.DrawToggle("強制上書き", isForceOverride, 95, ROW_HEIGHT,
                     newIsForceOverride =>
                     {
                         HistoryManager.instance.BeforeEdit(target, HistoryScope.Face, "強制上書き切替");
-                        MaidFaceMorphController.SetMabataki(target, !newIsForceOverride);
+                        MaidFaceMorphController.SetForceOverride(target, newIsForceOverride);
                     });
-                view.SetEnabled(true);
 
                 // リセットは右端揃え。対象カテゴリを持つモーフ系タブでのみ出す
                 if (isMorphTab)

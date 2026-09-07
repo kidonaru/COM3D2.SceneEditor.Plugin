@@ -25,6 +25,18 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var item in items)
             {
+                if (item.name == MTEP.FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+                {
+                    view.DrawToggle(MTEP.FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME,
+                        MaidFaceMorphController.IsForceOverride(maid), 130, RowHeight,
+                        newValue =>
+                        {
+                            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Face, "強制上書き切替");
+                            MaidFaceMorphController.SetForceOverride(maid, newValue);
+                        });
+                    continue;
+                }
+
                 var def = MaidFaceMorphController.FindDef(item.name);
                 if (def == null)
                 {
