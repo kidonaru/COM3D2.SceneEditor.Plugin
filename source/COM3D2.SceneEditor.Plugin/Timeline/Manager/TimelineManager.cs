@@ -1827,12 +1827,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// 編集開始時のスナップショットから変化したパラメータを、編集対象レイヤー全てにキーフレーム登録する
         /// </summary>
-        /// <param name="quiet">true なら登録しなかった理由の情報ログを出さない (自動登録用)</param>
-        public void AddKeyFrameDiff(bool quiet = false)
+        /// <param name="isAuto">
+        /// 操作確定を契機とした自動登録か。true なら登録しなかった理由の情報ログを出さず、
+        /// カメラレイヤーを対象から外す
+        /// </param>
+        public void AddKeyFrameDiff(bool isAuto = false)
         {
             if (initialEditFrame == null)
             {
-                if (!quiet)
+                if (!isAuto)
                 {
                     MTEUtils.Log("編集モード中のみキーフレームの登録ができます");
                 }
@@ -1841,7 +1844,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (maid == null)
             {
-                if (!quiet)
+                if (!isAuto)
                 {
                     MTEUtils.LogError("メイドが配置されていません");
                 }
@@ -1851,6 +1854,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var changedLayers = new List<ITimelineLayer>();
             foreach (var layer in editTargetLayers)
             {
+                // カメラはカメラ同期で常時動いており、他の操作のたびに意図しないキーフレームが
+                // 増えてしまうため自動登録の対象から外す (手動の「登録」では従来通り登録する)
+                if (isAuto && layer.isCameraLayer)
+                {
+                    continue;
+                }
+
                 try
                 {
                     if (layer.AddKeyFrameDiffBones() > 0)
@@ -1867,7 +1877,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (changedLayers.Count == 0)
             {
-                if (!quiet)
+                if (!isAuto)
                 {
                     MTEUtils.Log("変更がないのでキーフレームの登録をスキップしました");
                 }

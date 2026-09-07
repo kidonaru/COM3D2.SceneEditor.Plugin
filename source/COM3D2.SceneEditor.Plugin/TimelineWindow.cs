@@ -232,7 +232,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            timelineManager.AddKeyFrameDiff(quiet: true);
+            timelineManager.AddKeyFrameDiff(isAuto: true);
         }
 
         private bool _syncingSelection = false;
