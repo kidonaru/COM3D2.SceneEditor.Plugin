@@ -1776,10 +1776,19 @@ namespace COM3D2.SceneEditor.Plugin
             // (未ロードのメイドでも指定値だけは欠落させない)
             ApplyTimelineLook(maid, look);
 
-            // v33 以降はメイド目線が追従フラグを決める。setter が UpdateHeadLook を呼び、
-            // boHeadToCam / boEyeToCam / boEyeSorashi をまとめて揃える。
-            // タイムライン全体の設定なので、複数メイドの復元では最後の値が残る
-            // (同じタイムラインから保存した値は全員同じなので実害はない)
+            ApplyEyeFollow(maid, look);
+        }
+
+        /// <summary>
+        /// 顔・瞳の追従を戻す。
+        ///
+        /// v33 以降はメイド目線が追従フラグを決める。setter が UpdateHeadLook を呼び、
+        /// boHeadToCam / boEyeToCam / boEyeSorashi をまとめて揃える。
+        /// タイムライン全体の設定なので、複数メイドの復元では最後の値が残る
+        /// (同じタイムラインから保存した値は全員同じなので実害はない)
+        /// </summary>
+        private static void ApplyEyeFollow(Maid maid, ScenePresetLook look)
+        {
             if (!string.IsNullOrEmpty(look.eyeMoveType))
             {
                 var timeline = MTEP.TimelineManager.instance.timeline;
