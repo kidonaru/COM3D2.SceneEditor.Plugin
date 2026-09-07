@@ -133,6 +133,28 @@ namespace COM3D2.SceneEditor.Plugin
             return !string.IsNullOrEmpty(name) && HoldTypeByEnumName.TryGetValue(name, out type);
         }
 
+        /// <summary>IK 固定項目をボーンメニュー上で置く腕/脚グループ</summary>
+        public static BoneSetMenuType GetBoneSetMenuType(MaidIKHoldType type)
+        {
+            switch (type)
+            {
+                case MaidIKHoldType.Arm_L_Joint:
+                case MaidIKHoldType.Arm_L_Tip:
+                    return BoneSetMenuType.LeftArm;
+                case MaidIKHoldType.Arm_R_Joint:
+                case MaidIKHoldType.Arm_R_Tip:
+                    return BoneSetMenuType.RightArm;
+                case MaidIKHoldType.Foot_L_Joint:
+                case MaidIKHoldType.Foot_L_Tip:
+                    return BoneSetMenuType.LeftLeg;
+                case MaidIKHoldType.Foot_R_Joint:
+                case MaidIKHoldType.Foot_R_Tip:
+                    return BoneSetMenuType.RightLeg;
+                default:
+                    return BoneSetMenuType.None;
+            }
+        }
+
         /// <summary>0=腕L, 1=腕R, 2=脚L, 3=脚R（ChainDefs と同じ並び）</summary>
         private static int GetChainIndex(MaidIKHoldType type)
         {

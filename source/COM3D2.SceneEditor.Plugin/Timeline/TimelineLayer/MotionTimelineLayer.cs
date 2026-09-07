@@ -206,9 +206,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 extendBoneNames.Add(extendBoneName);
             }
 
-            var ikSetMenuItem = new BoneSetMenuItem("IK", "IK");
-            allMenuItems.Add(ikSetMenuItem);
-
+            // IK 固定は独立グループではなく、対応する腕/脚グループの末尾に並べる
             foreach (var boneName in MaidCache.ikHoldTypeMap.Keys)
             {
                 MaidIKHoldType holdType;
@@ -219,7 +217,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 var menuItem = new BoneMenuItem(
                     boneName, MaidIKHoldController.GetHoldTypeName(holdType));
-                ikSetMenuItem.AddChild(menuItem);
+                var boneSetType = MaidIKHoldController.GetBoneSetMenuType(holdType);
+
+                BoneSetMenuItem setMenuItem;
+                if (boneSetType != BoneSetMenuType.None &&
+                    setMenuItemMap.TryGetValue(boneSetType, out setMenuItem))
+                {
+                    setMenuItem.AddChild(menuItem);
+                }
+                else
+                {
+                    allMenuItems.Add(menuItem);
+                }
             }
 
             var groundingMenuItem = new BoneMenuItem(GroundingBoneName, GroundingDisplayName);
