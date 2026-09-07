@@ -39,7 +39,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     index = (int)Index.ForceOverride,
                     // キーが無い既存データを ON 扱いにするため、既定値は 1 にする
-                    name = "強制上書き",
+                    name = FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME,
                     defaultValue = 1f,
                 }
             },

@@ -4,7 +4,7 @@ using System.Linq;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
-    /// 表情モーフ名の定義表。
+    /// 表情モーフ名の定義表と、表情レイヤーの強制上書きキーの定数・値変換。
     /// DCM 本体 (MyConst の EYE/MAYU/MOUTH/FACE_OPTION_MORPH) への依存を切るため、
     /// モーフ名と和名の対応を値ごと持ち込んでいる。
     /// キー文字列は XML の Bone 名そのものなので変更しないこと
@@ -174,14 +174,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>強制上書きキーのボーン名。XML の Bone 名なので変更しないこと</summary>
         public const string FORCE_OVERRIDE_BONE_NAME = "faceForceOverride";
 
-        /// <summary>強制上書きキーの表示名</summary>
         public const string FORCE_OVERRIDE_DISPLAY_NAME = "強制上書き";
 
-        /// <summary>強制上書きキーを入れるボーンメニューのセット名</summary>
         public const string FORCE_OVERRIDE_SET_NAME = "faceSetting";
 
-        /// <summary>強制上書きキーのセット表示名</summary>
         public const string FORCE_OVERRIDE_SET_DISPLAY_NAME = "表情設定";
+
+        /// <summary>モーフではなく表情設定として扱う特殊ボーンか</summary>
+        public static bool IsForceOverrideBone(string boneName)
+        {
+            return boneName == FORCE_OVERRIDE_BONE_NAME;
+        }
 
         /// <summary>キー値 (0/1) を ON/OFF へ変換する</summary>
         public static bool ToForceOverride(float value)

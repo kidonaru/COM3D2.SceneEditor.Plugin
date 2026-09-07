@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using COM3D2.SceneEditor.Plugin;
@@ -14,11 +14,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
+        /// <summary>ステップ適用で end 側へ切り替える補間位置。終端の直前まで start を維持する</summary>
+        private const float StepEndThreshold = 0.99f;
+
         private readonly List<string> _allBoneNamesCache = new List<string>();
 
         /// <summary>
         /// 強制上書きは変更追跡 (チェック) の対象外なので、絞り込み結果へ常に足す。
-        /// 先頭に置いてボーンメニューでも最初に出す
+        /// 先頭に置いてボーンメニューでも最初に出す。
+        /// 返り値は次回呼び出しで書き換わる使い捨てビューなので保持しないこと
         /// </summary>
         public override List<string> allBoneNames
         {
@@ -203,13 +207,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
-            if (motion.name == FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+            if (FaceMorphUtils.IsForceOverrideBone(motion.name))
             {
                 // ON/OFF に中間値は無いのでステップ適用する。
-                // 終端 (t >= 0.99) では end 側を採らないと、最後のキーの値が永久に効かない
+                // 終端で end 側を採らないと、最後のキーの値が永久に効かない
                 var startSetting = motion.start as TransformDataFaceSetting;
                 var endSetting = motion.end as TransformDataFaceSetting;
-                var settingValue = t < 0.99f ? startSetting.forceOverride : endSetting.forceOverride;
+                var settingValue = t < StepEndThreshold
+                    ? startSetting.forceOverride : endSetting.forceOverride;
                 _isForceOverride = FaceMorphUtils.ToForceOverride(settingValue);
                 return;
             }
@@ -232,7 +237,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>頬・涙などのオプションモーフは中間値を持たないためステップ適用する</summary>
         private float Lerp(float startValue, float endValue, float lerpFrame, string morphName)
         {
-            if (FaceMorphUtils.IsStepMorph(morphName) && lerpFrame < 0.99f)
+            if (FaceMorphUtils.IsStepMorph(morphName) && lerpFrame < StepEndThreshold)
             {
                 lerpFrame = 0f;
             }
@@ -272,7 +277,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             foreach (var name in allBoneNames)
             {
-                if (name == FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+                if (FaceMorphUtils.IsForceOverrideBone(name))
                 {
                     var setting = frame.GetOrCreateTransformData<TransformDataFaceSetting>(name);
                     setting.forceOverride = FaceMorphUtils.ToForceOverrideValue(
@@ -297,7 +302,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override TransformType GetTransformType(string name)
         {
-            if (name == FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+            if (FaceMorphUtils.IsForceOverrideBone(name))
             {
                 return TransformType.FaceSetting;
             }

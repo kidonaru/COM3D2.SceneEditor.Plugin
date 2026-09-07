@@ -25,7 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var item in items)
             {
-                if (item.name == MTEP.FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+                if (MTEP.FaceMorphUtils.IsForceOverrideBone(item.name))
                 {
                     view.DrawToggle(MTEP.FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME,
                         MaidFaceMorphController.IsForceOverride(maid), 130, RowHeight,
