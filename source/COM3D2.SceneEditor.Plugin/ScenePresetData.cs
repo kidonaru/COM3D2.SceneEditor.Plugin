@@ -475,8 +475,9 @@ namespace COM3D2.SceneEditor.Plugin
         public float lookY;
 
         /// <summary>
-        /// TBody.boHeadToCam (顔を向ける)。v14 以前のプリセットや、
-        /// 保存時にボディを取得できなかったメイドでは headToCamSpecified が false になり、
+        /// TBody.boHeadToCam (顔を向ける)。v32 以前のプリセットの読み込み用。
+        /// v33 からは eyeMoveType が追従を決めるため保存しない。
+        /// v14 以前や、保存時にボディを取得できなかったメイドでは headToCamSpecified が false になり、
         /// 適用時にトグルへ触らない
         /// </summary>
         [XmlAttribute]
@@ -489,6 +490,15 @@ namespace COM3D2.SceneEditor.Plugin
         public bool eyeToCam;
         [XmlIgnore]
         public bool eyeToCamSpecified;
+
+        /// <summary>
+        /// メイド目線 (Maid.EyeMoveType の名前)。顔・瞳の追従とそらしをまとめて表す。
+        /// タイムライン全体の設定だが、注視先の指定値と同じく look に持つ。
+        /// v32 以前のプリセットやタイムライン未読込で保存した場合は null になり、
+        /// 適用時はメイド目線へ触らず headToCam / eyeToCam を戻す
+        /// </summary>
+        [XmlAttribute]
+        public string eyeMoveType;
 
         /// <summary>
         /// 注視対象の呼出済みメイドの maid.status.guid。
@@ -903,7 +913,9 @@ namespace COM3D2.SceneEditor.Plugin
         // v31: camera にメイド追従 (maidSlotNo / maidPointType / followRotation) を追加。
         //      旧形式は属性が無く maidSlotNo=-1 (未追従) で読め、従来どおり注視点として適用する
         // v32: effects.video を複数化。要素名 video を繰り返す形式で、旧形式の単体 video は 1 件として読める
-        public static readonly int CurrentVersion = 32;
+        // v33: look に eyeMoveType（メイド目線）を追加し、headToCam / eyeToCam は新規保存では書かない。
+        //      旧形式は eyeMoveType が null で読め、従来どおり headToCam / eyeToCam を TBody へ戻す
+        public static readonly int CurrentVersion = 33;
 
         [XmlAttribute]
         public int version = CurrentVersion;

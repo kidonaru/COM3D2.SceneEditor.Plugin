@@ -151,5 +151,36 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 Assert.Null(look.targetModelName);
             }
         }
+
+        [Fact]
+        public void メイド目線が往復で保たれる()
+        {
+            var restored = RoundTrip(new ScenePresetLook
+            {
+                mode = "カメラ",
+                eyeMoveType = "目と顔を向ける",
+            });
+
+            Assert.Equal("目と顔を向ける", restored.eyeMoveType);
+        }
+
+        [Fact]
+        public void メイド目線を持たない旧プリセットは追従トグルだけを読める()
+        {
+            // v32 以前は headToCam / eyeToCam を持ち、eyeMoveType は無い
+            const string legacy =
+                "<?xml version=\"1.0\"?>"
+                + "<ScenePresetLook mode=\"カメラ\" headToCam=\"true\" eyeToCam=\"false\">"
+                + "<lookX>0</lookX><lookY>0</lookY>"
+                + "</ScenePresetLook>";
+
+            using (var reader = new StringReader(legacy))
+            {
+                var look = (ScenePresetLook) Serializer.Deserialize(reader);
+                Assert.Null(look.eyeMoveType);
+                Assert.True(look.headToCam);
+                Assert.False(look.eyeToCam);
+            }
+        }
     }
 }

@@ -145,7 +145,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var restored = RoundTrip(data);
 
-            Assert.Equal(32, ScenePresetData.CurrentVersion);
+            Assert.Equal(33, ScenePresetData.CurrentVersion);
             Assert.NotNull(restored.effects.sound);
             Assert.Equal("BGM020.ogg", restored.effects.sound.gameBgmFile);
             Assert.Equal(@"C:\music\dance.ogg", restored.effects.sound.bgmPath);

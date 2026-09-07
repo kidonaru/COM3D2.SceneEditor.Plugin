@@ -1221,14 +1221,12 @@ namespace COM3D2.SceneEditor.Plugin
                 lookY = controller.GetLookY(maid),
             };
 
-            // 追従トグルは lookController ではなく TBody が持つ (v15)
-            var body = maid.body0;
-            if (body != null)
+            // 追従は TBody のフラグではなくメイド目線 (タイムライン設定) で表す (v33)。
+            // タイムライン未読込なら未記録にし、適用時にメイド目線へ触らない
+            var timeline = MTEP.TimelineManager.instance.timeline;
+            if (timeline != null)
             {
-                look.headToCam = body.boHeadToCam;
-                look.headToCamSpecified = true;
-                look.eyeToCam = body.boEyeToCam;
-                look.eyeToCamSpecified = true;
+                look.eyeMoveType = timeline.eyeMoveType.ToString();
             }
 
             var target = controller.GetTarget(maid);
@@ -1774,12 +1772,36 @@ namespace COM3D2.SceneEditor.Plugin
                 maid, mode, look.lookX, look.lookY, target,
                 targetMaid, maidPointType, targetModelName);
 
-            // TBody に依存しないため、追従トグルの防御的ガードより前に戻す
+            // TBody に依存しないため、追従の復元より前に戻す
             // (未ロードのメイドでも指定値だけは欠落させない)
             ApplyTimelineLook(maid, look);
 
-            // 追従トグルは lookController の管轄外なので TBody へ直接戻す。
-            // ウィンドウのトグルと同じく割合 (HeadToCamPer) は触らず、ゲーム側のフェードに任せる。
+            // v33 以降はメイド目線が追従フラグを決める。setter が UpdateHeadLook を呼び、
+            // boHeadToCam / boEyeToCam / boEyeSorashi をまとめて揃える。
+            // タイムライン全体の設定なので、複数メイドの復元では最後の値が残る
+            // (同じタイムラインから保存した値は全員同じなので実害はない)
+            if (!string.IsNullOrEmpty(look.eyeMoveType))
+            {
+                var timeline = MTEP.TimelineManager.instance.timeline;
+                if (timeline == null)
+                {
+                    return;
+                }
+
+                Maid.EyeMoveType eyeMoveType;
+                // XML は外部入力のため、未知の名前は復元せず既定のままにする
+                if (!TryParseEnum(look.eyeMoveType, out eyeMoveType))
+                {
+                    MTEUtils.LogWarning("メイド目線の設定が不明です: {0}", look.eyeMoveType);
+                    return;
+                }
+
+                timeline.eyeMoveType = eyeMoveType;
+                return;
+            }
+
+            // v32 以前のプリセット: 追従トグルを TBody へ直接戻す。
+            // 割合 (HeadToCamPer) は触らず、ゲーム側のフェードに任せる。
             // ここはロード完了後に呼ばれるためボディは揃っている想定だが、
             // 他の TBody アクセスと同じ防御的ガードに揃えておく
             var body = maid.body0;
@@ -1802,9 +1824,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// 3 つのセッターはいずれも UpdateLookAtTarget を呼ぶため、先に番号・ポイントを
         /// 確定させ、最後に種別を入れて最終の呼び出しで正しい組み合わせに解決させる。
         ///
-        /// この指定値が向け先へ波及するかは、復元先のタイムラインの
-        /// 「視線をキー化」(useHeadKey) が決める。プリセットはこのフラグを持たないため、
-        /// 保存時と復元時で設定が違うと、直前に戻した mode が上書きされることがある
+        /// 指定値は MaidCache のセッター経由で即座に向け先へ波及する
         /// </summary>
         private static void ApplyTimelineLook(Maid maid, ScenePresetLook look)
         {
