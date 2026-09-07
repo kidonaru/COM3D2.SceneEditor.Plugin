@@ -279,19 +279,21 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>背景/メイド/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
+        /// <summary>背景/メイド/モデル/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
         protected override void DrawToolbar()
         {
             var bgIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg);
             var maidIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Maid);
+            var modelIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model);
             var gizmoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Gizmo);
             var orthoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Ortho);
             var autoFocusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
             var spaceOption = GizmoRenderer.CreateToolRowOption();
 
-            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 5 箇所分
-            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 5 +
+            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 6 箇所分
+            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 6 +
                 GetToolbarToggleWidth(bgIcon) + GetToolbarToggleWidth(maidIcon) +
+                GetToolbarToggleWidth(modelIcon) +
                 GetToolbarToggleWidth(gizmoIcon) + GetToolbarToggleWidth(orthoIcon) +
                 GetToolbarToggleWidth(autoFocusIcon) +
                 GizmoToolRowDrawer.GetSpaceButtonWidth(spaceOption, TOOLBAR_ITEM_HEIGHT);
@@ -310,6 +312,8 @@ namespace COM3D2.SceneEditor.Plugin
                 value => config.sceneViewShowBg = value);
             DrawToolbarToggle(view, maidIcon, "メイド", config.sceneViewShowMaid,
                 value => config.sceneViewShowMaid = value);
+            DrawToolbarToggle(view, modelIcon, "モデル", config.sceneViewShowModel,
+                value => config.sceneViewShowModel = value);
             DrawToolbarToggle(view, gizmoIcon, "ギズモ", config.sceneViewShowGizmo,
                 value => config.sceneViewShowGizmo = value);
             DrawToolbarToggle(view, orthoIcon, "平行投影", config.sceneViewOrthographic,

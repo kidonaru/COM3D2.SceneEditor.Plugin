@@ -57,6 +57,7 @@ namespace COM3D2.SceneEditor.Plugin
         // SceneView ツールバーの表示トグル (SceneView にのみ適用。ゲーム画面には影響しない)
         public bool sceneViewShowBg = false;
         public bool sceneViewShowMaid = true;
+        public bool sceneViewShowModel = true;
         public bool sceneViewShowGizmo = true;
         public bool sceneViewOrthographic = false;
         // 選択・配置に連動した自動フォーカス。OFF でも Inspector のフォーカスボタンと F キーは効く
