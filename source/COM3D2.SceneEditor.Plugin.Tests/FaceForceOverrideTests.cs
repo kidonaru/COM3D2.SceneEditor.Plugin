@@ -50,5 +50,54 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(1, trans.valueCount);
             Assert.True(FaceMorphUtils.ToForceOverride(trans.forceOverride));
         }
+
+        [Fact]
+        public void 強制上書きキーはXML往復で保持される()
+        {
+            var src = new TimelineXml
+            {
+                layers = new System.Collections.Generic.List<TimelineLayerXml>
+                {
+                    new TimelineLayerXml
+                    {
+                        className = "MorphTimelineLayer",
+                        slotNo = 0,
+                        keyFrames = new System.Collections.Generic.List<FrameXml>
+                        {
+                            new FrameXml
+                            {
+                                frameNo = 0,
+                                bones = new System.Collections.Generic.List<BoneXml>
+                                {
+                                    new BoneXml
+                                    {
+                                        transform = new TransformXml
+                                        {
+                                            name = FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME,
+                                            type = TransformType.FaceSetting,
+                                            values = new[] { 0f },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+
+            var serializer = new System.Xml.Serialization.XmlSerializer(typeof(TimelineXml));
+            TimelineXml dst;
+            using (var ms = new System.IO.MemoryStream())
+            {
+                serializer.Serialize(ms, src);
+                ms.Position = 0;
+                dst = (TimelineXml)serializer.Deserialize(ms);
+            }
+
+            var trans = dst.layers[0].keyFrames[0].bones[0].transform;
+            Assert.Equal(FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME, trans.name);
+            Assert.Equal(TransformType.FaceSetting, trans.type);
+            Assert.False(FaceMorphUtils.ToForceOverride(trans.values[0]));
+        }
     }
 }

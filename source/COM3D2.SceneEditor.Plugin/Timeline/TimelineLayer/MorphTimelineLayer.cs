@@ -14,7 +14,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
-        public override List<string> allBoneNames => trackedBoneNames;
+        private readonly List<string> _allBoneNamesCache = new List<string>();
+
+        /// <summary>
+        /// 強制上書きは変更追跡 (チェック) の対象外なので、絞り込み結果へ常に足す。
+        /// 先頭に置いてボーンメニューでも最初に出す
+        /// </summary>
+        public override List<string> allBoneNames
+        {
+            get
+            {
+                var tracked = trackedBoneNames;
+                _allBoneNamesCache.Clear();
+                _allBoneNamesCache.Add(FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME);
+                _allBoneNamesCache.AddRange(tracked);
+                return _allBoneNamesCache;
+            }
+        }
 
         protected override EditTargetStore trackedStore
         {
@@ -36,6 +52,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>現在まばたきを抑止しているメイド。未抑止なら null</summary>
         private Maid _mabatakiSuppressedMaid;
 
+        /// <summary>このフレームで適用する強制上書き。キーが無ければ ON</summary>
+        private bool _isForceOverride = true;
+
         private MorphTimelineLayer(int slotNo) : base(slotNo)
         {
         }
@@ -45,9 +64,31 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return new MorphTimelineLayer(slotNo);
         }
 
+        public override void Init()
+        {
+            base.Init();
+
+            // キーが 1 個だけのボーンは MotionData が作られず適用されないため、
+            // 0F にキーが無い読み込みデータへ既定 ON のキーを補う
+            var firstFrame = GetOrCreateFrame(0);
+            if (firstFrame.GetBone(FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME) == null)
+            {
+                var setting = firstFrame.GetOrCreateTransformData<TransformDataFaceSetting>(
+                    FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME);
+                setting.forceOverride = FaceMorphUtils.ToForceOverrideValue(true);
+            }
+        }
+
         protected override void InitMenuItems()
         {
             allMenuItems.Clear();
+
+            // 強制上書きはモーフではないので、専用セットを先頭に置く
+            var settingSetMenuItem = new BoneSetMenuItem(
+                FaceMorphUtils.FORCE_OVERRIDE_SET_NAME, FaceMorphUtils.FORCE_OVERRIDE_SET_DISPLAY_NAME);
+            settingSetMenuItem.AddChild(new BoneMenuItem(
+                FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME, FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME));
+            allMenuItems.Add(settingSetMenuItem);
 
             var targetNames = new HashSet<string>(allBoneNames);
             var setMenuItemMap = new Dictionary<string, BoneSetMenuItem>(10);
@@ -149,14 +190,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             _applyMorphMap.Clear();
 
+            // キーが無い既存データ (MTE 産を含む) は ON 扱いにするため、毎フレーム ON で初期化する
+            _isForceOverride = true;
+
             base.ApplyPlayData();
 
-            UpdateMabatakiSuppression(maid);
+            UpdateMabatakiSuppression(_isForceOverride ? maid : null);
+
+            // 強制上書き OFF 中もモーフ適用は続ける (まばたきに潰されるのは目まわりだけ)
             faceManager.SetMorphValue(maid, _applyMorphMap);
         }
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
+            if (motion.name == FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+            {
+                // ON/OFF に中間値は無いのでステップ適用する。
+                // 終端 (t >= 0.99) では end 側を採らないと、最後のキーの値が永久に効かない
+                var startSetting = motion.start as TransformDataFaceSetting;
+                var endSetting = motion.end as TransformDataFaceSetting;
+                var settingValue = t < 0.99f ? startSetting.forceOverride : endSetting.forceOverride;
+                _isForceOverride = FaceMorphUtils.ToForceOverride(settingValue);
+                return;
+            }
+
             var start = motion.start as TransformDataMorph;
             var end = motion.end as TransformDataMorph;
             var morphName = motion.name;
@@ -215,6 +272,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             foreach (var name in allBoneNames)
             {
+                if (name == FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+                {
+                    var setting = frame.GetOrCreateTransformData<TransformDataFaceSetting>(name);
+                    setting.forceOverride = FaceMorphUtils.ToForceOverrideValue(
+                        MaidFaceMorphController.IsForceOverride(maid));
+                    continue;
+                }
+
                 var trans = frame.GetOrCreateTransformData<TransformDataMorph>(name);
                 trans.morphValue = GetMorphValue(name);
             }
@@ -232,6 +297,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override TransformType GetTransformType(string name)
         {
+            if (name == FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME)
+            {
+                return TransformType.FaceSetting;
+            }
             return TransformType.Morph;
         }
     }
