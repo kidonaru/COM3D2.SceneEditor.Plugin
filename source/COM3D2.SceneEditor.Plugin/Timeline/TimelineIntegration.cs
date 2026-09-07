@@ -462,6 +462,9 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.ExtendBone,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataExtendBone>);
             timelineManager.RegisterTransform(
+                MTEP.TransformType.FaceSetting,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataFaceSetting>);
+            timelineManager.RegisterTransform(
                 MTEP.TransformType.Eyes,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataEyes>);
             timelineManager.RegisterTransform(

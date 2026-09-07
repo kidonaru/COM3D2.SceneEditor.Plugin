@@ -170,5 +170,38 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             return faceOptionMorphJp.ContainsKey(morphName);
         }
+
+        /// <summary>強制上書きキーのボーン名。XML の Bone 名なので変更しないこと</summary>
+        public const string FORCE_OVERRIDE_BONE_NAME = "faceForceOverride";
+
+        /// <summary>強制上書きキーの表示名</summary>
+        public const string FORCE_OVERRIDE_DISPLAY_NAME = "強制上書き";
+
+        /// <summary>強制上書きキーを入れるボーンメニューのセット名</summary>
+        public const string FORCE_OVERRIDE_SET_NAME = "faceSetting";
+
+        /// <summary>強制上書きキーのセット表示名</summary>
+        public const string FORCE_OVERRIDE_SET_DISPLAY_NAME = "表情設定";
+
+        /// <summary>キー値 (0/1) を ON/OFF へ変換する</summary>
+        public static bool ToForceOverride(float value)
+        {
+            return value >= 0.5f;
+        }
+
+        /// <summary>ON/OFF をキー値 (0/1) へ変換する</summary>
+        public static float ToForceOverrideValue(bool enabled)
+        {
+            return enabled ? 1f : 0f;
+        }
+
+        /// <summary>
+        /// 強制上書きの実効値。タイムラインが抑止しているときは
+        /// 退避されたユーザー設定によらず ON が効いている
+        /// </summary>
+        public static bool ResolveForceOverride(bool isMabatakiSuppressed, bool mabataki)
+        {
+            return isMabatakiSuppressed || !mabataki;
+        }
     }
 }

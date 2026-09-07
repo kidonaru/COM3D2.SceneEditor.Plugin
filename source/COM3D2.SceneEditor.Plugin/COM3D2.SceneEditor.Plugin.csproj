@@ -562,6 +562,7 @@
     <Compile Include="Timeline\TransformData\TransformDataDress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataEyes.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataFaceSetting.cs" />
     <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGrounding.cs" />
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />

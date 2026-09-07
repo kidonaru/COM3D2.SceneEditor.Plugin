@@ -17,6 +17,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Dress,
         ExtendBone,
         Eyes,
+        FaceSetting,
         FingerBlend,
         Grounding,
         GTToneMap,

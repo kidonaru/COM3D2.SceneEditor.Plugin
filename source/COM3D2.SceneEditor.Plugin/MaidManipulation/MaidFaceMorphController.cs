@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -488,6 +489,27 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             return maid.boMabataki;
+        }
+
+        /// <summary>
+        /// 強制上書きの実効値。タイムラインの表情レイヤーが抑止している間は
+        /// 退避されたユーザー設定によらず ON が効いている
+        /// </summary>
+        public static bool IsForceOverride(Maid maid)
+        {
+            if (maid == null)
+            {
+                return false;
+            }
+
+            return MTEP.FaceMorphUtils.ResolveForceOverride(
+                IsMabatakiSuppressed(maid), GetMabataki(maid));
+        }
+
+        /// <summary>強制上書きの切り替え。抑止中は退避値へ書き、解除時に反映される</summary>
+        public static void SetForceOverride(Maid maid, bool enabled)
+        {
+            SetMabataki(maid, !enabled);
         }
     }
 }
