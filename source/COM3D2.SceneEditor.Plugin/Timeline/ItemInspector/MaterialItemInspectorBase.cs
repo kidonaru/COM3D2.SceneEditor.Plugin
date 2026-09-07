@@ -37,13 +37,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var track = CreateTrack(layer, material);
-                // 追跡チェック行がマテリアル名を兼ねているため、追跡しない対象
-                // (背景モデル) では名前が出ない。複数選択した行を見分けられるよう補う
-                if (!track.isEnabled)
-                {
-                    view.DrawLabel(item.displayName, -1, RowHeight);
-                }
-
                 // 複数マテリアルを並べるため、色行のラベル (= ピッカーの同定キー) を
                 // マテリアル名で一意にする
                 MaterialPropertyRowsDrawer.Draw(

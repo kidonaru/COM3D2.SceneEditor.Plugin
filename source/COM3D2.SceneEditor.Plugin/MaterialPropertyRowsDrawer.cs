@@ -33,6 +33,69 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class MaterialPropertyRowsDrawer
     {
+        private const float ClipboardButtonWidth = 60f;
+
+        /// <summary>
+        /// 「[追跡チェック] マテリアル名 … [コピー][ペースト]」の 1 行。
+        /// 追跡しない対象 (背景モデル) でも名前とボタンは出す。
+        /// ラベルを自動幅 (-1) にするとボタンの余地が無くなるため、幅は手計算で求める
+        /// </summary>
+        private static void DrawNameRow(
+            GUIView view,
+            MTEP.ModelMaterial material,
+            MaterialTrackTarget track,
+            string trackKey,
+            float rowHeight,
+            Action markTracked)
+        {
+            var labelWidth = view.viewRect.width - view.padding.x * 2
+                - (ClipboardButtonWidth + view.margin) * 2;
+
+            view.BeginHorizontal();
+            {
+                if (trackKey != null)
+                {
+                    var store = track.findStore();
+                    var isModified = store != null && store.IsModified(trackKey);
+
+                    // 変更追跡チェック。ON=タイムラインの表示とキー書き込みの対象。
+                    // 手動 OFF は「未編集へ戻す」操作なので値も初期値へ戻す
+                    Action<bool> onCheckChanged = newChecked =>
+                    {
+                        if (newChecked)
+                        {
+                            track.getStore().Mark(trackKey);
+                        }
+                        else
+                        {
+                            material.Reset();
+                            track.getStore().Unmark(trackKey);
+                        }
+                    };
+
+                    view.DrawToggle(isModified, GUIView.TrackedCheckWidth, rowHeight, onCheckChanged);
+                    labelWidth -= GUIView.TrackedCheckWidth + view.margin;
+                }
+
+                view.DrawLabel(material.displayName, labelWidth, rowHeight);
+
+                if (view.DrawButton("コピー", ClipboardButtonWidth, rowHeight))
+                {
+                    MaterialClipboard.Copy(material);
+                }
+
+                if (view.DrawButton("ペースト", ClipboardButtonWidth, rowHeight,
+                        enabled: MaterialClipboard.hasData))
+                {
+                    if (MaterialClipboard.Paste(material))
+                    {
+                        markTracked();
+                    }
+                }
+            }
+            view.EndLayout();
+        }
+
         /// <param name="colorLabelPrefix">
         /// 色行のラベルに付ける接頭辞。null なら付けない。
         /// このラベルは ColorPickerWindow が編集対象を同定するキーも兼ねるため、
@@ -58,29 +121,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             };
 
-            if (trackKey != null)
-            {
-                var store = track.findStore();
-                var isModified = store != null && store.IsModified(trackKey);
-
-                // 変更追跡チェック。ON=タイムラインの表示とキー書き込みの対象。
-                // 手動 OFF は「未編集へ戻す」操作なので値も初期値へ戻す
-                Action<bool> onCheckChanged = newChecked =>
-                {
-                    if (newChecked)
-                    {
-                        track.getStore().Mark(trackKey);
-                    }
-                    else
-                    {
-                        material.Reset();
-                        track.getStore().Unmark(trackKey);
-                    }
-                };
-
-                view.DrawTrackedLabel(
-                    isModified, onCheckChanged, material.displayName, -1, rowHeight);
-            }
+            DrawNameRow(view, material, track, trackKey, rowHeight, markTracked);
 
             if (view.DrawButton("初期化", 80, rowHeight))
             {
