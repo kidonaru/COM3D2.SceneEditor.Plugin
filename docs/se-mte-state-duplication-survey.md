@@ -142,39 +142,37 @@ B-4(BGM 2 箇所)と B-5(永続化 2 系統)は現状維持で確定。B-4 は�
 
 ### 視線の統合後仕様(A-1 まとめ)
 
-A-1a〜c 完了後の現行仕様。経緯・実装差分は後続の各実装メモを参照。
+A-1a〜c と 2026-09-07 の整理（「視線をキー化」「顔を向ける」「目を向ける」の撤去）後の現行仕様。経緯・実装差分は後続の各実装メモを参照。
 
 **所有者と経路**
 
-- 向け先(`body0.trsLookTarget`)の書き手は SE の `MaidLookController` の一本のみ。MTE は `Timeline/MaidLookBridge.cs` 経由でこのコントローラを駆動する側に降りた
-- `MaidCache` の `lookAtTargetType` / `lookAtTargetIndex` / `lookAtMaidPointType` / `lookDirection`(顔向きキー)は MTE 側に残るが、これらは `TimelineXml` / `EyesTimelineLayer` が読み書きする**キーフレームの指定値**であって、ゲーム状態ではない
-- **瞳回転という概念は撤去した**(A-1 追補)。瞳は「目を向ける」(`boEyeToCam`)+ 向け先にのみ従い、方向の指定は顔向き一本。旧 EyesRot キーは顔向きへ変換して読む
+- 向け先(`body0.trsLookTarget`)の書き手は SE の `MaidLookController` の一本のみ。MTE 側 (`MaidCache`) は `Timeline/MaidLookBridge.cs` 経由でこのコントローラを常時駆動する
+- `MaidCache` の `lookAtTargetType` / `lookAtTargetIndex` / `lookAtMaidPointType` / `lookDirection`(顔向きキー)は `TimelineXml` / `EyesTimelineLayer` が読み書きする**キーフレームの指定値**であって、ゲーム状態ではない
+- 顔・瞳の追従フラグ(`boHeadToCam` / `boEyeToCam` / `boEyeSorashi` / `HeadToCamFadeSpeed`)の書き手は `MaidLookBridge.ApplyEyeMoveType`(メイド目線)のみ。個別トグルは無い
+- **瞳回転という概念は撤去した**(A-1 追補)。方向の指定は顔向き一本
 
-**UI と操作の親スイッチ**
+**UI**
 
-- 入口は表情ウィンドウの視線タブ 1 箇所(旧「視線」「タイムライン視線」の 2 セクションと `TimelineSettingWindow` の 2 行を統合)
-- 「視線をキー化」(旧称「顔/瞳の固定化」、`TimelineData.useHeadKey`)が親スイッチ:
-  - **ON**: タイムラインの「注視先」行が向け先を駆動する。SE の「向け先」コンボは無効化される(2 つの入口を並べない)
-  - **OFF**: SE の向け先・顔向き・注視対象を従来どおり操作する。タイムラインは向け先に触らない(SE の設定が正)
+- 入口は表情ウィンドウの視線タブ 1 箇所。行は「メイド目線 → 向け先 → (対象) → 顔向き左右/上下 → タイムライン視線を初期化 → 瞳位置」
+- 向け先の選択肢はカメラ / マウス / メイド / モデル / 方向指定(`MaidLookBridge.GetSelectableModes`)。SE 側だけにあった「オブジェクト」「無し」は UI から外した(列挙値とプリセット互換は残る)
+- 「タイムラインが視線を動かさない」状態は「メイド目線: 無し」で表す。メイド目線はタイムライン XML の `EyeMoveType` 要素へ保存する。旧「視線をキー化」(`useHeadKey`)は撤去済みで、XML の `UseHeadKey` 要素は読み飛ばす
+- Pose スコープの Undo(`PoseSnapshot`)は追従フラグを記録せず、復元後にメイド目線で塗り直す
+- タイムライン未読込のときは案内だけを出し、視線は編集できない
 
-**目線種別(「メイド目線」`eyeMoveType`)**
+**注視先が無いときの向け先**
 
-- フラグ(`boHeadToCam` / `boEyeToCam` / `boEyeSorashi` / `HeadToCamFadeSpeed`)だけを設定する(`MaidLookBridge.ApplyEyeMoveType`)。向け先の判断材料にはしない
-- `Maid.EyeToCamera` は使わない(フラグ設定と同時に `trsLookTarget` まで書き換えてしまうため)
-
-**注視先が無いときの向け先(キー化 ON)**
-
-- 注視先「なし」(または対象が未解決)のときは向け先を「方向指定」にし、**顔向きキー**(`MaidCache.lookDirection`、旧 EyesRot 行)が注視点を駆動する。顔も瞳も同じ点を向く
+- 注視先「方向指定」(または対象が未解決)のときは**顔向きキー**(`MaidCache.lookDirection`)が注視点を駆動する
 - ただし目線種別が「そらす」系なら「無し」へ倒す。`TBody` のそらし演出は `trsLookTarget == null` かつ `boLockHeadAndEye == false` が条件のため
+- カメラ / マウスは対象の同定が要らないため、そらし中でもそのまま写す
 
-**視線そらし(キー化 OFF)**
+**頭ボーンの回転キー**
 
-- 従来どおり SE で向け先を「無し」(`MaidLookMode.無し`、A-1a で新設)にしたときだけ効く。目線種別を「そらす」にしても向け先は自動で変わらない(`EyeToCamera` の無条件 null 化は SE 設定を壊すため踏襲していない)
+- メイドアニメレイヤーの頭の回転キーは `MaidLookBridge.IsHeadToCam(timeline.eyeMoveType)` のとき隠す(視線が頭を駆動している間はキーが効かないため)
 
-**プリセット(B-6 の解消)**
+**プリセット(v33)**
 
-- `ScenePresetLook`(v26)は SE 側の向け先一式に加え、キーフレーム指定値(`timelineTargetType` / `timelineTargetIndex` / `timelineMaidPointType` / `timelineLookX/Y`)も保存する
-- 「視線をキー化」(`useHeadKey`)自体は保存しない。保存時と復元時でこの設定が違うと、指定値の復元が `mode` の復元を上書きしうる(既知の前提)
+- `ScenePresetLook` は SE 側の向け先一式に加え、キーフレーム指定値(`timelineTargetType` / `timelineTargetIndex` / `timelineMaidPointType` / `timelineLookX/Y`)と `eyeMoveType`(メイド目線)を保存する
+- 新規保存では `headToCam` / `eyeToCam` を書かない。v32 以前のプリセット(`eyeMoveType` が null)の読み込みだけ従来どおり TBody へ戻す
 
 ### A-1a の実装メモ(向け先の所有者統合)
 
