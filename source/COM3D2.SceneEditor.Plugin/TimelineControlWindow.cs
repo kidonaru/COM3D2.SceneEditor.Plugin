@@ -17,7 +17,8 @@ namespace COM3D2.SceneEditor.Plugin
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "タイムライン操作";
         protected override int minWidth => 300;
-        protected override int minHeight => 190;
+        // 横並びを折り返すウィンドウなので、ヘッダー + 1 行分まで縮められる
+        protected override int minHeight => 60;
 
         private static TimelineControlWindow _instance = null;
         public static TimelineControlWindow instance
@@ -151,6 +152,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>アイコントグルの内側余白 (ボタン枠と絵の間)</summary>
         private const float ICON_TOGGLE_OFFSET = 4f;
 
+        /// <summary>自動登録 ON の色。録画中を連想させる赤にして他トグルと区別する</summary>
+        private static readonly Color AUTO_KEY_ON_COLOR = new Color(1f, 0.3f, 0.3f);
+
         /// <summary>外周の余白。既定値より詰めて 1 行に並ぶ要素数を稼ぐ</summary>
         private static readonly Vector2 CONTENT_PADDING = new Vector2(3, 3);
 
@@ -229,7 +233,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 view.EndLayout();
             }
-            view.EndScrollView();
+            // 折り返しレイアウトは既定の末尾余白だと空行が余るため 0 にする
+            view.EndScrollView(0f);
         }
 
         private void DrawControls(GUIView view)
@@ -584,13 +589,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawToggles(GUIView view)
         {
-            DrawIconToggle(view, ToolbarIcons.Kind.EasyEdit, "簡易表示", timelineConfig.isEasyEdit, true, newValue =>
-            {
-                timelineConfig.isEasyEdit = newValue;
-                timelineConfig.dirty = true;
-                timelineManager.Refresh();
-            });
-
             DrawIconToggle(view, ToolbarIcons.Kind.EditMode, "編集モード", studioHackManager.isPoseEditing, true, newValue =>
             {
                 studioHackManager.isPoseEditing = newValue;
@@ -600,7 +598,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 timelineConfig.isAutoKeyFrame = newValue;
                 timelineConfig.dirty = true;
-            });
+            }, AUTO_KEY_ON_COLOR);
 
             DrawIconToggle(view, ToolbarIcons.Kind.Maid, "メイド表示", maidManager.maid.Visible, true, newValue =>
             {
@@ -664,7 +662,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// SceneViewWindow.DrawToolbarToggle と同型だが、enabled 制御と折り返しが要るため独自に持つ
         /// </summary>
         private static bool DrawIconToggle(
-            GUIView view, ToolbarIcons.Kind kind, string label, bool value, bool enabled, Action<bool> onChanged)
+            GUIView view, ToolbarIcons.Kind kind, string label, bool value, bool enabled, Action<bool> onChanged,
+            Color? onColor = null)
         {
             var icon = ToolbarIcons.GetTexture(kind);
             if (icon == null)
@@ -675,7 +674,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             WrapIfNeeded(view, ROW_HEIGHT);
             view.BeginEnabled(enabled);
-            var changed = view.DrawToggle(icon, value, ROW_HEIGHT, ROW_HEIGHT, onChanged, ICON_TOGGLE_OFFSET, label);
+            var changed = view.DrawToggle(icon, value, ROW_HEIGHT, ROW_HEIGHT, onChanged, ICON_TOGGLE_OFFSET, label, onColor);
             view.EndEnabled();
             return changed;
         }
