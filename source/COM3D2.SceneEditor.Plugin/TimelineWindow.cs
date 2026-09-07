@@ -1342,6 +1342,12 @@ namespace COM3D2.SceneEditor.Plugin
                         EventType.MouseDown,
                         (pos) =>
                         {
+                            // レイヤー名のダブルクリックは折りたたみ切替 (記号を狙わなくてよいように)
+                            if (Event.current.clickCount >= 2)
+                            {
+                                _rowState.ToggleCollapsed(headerLayer);
+                                return;
+                            }
                             if (headerLayer != timelineManager.currentLayer)
                             {
                                 timelineManager.SetCurrentLayer(headerLayer);
@@ -1388,6 +1394,13 @@ namespace COM3D2.SceneEditor.Plugin
                     EventType.MouseDown,
                     (pos) =>
                     {
+                        // グループ名のダブルクリックは展開/折りたたみ (記号を狙わなくてよいように)
+                        if (menuItem.isSetMenu && Event.current.clickCount >= 2)
+                        {
+                            menuItem.isOpenMenu = !menuItem.isOpenMenu;
+                            return;
+                        }
+
                         // クリックしたレイヤーを編集基準 (アクティブ) にしてから選択する
                         if (row.layer != timelineManager.currentLayer)
                         {
