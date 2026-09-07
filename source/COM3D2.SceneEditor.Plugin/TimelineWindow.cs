@@ -176,6 +176,7 @@ namespace COM3D2.SceneEditor.Plugin
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
             SelectionManager.instance.onSelectionChanged += OnSelectionChanged;
             MaidDragBoneTracker.onDragCompleted += OnDragCompleted;
+            HistoryManager.instance.onEditCommitted += OnEditCommitted;
 
             // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
             // ドロップダウンは操作対象で絞った一覧なのでメイド名は省く
@@ -190,29 +191,41 @@ namespace COM3D2.SceneEditor.Plugin
                 !_rowState.AreAllVisible(_targetLayers, currentLayer));
         }
 
-        // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能、既定 OFF)
+        // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能)
         private void OnDragCompleted(Maid maid)
         {
-            if (!MTEP.ConfigManager.instance.config.isAutoKeyFrame)
-            {
-                return;
-            }
+            TryAutoKeyFrame(maid);
+        }
 
+        // 各ウィンドウでの値変更が操作履歴として確定したときの自動キーフレーム登録。
+        // ドラッグ編集は onDragCompleted と両方から届くが、2 回目は登録済みボーンが除かれて no-op になる
+        private void OnEditCommitted(HistoryEntry entry)
+        {
+            TryAutoKeyFrame(entry.maid);
+        }
+
+        /// <summary>
+        /// 自動登録が有効で編集モード中なら、現在フレームへ差分をキーフレーム登録する。
+        /// 指ドラッグ等は選択同期を経ずアクティブメイドが別メイドのままになり得るため、
+        /// 操作対象メイドが登録対象 (アクティブメイド) と一致する場合のみ登録する。
+        /// メイドに紐づかない操作 (ライト・カメラ等) は editedMaid が null で常に対象
+        /// </summary>
+        private void TryAutoKeyFrame(Maid editedMaid)
+        {
             var timelineManager = MTEP.TimelineManager.instance;
-            // 編集モード外 (initialEditFrame 未設定) のドラッグはキーフレーム登録の対象外
-            if (timelineManager.currentLayer == null || timelineManager.initialEditFrame == null)
+            var isEditing = timelineManager.currentLayer != null
+                && timelineManager.initialEditFrame != null;
+
+            if (!AutoKeyFrameGate.ShouldRegister(
+                MTEP.ConfigManager.instance.config.isAutoKeyFrame,
+                isEditing,
+                editedMaid,
+                MTEP.MaidManager.instance.maid))
             {
                 return;
             }
 
-            // 指ドラッグ等は選択同期を経ずアクティブメイドが別メイドのままになり得るため、
-            // 登録対象 (アクティブメイドのスロット) と一致する場合のみ登録する
-            if (maid == null || MTEP.MaidManager.instance.maid != maid)
-            {
-                return;
-            }
-
-            timelineManager.AddKeyFrameDiff();
+            timelineManager.AddKeyFrameDiff(quiet: true);
         }
 
         private bool _syncingSelection = false;
