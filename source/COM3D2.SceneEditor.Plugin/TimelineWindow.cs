@@ -1231,6 +1231,12 @@ namespace COM3D2.SceneEditor.Plugin
             return visibleCount > 1 ? name + " 他" + (visibleCount - 1) : name;
         }
 
+        /// <summary>現在の MouseDown がダブルクリックの 2 回目か</summary>
+        private static bool IsDoubleClick()
+        {
+            return Event.current.clickCount >= 2;
+        }
+
         /// <summary>シークバー上の X 座標から現在フレームを決める。バー外へ出た分は端にクランプする</summary>
         private static void SeekByBarPosition(float barX, float scrollX, float frameWidth)
         {
@@ -1343,7 +1349,7 @@ namespace COM3D2.SceneEditor.Plugin
                         (pos) =>
                         {
                             // レイヤー名のダブルクリックは折りたたみ切替 (記号を狙わなくてよいように)
-                            if (Event.current.clickCount >= 2)
+                            if (IsDoubleClick())
                             {
                                 _rowState.ToggleCollapsed(headerLayer);
                                 return;
@@ -1395,7 +1401,7 @@ namespace COM3D2.SceneEditor.Plugin
                     (pos) =>
                     {
                         // グループ名のダブルクリックは展開/折りたたみ (記号を狙わなくてよいように)
-                        if (menuItem.isSetMenu && Event.current.clickCount >= 2)
+                        if (menuItem.isSetMenu && IsDoubleClick())
                         {
                             menuItem.isOpenMenu = !menuItem.isOpenMenu;
                             return;

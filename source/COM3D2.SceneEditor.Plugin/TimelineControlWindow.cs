@@ -474,7 +474,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return view.DrawButton(fallbackText, FRAME_BUTTON_WIDTH, ROW_HEIGHT);
             }
-            return view.DrawTextureButton(icon, FRAME_BUTTON_WIDTH, ROW_HEIGHT, FRAME_ICON_OFFSET, true, null, tooltip);
+            return view.DrawTextureButton(icon, FRAME_BUTTON_WIDTH, ROW_HEIGHT, FRAME_ICON_OFFSET, tooltip: tooltip);
         }
 
         /// <summary>フレーム操作のアイコンリピートボタン (押し続けで連続移動)</summary>
