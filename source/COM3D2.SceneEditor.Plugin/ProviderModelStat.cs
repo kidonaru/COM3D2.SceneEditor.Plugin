@@ -29,7 +29,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 if (_materialController == null)
                 {
-                    _materialController = MTEP.ModelMaterialController.GetOrCreate(this);
+                    // 所有権は奪わない (理由は ModelMaterialController.GetOrCreate の doc 参照)
+                    _materialController = MTEP.ModelMaterialController.GetOrCreate(this, takeOwnership: false);
                 }
                 return _materialController != null
                     ? _materialController.materials

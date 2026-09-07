@@ -58,7 +58,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public static ModelMaterialController GetOrCreate(IModelStat model)
+        /// <summary>
+        /// GameObject 単位のコントローラを取得する。
+        /// ModelMaterial.name は model.name を接頭辞に持つため、model を差し替えると
+        /// タイムラインの候補名 (StudioModelManager.materialNames) と食い違い、
+        /// ボーンメニューやキーフレームの名前解決が壊れる。
+        /// そのため所有者 (StudioModelStat / BGModelStat / MaidSlotStat) 以外は
+        /// takeOwnership: false で借りるだけにし、既存の束縛を奪わないこと。
+        /// 借り手が先に触っても、所有者が後から初期化すれば正しい束縛へ戻る
+        /// </summary>
+        public static ModelMaterialController GetOrCreate(IModelStat model, bool takeOwnership = true)
         {
             if (model == null || model.transform == null)
             {
@@ -69,7 +78,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var go = transform.gameObject;
 
             var controller = go.GetOrAddComponent<ModelMaterialController>();
-            controller.model = model;
+            // 借り手は未束縛のときだけ埋める
+            if (takeOwnership || controller.model == null)
+            {
+                controller.model = model;
+            }
             return controller;
         }
 
