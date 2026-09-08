@@ -175,7 +175,7 @@ namespace COM3D2.SceneEditor.Plugin
                 getStore = () => MaidMaterialEditManager.instance.GetStore(target),
                 // タイムライン側の候補名 (MaidCache.materialNames) と同じ文字列
                 getKey = material => material.name,
-            });
+            }, target);
         }
 
         /// <summary>
@@ -268,7 +268,8 @@ namespace COM3D2.SceneEditor.Plugin
             DrawMaterialSelector(model.materials, new MaterialTrackTarget());
         }
 
-        private void DrawMaterialSelector(List<MTEP.ModelMaterial> materials, MaterialTrackTarget track)
+        private void DrawMaterialSelector(
+            List<MTEP.ModelMaterial> materials, MaterialTrackTarget track, Maid maid = null)
         {
             if (materials == null || materials.Count == 0)
             {
@@ -286,11 +287,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawMaterialProperties(material, track);
+            DrawMaterialProperties(material, track, maid);
         }
 
         /// <summary>マテリアル 1 件の色 / 数値プロパティを並べる</summary>
-        private void DrawMaterialProperties(MTEP.ModelMaterial material, MaterialTrackTarget track)
+        private void DrawMaterialProperties(
+            MTEP.ModelMaterial material, MaterialTrackTarget track, Maid maid)
         {
             // 区切り線とコンボ操作中の入力抑止はマテリアル選択行とセットのこのウィンドウ固有の
             // 都合なので、共有ドロワー (MaterialPropertyRowsDrawer) には含めない
@@ -302,7 +304,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.BeginScrollView();
             {
                 // 1 マテリアルしか出さないので接頭辞は不要
-                MaterialPropertyRowsDrawer.Draw(view, material, track, ROW_HEIGHT, null);
+                MaterialPropertyRowsDrawer.Draw(view, material, track, ROW_HEIGHT, null, maid);
             }
             view.EndScrollView();
         }

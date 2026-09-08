@@ -46,7 +46,8 @@ namespace COM3D2.SceneEditor.Plugin
             MaterialTrackTarget track,
             string trackKey,
             float rowHeight,
-            Action markTracked)
+            Action markTracked,
+            Action<string> recordEdit)
         {
             var labelWidth = view.viewRect.width - view.padding.x * 2
                 - (ClipboardButtonWidth + view.margin) * 2;
@@ -62,6 +63,7 @@ namespace COM3D2.SceneEditor.Plugin
                     // 手動 OFF は「未編集へ戻す」操作なので値も初期値へ戻す
                     Action<bool> onCheckChanged = newChecked =>
                     {
+                        recordEdit("追跡");
                         if (newChecked)
                         {
                             track.getStore().Mark(trackKey);
@@ -87,6 +89,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (view.DrawButton("ペースト", ClipboardButtonWidth, rowHeight,
                         enabled: MaterialClipboard.hasData))
                 {
+                    recordEdit("ペースト");
                     if (MaterialClipboard.Paste(material))
                     {
                         markTracked();
@@ -107,7 +110,8 @@ namespace COM3D2.SceneEditor.Plugin
             MTEP.ModelMaterial material,
             MaterialTrackTarget track,
             float rowHeight,
-            string colorLabelPrefix)
+            string colorLabelPrefix,
+            Maid maid = null)
         {
             var defaultTrans = MTEP.TransformDataModelMaterial.defaultTrans;
             var trackKey = track.isEnabled ? track.getKey(material) : null;
@@ -121,10 +125,20 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             };
 
-            DrawNameRow(view, material, track, trackKey, rowHeight, markTracked);
+            // 値を書き込む直前に呼ぶ。同じマテリアルへの連続変更はマウス解放まで 1 件に集約される。
+            // maid はメイドタブでだけ渡り、自動キーフレーム登録の対象判定に使う
+            Action<string> recordEdit = label =>
+            {
+                HistoryManager.instance.BeforeEdit(maid, HistoryScope.Material,
+                    "マテリアル: " + material.displayName + " " + label,
+                    material, () => MaterialSnapshot.Capture(material, track, trackKey));
+            };
+
+            DrawNameRow(view, material, track, trackKey, rowHeight, markTracked, recordEdit);
 
             if (view.DrawButton("初期化", 80, rowHeight))
             {
+                recordEdit("初期化");
                 material.Reset();
                 // 初期値へ戻したのだから追跡からも外す (チェック OFF と同じ意味)
                 if (trackKey != null)
@@ -154,6 +168,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawColor(cache, color, initialColor,
                     newColor =>
                     {
+                        recordEdit(propertyType.ToString());
                         material.SetColor(propertyType, newColor);
                         markTracked();
                     });
@@ -188,6 +203,7 @@ namespace COM3D2.SceneEditor.Plugin
                     value = value,
                     onChanged = newValue =>
                     {
+                        recordEdit(propertyType.ToString());
                         material.SetValue(propertyType, newValue);
                         markTracked();
                     },

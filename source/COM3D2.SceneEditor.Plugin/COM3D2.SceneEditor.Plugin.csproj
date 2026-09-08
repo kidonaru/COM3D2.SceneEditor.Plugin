@@ -234,6 +234,7 @@
     <Compile Include="Manager\History\IStateSnapshot.cs" />
     <Compile Include="Manager\History\PresetDtoUtils.cs" />
     <Compile Include="Manager\History\PresetDtoSnapshot.cs" />
+    <Compile Include="Manager\History\MaterialSnapshot.cs" />
     <Compile Include="Manager\History\BoneTrs.cs" />
     <Compile Include="Manager\History\BoneTrsMap.cs" />
     <Compile Include="Manager\History\PoseSnapshot.cs" />
