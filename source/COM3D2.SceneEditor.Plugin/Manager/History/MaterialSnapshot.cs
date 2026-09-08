@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
