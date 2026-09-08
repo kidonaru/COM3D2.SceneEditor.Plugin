@@ -33,6 +33,10 @@ namespace COM3D2.SceneEditor.Plugin
             float rowHeight)
         {
             var weight = blendShape.weight;
+            // 値を書き込む直前に呼ぶ。同じシェイプキーへの連続変更はマウス解放まで 1 件に集約される
+            Action recordEdit = () => HistoryManager.instance.BeforeEdit(
+                target, HistoryScope.ShapeKey, "シェイプキー: " + shapeKeyName,
+                shapeKeyName, () => MaidShapeKeySnapshot.Capture(target, maidCache, shapeKeyName));
             // 表示判定用。まだ 1 つもチェックしていないメイドのストアを作らないよう FindStore を使う
             // (操作側のコールバックは GetStore で遅延生成する)
             var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(target);
@@ -42,6 +46,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 手動 OFF は「未編集へ戻す」操作なので値も 0 に戻す
             Action<bool> onCheckChanged = newChecked =>
             {
+                recordEdit();
                 if (newChecked)
                 {
                     MaidShapeKeyEditManager.instance.GetStore(target).Mark(shapeKeyName);
@@ -69,6 +74,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (updateTransform)
             {
+                recordEdit();
                 blendShape.weight = weight;
                 maidCache.FixBlendValues(new string[] { shapeKeyName });
                 // 編集したシェイプキーは自動で追跡対象にする

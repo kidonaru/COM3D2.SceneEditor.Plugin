@@ -11,8 +11,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// メイドの全シェイプキーと配置モデルのシェイプキー重みをタイムラインとは独立に直接編集する。
     /// 行頭のチェックが変更追跡 (プリセット保存とタイムラインのキーフレーム対象) を兼ねる。
     /// メイド側はチェック集合がソース・オブ・トゥルースで、タイムラインの opt-in
-    /// (TimelineData.maidShapeKeysMap) へは MaidShapeKeyEditManager が片方向に流す。
-    /// チェック集合は HistoryManager 未対応のため undo で戻らない
+    /// (TimelineData.maidShapeKeysMap) へは MaidShapeKeyEditManager が片方向に流す
     /// </summary>
     public class ShapeKeyEditWindow : MaidWindowBase
     {

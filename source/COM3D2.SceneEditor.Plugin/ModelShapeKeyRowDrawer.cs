@@ -24,6 +24,10 @@ namespace COM3D2.SceneEditor.Plugin
             var modelObject = model.transform.gameObject;
             var shapeKeyName = blendShape.shapeKeyName;
             var weight = blendShape.weight;
+            // 値を書き込む直前に呼ぶ。対象キーは blendShape 実体 (モデルが生きている間は同一)
+            Action recordEdit = () => HistoryManager.instance.BeforeEdit(
+                null, HistoryScope.ShapeKey, "シェイプキー: " + blendShape.name,
+                blendShape, () => ModelShapeKeySnapshot.Capture(model, shapeKeyName));
 
             // 表示判定用。まだ 1 つもチェックしていないモデルのストアを作らないよう FindStore を使う
             // (操作側のコールバックは GetStore で遅延生成する)
@@ -34,6 +38,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 手動 OFF は「未編集へ戻す」操作なので重みも 0 に戻す
             Action<bool> onCheckChanged = newChecked =>
             {
+                recordEdit();
                 if (newChecked)
                 {
                     ModelShapeKeyEditManager.instance.GetStore(modelObject).Mark(shapeKeyName);
@@ -62,6 +67,7 @@ namespace COM3D2.SceneEditor.Plugin
             // FixBlendValues は全頂点を走査するため、値が変わったときだけ呼ぶ
             if (updateTransform)
             {
+                recordEdit();
                 blendShape.weight = weight;
                 model.FixBlendValues();
                 // 編集したシェイプキーは自動で追跡対象にする
