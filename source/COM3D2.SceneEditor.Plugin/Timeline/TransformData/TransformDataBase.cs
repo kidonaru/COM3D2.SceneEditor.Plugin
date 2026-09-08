@@ -14,6 +14,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private ValueData[] _values = new ValueData[0];
         public ValueData[] values => _values;
 
+        /// <summary>主色 / 副色の固定キー。color / subColor 糖衣が参照する</summary>
+        public static class ColorKey
+        {
+            public const string Main = "color";
+            public const string Sub = "subColor";
+        }
+
         // GetValueDataList / GetInTangentDataList / GetOutTangentDataList の結果を
         // 値種別ごとに保持するキャッシュ (添字は (int)TangentValueType)。
         // カーブエディタや Inspector が毎パス何百回も呼ぶため、都度配列を作ると GC 圧になる。
@@ -32,6 +39,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _valueDataListCache = null;
             _inTangentListCache = null;
             _outTangentListCache = null;
+            _valuesWithoutColors = null;
         }
 
         /// <summary>値種別添字のキャッシュから取り出し、未生成なら builder で作って格納する</summary>
@@ -153,14 +161,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public Color color
         {
-            get => colorValues.ToColor();
-            set => colorValues.FromColor(value);
+            get => GetColorValue(ColorKey.Main);
+            set => SetColorValue(ColorKey.Main, value);
         }
 
         public Color subColor
         {
-            get => subColorValues.ToColor();
-            set => subColorValues.FromColor(value);
+            get => GetColorValue(ColorKey.Sub);
+            set => SetColorValue(ColorKey.Sub, value);
         }
 
         public bool visible
@@ -228,6 +236,47 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual ValueData easingValue => new ValueData();
 
         public virtual ValueData[] tangentValues => new ValueData[0];
+
+        private ValueData[] _valuesWithoutColors = null;
+
+        /// <summary>
+        /// values から色マップの全成分を除いた配列。色は線形補間に統一するため
+        /// タンジェント編集の対象にしない型が tangentValues として返す。
+        /// _values の差し替え時 (Initialize / Clone) に ClearValueDataListCache で捨てる
+        /// </summary>
+        protected ValueData[] valuesWithoutColors
+        {
+            get
+            {
+                if (_valuesWithoutColors != null)
+                {
+                    return _valuesWithoutColors;
+                }
+
+                var colorIndices = new HashSet<int>();
+                foreach (var info in GetColorValueInfoMap().Values)
+                {
+                    colorIndices.Add(info.indexR);
+                    colorIndices.Add(info.indexG);
+                    colorIndices.Add(info.indexB);
+                    if (info.hasAlpha)
+                    {
+                        colorIndices.Add(info.indexA);
+                    }
+                }
+
+                var list = new List<ValueData>(values.Length);
+                for (var i = 0; i < values.Length; i++)
+                {
+                    if (!colorIndices.Contains(i))
+                    {
+                        list.Add(values[i]);
+                    }
+                }
+                _valuesWithoutColors = list.ToArray();
+                return _valuesWithoutColors;
+            }
+        }
 
         private ValueData[] _baseValues = null;
 
@@ -841,6 +890,76 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return 0f;
         }
 
+        /// <summary>色を持たない型が毎フレームの UI 描画で空マップを作り直さないよう使い回す</summary>
+        private static readonly Dictionary<string, ColorValueInfo> EmptyColorValueInfoMap
+            = new Dictionary<string, ColorValueInfo>();
+
+        public virtual Dictionary<string, ColorValueInfo> GetColorValueInfoMap()
+        {
+            return EmptyColorValueInfoMap;
+        }
+
+        public ColorValueInfo GetColorValueInfo(string colorKey)
+        {
+            ColorValueInfo info;
+            if (GetColorValueInfoMap().TryGetValue(colorKey, out info))
+            {
+                return info;
+            }
+
+            MTEUtils.LogError("ColorValueが見つかりません colorKey={0}", colorKey);
+            return null;
+        }
+
+        /// <summary>RGB のみの色はアルファ 1 で返す</summary>
+        public Color GetColorValue(string colorKey)
+        {
+            var info = GetColorValueInfo(colorKey);
+            if (info == null)
+            {
+                return Color.white;
+            }
+            return new Color(
+                values[info.indexR].value,
+                values[info.indexG].value,
+                values[info.indexB].value,
+                info.hasAlpha ? values[info.indexA].value : 1f);
+        }
+
+        /// <summary>RGB のみの色はアルファを捨てる</summary>
+        public void SetColorValue(string colorKey, Color color)
+        {
+            var info = GetColorValueInfo(colorKey);
+            if (info == null)
+            {
+                return;
+            }
+            values[info.indexR].value = color.r;
+            values[info.indexG].value = color.g;
+            values[info.indexB].value = color.b;
+            if (info.hasAlpha)
+            {
+                values[info.indexA].value = color.a;
+            }
+        }
+
+        public Color GetDefaultColorValue(string colorKey)
+        {
+            var info = GetColorValueInfo(colorKey);
+            return info != null ? info.defaultValue : Color.white;
+        }
+
+        public bool HasColorValue(string colorKey)
+        {
+            return GetColorValueInfoMap().ContainsKey(colorKey);
+        }
+
+        public string GetColorValueName(string colorKey)
+        {
+            var info = GetColorValueInfo(colorKey);
+            return info != null ? info.name : colorKey;
+        }
+
         public virtual Dictionary<string, StrValueInfo> GetStrValueInfoMap()
         {
             return new Dictionary<string, StrValueInfo>();
@@ -1064,14 +1183,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 scale = initialScale;
             }
-            if (hasColor)
-            {
-                color = initialColor;
-            }
-            if (hasSubColor)
-            {
-                subColor = initialSubColor;
-            }
             if (hasVisible)
             {
                 visible = initialVisible;
@@ -1079,6 +1190,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (hasEasingChannel)
             {
                 easing = 0;
+            }
+
+            foreach (var pair in GetColorValueInfoMap())
+            {
+                SetColorValue(pair.Key, pair.Value.defaultValue);
             }
 
             foreach (var customKey in GetCustomValueInfoMap().Keys)

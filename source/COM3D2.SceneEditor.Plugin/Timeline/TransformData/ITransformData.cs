@@ -106,6 +106,52 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string defaultValue;
     }
 
+    /// <summary>
+    /// 色 1 個ぶんの値ビュー。values 内の R/G/B/(A) の添字と既定色を持つ。
+    /// float (CustomValueInfo) / string (StrValueInfo) と並ぶ第 3 の値種別で、
+    /// 色は線形補間に統一するためタンジェント編集の対象から外す
+    /// </summary>
+    public class ColorValueInfo
+    {
+        public string name;
+        public int indexR;
+        public int indexG;
+        public int indexB;
+        /// <summary>-1 なら RGB のみ (アルファ成分を持たない)</summary>
+        public int indexA = -1;
+        public Color defaultValue;
+
+        public bool hasAlpha => indexA >= 0;
+
+        /// <summary>indexR から連続 4 成分 (R,G,B,A) の色</summary>
+        public static ColorValueInfo Rgba(string name, int indexR, Color defaultValue)
+        {
+            return new ColorValueInfo
+            {
+                name = name,
+                indexR = indexR,
+                indexG = indexR + 1,
+                indexB = indexR + 2,
+                indexA = indexR + 3,
+                defaultValue = defaultValue,
+            };
+        }
+
+        /// <summary>indexR から連続 3 成分 (R,G,B) の色</summary>
+        public static ColorValueInfo Rgb(string name, int indexR, Color defaultValue)
+        {
+            return new ColorValueInfo
+            {
+                name = name,
+                indexR = indexR,
+                indexG = indexR + 1,
+                indexB = indexR + 2,
+                indexA = -1,
+                defaultValue = defaultValue,
+            };
+        }
+    }
+
     public interface ITransformData
     {
         string name { get; }
@@ -203,6 +249,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         string GetStrValueName(string keyName);
         void SetStrValue(string keyName, string value);
         bool HasStrValue(string keyName);
+        Dictionary<string, ColorValueInfo> GetColorValueInfoMap();
+        ColorValueInfo GetColorValueInfo(string colorKey);
+        Color GetColorValue(string colorKey);
+        void SetColorValue(string colorKey, Color color);
+        Color GetDefaultColorValue(string colorKey);
+        bool HasColorValue(string colorKey);
+        string GetColorValueName(string colorKey);
         ValueData[] GetValueDataList(TangentValueType valueType);
         TangentData[] GetInTangentDataList(TangentValueType valueType);
         TangentData[] GetOutTangentDataList(TangentValueType valueType);
