@@ -21,12 +21,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_allBoneNames == null)
                 {
                     _allBoneNames = new List<string>(
-                        2 + timeline.paraffinCount + timeline.distanceFogCount + timeline.rimlightCount);
+                        3 + timeline.paraffinCount + timeline.distanceFogCount + timeline.rimlightCount);
                     _allBoneNames.Add("DepthOfField");
                     _allBoneNames.Add("GTToneMap");
                     _allBoneNames.AddRange(paraffinNames);
                     _allBoneNames.AddRange(distanceFogNames);
                     _allBoneNames.AddRange(rimlightNames);
+                    _allBoneNames.Add("Bloom");
                 }
                 return _allBoneNames;
             }
@@ -75,7 +76,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // タイムライン → 実体へ流し込み済みなので、ここで巻き戻ることはない)
             postEffectManager.SyncCountsFromHost();
 
-            var boneCount = 2
+            var boneCount = 3
                 + timeline.paraffinCount
                 + timeline.distanceFogCount
                 + timeline.rimlightCount;
@@ -128,6 +129,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             ApplyPlayDataByType(TransformType.GTToneMap);
             //stopwatch.ProcessEnd("  GTToneMap");
+
+            ApplyPlayDataByType(TransformType.Bloom);
+            //stopwatch.ProcessEnd("  Bloom");
         }
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
@@ -148,6 +152,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     break;
                 case TransformType.GTToneMap:
                     ApplyGTToneMap(motion, t);
+                    break;
+                case TransformType.Bloom:
+                    ApplyBloom(motion, t);
                     break;
             }
         }
@@ -205,6 +212,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         frame.UpdateBone(bone);
                         break;
                     }
+                    case PostEffectType.Bloom:
+                    {
+                        var trans = CreateTransformData<TransformDataBloom>(effectName);
+                        trans.bloom = postEffectManager.GetBloomData();
+
+                        var bone = frame.CreateBone(trans);
+                        frame.UpdateBone(bone);
+                        break;
+                    }
                 }
             }
         }
@@ -229,6 +245,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return TransformType.Rimlight;
                 case PostEffectType.GTToneMap:
                     return TransformType.GTToneMap;
+                case PostEffectType.Bloom:
+                    return TransformType.Bloom;
             }
 
             return TransformType.None;
