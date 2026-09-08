@@ -8,7 +8,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap)。
+    /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap / ブルーム)。
     ///
     /// 委譲先の個別ウィンドウが無いため、コピー先への複製とトーンカーブのプレビューも含めここで描く。
     /// 書き込み先は PostEffectManager のデータで、値の範囲・既定値は TransformData の Info を使う。
@@ -26,8 +26,18 @@ namespace COM3D2.SceneEditor.Plugin
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
-        private readonly ColorFieldCache _color3FieldCache = new ColorFieldCache("", true);
-        private readonly ColorFieldCache _color4FieldCache = new ColorFieldCache("", true);
+
+        // ブルームは色が 5 つあり色1/色2 のペア用キャッシュでは足りないため、専用に持つ
+        private readonly ColorFieldCache _bloomThresholdColorFieldCache = new ColorFieldCache("", false);
+        private readonly ColorFieldCache[] _bloomFlareColorFieldCaches =
+        {
+            new ColorFieldCache("", true),
+            new ColorFieldCache("", true),
+            new ColorFieldCache("", true),
+            new ColorFieldCache("", true),
+        };
+
+        private static readonly string[] BloomFlareColorLabels = { "A", "B", "C", "D" };
 
         private readonly GUIComboBox<MTEP.MaidCache> _maidComboBox = new GUIComboBox<MTEP.MaidCache>
         {
@@ -86,8 +96,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _color1FieldCache.label = colorLabelPrefix + "/色1";
             _color2FieldCache.label = colorLabelPrefix + "/色2";
-            _color3FieldCache.label = colorLabelPrefix + "/色3";
-            _color4FieldCache.label = colorLabelPrefix + "/色4";
+            _bloomThresholdColorFieldCache.label = colorLabelPrefix + "/しきい値色";
+            for (var i = 0; i < _bloomFlareColorFieldCaches.Length; i++)
+            {
+                _bloomFlareColorFieldCaches[i].label = colorLabelPrefix + "/ﾌﾚｱ色" + BloomFlareColorLabels[i];
+            }
         }
 
         /// <summary>色1 / 色2 の行</summary>
@@ -504,6 +517,170 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             DrawGTToneMapCurve(view, data);
+        }
+
+        /// <summary>ブルーム</summary>
+        public void DrawBloomRows(GUIView view)
+        {
+            var bloom = postEffectManager.GetBloomData();
+            var updateTransform = false;
+            var defaultTrans = TransformDataBloom.defaultTrans;
+
+            updateTransform = view.DrawToggle("有効化", bloom.enabled, 80, 20, newValue =>
+            {
+                bloom.enabled = newValue;
+            });
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.gameEffectDisabledInfo,
+                bloom.gameEffectDisabled,
+                newValue => bloom.gameEffectDisabled = newValue);
+
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.hdrInfo,
+                bloom.hdr,
+                newValue => bloom.hdr = newValue);
+
+            // 0=Screen / 1=Add
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.screenBlendModeInfo,
+                bloom.screenBlendMode != 0,
+                newValue => bloom.screenBlendMode = newValue ? 1 : 0);
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.highQualityInfo,
+                bloom.highQuality,
+                newValue => bloom.highQuality = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.intensityInfo,
+                bloom.intensity,
+                newValue => bloom.intensity = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.thresholdInfo,
+                bloom.threshold,
+                newValue => bloom.threshold = newValue);
+
+            updateTransform |= view.DrawColor(
+                _bloomThresholdColorFieldCache,
+                bloom.thresholdColor,
+                defaultTrans.initialColor,
+                newValue => bloom.thresholdColor = newValue);
+
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.blurIterationsInfo,
+                bloom.blurIterations,
+                newValue => bloom.blurIterations = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.blurSpreadInfo,
+                bloom.blurSpread,
+                newValue => bloom.blurSpread = newValue);
+
+            view.DrawHorizontalLine(Color.gray);
+            view.DrawLabel("キャラと背景の分離", 200, 20);
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.separationEnabledInfo,
+                bloom.separationEnabled,
+                newValue => bloom.separationEnabled = newValue);
+
+            // 分離が無効なうちは以降の値が効かないので出さない (実体側 UI と同じ条件)
+            if (bloom.separationEnabled)
+            {
+                updateTransform |= view.DrawCustomValueBool(
+                    defaultTrans.separationCharactersEnabledInfo,
+                    bloom.separationCharactersEnabled,
+                    newValue => bloom.separationCharactersEnabled = newValue);
+
+                updateTransform |= view.DrawCustomValueBool(
+                    defaultTrans.separationBackgroundEnabledInfo,
+                    bloom.separationBackgroundEnabled,
+                    newValue => bloom.separationBackgroundEnabled = newValue);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.separationCharacterIntensityInfo,
+                    bloom.separationCharacterIntensity,
+                    newValue => bloom.separationCharacterIntensity = newValue);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.separationCharacterThresholdInfo,
+                    bloom.separationCharacterThreshold,
+                    newValue => bloom.separationCharacterThreshold = newValue);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.separationCharacterRadiusInfo,
+                    bloom.separationCharacterRadius,
+                    newValue => bloom.separationCharacterRadius = newValue);
+            }
+
+            view.DrawHorizontalLine(Color.gray);
+            view.DrawLabel("レンズフレア", 200, 20);
+
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.lensFlareModeInfo,
+                bloom.lensFlareMode,
+                newValue => bloom.lensFlareMode = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.lensFlareIntensityInfo,
+                bloom.lensFlareIntensity,
+                newValue => bloom.lensFlareIntensity = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.lensFlareSaturationInfo,
+                bloom.lensFlareSaturation,
+                newValue => bloom.lensFlareSaturation = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.lensFlareThresholdInfo,
+                bloom.lensFlareThreshold,
+                newValue => bloom.lensFlareThreshold = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.flareRotationInfo,
+                bloom.flareRotation,
+                newValue => bloom.flareRotation = newValue);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.hollyStretchWidthInfo,
+                bloom.hollyStretchWidth,
+                newValue => bloom.hollyStretchWidth = newValue);
+
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.hollywoodFlareBlurIterationsInfo,
+                bloom.hollywoodFlareBlurIterations,
+                newValue => bloom.hollywoodFlareBlurIterations = newValue);
+
+            updateTransform |= view.DrawColor(
+                _bloomFlareColorFieldCaches[0],
+                bloom.flareColorA,
+                defaultTrans.initialSubColor,
+                newValue => bloom.flareColorA = newValue);
+
+            updateTransform |= view.DrawColor(
+                _bloomFlareColorFieldCaches[1],
+                bloom.flareColorB,
+                TransformDataBloom.InitialFlareColorB,
+                newValue => bloom.flareColorB = newValue);
+
+            updateTransform |= view.DrawColor(
+                _bloomFlareColorFieldCaches[2],
+                bloom.flareColorC,
+                TransformDataBloom.InitialFlareColorC,
+                newValue => bloom.flareColorC = newValue);
+
+            updateTransform |= view.DrawColor(
+                _bloomFlareColorFieldCaches[3],
+                bloom.flareColorD,
+                TransformDataBloom.InitialFlareColorD,
+                newValue => bloom.flareColorD = newValue);
+
+            if (updateTransform)
+            {
+                postEffectManager.ApplyBloom(bloom);
+            }
         }
 
         /// <summary>トーンカーブのプレビュー</summary>
