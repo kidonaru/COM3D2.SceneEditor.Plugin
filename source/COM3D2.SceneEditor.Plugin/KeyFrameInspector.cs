@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
+using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -9,8 +10,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// 選択中キーフレームの詳細表示・編集。
     /// 選択キーフレームごとに折りたたみ可能なブロックを縦に並べ、
-    /// Transform は標準 Inspector と同じ横並び行、その他のパラメータは
-    /// ウィンドウ幅に合わせて折り返すドラッグ可能な数値入力で個別に編集する
+    /// Transform は標準 Inspector と同じ横並び行、色・カスタム値・表示・文字列値は
+    /// タイムライン項目の現在値 UI (TimelineItemInspector) と同じ部品で 1 値 1 行に描く
     /// (「補間曲線」タブに KeyFrameTangentDrawer のタンジェント曲線エディタを表示する。
     /// 区間ごとの実値カーブ編集は TimelineCurveEditor が担当)
     /// </summary>
@@ -30,20 +31,15 @@ namespace COM3D2.SceneEditor.Plugin
         private const float HeaderButtonWidth = 44f;
         /// <summary>一括開閉ボタンの幅 (「すべて折りたたみ」が収まる幅)</summary>
         private const float FoldAllButtonWidth = 90f;
-        /// <summary>フロー要素内のラベル幅</summary>
-        private const float FlowLabelWidth = 70f;
-        /// <summary>フロー要素内の数値入力欄の幅 (リセットボタンは含まない)</summary>
-        private const float FlowFieldWidth = 60f;
-        /// <summary>ブロック内容の左インデント</summary>
-        private const float BlockIndent = 8f;
         /// <summary>ヘッダーのボーン名を切り詰める下限 (これ以下だと名前が読めない)</summary>
         private const float MinHeaderLabelWidth = 40f;
+        /// <summary>文字列値のラベル幅 (「ﾎﾟｰｽﾞ名」等が収まる幅)</summary>
+        private const float StrLabelWidth = 70f;
 
         // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
         private const float ScaleSensitivity = 0.01f;
-        private const float ColorSensitivity = 0.01f;
 
         /// <summary>タブ 1 個の幅 (「補間曲線」が収まる幅)</summary>
         private const float TabWidth = 70f;
@@ -240,7 +236,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             var transform = bone.transform;
             DrawTransform(view, bone, transform);
-            DrawFlowValues(view, bone, transform);
+            DrawColorRow(view, bone, transform);
+            DrawCustomValues(view, bone, transform);
+            DrawStrValues(view, bone, transform);
         }
 
         /// <summary>開閉マーク + ボーン名(フレーム番号) + 初期化 / 削除ボタンの 1 行</summary>
@@ -341,7 +339,7 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RequestHistory("キーフレーム削除");
         }
 
-        /// <summary>位置 / 回転 / 拡縮 / 色 を標準 Inspector と同じ横並び行で描く</summary>
+        /// <summary>位置 / 回転 / 拡縮 を標準 Inspector と同じ横並び行で描く</summary>
         private void DrawTransform(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
         {
             if (transform.hasPosition)
@@ -366,14 +364,6 @@ namespace COM3D2.SceneEditor.Plugin
                     transform.scale,
                     value => transform.scale = value,
                     () => transform.scale = transform.initialScale);
-            }
-
-            if (transform.hasColor)
-            {
-                DrawVector3Row(view, bone, "色", ColorSensitivity,
-                    transform.color.ToVector3(),
-                    value => transform.color = value.ToColor(),
-                    () => transform.color = transform.initialColor);
             }
         }
 
@@ -409,161 +399,99 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// フロー要素 1 個が消費する幅 (末尾のマージンは含まない)。
-        /// DrawDragFloatField はラベル + マージン + 数値入力 + リセットボタンを描くので、
-        /// その内訳と同じ式にしないと折り返し位置がずれて右端をはみ出す
+        /// 色をカラーピッカー付きの行で描く (現在値 UI と同じ部品)。
+        /// ColorPickerWindow はラベル文字列で編集対象を同定するため、
+        /// 同名ボーンの別フレームと混ざらないようフレーム番号を含めて一意にする。
+        /// RGB のみ編集し、アルファは扱わない。
+        /// コールバックは ColorPickerWindow の描画中に呼ばれるが、bone.transform は
+        /// 使い捨てではなく永続参照なので、そのまま書き換えてよい
         /// </summary>
-        private static float GetFlowItemWidth(GUIView view)
+        private void DrawColorRow(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
         {
-            return FlowLabelWidth + view.margin + FlowFieldWidth + GUIView.ResetButtonWidth;
+            if (!transform.hasColor)
+            {
+                return;
+            }
+
+            var fieldCache = view.GetColorFieldCache(
+                string.Format("{0} (F{1})/色", bone.name, bone.frameNo), false);
+            view.DrawColor(fieldCache, transform.color, transform.initialColor, newValue =>
+            {
+                transform.color = newValue;
+                Apply(bone);
+            });
         }
 
-        /// <summary>
-        /// カスタム値・文字列値・表示トグルを、ウィンドウ幅に入るだけ横に並べて折り返す。
-        /// 種類をまたいで詰めると型ごとの見分けがつかなくなるため、
-        /// 「カスタム値 → 表示トグル」までを 1 つの流れとし、文字列値は 1 行ずつ別に描く
-        /// </summary>
-        private void DrawFlowValues(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        /// <summary>カスタム値と表示トグルを 1 値 1 行で描く</summary>
+        private void DrawCustomValues(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
         {
-            var itemWidth = GetFlowItemWidth(view);
-            // AddSpace(BlockIndent) 自体もマージンを消費するため 1 個ぶん差し引く
-            var available = view.viewRect.width - view.padding.x * 2
-                - BlockIndent - view.margin;
-            var columnCount = KeyFrameFlowLayout.GetColumnCount(available, itemWidth, view.margin);
-
-            // 現在の行に描いた要素数。0 なら行をまだ開いていない
-            var column = 0;
-
             foreach (var pair in transform.GetCustomValueInfoMap())
             {
                 if (!transform.HasCustomValue(pair.Key))
                 {
                     continue;
                 }
-
-                BeginFlowItem(view, columnCount, ref column);
-                DrawCustomValueItem(view, bone, transform, pair.Key, pair.Value, itemWidth);
+                DrawCustomValueRow(view, bone, transform, pair.Key, pair.Value);
             }
 
             if (transform.hasVisible)
             {
-                BeginFlowItem(view, columnCount, ref column);
-                DrawVisibleItem(view, bone, transform, itemWidth);
-            }
-
-            if (column > 0)
-            {
-                view.EndLayout();
-            }
-
-            DrawStrValues(view, bone, transform);
-        }
-
-        /// <summary>
-        /// 次のフロー要素を描く前の行制御。行頭なら行を開き、
-        /// 列を使い切っていたら行を閉じて次の行を開く
-        /// </summary>
-        private void BeginFlowItem(GUIView view, int columnCount, ref int column)
-        {
-            if (column >= columnCount)
-            {
-                view.EndLayout();
-                column = 0;
-            }
-
-            if (column == 0)
-            {
-                view.BeginHorizontal();
-                view.AddSpace(BlockIndent);
-            }
-
-            column++;
-        }
-
-        /// <summary>
-        /// カスタム値 1 個。bool 相当はトグル、整数相当は int 入力、
-        /// それ以外はドラッグ可能な float 入力にする
-        /// </summary>
-        private void DrawCustomValueItem(
-            GUIView view,
-            MTEP.BoneData bone,
-            MTEP.ITransformData transform,
-            string customKey,
-            MTEP.CustomValueInfo info,
-            float itemWidth)
-        {
-            var name = transform.GetCustomValueName(customKey);
-            var valueData = transform.GetCustomValue(customKey);
-
-            Action reset = () =>
-            {
-                transform.GetCustomValue(customKey).value = transform.GetDefaultCustomValue(customKey);
-                Apply(bone);
-            };
-
-            if (info.type == MTEP.CustomValueType.BoolValue)
-            {
-                // トグルには数値入力欄がないので、列を揃えるため要素幅ぶんを丸ごと使う
-                view.DrawToggle(name, valueData.value != 0f, itemWidth, RowHeight,
-                    newValue =>
-                    {
-                        transform.GetCustomValue(customKey).value = newValue ? 1f : 0f;
-                        Apply(bone);
-                    });
-                return;
-            }
-
-            if (info.type == MTEP.CustomValueType.IntValue)
-            {
-                view.DrawDragIntField(new GUIView.DragIntFieldOption
-                {
-                    label = name,
-                    labelWidth = FlowLabelWidth,
-                    value = Mathf.RoundToInt(valueData.value),
-                    minValue = Mathf.RoundToInt(info.min),
-                    maxValue = Mathf.RoundToInt(info.max),
-                    fieldWidth = FlowFieldWidth,
-                    height = RowHeight,
-                    // dragSensitivity は既定 (DefaultIntDragSensitivity = 0.5) に任せる。
-                    // 1.0 にすると 1px で 1 段変わって細かい調整ができない
-                    onChanged = newValue =>
-                    {
-                        transform.GetCustomValue(customKey).value = newValue;
-                        Apply(bone);
-                    },
-                    onReset = reset,
-                });
-                return;
-            }
-
-            view.DrawDragFloatField(new GUIView.DragFloatFieldOption
-            {
-                label = name,
-                labelWidth = FlowLabelWidth,
-                value = valueData.value,
-                minValue = info.min,
-                maxValue = info.max,
-                fieldWidth = FlowFieldWidth,
-                height = RowHeight,
-                dragSensitivity = info.step > 0f ? info.step : GUIView.DefaultFloatDragSensitivity,
-                onChanged = newValue =>
-                {
-                    transform.GetCustomValue(customKey).value = newValue;
-                    Apply(bone);
-                },
-                onReset = reset,
-            });
-        }
-
-        private void DrawVisibleItem(
-            GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform, float itemWidth)
-        {
-            view.DrawToggle("表示", transform.visible, itemWidth, RowHeight,
-                newValue =>
+                view.DrawToggle("表示", transform.visible, -1, RowHeight, newValue =>
                 {
                     transform.visible = newValue;
                     Apply(bone);
                 });
+            }
+        }
+
+        /// <summary>
+        /// カスタム値 1 個。現在値 UI (各 RowDrawer) と同じ DrawCustomValue* を使う。
+        /// スライダー行の R は info.defaultValue へ戻す。数値欄のみの float 値は現在値 UI では
+        /// リセットを持たないが、キーフレームでは従来どおり戻せるよう onReset を渡す
+        /// (どちらも GetDefaultCustomValue と同じ値になる)
+        /// </summary>
+        private void DrawCustomValueRow(
+            GUIView view,
+            MTEP.BoneData bone,
+            MTEP.ITransformData transform,
+            string customKey,
+            MTEP.CustomValueInfo info)
+        {
+            var value = transform.GetCustomValue(customKey).value;
+
+            switch (info.type)
+            {
+                case MTEP.CustomValueType.BoolValue:
+                    view.DrawCustomValueBool(info, value != 0f, newValue =>
+                    {
+                        transform.GetCustomValue(customKey).value = newValue ? 1f : 0f;
+                        Apply(bone);
+                    });
+                    break;
+
+                case MTEP.CustomValueType.IntValue:
+                    view.DrawCustomValueInt(info, Mathf.RoundToInt(value), newValue =>
+                    {
+                        transform.GetCustomValue(customKey).value = newValue;
+                        Apply(bone);
+                    });
+                    break;
+
+                default:
+                    view.DrawCustomValueFloat(info, value,
+                        newValue =>
+                        {
+                            transform.GetCustomValue(customKey).value = newValue;
+                            Apply(bone);
+                        },
+                        () =>
+                        {
+                            transform.GetCustomValue(customKey).value =
+                                transform.GetDefaultCustomValue(customKey);
+                            Apply(bone);
+                        });
+                    break;
+            }
         }
 
         /// <summary>文字列値は幅が読めないので 1 行ずつ全幅で描く</summary>
@@ -579,26 +507,21 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var value = transform.GetStrValue(strKey);
 
-                view.BeginHorizontal();
-                {
-                    view.AddSpace(BlockIndent);
-                    view.DrawTextField(
-                        transform.GetStrValueName(strKey),
-                        FlowLabelWidth,
-                        value,
-                        -1,
-                        RowHeight,
-                        newValue =>
+                view.DrawTextField(
+                    transform.GetStrValueName(strKey),
+                    StrLabelWidth,
+                    value,
+                    -1,
+                    RowHeight,
+                    newValue =>
+                    {
+                        if (newValue == value)
                         {
-                            if (newValue == value)
-                            {
-                                return;
-                            }
-                            transform.SetStrValue(strKey, newValue);
-                            Apply(bone);
-                        });
-                }
-                view.EndLayout();
+                            return;
+                        }
+                        transform.SetStrValue(strKey, newValue);
+                        Apply(bone);
+                    });
             }
         }
 

@@ -282,7 +282,6 @@
     <Compile Include="HistoryAPI.cs" />
     <Compile Include="HistoryWindow.cs" />
     <Compile Include="InspectorWindow.cs" />
-    <Compile Include="KeyFrameFlowLayout.cs" />
     <Compile Include="KeyFrameTangentDrawer.cs" />
     <Compile Include="TangentCurveTexture.cs" />
     <Compile Include="TangentTargetList.cs" />

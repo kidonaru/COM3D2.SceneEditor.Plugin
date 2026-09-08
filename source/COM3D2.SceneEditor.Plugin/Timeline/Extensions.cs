@@ -204,11 +204,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             rows.Add(bone);
         }
 
+        /// <summary>
+        /// カスタム値 (float) の行。スライダー型は R ボタンで info.defaultValue へ戻す。
+        /// 数値欄のみの型は onReset を渡したときだけ R ボタンを描く (既定は従来どおり無し)
+        /// </summary>
         public static bool DrawCustomValueFloat(
             this GUIView view,
             CustomValueInfo info,
             float value,
-            Action<float> onChanged)
+            Action<float> onChanged,
+            Action onReset = null)
         {
             if (info.type == CustomValueType.FloatSlider)
             {
@@ -237,6 +242,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     width = 90,
                     height = 20,
                     onChanged = onChanged,
+                    onReset = onReset,
                 });
             }
         }
