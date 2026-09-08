@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -28,6 +28,11 @@ namespace COM3D2.SceneEditor.Plugin
         public string description { get; set; }
         public Maid maid;
         public HistoryScope scope;
+        /// <summary>
+        /// 同一スコープ内で対象を区別するキー (編集中のマテリアル・シェイプキー名など)。
+        /// 確定待ちの集約判定にだけ使い、null なら区別しない
+        /// </summary>
+        public object targetKey;
         public IStateSnapshot before;
         public IStateSnapshot after;
 
@@ -85,6 +90,26 @@ namespace COM3D2.SceneEditor.Plugin
         public void BeforeEdit(Maid maid, HistoryScope scope, string description,
             IEnumerable<Transform> targetBones = null)
         {
+            BeforeEditCore(maid, scope, description, null,
+                () => SnapshotFactory.Capture(maid, scope, targetBones),
+                targetBones);
+        }
+
+        /// <summary>
+        /// SnapshotFactory を通さず、呼び出し側がスナップショットを組み立てるオーバーロード。
+        /// メイドに紐付かない対象 (モデルのマテリアル・演出の全体状態) 向け。
+        /// targetKey が異なれば別の操作として確定待ちを切り替える。
+        /// capture は確定待ちが無いときだけ評価される
+        /// </summary>
+        public void BeforeEdit(Maid maid, HistoryScope scope, string description,
+            object targetKey, Func<IStateSnapshot> capture)
+        {
+            BeforeEditCore(maid, scope, description, targetKey, capture, null);
+        }
+
+        private void BeforeEditCore(Maid maid, HistoryScope scope, string description,
+            object targetKey, Func<IStateSnapshot> capture, IEnumerable<Transform> targetBones)
+        {
             if ((maid == null && HistoryScopeUtils.RequiresMaid(scope))
                 || config.historyLimit <= 0)
             {
@@ -92,14 +117,16 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             if (_pending != null
-                && (_pending.maid != maid || _pending.scope != scope))
+                && (_pending.maid != maid
+                    || _pending.scope != scope
+                    || !Equals(_pending.targetKey, targetKey)))
             {
                 CommitPending();
             }
 
             if (_pending == null)
             {
-                var snapshot = SnapshotFactory.Capture(maid, scope, targetBones);
+                var snapshot = capture();
                 if (snapshot == null)
                 {
                     return;
@@ -110,6 +137,7 @@ namespace COM3D2.SceneEditor.Plugin
                     description = description,
                     maid = maid,
                     scope = scope,
+                    targetKey = targetKey,
                     before = snapshot,
                 };
             }

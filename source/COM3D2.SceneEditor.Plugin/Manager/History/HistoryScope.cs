@@ -1,4 +1,4 @@
-namespace COM3D2.SceneEditor.Plugin
+﻿namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>履歴エントリが対象とする状態の範囲</summary>
     public enum HistoryScope
@@ -25,6 +25,18 @@ namespace COM3D2.SceneEditor.Plugin
         Gravity,
         /// <summary>PNG 配置 (配置一覧・色・表示順)</summary>
         PngPlacement,
+        /// <summary>マテリアル 1 件 (色・数値プロパティと追跡チェック)。メイド・モデル・背景で共用</summary>
+        Material,
+        /// <summary>シェイプキー 1 件 (重みと追跡チェック)。メイド・モデルで共用</summary>
+        ShapeKey,
+        /// <summary>フリーテキスト全件 (件数含む)</summary>
+        Text,
+        /// <summary>サブカメラ全台 (台数含む)</summary>
+        SubCamera,
+        /// <summary>BGM ファイル設定 (パス・BPM・BPM ライン)</summary>
+        Sound,
+        /// <summary>動画全本 (本数含む)</summary>
+        Video,
     }
 
     public static class HistoryScopeUtils
@@ -52,6 +64,13 @@ namespace COM3D2.SceneEditor.Plugin
                 case HistoryScope.Camera:
                 case HistoryScope.Placement:
                 case HistoryScope.PngPlacement:
+                // 対象はスナップショット側が保持する。メイドは自動キーフレーム登録の判定用に任意で付く
+                case HistoryScope.Material:
+                case HistoryScope.ShapeKey:
+                case HistoryScope.Text:
+                case HistoryScope.SubCamera:
+                case HistoryScope.Sound:
+                case HistoryScope.Video:
                     return false;
                 default:
                     return true;
