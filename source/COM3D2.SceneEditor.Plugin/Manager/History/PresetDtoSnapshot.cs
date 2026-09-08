@@ -18,17 +18,21 @@ namespace COM3D2.SceneEditor.Plugin
         protected abstract PresetDtoSnapshot<T> CreateEmpty();
 
         /// <summary>派生の static Capture から呼ぶ初期化</summary>
-        protected PresetDtoSnapshot<T> Init()
+        protected void Init()
         {
             state = CaptureState();
-            return this;
         }
 
         public void AddBones(IEnumerable<Transform> targetBones)
         {
         }
 
-        public IStateSnapshot CaptureCurrent() => CreateEmpty().Init();
+        public IStateSnapshot CaptureCurrent()
+        {
+            var snapshot = CreateEmpty();
+            snapshot.Init();
+            return snapshot;
+        }
 
         public void Apply(Maid maid) => ApplyState(state);
 

@@ -6,7 +6,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>フリーテキスト全件のスナップショット (件数含む)</summary>
     public class TextSnapshot : PresetDtoSnapshot<List<ScenePresetText>>
     {
-        public static TextSnapshot Capture() => (TextSnapshot)new TextSnapshot().Init();
+        public static TextSnapshot Capture()
+        {
+            var snapshot = new TextSnapshot();
+            snapshot.Init();
+            return snapshot;
+        }
 
         /// <summary>
         /// 指定テキストの回転だけ差し替えて捕捉する。

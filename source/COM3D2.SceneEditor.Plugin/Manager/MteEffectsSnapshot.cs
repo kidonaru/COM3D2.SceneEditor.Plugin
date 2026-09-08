@@ -154,17 +154,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>サブカメラ全台を書き戻す。履歴とプリセットで共用</summary>
-        public static void ApplySubCameras(List<ScenePresetSubCamera> srcList)
+        public static void ApplySubCameras(List<ScenePresetSubCamera> srcSubCameras)
         {
-            if (srcList == null || srcList.Count == 0)
+            if (srcSubCameras == null || srcSubCameras.Count == 0)
             {
                 return;
             }
 
-            subCameraManager.SetCameraCount(srcList.Count);
+            subCameraManager.SetCameraCount(srcSubCameras.Count);
 
             var subCameras = subCameraManager.subCameras;
-            for (var i = 0; i < srcList.Count && i < subCameras.Count; i++)
+            for (var i = 0; i < srcSubCameras.Count && i < subCameras.Count; i++)
             {
                 var cameraData = subCameras[i];
                 if (cameraData.camera == null)
@@ -172,7 +172,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                var src = srcList[i];
+                var src = srcSubCameras[i];
                 // 追従設定を先に入れることで position / rotation プロパティの
                 // 書き込み先 (オフセット / ワールド値) を保存時と一致させる
                 var follow = cameraData.follow;
