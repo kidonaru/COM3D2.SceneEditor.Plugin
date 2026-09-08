@@ -205,6 +205,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var toneMap = PostEffectsClient.GetGTToneMap();
             toneMap.enabled = false;
             PostEffectsClient.ApplyGTToneMap(toneMap);
+
+            var bloom = PostEffectsClient.GetBloom();
+            bloom.enabled = false;
+            PostEffectsClient.ApplyBloom(bloom);
         }
 
         public DepthOfFieldData GetDepthOfFieldData()
@@ -294,6 +298,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             setting.blackTightness = data.blackTightness;
             setting.blackOffset = data.blackOffset;
             PostEffectsClient.ApplyGTToneMap(setting);
+        }
+
+        // ブルームは共有 DTO をそのまま流す (実体側と同じ平置き構造のため変換が要らない)
+        public PEData.BloomData GetBloomData()
+        {
+            return PostEffectsClient.GetBloom();
+        }
+
+        public void ApplyBloom(PEData.BloomData data)
+        {
+            PostEffectsClient.ApplyBloom(data);
         }
     }
 }

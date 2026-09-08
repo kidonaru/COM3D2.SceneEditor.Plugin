@@ -10,6 +10,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Paraffin,
         DistanceFog,
         Rimlight,
+        Bloom,
     }
 
     public static class PostEffectUtils
@@ -23,6 +24,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             { PostEffectType.Paraffin, "パラフィン" },
             { PostEffectType.DistanceFog, "距離フォグ" },
             { PostEffectType.Rimlight, "リムライト" },
+            { PostEffectType.Bloom, "ブルーム" },
         };
 
         public static string ToJpName(PostEffectType postEffectType)
