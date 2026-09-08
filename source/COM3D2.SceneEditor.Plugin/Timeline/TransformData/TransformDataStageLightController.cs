@@ -122,6 +122,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Vector3 initialSubPosition => new Vector3(5f, 10f, 0f);
         public override Vector3 initialEulerAngles => new Vector3(90f, 0f, 0f);
         public override Vector3 initialSubEulerAngles => new Vector3(90f, 0f, 0f);
+
         public TransformDataStageLightController()
         {
         }

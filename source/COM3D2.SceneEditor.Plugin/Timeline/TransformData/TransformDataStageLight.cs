@@ -84,6 +84,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Vector3 initialPosition => new Vector3(0f, 10f, 0f);
         public override Vector3 initialEulerAngles => new Vector3(90f, 0f, 0f);
         public override Quaternion initialSubRotation => Quaternion.Euler(90f, 0f, 0f);
+
         public TransformDataStageLight()
         {
         }

@@ -226,9 +226,12 @@ namespace COM3D2.SceneEditor.Plugin
                 paraffin.enabled = newValue;
             });
 
+            var defaultColor1 = defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main);
+            var defaultColor2 = defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub);
+
             DrawColorPair(view, paraffin,
                 paraffin.color1, paraffin.color2,
-                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main), defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
+                defaultColor1, defaultColor2,
                 () => postEffectManager.GetParaffinData(index),
                 data => postEffectManager.ApplyParaffin(index, data),
                 (data, color) => data.color1 = color,
@@ -319,9 +322,12 @@ namespace COM3D2.SceneEditor.Plugin
                 distanceFog.enabled = newValue;
             });
 
+            var defaultColor1 = defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main);
+            var defaultColor2 = defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub);
+
             DrawColorPair(view, distanceFog,
                 distanceFog.color1, distanceFog.color2,
-                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main), defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
+                defaultColor1, defaultColor2,
                 () => postEffectManager.GetDistanceFogData(index),
                 data => postEffectManager.ApplyDistanceFog(index, data),
                 (data, color) => data.color1 = color,
@@ -394,9 +400,12 @@ namespace COM3D2.SceneEditor.Plugin
                 rimlight.enabled = newValue;
             });
 
+            var defaultColor1 = defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main);
+            var defaultColor2 = defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub);
+
             DrawColorPair(view, rimlight,
                 rimlight.color1, rimlight.color2,
-                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main), defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
+                defaultColor1, defaultColor2,
                 () => postEffectManager.GetRimlightData(index),
                 data => postEffectManager.ApplyRimlight(index, data),
                 (data, color) => data.color1 = color,

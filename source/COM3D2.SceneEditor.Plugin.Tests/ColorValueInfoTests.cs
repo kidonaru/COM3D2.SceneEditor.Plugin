@@ -56,8 +56,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void SetColorValueで書いた色をGetColorValueで読める()
         {
             var trans = Create();
-            trans.SetColorValue(ColorKeyMain, new Color(0.5f, 0.6f, 0.7f, 0.8f));
-            Assert.Equal(new Color(0.5f, 0.6f, 0.7f, 0.8f), trans.GetColorValue(ColorKeyMain));
+            trans.SetColorValue(TransformDataBase.ColorKey.Main, new Color(0.5f, 0.6f, 0.7f, 0.8f));
+            Assert.Equal(new Color(0.5f, 0.6f, 0.7f, 0.8f), trans.GetColorValue(TransformDataBase.ColorKey.Main));
             Assert.Equal(0.8f, trans.values[3].value);
         }
 
@@ -76,14 +76,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             var trans = Create();
             trans.color = new Color(0.2f, 0.4f, 0.6f, 0.8f);
-            Assert.Equal(trans.GetColorValue(ColorKeyMain), trans.color);
+            Assert.Equal(trans.GetColorValue(TransformDataBase.ColorKey.Main), trans.color);
         }
 
         [Fact]
         public void 既定値と存在判定と名前()
         {
             var trans = Create();
-            Assert.Equal(new Color(0.1f, 0.2f, 0.3f, 0.4f), trans.GetDefaultColorValue(ColorKeyMain));
+            Assert.Equal(new Color(0.1f, 0.2f, 0.3f, 0.4f), trans.GetDefaultColorValue(TransformDataBase.ColorKey.Main));
             Assert.True(trans.HasColorValue("rgb"));
             Assert.False(trans.HasColorValue("none"));
             Assert.Equal("RGB", trans.GetColorValueName("rgb"));
@@ -93,10 +93,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void Resetで色が既定値に戻る()
         {
             var trans = Create();
-            trans.SetColorValue(ColorKeyMain, Color.red);
+            trans.SetColorValue(TransformDataBase.ColorKey.Main, Color.red);
             trans.SetColorValue("rgb", Color.red);
             trans.Reset();
-            Assert.Equal(new Color(0.1f, 0.2f, 0.3f, 0.4f), trans.GetColorValue(ColorKeyMain));
+            Assert.Equal(new Color(0.1f, 0.2f, 0.3f, 0.4f), trans.GetColorValue(TransformDataBase.ColorKey.Main));
             Assert.Equal(new Color(0f, 0f, 0f, 1f), trans.GetColorValue("rgb"));
         }
 
@@ -216,7 +216,5 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             trans.SetColorValue(TransformDataModelMaterial.RimLightColorKey, Color.red);
             Assert.Equal(Color.red, trans.RimLightColor);
         }
-
-        private const string ColorKeyMain = "color";
     }
 }

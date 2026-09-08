@@ -75,6 +75,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Vector3 initialPosition => StageLaser.DefaultPosition;
         public override Vector3 initialEulerAngles => StageLaser.DefaultEulerAngles;
+
         public TransformDataStageLaser()
         {
         }

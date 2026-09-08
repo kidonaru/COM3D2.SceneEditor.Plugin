@@ -886,6 +886,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static readonly Dictionary<string, ColorValueInfo> EmptyColorValueInfoMap
             = new Dictionary<string, ColorValueInfo>();
 
+        /// <summary>
+        /// 色マップ。CustomValueInfoMap と同じく型ごとに不変なので、
+        /// override する型は static readonly のマップを返すこと
+        /// (Reset / UI 描画から毎フレーム呼ばれるため都度生成するとGC圧になる)
+        /// </summary>
         public virtual Dictionary<string, ColorValueInfo> GetColorValueInfoMap()
         {
             return EmptyColorValueInfoMap;
