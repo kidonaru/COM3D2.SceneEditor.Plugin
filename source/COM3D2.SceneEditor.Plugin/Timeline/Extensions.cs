@@ -213,14 +213,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             CustomValueInfo info,
             float value,
             Action<float> onChanged,
-            Action onReset = null)
+            Action onReset = null,
+            float labelWidth = 40f)
         {
             if (info.type == CustomValueType.FloatSlider)
             {
                 return view.DrawSliderValue(new GUIView.SliderOption
                 {
                     label = info.name,
-                    labelWidth = 40,
+                    labelWidth = labelWidth,
                     fieldType = FloatFieldType.Float,
                     min = info.min,
                     max = info.max,
@@ -235,7 +236,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return view.DrawFloatField(new GUIView.FloatFieldOption
                 {
                     label = info.name,
-                    labelWidth = 40,
+                    labelWidth = labelWidth,
                     minValue = info.min,
                     maxValue = info.max,
                     value = value,
@@ -251,12 +252,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this GUIView view,
             CustomValueInfo info,
             int value,
-            Action<int> onChanged)
+            Action<int> onChanged,
+            float labelWidth = 40f)
         {
             return view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = info.name,
-                labelWidth = 40,
+                labelWidth = labelWidth,
                 fieldType = FloatFieldType.Int,
                 min = info.min,
                 max = info.max,

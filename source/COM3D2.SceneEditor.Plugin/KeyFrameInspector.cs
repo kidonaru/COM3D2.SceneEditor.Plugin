@@ -36,6 +36,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>文字列値のラベル幅 (「ﾎﾟｰｽﾞ名」等が収まる幅)</summary>
         private const float StrLabelWidth = 70f;
 
+        /// <summary>カスタム値のラベル幅 (「アウトライン色」等が収まる幅。文字列値と揃える)</summary>
+        private const float CustomLabelWidth = 70f;
+
         // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
@@ -473,7 +476,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         transform.GetCustomValue(customKey).value = newValue;
                         Apply(bone);
-                    });
+                    }, labelWidth: CustomLabelWidth);
                     break;
 
                 default:
@@ -488,7 +491,8 @@ namespace COM3D2.SceneEditor.Plugin
                             transform.GetCustomValue(customKey).value =
                                 transform.GetDefaultCustomValue(customKey);
                             Apply(bone);
-                        });
+                        },
+                        CustomLabelWidth);
                     break;
             }
         }
