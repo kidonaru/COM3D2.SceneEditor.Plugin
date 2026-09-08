@@ -4,6 +4,7 @@ using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
+using PEData = COM3D2.MotionTimelineEditor.PostEffects;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -104,20 +105,52 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>色1 / 色2 の行</summary>
-        private bool DrawColorPair(
-            GUIView view, Color color1, Color color2,
-            Color initialColor, Color initialSubColor, Action<Color, Color> onChanged)
+        /// <summary>
+        /// 色の変更を即座に反映する。
+        ///
+        /// ColorPickerWindow は呼び出し元とは別ウィンドウの描画中にコールバックを呼ぶため、
+        /// 呼び出し元フレームのデータ (取得のたびに作り直される使い捨て) へ書いても捨てられる。
+        /// そこで変更時点で最新データを取り直し、その場で適用する
+        /// </summary>
+        /// <param name="frameData">呼び出し元フレームのデータ。同フレームの他項目の適用で
+        /// 色が巻き戻らないよう、こちらへも書いておく (参照型限定なのはこのため)</param>
+        private static void ApplyColorImmediate<T>(
+            T frameData, Func<T> getData, Action<T> applyData,
+            Action<T, Color> setColor, Color color)
+            where T : class
         {
-            var updated = false;
+            setColor(frameData, color);
 
-            updated |= view.DrawColor(_color1FieldCache, color1, initialColor,
-                newValue => onChanged(newValue, color2));
+            var data = getData();
+            setColor(data, color);
+            applyData(data);
+        }
 
-            updated |= view.DrawColor(_color2FieldCache, color2, initialSubColor,
-                newValue => onChanged(color1, newValue));
+        /// <summary>色の行 (変更は即時適用するため戻り値は無い)</summary>
+        private static void DrawColorImmediate<T>(
+            GUIView view, ColorFieldCache fieldCache, T frameData,
+            Color color, Color initialColor,
+            Func<T> getData, Action<T> applyData, Action<T, Color> setColor)
+            where T : class
+        {
+            view.DrawColor(fieldCache, color, initialColor,
+                newValue => ApplyColorImmediate(
+                    frameData, getData, applyData, setColor, newValue));
+        }
 
-            return updated;
+        /// <summary>色1 / 色2 の行 (変更は即時適用するため戻り値は無い)</summary>
+        private void DrawColorPair<T>(
+            GUIView view, T frameData, Color color1, Color color2,
+            Color initialColor, Color initialSubColor,
+            Func<T> getData, Action<T> applyData,
+            Action<T, Color> setColor1, Action<T, Color> setColor2)
+            where T : class
+        {
+            DrawColorImmediate(view, _color1FieldCache, frameData, color1, initialColor,
+                getData, applyData, setColor1);
+
+            DrawColorImmediate(view, _color2FieldCache, frameData, color2, initialSubColor,
+                getData, applyData, setColor2);
         }
 
         /// <summary>被写界深度</summary>
@@ -193,14 +226,13 @@ namespace COM3D2.SceneEditor.Plugin
                 paraffin.enabled = newValue;
             });
 
-            updateTransform |= DrawColorPair(view,
+            DrawColorPair(view, paraffin,
                 paraffin.color1, paraffin.color2,
                 defaultTrans.initialColor, defaultTrans.initialSubColor,
-                (color1, color2) =>
-                {
-                    paraffin.color1 = color1;
-                    paraffin.color2 = color2;
-                });
+                () => postEffectManager.GetParaffinData(index),
+                data => postEffectManager.ApplyParaffin(index, data),
+                (data, color) => data.color1 = color,
+                (data, color) => data.color2 = color);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.centerPositionXInfo,
@@ -287,14 +319,13 @@ namespace COM3D2.SceneEditor.Plugin
                 distanceFog.enabled = newValue;
             });
 
-            updateTransform |= DrawColorPair(view,
+            DrawColorPair(view, distanceFog,
                 distanceFog.color1, distanceFog.color2,
                 defaultTrans.initialColor, defaultTrans.initialSubColor,
-                (color1, color2) =>
-                {
-                    distanceFog.color1 = color1;
-                    distanceFog.color2 = color2;
-                });
+                () => postEffectManager.GetDistanceFogData(index),
+                data => postEffectManager.ApplyDistanceFog(index, data),
+                (data, color) => data.color1 = color,
+                (data, color) => data.color2 = color);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.fogStartInfo,
@@ -363,14 +394,13 @@ namespace COM3D2.SceneEditor.Plugin
                 rimlight.enabled = newValue;
             });
 
-            updateTransform |= DrawColorPair(view,
+            DrawColorPair(view, rimlight,
                 rimlight.color1, rimlight.color2,
                 defaultTrans.initialColor, defaultTrans.initialSubColor,
-                (color1, color2) =>
-                {
-                    rimlight.color1 = color1;
-                    rimlight.color2 = color2;
-                });
+                () => postEffectManager.GetRimlightData(index),
+                data => postEffectManager.ApplyRimlight(index, data),
+                (data, color) => data.color1 = color,
+                (data, color) => data.color2 = color);
 
             var initialEulerAngles = defaultTrans.initialEulerAngles;
             var transformCache = view.GetTransformCache(null);
@@ -527,6 +557,10 @@ namespace COM3D2.SceneEditor.Plugin
             var updateTransform = false;
             var defaultTrans = TransformDataBloom.defaultTrans;
 
+            // 色欄は即時適用するため、取得と適用の手段を渡す (5 箇所で使い回す)
+            Func<PEData.BloomData> getBloom = () => postEffectManager.GetBloomData();
+            Action<PEData.BloomData> applyBloom = data => postEffectManager.ApplyBloom(data);
+
             updateTransform = view.DrawToggle("有効化", bloom.enabled, 80, 20, newValue =>
             {
                 bloom.enabled = newValue;
@@ -563,11 +597,12 @@ namespace COM3D2.SceneEditor.Plugin
                 bloom.threshold,
                 newValue => bloom.threshold = newValue);
 
-            updateTransform |= view.DrawColor(
-                _bloomThresholdColorFieldCache,
+            DrawColorImmediate(
+                view, _bloomThresholdColorFieldCache, bloom,
                 bloom.thresholdColor,
                 defaultTrans.initialColor,
-                newValue => bloom.thresholdColor = newValue);
+                getBloom, applyBloom,
+                (data, color) => data.thresholdColor = color);
 
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.blurIterationsInfo,
@@ -654,29 +689,33 @@ namespace COM3D2.SceneEditor.Plugin
                 bloom.hollywoodFlareBlurIterations,
                 newValue => bloom.hollywoodFlareBlurIterations = newValue);
 
-            updateTransform |= view.DrawColor(
-                _bloomFlareColorFieldCaches[0],
+            DrawColorImmediate(
+                view, _bloomFlareColorFieldCaches[0], bloom,
                 bloom.flareColorA,
                 defaultTrans.initialSubColor,
-                newValue => bloom.flareColorA = newValue);
+                getBloom, applyBloom,
+                (data, color) => data.flareColorA = color);
 
-            updateTransform |= view.DrawColor(
-                _bloomFlareColorFieldCaches[1],
+            DrawColorImmediate(
+                view, _bloomFlareColorFieldCaches[1], bloom,
                 bloom.flareColorB,
                 TransformDataBloom.InitialFlareColorB,
-                newValue => bloom.flareColorB = newValue);
+                getBloom, applyBloom,
+                (data, color) => data.flareColorB = color);
 
-            updateTransform |= view.DrawColor(
-                _bloomFlareColorFieldCaches[2],
+            DrawColorImmediate(
+                view, _bloomFlareColorFieldCaches[2], bloom,
                 bloom.flareColorC,
                 TransformDataBloom.InitialFlareColorC,
-                newValue => bloom.flareColorC = newValue);
+                getBloom, applyBloom,
+                (data, color) => data.flareColorC = color);
 
-            updateTransform |= view.DrawColor(
-                _bloomFlareColorFieldCaches[3],
+            DrawColorImmediate(
+                view, _bloomFlareColorFieldCaches[3], bloom,
                 bloom.flareColorD,
                 TransformDataBloom.InitialFlareColorD,
-                newValue => bloom.flareColorD = newValue);
+                getBloom, applyBloom,
+                (data, color) => data.flareColorD = color);
 
             if (updateTransform)
             {
