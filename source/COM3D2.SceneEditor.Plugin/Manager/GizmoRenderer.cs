@@ -234,7 +234,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ギズモ本体の対象。抑止中は選択オブジェクトを対象にしない
+        /// ギズモ本体の対象。抑止中・メイドルートの非表示中は選択オブジェクトを対象にしない
         /// （選択バウンズ・ライトギズモは target を使い続けるので抑止の影響を受けない）
         /// </summary>
         private GameObject gizmoTarget
@@ -246,8 +246,27 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return external;
                 }
-                return selectionManager.gizmoSuppressed ? null : selectionManager.selectedObject;
+                if (selectionManager.gizmoSuppressed)
+                {
+                    return null;
+                }
+
+                var selected = selectionManager.selectedObject;
+                return ShouldHideMaidRoot(selected) ? null : selected;
             }
+        }
+
+        /// <summary>
+        /// メイドルートのギズモを隠すか。
+        /// ボーンギズモ・白丸ドラッグ点と同じく編集モード＋ボーン表示 (isBoneEditing) 中だけ出す。
+        /// 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、動かしても巻き戻るだけになる。
+        /// ライト等その他のオブジェクトはレイヤー管理外なのでこの制限をかけない
+        /// </summary>
+        private static bool ShouldHideMaidRoot(GameObject go)
+        {
+            return go != null
+                && !MaidManipulateManager.instance.isBoneEditing
+                && go.GetComponent<Maid>() != null;
         }
 
         /// <summary>static な UI 設定と選択対象をギズモ本体へ反映する</summary>
@@ -334,7 +353,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// メイドルート用ギズモの対象を組み直す。
-        /// ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
+        /// 編集モード中であれば、ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
         /// (ボーンを触っている間に他のメイドを動かせなくなるのを避ける)。
         /// ボーン用ギズモと重なった場合は TryBeginDrag が _gizmo を先に試すので
         /// ボーン側が優先され、掴み間違いにはならない
@@ -344,6 +363,12 @@ namespace COM3D2.SceneEditor.Plugin
             _maidGizmoCount = 0;
 
             if (gizmoTargetType != GizmoTargetType.All)
+            {
+                return;
+            }
+
+            // 選択中メイドと同じく、編集モード外はメイドルートのギズモを出さない
+            if (!MaidManipulateManager.instance.isBoneEditing)
             {
                 return;
             }

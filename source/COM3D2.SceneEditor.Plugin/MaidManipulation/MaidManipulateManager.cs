@@ -226,6 +226,13 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     ikHoldController.OnEditModeStarted();
                 }
+                else
+                {
+                    // モードを抜けた瞬間はメイドルートのギズモも消えるため、
+                    // ボーン表示 OFF と同じく見えないギズモを掴んだままにしない
+                    EndGizmoDrag(SceneViewManager.instance.gizmoRenderer);
+                    EndGizmoDrag(GameViewManager.instance.gizmoRenderer);
+                }
             }
         }
 
