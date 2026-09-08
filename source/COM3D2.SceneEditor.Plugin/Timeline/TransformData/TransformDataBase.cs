@@ -190,8 +190,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual bool hasEulerAngles => false;
         public virtual bool hasSubEulerAngles => false;
         public virtual bool hasScale => false;
-        public virtual bool hasColor => false;
-        public virtual bool hasSubColor => false;
         public virtual bool hasVisible => false;
         /// <summary>easing 値のスロットを values 内に持つ型か
         /// (旧 easing 型の判定と、集約型レイヤーの補間形状キャリア取得に使う)</summary>
@@ -230,8 +228,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual ValueData[] eulerAnglesValues => new ValueData[0];
         public virtual ValueData[] subEulerAnglesValues => new ValueData[0];
         public virtual ValueData[] scaleValues => new ValueData[0];
-        public virtual ValueData[] colorValues => new ValueData[0];
-        public virtual ValueData[] subColorValues => new ValueData[0];
         public virtual ValueData visibleValue => new ValueData();
         public virtual ValueData easingValue => new ValueData();
 
@@ -344,10 +340,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual Vector3 initialSubEulerAngles => Vector3.zero;
 
         public virtual Vector3 initialScale => Vector3.one;
-
-        public virtual Color initialColor => Color.white;
-
-        public virtual Color initialSubColor => Color.white;
 
         public virtual bool initialVisible => true;
 

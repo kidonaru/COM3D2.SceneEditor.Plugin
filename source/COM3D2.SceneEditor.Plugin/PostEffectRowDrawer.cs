@@ -228,7 +228,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawColorPair(view, paraffin,
                 paraffin.color1, paraffin.color2,
-                defaultTrans.initialColor, defaultTrans.initialSubColor,
+                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main), defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                 () => postEffectManager.GetParaffinData(index),
                 data => postEffectManager.ApplyParaffin(index, data),
                 (data, color) => data.color1 = color,
@@ -321,7 +321,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawColorPair(view, distanceFog,
                 distanceFog.color1, distanceFog.color2,
-                defaultTrans.initialColor, defaultTrans.initialSubColor,
+                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main), defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                 () => postEffectManager.GetDistanceFogData(index),
                 data => postEffectManager.ApplyDistanceFog(index, data),
                 (data, color) => data.color1 = color,
@@ -396,7 +396,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawColorPair(view, rimlight,
                 rimlight.color1, rimlight.color2,
-                defaultTrans.initialColor, defaultTrans.initialSubColor,
+                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main), defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                 () => postEffectManager.GetRimlightData(index),
                 data => postEffectManager.ApplyRimlight(index, data),
                 (data, color) => data.color1 = color,
@@ -600,7 +600,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawColorImmediate(
                 view, _bloomThresholdColorFieldCache, bloom,
                 bloom.thresholdColor,
-                defaultTrans.initialColor,
+                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main),
                 getBloom, applyBloom,
                 (data, color) => data.thresholdColor = color);
 
@@ -692,7 +692,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawColorImmediate(
                 view, _bloomFlareColorFieldCaches[0], bloom,
                 bloom.flareColorA,
-                defaultTrans.initialSubColor,
+                defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                 getBloom, applyBloom,
                 (data, color) => data.flareColorA = color);
 

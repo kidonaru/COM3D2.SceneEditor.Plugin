@@ -73,41 +73,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override int valueCount => 43;
 
-        public override bool hasColor => true;
-        public override bool hasSubColor => true;
         public override bool hasVisible => true;
         // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換と
         // 集約型レイヤーの補間形状キャリアとして残す)
         public override bool hasTangent => true;
-        public override ValueData[] tangentValues => values;
-
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[]
-            {
-                values[(int)Index.ColorR],
-                values[(int)Index.ColorG],
-                values[(int)Index.ColorB],
-                values[(int)Index.ColorA]
-            };
-        }
-
-        public override ValueData[] subColorValues
-        {
-            get => new ValueData[]
-            {
-                values[(int)Index.SubColorR],
-                values[(int)Index.SubColorG],
-                values[(int)Index.SubColorB],
-                values[(int)Index.SubColorA]
-            };
-        }
+        public override ValueData[] tangentValues => valuesWithoutColors;
 
         public override ValueData visibleValue => values[(int)Index.Visible];
         public override ValueData easingValue => values[(int)Index.Easing];
-
-        public override Color initialColor => Color.white;
-        public override Color initialSubColor => new Color(0.4f, 0.4f, 0.8f, 0.75f);
 
         public static readonly Color InitialFlareColorB = new Color(0.4f, 0.8f, 0.8f, 0.75f);
         public static readonly Color InitialFlareColorC = new Color(0.8f, 0.4f, 0.8f, 0.75f);
@@ -324,20 +297,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     defaultValue = 2f,
                 }
             },
-
-            // フレア色 B/C/D。既定値へリセットできるようチャンネル単位で登録する
-            { "flareColorBR", Channel(Index.FlareColorBR, "ﾌﾚｱ色B R", 0.4f) },
-            { "flareColorBG", Channel(Index.FlareColorBG, "ﾌﾚｱ色B G", 0.8f) },
-            { "flareColorBB", Channel(Index.FlareColorBB, "ﾌﾚｱ色B B", 0.8f) },
-            { "flareColorBA", Channel(Index.FlareColorBA, "ﾌﾚｱ色B A", 0.75f) },
-            { "flareColorCR", Channel(Index.FlareColorCR, "ﾌﾚｱ色C R", 0.8f) },
-            { "flareColorCG", Channel(Index.FlareColorCG, "ﾌﾚｱ色C G", 0.4f) },
-            { "flareColorCB", Channel(Index.FlareColorCB, "ﾌﾚｱ色C B", 0.8f) },
-            { "flareColorCA", Channel(Index.FlareColorCA, "ﾌﾚｱ色C A", 0.75f) },
-            { "flareColorDR", Channel(Index.FlareColorDR, "ﾌﾚｱ色D R", 0.8f) },
-            { "flareColorDG", Channel(Index.FlareColorDG, "ﾌﾚｱ色D G", 0.4f) },
-            { "flareColorDB", Channel(Index.FlareColorDB, "ﾌﾚｱ色D B", 0f) },
-            { "flareColorDA", Channel(Index.FlareColorDA, "ﾌﾚｱ色D A", 0.75f) },
         };
 
         public const string FlareColorBKey = "flareColorB";
@@ -355,7 +314,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
@@ -535,28 +493,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => hollywoodFlareBlurIterationsValue.intValue = value;
         }
 
-        private ValueData[] FlareColorValues(Index startIndex)
-        {
-            var i = (int)startIndex;
-            return new ValueData[] { values[i], values[i + 1], values[i + 2], values[i + 3] };
-        }
-
         public Color flareColorB
         {
-            get => FlareColorValues(Index.FlareColorBR).ToColor();
-            set => FlareColorValues(Index.FlareColorBR).FromColor(value);
+            get => GetColorValue(FlareColorBKey);
+            set => SetColorValue(FlareColorBKey, value);
         }
 
         public Color flareColorC
         {
-            get => FlareColorValues(Index.FlareColorCR).ToColor();
-            set => FlareColorValues(Index.FlareColorCR).FromColor(value);
+            get => GetColorValue(FlareColorCKey);
+            set => SetColorValue(FlareColorCKey, value);
         }
 
         public Color flareColorD
         {
-            get => FlareColorValues(Index.FlareColorDR).ToColor();
-            set => FlareColorValues(Index.FlareColorDR).FromColor(value);
+            get => GetColorValue(FlareColorDKey);
+            set => SetColorValue(FlareColorDKey, value);
         }
 
         public PEP.BloomData bloom

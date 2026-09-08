@@ -236,7 +236,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             var transform = bone.transform;
             DrawTransform(view, bone, transform);
-            DrawColorRow(view, bone, transform);
+            DrawColorRows(view, bone, transform);
             DrawCustomValues(view, bone, transform);
             DrawStrValues(view, bone, transform);
         }
@@ -399,27 +399,26 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 色をカラーピッカー付きの行で描く (現在値 UI と同じ部品)。
+        /// 色マップの全色をカラーピッカー付きの行で描く (現在値 UI と同じ部品)。
         /// ColorPickerWindow はラベル文字列で編集対象を同定するため、
-        /// 同名ボーンの別フレームと混ざらないようフレーム番号を含めて一意にする。
-        /// RGB のみ編集し、アルファは扱わない。
+        /// 先頭に色名を置きつつフレーム番号とボーン名でキーフレームごとに一意にする。
         /// コールバックは ColorPickerWindow の描画中に呼ばれるが、bone.transform は
         /// 使い捨てではなく永続参照なので、そのまま書き換えてよい
         /// </summary>
-        private void DrawColorRow(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
+        private void DrawColorRows(GUIView view, MTEP.BoneData bone, MTEP.ITransformData transform)
         {
-            if (!transform.hasColor)
+            foreach (var pair in transform.GetColorValueInfoMap())
             {
-                return;
+                var colorKey = pair.Key;
+                var info = pair.Value;
+                var fieldCache = view.GetColorFieldCache(
+                    string.Format("{0} (F{1}) {2}", info.name, bone.frameNo, bone.name), info.hasAlpha);
+                view.DrawColor(fieldCache, transform.GetColorValue(colorKey), info.defaultValue, newValue =>
+                {
+                    transform.SetColorValue(colorKey, newValue);
+                    Apply(bone);
+                });
             }
-
-            var fieldCache = view.GetColorFieldCache(
-                string.Format("{0} (F{1})/色", bone.name, bone.frameNo), false);
-            view.DrawColor(fieldCache, transform.color, transform.initialColor, newValue =>
-            {
-                transform.color = newValue;
-                Apply(bone);
-            });
         }
 
         /// <summary>カスタム値と表示トグルを 1 値 1 行で描く</summary>

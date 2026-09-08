@@ -33,7 +33,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
-        public override bool hasColor => true;
         public override bool hasVisible => true;
         // Tangent 統一により常に Tangent 補間 (isTangentLight は XML 互換で残るのみ)
         public override bool hasTangent => true;
@@ -57,20 +56,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.ColorR], 
-                values[(int)Index.ColorG], 
-                values[(int)Index.ColorB] 
-            };
-        }
-
         public override ValueData visibleValue => values[(int)Index.Visible];
 
         public override ValueData easingValue => values[(int)Index.Easing];
 
-        public override ValueData[] tangentValues => values;
+        public override ValueData[] tangentValues => valuesWithoutColors;
 
         public TransformDataLight()
         {
@@ -135,7 +125,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {

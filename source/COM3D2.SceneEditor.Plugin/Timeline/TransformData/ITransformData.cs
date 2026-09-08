@@ -181,8 +181,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         bool hasEulerAngles { get; }
         bool hasSubEulerAngles { get; }
         bool hasScale { get; }
-        bool hasColor { get; }
-        bool hasSubColor { get; }
         bool hasVisible { get; }
         /// <summary>easing 値のスロットを values 内に持つ型か (旧 easing 型の判定用)</summary>
         bool hasEasingChannel { get; }
@@ -198,8 +196,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         ValueData[] eulerAnglesValues { get; }
         ValueData[] subEulerAnglesValues { get; }
         ValueData[] scaleValues { get; }
-        ValueData[] colorValues { get; }
-        ValueData[] subColorValues { get; }
         ValueData visibleValue { get; }
         ValueData easingValue { get; }
         ValueData[] tangentValues { get; }
@@ -211,8 +207,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Vector3 initialEulerAngles { get; }
         Vector3 initialSubEulerAngles { get; }
         Vector3 initialScale { get; }
-        Color initialColor { get; }
-        Color initialSubColor { get; }
         bool initialVisible { get; }
 
         SingleFrameType singleFrameType { get; }

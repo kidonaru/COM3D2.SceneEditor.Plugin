@@ -43,11 +43,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool hasPosition => true;
         public override bool hasEulerAngles => true;
         public override bool hasScale => true;
-        public override bool hasColor => true;
         // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換と
         // 集約型レイヤーの補間形状キャリアとして残す)
         public override bool hasTangent => true;
-        public override ValueData[] tangentValues => values;
+        public override ValueData[] tangentValues => valuesWithoutColors;
 
         public override ValueData[] positionValues
         {
@@ -73,16 +72,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 values[(int)Index.ScaleX],
                 values[(int)Index.ScaleY],
                 values[(int)Index.ScaleZ]
-            };
-        }
-
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[] {
-                values[(int)Index.ColorR],
-                values[(int)Index.ColorG],
-                values[(int)Index.ColorB],
-                values[(int)Index.ColorA]
             };
         }
 
@@ -157,7 +146,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {

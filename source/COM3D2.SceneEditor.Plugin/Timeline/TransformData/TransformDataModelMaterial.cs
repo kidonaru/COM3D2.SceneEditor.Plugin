@@ -67,26 +67,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override int valueCount => 49;
 
-        public override bool hasColor => true;
         // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換と
         // 集約型レイヤーの補間形状キャリアとして残す)
         public override bool hasTangent => true;
-        public override ValueData[] tangentValues => values;
-
-        public override ValueData[] colorValues => new ValueData[]
-        {
-            values[(int)Index.ColorR],
-            values[(int)Index.ColorG],
-            values[(int)Index.ColorB],
-            values[(int)Index.ColorA],
-        };
+        public override ValueData[] tangentValues => valuesWithoutColors;
 
         public override ValueData easingValue => values[(int)Index.Easing];
-
-        public override Color initialColor
-        {
-            get => Color.white;
-        }
 
         public TransformDataModelMaterial()
         {
@@ -94,114 +80,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
         {
-            {
-                "ShadowColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.ShadowColorR,
-                    name = "影色 R",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "ShadowColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.ShadowColorG,
-                    name = "影色 G",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "ShadowColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.ShadowColorB,
-                    name = "影色 B",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "ShadowColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.ShadowColorA,
-                    name = "影色 A",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "RimColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimColorR,
-                    name = "リム色 R",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "RimColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimColorG,
-                    name = "リム色 G",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "RimColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimColorB,
-                    name = "リム色 B",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "RimColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimColorA,
-                    name = "リム色 A",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "OutlineColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.OutlineColorR,
-                    name = "アウトライン R",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "OutlineColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.OutlineColorG,
-                    name = "アウトライン G",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "OutlineColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.OutlineColorB,
-                    name = "アウトライン B",
-                    defaultValue = 0f,
-                }
-            },
-            {
-                "OutlineColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.OutlineColorA,
-                    name = "アウトライン A",
-                    defaultValue = 1f,
-                }
-            },
             {
                 "_Shininess",
                 new CustomValueInfo
@@ -247,150 +125,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             },
             // NPRの追加プロパティ
-            {
-                "EmissionColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.EmissionColorR,
-                    name = "発光色 R",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "EmissionColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.EmissionColorG,
-                    name = "発光色 G",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "EmissionColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.EmissionColorB,
-                    name = "発光色 B",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "EmissionColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.EmissionColorA,
-                    name = "発光色 A",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapColorR,
-                    name = "マットキャップ色 R",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapColorG,
-                    name = "マットキャップ色 G",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapColorB,
-                    name = "マットキャップ色 B",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapColorA,
-                    name = "マットキャップ色 A",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapMaskColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapMaskColorR,
-                    name = "マットキャップマスク色 R",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapMaskColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapMaskColorG,
-                    name = "マットキャップマスク色 G",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapMaskColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapMaskColorB,
-                    name = "マットキャップマスク色 B",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "MatcapMaskColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.MatcapMaskColorA,
-                    name = "マットキャップマスク色 A",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "RimLightColor.r",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimLightColorR,
-                    name = "リムライト色 R",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "RimLightColor.g",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimLightColorG,
-                    name = "リムライト色 G",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "RimLightColor.b",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimLightColorB,
-                    name = "リムライト色 B",
-                    defaultValue = 1f,
-                }
-            },
-            {
-                "RimLightColor.a",
-                new CustomValueInfo
-                {
-                    index = (int)Index.RimLightColorA,
-                    name = "リムライト色 A",
-                    defaultValue = 1f,
-                }
-            },
             {
                 "_NormalValue",
                 new CustomValueInfo
@@ -560,72 +294,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
 
-
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;
         }
 
-        public ValueData[] ShadowColorValues => new ValueData[]
-        {
-            values[(int)Index.ShadowColorR],
-            values[(int)Index.ShadowColorG],
-            values[(int)Index.ShadowColorB],
-            values[(int)Index.ShadowColorA],
-        };
-
-        public ValueData[] RimColorValues => new ValueData[]
-        {
-            values[(int)Index.RimColorR], 
-            values[(int)Index.RimColorG], 
-            values[(int)Index.RimColorB],
-            values[(int)Index.RimColorA],
-        };
-
-        public ValueData[] OutlineColorValues => new ValueData[]
-        {
-            values[(int)Index.OutlineColorR], 
-            values[(int)Index.OutlineColorG], 
-            values[(int)Index.OutlineColorB],
-            values[(int)Index.OutlineColorA],
-        };
-
         public ValueData ShininessValue => values[(int)Index.Shininess];
         public ValueData OutlineWidthValue => values[(int)Index.OutlineWidth];
         public ValueData RimPowerValue => values[(int)Index.RimPower];
         public ValueData RimShiftValue => values[(int)Index.RimShift];
-
-        public ValueData[] EmissionColorValues => new ValueData[]
-        {
-            values[(int)Index.EmissionColorR], 
-            values[(int)Index.EmissionColorG], 
-            values[(int)Index.EmissionColorB],
-            values[(int)Index.EmissionColorA],
-        };
-
-        public ValueData[] MatcapColorValues => new ValueData[]
-        {
-            values[(int)Index.MatcapColorR], 
-            values[(int)Index.MatcapColorG], 
-            values[(int)Index.MatcapColorB],
-            values[(int)Index.MatcapColorA],
-        };
-
-        public ValueData[] MatcapMaskColorValues => new ValueData[]
-        {
-            values[(int)Index.MatcapMaskColorR], 
-            values[(int)Index.MatcapMaskColorG], 
-            values[(int)Index.MatcapMaskColorB],
-            values[(int)Index.MatcapMaskColorA],
-        };
-
-        public ValueData[] RimLightColorValues => new ValueData[]
-        {
-            values[(int)Index.RimLightColorR], 
-            values[(int)Index.RimLightColorG], 
-            values[(int)Index.RimLightColorB],
-            values[(int)Index.RimLightColorA],
-        };
 
         public ValueData NormalValueValue => values[(int)Index.NormalValue];
         public ValueData ParallaxValueValue => values[(int)Index.ParallaxValue];
@@ -660,20 +337,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public Color ShadowColor
         {
-            get => ShadowColorValues.ToColor();
-            set => ShadowColorValues.FromColor(value);
+            get => GetColorValue(ShadowColorKey);
+            set => SetColorValue(ShadowColorKey, value);
         }
 
         public Color RimColor
         {
-            get => RimColorValues.ToColor();
-            set => RimColorValues.FromColor(value);
+            get => GetColorValue(RimColorKey);
+            set => SetColorValue(RimColorKey, value);
         }
 
         public Color OutlineColor
         {
-            get => OutlineColorValues.ToColor();
-            set => OutlineColorValues.FromColor(value);
+            get => GetColorValue(OutlineColorKey);
+            set => SetColorValue(OutlineColorKey, value);
         }
 
         public float Shininess
@@ -702,26 +379,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public Color EmissionColor
         {
-            get => EmissionColorValues.ToColor();
-            set => EmissionColorValues.FromColor(value);
+            get => GetColorValue(EmissionColorKey);
+            set => SetColorValue(EmissionColorKey, value);
         }
 
         public Color MatcapColor
         {
-            get => MatcapColorValues.ToColor();
-            set => MatcapColorValues.FromColor(value);
+            get => GetColorValue(MatcapColorKey);
+            set => SetColorValue(MatcapColorKey, value);
         }
 
         public Color MatcapMaskColor
         {
-            get => MatcapMaskColorValues.ToColor();
-            set => MatcapMaskColorValues.FromColor(value);
+            get => GetColorValue(MatcapMaskColorKey);
+            set => SetColorValue(MatcapMaskColorKey, value);
         }
 
         public Color RimLightColor
         {
-            get => RimLightColorValues.ToColor();
-            set => RimLightColorValues.FromColor(value);
+            get => GetColorValue(RimLightColorKey);
+            set => SetColorValue(RimLightColorKey, value);
         }
 
         public float NormalValue

@@ -34,41 +34,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override int valueCount => 18;
 
-        public override bool hasColor => true;
-        public override bool hasSubColor => true;
         public override bool hasVisible => true;
         // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換と
         // 集約型レイヤーの補間形状キャリアとして残す)
         public override bool hasTangent => true;
-        public override ValueData[] tangentValues => values;
-
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.ColorR], 
-                values[(int)Index.ColorG], 
-                values[(int)Index.ColorB], 
-                values[(int)Index.ColorA] 
-            };
-        }
-
-        public override ValueData[] subColorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.SubColorR], 
-                values[(int)Index.SubColorG], 
-                values[(int)Index.SubColorB], 
-                values[(int)Index.SubColorA] 
-            };
-        }
+        public override ValueData[] tangentValues => valuesWithoutColors;
 
         public override ValueData visibleValue => values[(int)Index.Visible];
 
         public override ValueData easingValue => values[(int)Index.Easing];
-
-        public override Color initialColor => new Color(1f, 1f, 1f, 1f);
-
-        public override Color initialSubColor => new Color(1f, 1f, 1f, 0f);
 
         public TransformDataDistanceFog()
         {
@@ -180,7 +154,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {

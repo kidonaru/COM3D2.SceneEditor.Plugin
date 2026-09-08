@@ -49,7 +49,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasPosition => true;
         public override bool hasEulerAngles => true;
-        public override bool hasColor => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
@@ -68,16 +67,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 values[(int)Index.EulerX], 
                 values[(int)Index.EulerY], 
                 values[(int)Index.EulerZ] 
-            };
-        }
-
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.ColorR], 
-                values[(int)Index.ColorG], 
-                values[(int)Index.ColorB], 
-                values[(int)Index.ColorA] 
             };
         }
 
@@ -336,7 +325,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {

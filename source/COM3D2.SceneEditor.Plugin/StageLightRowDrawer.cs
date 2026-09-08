@@ -146,7 +146,7 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawColor(
                     _color1FieldCache,
                     controller.colorMin,
-                    defaultTrans.initialColor,
+                    defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main),
                     c => controller.colorMin = c);
 
                 view.DrawLabel("最大色", 200, 20);
@@ -154,7 +154,7 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawColor(
                     _color2FieldCache,
                     controller.colorMax,
-                    defaultTrans.initialSubColor,
+                    defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                     c => controller.colorMax = c);
             }
 

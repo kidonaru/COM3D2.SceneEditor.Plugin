@@ -126,64 +126,95 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             }
         }
 
+        private static IEnumerable<int> ColorIndices(ColorValueInfo info)
+        {
+            yield return info.indexR;
+            yield return info.indexG;
+            yield return info.indexB;
+            if (info.hasAlpha)
+            {
+                yield return info.indexA;
+            }
+        }
+
         [Fact]
-        public void 旧colorValuesと新マップは同じ値を指す()
+        public void 色indexは範囲内で色同士もカスタム値とも重複しない()
         {
             foreach (var trans in AllTransforms())
             {
-                if (trans.colorValues.Length > 0)
+                var used = new HashSet<int>();
+                foreach (var info in trans.GetColorValueInfoMap().Values)
                 {
-                    var info = trans.GetColorValueInfo("color");
-                    Assert.NotNull(info);
-                    Assert.Same(trans.colorValues[0], trans.values[info.indexR]);
-                    Assert.Same(trans.colorValues[1], trans.values[info.indexG]);
-                    Assert.Same(trans.colorValues[2], trans.values[info.indexB]);
-                    Assert.Equal(trans.colorValues.Length == 4, info.hasAlpha);
-                    if (info.hasAlpha)
+                    foreach (var index in ColorIndices(info))
                     {
-                        Assert.Same(trans.colorValues[3], trans.values[info.indexA]);
+                        Assert.InRange(index, 0, trans.valueCount - 1);
+                        Assert.True(used.Add(index), trans.type + " の色 index が重複: " + index);
                     }
-                    Assert.Equal(trans.initialColor, info.defaultValue);
                 }
-                if (trans.subColorValues.Length > 0)
+                foreach (var custom in trans.GetCustomValueInfoMap().Values)
                 {
-                    var info = trans.GetColorValueInfo("subColor");
-                    Assert.NotNull(info);
-                    Assert.Same(trans.subColorValues[0], trans.values[info.indexR]);
-                    Assert.Same(trans.subColorValues[3], trans.values[info.indexA]);
-                    Assert.Equal(trans.initialSubColor, info.defaultValue);
+                    Assert.False(used.Contains(custom.index),
+                        trans.type + " のカスタム値 " + custom.name + " が色 index と重複");
                 }
             }
         }
 
         [Fact]
-        public void ModelMaterialの追加色は型付きアクセサと一致する()
+        public void tangentValuesは色成分を含まない()
         {
-            var trans = new TransformDataModelMaterial();
-            trans.Initialize("mm");
-            Assert.Same(trans.ShadowColorValues[0], trans.values[trans.GetColorValueInfo("ShadowColor").indexR]);
-            Assert.Same(trans.RimColorValues[0], trans.values[trans.GetColorValueInfo("RimColor").indexR]);
-            Assert.Same(trans.OutlineColorValues[0], trans.values[trans.GetColorValueInfo("OutlineColor").indexR]);
-            Assert.Same(trans.EmissionColorValues[0], trans.values[trans.GetColorValueInfo("EmissionColor").indexR]);
-            Assert.Same(trans.MatcapColorValues[0], trans.values[trans.GetColorValueInfo("MatcapColor").indexR]);
-            Assert.Same(trans.MatcapMaskColorValues[0], trans.values[trans.GetColorValueInfo("MatcapMaskColor").indexR]);
-            Assert.Same(trans.RimLightColorValues[0], trans.values[trans.GetColorValueInfo("RimLightColor").indexR]);
+            foreach (var trans in AllTransforms())
+            {
+                var colorValues = new HashSet<ValueData>();
+                foreach (var info in trans.GetColorValueInfoMap().Values)
+                {
+                    foreach (var index in ColorIndices(info))
+                    {
+                        colorValues.Add(trans.values[index]);
+                    }
+                }
+                foreach (var value in trans.tangentValues)
+                {
+                    Assert.False(colorValues.Contains(value), trans.type + " の tangentValues に色成分が残っている");
+                }
+            }
         }
 
         [Fact]
-        public void PsylliumBarとBloomの追加色は型付きアクセサと一致する()
+        public void 全型でResetすると色は既定値になる()
         {
-            var bar = new TransformDataPsylliumBar();
-            bar.Initialize("bar");
-            Assert.Same(bar.color1aValues[0], bar.values[bar.GetColorValueInfo("color1a").indexR]);
-            Assert.Same(bar.color2cValues[3], bar.values[bar.GetColorValueInfo("color2c").indexA]);
+            foreach (var trans in AllTransforms())
+            {
+                // 色を持たない型の Reset は Unity ネイティブ (Quaternion.Euler) を踏むため対象外
+                if (trans.GetColorValueInfoMap().Count == 0)
+                {
+                    continue;
+                }
+                foreach (var pair in trans.GetColorValueInfoMap())
+                {
+                    trans.SetColorValue(pair.Key, new Color(0.123f, 0.456f, 0.789f, 0.5f));
+                }
+                trans.Reset();
+                foreach (var pair in trans.GetColorValueInfoMap())
+                {
+                    var expected = pair.Value.defaultValue;
+                    if (!pair.Value.hasAlpha)
+                    {
+                        expected.a = 1f;
+                    }
+                    Assert.Equal(expected, trans.GetColorValue(pair.Key));
+                }
+            }
+        }
 
-            var bloom = new TransformDataBloom();
-            bloom.Initialize("bloom");
-            bloom.flareColorB = new Color(0.1f, 0.2f, 0.3f, 0.4f);
-            Assert.Equal(bloom.flareColorB, bloom.GetColorValue("flareColorB"));
-            bloom.flareColorD = new Color(0.5f, 0.6f, 0.7f, 0.8f);
-            Assert.Equal(bloom.flareColorD, bloom.GetColorValue("flareColorD"));
+        [Fact]
+        public void ModelMaterialの型付きアクセサは色マップを読む()
+        {
+            var trans = new TransformDataModelMaterial();
+            trans.Initialize("mm");
+            trans.ShadowColor = new Color(0.1f, 0.2f, 0.3f, 0.4f);
+            Assert.Equal(new Color(0.1f, 0.2f, 0.3f, 0.4f), trans.GetColorValue(TransformDataModelMaterial.ShadowColorKey));
+            trans.SetColorValue(TransformDataModelMaterial.RimLightColorKey, Color.red);
+            Assert.Equal(Color.red, trans.RimLightColor);
         }
 
         private const string ColorKeyMain = "color";

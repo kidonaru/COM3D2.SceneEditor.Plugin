@@ -54,270 +54,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
         {
             {
-                "color1aR", new CustomValueInfo
-                {
-                    index = (int)Index.Color1aR,
-                    name = "中心色1R",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1a.r,
-                }
-            },
-            {
-                "color1aG", new CustomValueInfo
-                {
-                    index = (int)Index.Color1aG,
-                    name = "中心色1G",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1a.g,
-                }
-            },
-            {
-                "color1aB", new CustomValueInfo
-                {
-                    index = (int)Index.Color1aB,
-                    name = "中心色1B",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1a.b,
-                }
-            },
-            {
-                "color1aA", new CustomValueInfo
-                {
-                    index = (int)Index.Color1aA,
-                    name = "中心色1A",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1a.a,
-                }
-            },
-            {
-                "color1bR", new CustomValueInfo
-                {
-                    index = (int)Index.Color1bR,
-                    name = "縁色1R",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1b.r,
-                }
-            },
-            {
-                "color1bG", new CustomValueInfo
-                {
-                    index = (int)Index.Color1bG,
-                    name = "縁色1G",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1b.g,
-                }
-            },
-            {
-                "color1bB", new CustomValueInfo
-                {
-                    index = (int)Index.Color1bB,
-                    name = "縁色1B",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1b.b,
-                }
-            },
-            {
-                "color1bA", new CustomValueInfo
-                {
-                    index = (int)Index.Color1bA,
-                    name = "縁色1A",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1b.a,
-                }
-            },
-            {
-                "color1cR", new CustomValueInfo
-                {
-                    index = (int)Index.Color1cR,
-                    name = "散乱色1R",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1c.r,
-                }
-            },
-            {
-                "color1cG", new CustomValueInfo
-                {
-                    index = (int)Index.Color1cG,
-                    name = "散乱色1G",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1c.g,
-                }
-            },
-            {
-                "color1cB", new CustomValueInfo
-                {
-                    index = (int)Index.Color1cB,
-                    name = "散乱色1B",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1c.b,
-                }
-            },
-            {
-                "color1cA", new CustomValueInfo
-                {
-                    index = (int)Index.Color1cA,
-                    name = "散乱色1A",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color1c.a,
-                }
-            },
-            {
-                "color2aR", new CustomValueInfo
-                {
-                    index = (int)Index.Color2aR,
-                    name = "中心色2R",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2a.r,
-                }
-            },
-            {
-                "color2aG", new CustomValueInfo
-                {
-                    index = (int)Index.Color2aG,
-                    name = "中心色2G",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2a.g,
-                }
-            },
-            {
-                "color2aB", new CustomValueInfo
-                {
-                    index = (int)Index.Color2aB,
-                    name = "中心色2B",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2a.b,
-                }
-            },
-            {
-                "color2aA", new CustomValueInfo
-                {
-                    index = (int)Index.Color2aA,
-                    name = "中心色2A",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2a.a,
-                }
-            },
-            {
-                "color2bR", new CustomValueInfo
-                {
-                    index = (int)Index.Color2bR,
-                    name = "縁色2R",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2b.r,
-                }
-            },
-            {
-                "color2bG", new CustomValueInfo
-                {
-                    index = (int)Index.Color2bG,
-                    name = "縁色2G",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2b.g,
-                }
-            },
-            {
-                "color2bB", new CustomValueInfo
-                {
-                    index = (int)Index.Color2bB,
-                    name = "縁色2B",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2b.b,
-                }
-            },
-            {
-                "color2bA", new CustomValueInfo
-                {
-                    index = (int)Index.Color2bA,
-                    name = "縁色2A",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2b.a,
-                }
-            },
-            {
-                "color2cR", new CustomValueInfo
-                {
-                    index = (int)Index.Color2cR,
-                    name = "散乱色2R",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2c.r,
-                }
-            },
-            {
-                "color2cG", new CustomValueInfo
-                {
-                    index = (int)Index.Color2cG,
-                    name = "散乱色2G",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2c.g,
-                }
-            },
-            {
-                "color2cB", new CustomValueInfo
-                {
-                    index = (int)Index.Color2cB,
-                    name = "散乱色2B",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2c.b,
-                }
-            },
-            {
-                "color2cA", new CustomValueInfo
-                {
-                    index = (int)Index.Color2cA,
-                    name = "散乱色2A",
-                    min = 0f,
-                    max = 1f,
-                    step = 0.01f,
-                    defaultValue = defaultConfig.color2c.a,
-                }
-            },
-            {
                 "baseScale", new CustomValueInfo
                 {
                     index = (int)Index.BaseScale,
@@ -416,66 +152,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
 
-
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;
         }
 
-        public ValueData[] color1aValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.Color1aR], 
-                values[(int)Index.Color1aG], 
-                values[(int)Index.Color1aB], 
-                values[(int)Index.Color1aA] 
-            };
-        }
-        public ValueData[] color1bValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.Color1bR], 
-                values[(int)Index.Color1bG], 
-                values[(int)Index.Color1bB], 
-                values[(int)Index.Color1bA] 
-            };
-        }
-        public ValueData[] color1cValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.Color1cR], 
-                values[(int)Index.Color1cG], 
-                values[(int)Index.Color1cB], 
-                values[(int)Index.Color1cA] 
-            };
-        }
-        public ValueData[] color2aValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.Color2aR], 
-                values[(int)Index.Color2aG], 
-                values[(int)Index.Color2aB], 
-                values[(int)Index.Color2aA] 
-            };
-        }
-        public ValueData[] color2bValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.Color2bR], 
-                values[(int)Index.Color2bG], 
-                values[(int)Index.Color2bB], 
-                values[(int)Index.Color2bA] 
-            };
-        }
-        public ValueData[] color2cValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.Color2cR], 
-                values[(int)Index.Color2cG], 
-                values[(int)Index.Color2cB], 
-                values[(int)Index.Color2cA] 
-            };
-        }
         public ValueData baseScaleValue => values[(int)Index.BaseScale];
         public ValueData widthValue => values[(int)Index.Width];
         public ValueData heightValue => values[(int)Index.Height];
@@ -494,33 +175,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public Color color1a
         {
-            get => color1aValues.ToColor();
-            set => color1aValues.FromColor(value);
+            get => GetColorValue(Color1aKey);
+            set => SetColorValue(Color1aKey, value);
         }
         public Color color1b
         {
-            get => color1bValues.ToColor();
-            set => color1bValues.FromColor(value);
+            get => GetColorValue(Color1bKey);
+            set => SetColorValue(Color1bKey, value);
         }
         public Color color1c
         {
-            get => color1cValues.ToColor();
-            set => color1cValues.FromColor(value);
+            get => GetColorValue(Color1cKey);
+            set => SetColorValue(Color1cKey, value);
         }
         public Color color2a
         {
-            get => color2aValues.ToColor();
-            set => color2aValues.FromColor(value);
+            get => GetColorValue(Color2aKey);
+            set => SetColorValue(Color2aKey, value);
         }
         public Color color2b
         {
-            get => color2bValues.ToColor();
-            set => color2bValues.FromColor(value);
+            get => GetColorValue(Color2bKey);
+            set => SetColorValue(Color2bKey, value);
         }
         public Color color2c
         {
-            get => color2cValues.ToColor();
-            set => color2cValues.FromColor(value);
+            get => GetColorValue(Color2cKey);
+            set => SetColorValue(Color2cKey, value);
         }
         public float baseScale
         {

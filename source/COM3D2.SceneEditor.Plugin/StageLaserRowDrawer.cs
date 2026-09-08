@@ -150,7 +150,7 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawColor(
                     _color1FieldCache,
                     controller.color1,
-                    defaultTrans.initialColor,
+                    defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main),
                     c => controller.color1 = c);
 
                 view.DrawLabel("錯乱色", 200, 20);
@@ -158,7 +158,7 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawColor(
                     _color2FieldCache,
                     controller.color2,
-                    defaultTrans.initialSubColor,
+                    defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                     c => controller.color2 = c);
             }
 

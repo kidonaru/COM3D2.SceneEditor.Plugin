@@ -54,8 +54,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasPosition => true;
         public override bool hasEulerAngles => true;
-        public override bool hasColor => true;
-        public override bool hasSubColor => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
@@ -74,26 +72,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 values[(int)Index.EulerX], 
                 values[(int)Index.EulerY], 
                 values[(int)Index.EulerZ] 
-            };
-        }
-
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.ColorR], 
-                values[(int)Index.ColorG], 
-                values[(int)Index.ColorB], 
-                values[(int)Index.ColorA] 
-            };
-        }
-
-        public override ValueData[] subColorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.SubColorR], 
-                values[(int)Index.SubColorG], 
-                values[(int)Index.SubColorB], 
-                values[(int)Index.SubColorA] 
             };
         }
 
@@ -123,9 +101,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Vector3 initialPosition => StageLaserController.DefaultPosition;
         public override Vector3 initialEulerAngles => StageLaserController.DefaultEulerAngles;
-        public override Color initialColor => StageLaser.DefaultColor1;
-        public override Color initialSubColor => StageLaser.DefaultColor2;
-
         public Vector3 initialRotationMin => new Vector3(0f, 40f, 0f);
         public Vector3 initialRotationMax => new Vector3(0f, -40f, 0f);
 
@@ -387,7 +362,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {

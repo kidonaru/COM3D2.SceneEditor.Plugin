@@ -56,8 +56,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool hasSubPosition => true;
         public override bool hasEulerAngles => true;
         public override bool hasSubEulerAngles => true;
-        public override bool hasColor => true;
-        public override bool hasSubColor => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
@@ -97,26 +95,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public override ValueData[] colorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.ColorR], 
-                values[(int)Index.ColorG], 
-                values[(int)Index.ColorB], 
-                values[(int)Index.ColorA] 
-            };
-        }
-
-        public override ValueData[] subColorValues
-        {
-            get => new ValueData[] { 
-                values[(int)Index.SubColorR], 
-                values[(int)Index.SubColorG], 
-                values[(int)Index.SubColorB], 
-                values[(int)Index.SubColorA] 
-            };
-        }
-
         public override ValueData visibleValue => values[(int)Index.Visible];
 
         private List<ValueData> _tangentValues = null;
@@ -144,9 +122,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Vector3 initialSubPosition => new Vector3(5f, 10f, 0f);
         public override Vector3 initialEulerAngles => new Vector3(90f, 0f, 0f);
         public override Vector3 initialSubEulerAngles => new Vector3(90f, 0f, 0f);
-        public override Color initialColor => new Color(1f, 1f, 1f, 0.3f);
-        public override Color initialSubColor => new Color(1f, 1f, 1f, 0.3f);
-
         public TransformDataStageLightController()
         {
         }
@@ -339,7 +314,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
-
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
