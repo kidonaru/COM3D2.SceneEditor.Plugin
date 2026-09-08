@@ -79,6 +79,9 @@ namespace COM3D2.SceneEditor.Plugin
                 TimelineItemInspectorRegistry.Register(
                     typeof(MTEP.PostEffectTimelineLayer), new PostEffectItemInspector());
                 timelineManager.RegisterTransform(
+                    MTEP.TransformType.Bloom,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataBloom>);
+                timelineManager.RegisterTransform(
                     MTEP.TransformType.DepthOfField,
                     MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
                 timelineManager.RegisterTransform(

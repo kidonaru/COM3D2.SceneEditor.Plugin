@@ -601,6 +601,7 @@
     <Compile Include="Timeline\TransformData\TransformDataPsylliumTransform.cs" />
     <Compile Include="Timeline\TransformData\TransformDataDepthOfField.cs" />
     <Compile Include="Timeline\TransformData\TransformDataDistanceFog.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBloom.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGTToneMap.cs" />
     <Compile Include="Timeline\TransformData\TransformDataParaffin.cs" />
     <Compile Include="Timeline\TransformData\TransformDataPngObject.cs" />
