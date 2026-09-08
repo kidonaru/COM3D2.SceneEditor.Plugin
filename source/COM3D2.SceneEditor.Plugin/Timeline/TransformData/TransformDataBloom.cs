@@ -345,6 +345,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
+        // ValueData アクセサ
+        public ValueData gameEffectDisabledValue => values[(int)Index.GameEffectDisabled];
+        public ValueData hdrValue => values[(int)Index.Hdr];
+        public ValueData screenBlendModeValue => values[(int)Index.ScreenBlendMode];
+        public ValueData highQualityValue => values[(int)Index.HighQuality];
+        public ValueData intensityValue => values[(int)Index.Intensity];
+        public ValueData thresholdValue => values[(int)Index.Threshold];
+        public ValueData blurIterationsValue => values[(int)Index.BlurIterations];
+        public ValueData blurSpreadValue => values[(int)Index.BlurSpread];
+        public ValueData separationEnabledValue => values[(int)Index.SeparationEnabled];
+        public ValueData separationCharactersEnabledValue => values[(int)Index.SeparationCharactersEnabled];
+        public ValueData separationBackgroundEnabledValue => values[(int)Index.SeparationBackgroundEnabled];
+        public ValueData separationCharacterIntensityValue => values[(int)Index.SeparationCharacterIntensity];
+        public ValueData separationCharacterThresholdValue => values[(int)Index.SeparationCharacterThreshold];
+        public ValueData separationCharacterRadiusValue => values[(int)Index.SeparationCharacterRadius];
+        public ValueData lensFlareModeValue => values[(int)Index.LensFlareMode];
+        public ValueData lensFlareIntensityValue => values[(int)Index.LensFlareIntensity];
+        public ValueData lensFlareSaturationValue => values[(int)Index.LensFlareSaturation];
+        public ValueData lensFlareThresholdValue => values[(int)Index.LensFlareThreshold];
+        public ValueData flareRotationValue => values[(int)Index.FlareRotation];
+        public ValueData hollyStretchWidthValue => values[(int)Index.HollyStretchWidth];
+        public ValueData hollywoodFlareBlurIterationsValue => values[(int)Index.HollywoodFlareBlurIterations];
+
         // CustomValueInfo アクセサ
         public CustomValueInfo gameEffectDisabledInfo => GetCustomValueInfo("gameEffectDisabled");
         public CustomValueInfo hdrInfo => GetCustomValueInfo("hdr");
@@ -369,6 +392,132 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public CustomValueInfo hollywoodFlareBlurIterationsInfo => GetCustomValueInfo("hollywoodFlareBlurIterations");
 
         // 値アクセサ
+        public bool gameEffectDisabled
+        {
+            get => gameEffectDisabledValue.boolValue;
+            set => gameEffectDisabledValue.boolValue = value;
+        }
+
+        public int hdr
+        {
+            get => hdrValue.intValue;
+            set => hdrValue.intValue = value;
+        }
+
+        public int screenBlendMode
+        {
+            get => screenBlendModeValue.intValue;
+            set => screenBlendModeValue.intValue = value;
+        }
+
+        public bool highQuality
+        {
+            get => highQualityValue.boolValue;
+            set => highQualityValue.boolValue = value;
+        }
+
+        public float intensity
+        {
+            get => intensityValue.value;
+            set => intensityValue.value = value;
+        }
+
+        public float threshold
+        {
+            get => thresholdValue.value;
+            set => thresholdValue.value = value;
+        }
+
+        public int blurIterations
+        {
+            get => blurIterationsValue.intValue;
+            set => blurIterationsValue.intValue = value;
+        }
+
+        public float blurSpread
+        {
+            get => blurSpreadValue.value;
+            set => blurSpreadValue.value = value;
+        }
+
+        public bool separationEnabled
+        {
+            get => separationEnabledValue.boolValue;
+            set => separationEnabledValue.boolValue = value;
+        }
+
+        public bool separationCharactersEnabled
+        {
+            get => separationCharactersEnabledValue.boolValue;
+            set => separationCharactersEnabledValue.boolValue = value;
+        }
+
+        public bool separationBackgroundEnabled
+        {
+            get => separationBackgroundEnabledValue.boolValue;
+            set => separationBackgroundEnabledValue.boolValue = value;
+        }
+
+        public float separationCharacterIntensity
+        {
+            get => separationCharacterIntensityValue.value;
+            set => separationCharacterIntensityValue.value = value;
+        }
+
+        public float separationCharacterThreshold
+        {
+            get => separationCharacterThresholdValue.value;
+            set => separationCharacterThresholdValue.value = value;
+        }
+
+        public float separationCharacterRadius
+        {
+            get => separationCharacterRadiusValue.value;
+            set => separationCharacterRadiusValue.value = value;
+        }
+
+        public int lensFlareMode
+        {
+            get => lensFlareModeValue.intValue;
+            set => lensFlareModeValue.intValue = value;
+        }
+
+        public float lensFlareIntensity
+        {
+            get => lensFlareIntensityValue.value;
+            set => lensFlareIntensityValue.value = value;
+        }
+
+        public float lensFlareSaturation
+        {
+            get => lensFlareSaturationValue.value;
+            set => lensFlareSaturationValue.value = value;
+        }
+
+        public float lensFlareThreshold
+        {
+            get => lensFlareThresholdValue.value;
+            set => lensFlareThresholdValue.value = value;
+        }
+
+        public float flareRotation
+        {
+            get => flareRotationValue.value;
+            set => flareRotationValue.value = value;
+        }
+
+        public float hollyStretchWidth
+        {
+            get => hollyStretchWidthValue.value;
+            set => hollyStretchWidthValue.value = value;
+        }
+
+        public int hollywoodFlareBlurIterations
+        {
+            get => hollywoodFlareBlurIterationsValue.intValue;
+            set => hollywoodFlareBlurIterationsValue.intValue = value;
+        }
+
         private ValueData[] FlareColorValues(Index startIndex)
         {
             var i = (int)startIndex;
@@ -398,30 +547,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => new PEP.BloomData
             {
                 enabled = visible,
-                gameEffectDisabled = values[(int)Index.GameEffectDisabled].boolValue,
-                hdr = values[(int)Index.Hdr].intValue,
-                screenBlendMode = values[(int)Index.ScreenBlendMode].intValue,
-                highQuality = values[(int)Index.HighQuality].boolValue,
-                intensity = values[(int)Index.Intensity].value,
-                threshold = values[(int)Index.Threshold].value,
+                gameEffectDisabled = gameEffectDisabled,
+                hdr = hdr,
+                screenBlendMode = screenBlendMode,
+                highQuality = highQuality,
+                intensity = intensity,
+                threshold = threshold,
                 thresholdColor = color,
-                blurIterations = values[(int)Index.BlurIterations].intValue,
-                blurSpread = values[(int)Index.BlurSpread].value,
+                blurIterations = blurIterations,
+                blurSpread = blurSpread,
 
-                separationEnabled = values[(int)Index.SeparationEnabled].boolValue,
-                separationCharactersEnabled = values[(int)Index.SeparationCharactersEnabled].boolValue,
-                separationBackgroundEnabled = values[(int)Index.SeparationBackgroundEnabled].boolValue,
-                separationCharacterIntensity = values[(int)Index.SeparationCharacterIntensity].value,
-                separationCharacterThreshold = values[(int)Index.SeparationCharacterThreshold].value,
-                separationCharacterRadius = values[(int)Index.SeparationCharacterRadius].value,
+                separationEnabled = separationEnabled,
+                separationCharactersEnabled = separationCharactersEnabled,
+                separationBackgroundEnabled = separationBackgroundEnabled,
+                separationCharacterIntensity = separationCharacterIntensity,
+                separationCharacterThreshold = separationCharacterThreshold,
+                separationCharacterRadius = separationCharacterRadius,
 
-                lensFlareMode = values[(int)Index.LensFlareMode].intValue,
-                lensFlareIntensity = values[(int)Index.LensFlareIntensity].value,
-                lensFlareSaturation = values[(int)Index.LensFlareSaturation].value,
-                lensFlareThreshold = values[(int)Index.LensFlareThreshold].value,
-                flareRotation = values[(int)Index.FlareRotation].value,
-                hollyStretchWidth = values[(int)Index.HollyStretchWidth].value,
-                hollywoodFlareBlurIterations = values[(int)Index.HollywoodFlareBlurIterations].intValue,
+                lensFlareMode = lensFlareMode,
+                lensFlareIntensity = lensFlareIntensity,
+                lensFlareSaturation = lensFlareSaturation,
+                lensFlareThreshold = lensFlareThreshold,
+                flareRotation = flareRotation,
+                hollyStretchWidth = hollyStretchWidth,
+                hollywoodFlareBlurIterations = hollywoodFlareBlurIterations,
                 flareColorA = subColor,
                 flareColorB = flareColorB,
                 flareColorC = flareColorC,
@@ -430,30 +579,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set
             {
                 visible = value.enabled;
-                values[(int)Index.GameEffectDisabled].boolValue = value.gameEffectDisabled;
-                values[(int)Index.Hdr].intValue = value.hdr;
-                values[(int)Index.ScreenBlendMode].intValue = value.screenBlendMode;
-                values[(int)Index.HighQuality].boolValue = value.highQuality;
-                values[(int)Index.Intensity].value = value.intensity;
-                values[(int)Index.Threshold].value = value.threshold;
+                gameEffectDisabled = value.gameEffectDisabled;
+                hdr = value.hdr;
+                screenBlendMode = value.screenBlendMode;
+                highQuality = value.highQuality;
+                intensity = value.intensity;
+                threshold = value.threshold;
                 color = value.thresholdColor;
-                values[(int)Index.BlurIterations].intValue = value.blurIterations;
-                values[(int)Index.BlurSpread].value = value.blurSpread;
+                blurIterations = value.blurIterations;
+                blurSpread = value.blurSpread;
 
-                values[(int)Index.SeparationEnabled].boolValue = value.separationEnabled;
-                values[(int)Index.SeparationCharactersEnabled].boolValue = value.separationCharactersEnabled;
-                values[(int)Index.SeparationBackgroundEnabled].boolValue = value.separationBackgroundEnabled;
-                values[(int)Index.SeparationCharacterIntensity].value = value.separationCharacterIntensity;
-                values[(int)Index.SeparationCharacterThreshold].value = value.separationCharacterThreshold;
-                values[(int)Index.SeparationCharacterRadius].value = value.separationCharacterRadius;
+                separationEnabled = value.separationEnabled;
+                separationCharactersEnabled = value.separationCharactersEnabled;
+                separationBackgroundEnabled = value.separationBackgroundEnabled;
+                separationCharacterIntensity = value.separationCharacterIntensity;
+                separationCharacterThreshold = value.separationCharacterThreshold;
+                separationCharacterRadius = value.separationCharacterRadius;
 
-                values[(int)Index.LensFlareMode].intValue = value.lensFlareMode;
-                values[(int)Index.LensFlareIntensity].value = value.lensFlareIntensity;
-                values[(int)Index.LensFlareSaturation].value = value.lensFlareSaturation;
-                values[(int)Index.LensFlareThreshold].value = value.lensFlareThreshold;
-                values[(int)Index.FlareRotation].value = value.flareRotation;
-                values[(int)Index.HollyStretchWidth].value = value.hollyStretchWidth;
-                values[(int)Index.HollywoodFlareBlurIterations].intValue = value.hollywoodFlareBlurIterations;
+                lensFlareMode = value.lensFlareMode;
+                lensFlareIntensity = value.lensFlareIntensity;
+                lensFlareSaturation = value.lensFlareSaturation;
+                lensFlareThreshold = value.lensFlareThreshold;
+                flareRotation = value.flareRotation;
+                hollyStretchWidth = value.hollyStretchWidth;
+                hollywoodFlareBlurIterations = value.hollywoodFlareBlurIterations;
                 subColor = value.flareColorA;
                 flareColorB = value.flareColorB;
                 flareColorC = value.flareColorC;

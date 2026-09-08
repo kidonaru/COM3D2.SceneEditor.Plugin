@@ -27,7 +27,8 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
 
-        // ブルームは色が 5 つあり色1/色2 のペア用キャッシュでは足りないため、専用に持つ
+        // ブルームは色が 5 つあり色1/色2 のペア用キャッシュでは足りないため、専用に持つ。
+        // しきい値色は実体側がアルファを見ないため hasAlpha=false (編集不可なのは意図的)
         private readonly ColorFieldCache _bloomThresholdColorFieldCache = new ColorFieldCache("", false);
         private readonly ColorFieldCache[] _bloomFlareColorFieldCaches =
         {
