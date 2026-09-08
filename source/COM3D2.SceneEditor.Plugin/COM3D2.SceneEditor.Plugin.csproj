@@ -237,6 +237,7 @@
     <Compile Include="Manager\History\MaterialSnapshot.cs" />
     <Compile Include="Manager\History\MaidShapeKeySnapshot.cs" />
     <Compile Include="Manager\History\ModelShapeKeySnapshot.cs" />
+    <Compile Include="Manager\History\VideoReloadPolicy.cs" />
     <Compile Include="Manager\History\BoneTrs.cs" />
     <Compile Include="Manager\History\BoneTrsMap.cs" />
     <Compile Include="Manager\History\PoseSnapshot.cs" />

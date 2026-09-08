@@ -1,4 +1,5 @@
-﻿using COM3D2.MotionTimelineEditor;
+﻿using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -21,10 +22,10 @@ namespace COM3D2.SceneEditor.Plugin
         public static ScenePresetEffects CaptureState()
         {
             var data = new ScenePresetEffects();
-            CaptureTexts(data);
-            CaptureSubCameras(data);
+            data.texts = CaptureTexts();
+            data.subCameras = CaptureSubCameras();
             data.sound = CaptureSound();
-            CaptureVideos(data);
+            data.videos = CaptureVideos();
             return data;
         }
 
@@ -35,14 +36,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            ApplyTexts(data);
-            ApplySubCameras(data);
+            ApplyTexts(data.texts);
+            ApplySubCameras(data.subCameras);
             ApplySound(data.sound);
-            ApplyVideos(data);
+            ApplyVideos(data.videos, reloadAll: true);
         }
 
-        private static void CaptureTexts(ScenePresetEffects data)
+        /// <summary>フリーテキスト全件を DTO へ吸い出す。履歴とプリセットで共用</summary>
+        public static List<ScenePresetText> CaptureTexts()
         {
+            var texts = new List<ScenePresetText>();
             foreach (var freeTextSet in textManager.TextData)
             {
                 var text = freeTextSet.text;
@@ -52,7 +55,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                data.texts.Add(new ScenePresetText
+                texts.Add(new ScenePresetText
                 {
                     text = text.text,
                     font = text.font != null ? text.font.name : "",
@@ -67,18 +70,20 @@ namespace COM3D2.SceneEditor.Plugin
                     sizeDeltaY = rect.sizeDelta.y,
                 });
             }
+            return texts;
         }
 
-        private static void ApplyTexts(ScenePresetEffects data)
+        /// <summary>フリーテキスト全件を書き戻す。履歴とプリセットで共用</summary>
+        public static void ApplyTexts(List<ScenePresetText> texts)
         {
             // 空 = 保存時に実体なし。「未記録」と区別できないため触らない
-            if (data.texts.Count == 0)
+            if (texts == null || texts.Count == 0)
             {
                 return;
             }
 
             // 手編集や破損 XML の異常値で大量生成しないよう UI と同じ上限へ丸める
-            var count = Mathf.Min(data.texts.Count, MTEP.TimelineTextManager.MaxTextCount);
+            var count = Mathf.Min(texts.Count, MTEP.TimelineTextManager.MaxTextCount);
             textManager.textCount = count;
             // タイムライン読込中はテキストレイヤーの LateUpdate も作り直すが、
             // 未読込時はここが唯一の生成経路のため直接呼ぶ (InitTexts は冪等)
@@ -98,7 +103,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                var src = data.texts[i];
+                var src = texts[i];
                 text.text = src.text;
                 if (!string.IsNullOrEmpty(src.font))
                 {
@@ -117,8 +122,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static void CaptureSubCameras(ScenePresetEffects data)
+        /// <summary>サブカメラ全台を DTO へ吸い出す。履歴とプリセットで共用</summary>
+        public static List<ScenePresetSubCamera> CaptureSubCameras()
         {
+            var subCameras = new List<ScenePresetSubCamera>();
             foreach (var cameraData in subCameraManager.subCameras)
             {
                 if (cameraData.camera == null)
@@ -127,7 +134,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var follow = cameraData.follow;
-                data.subCameras.Add(new ScenePresetSubCamera
+                subCameras.Add(new ScenePresetSubCamera
                 {
                     visible = cameraData.visible,
                     fieldOfView = cameraData.camera.fieldOfView,
@@ -143,19 +150,21 @@ namespace COM3D2.SceneEditor.Plugin
                     followRotation = follow.followRotation,
                 });
             }
+            return subCameras;
         }
 
-        private static void ApplySubCameras(ScenePresetEffects data)
+        /// <summary>サブカメラ全台を書き戻す。履歴とプリセットで共用</summary>
+        public static void ApplySubCameras(List<ScenePresetSubCamera> srcList)
         {
-            if (data.subCameras.Count == 0)
+            if (srcList == null || srcList.Count == 0)
             {
                 return;
             }
 
-            subCameraManager.SetCameraCount(data.subCameras.Count);
+            subCameraManager.SetCameraCount(srcList.Count);
 
             var subCameras = subCameraManager.subCameras;
-            for (var i = 0; i < data.subCameras.Count && i < subCameras.Count; i++)
+            for (var i = 0; i < srcList.Count && i < subCameras.Count; i++)
             {
                 var cameraData = subCameras[i];
                 if (cameraData.camera == null)
@@ -163,7 +172,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                var src = data.subCameras[i];
+                var src = srcList[i];
                 // 追従設定を先に入れることで position / rotation プロパティの
                 // 書き込み先 (オフセット / ワールド値) を保存時と一致させる
                 var follow = cameraData.follow;
@@ -180,18 +189,44 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static ScenePresetSound CaptureSound()
+        /// <summary>BGM ファイル設定だけ (ゲーム BGM は含まない)。履歴とプリセットで共用</summary>
+        public static ScenePresetSound CaptureBgmSettings()
         {
             var settings = bgmManager.settings;
             return new ScenePresetSound
             {
-                // 無音は空文字。適用時に「停止」として働く
-                gameBgmFile = BgmUtils.GetPlayingFileName() ?? "",
                 bgmPath = settings.bgmPath,
                 bpm = settings.bpm,
                 isShowBPMLine = settings.isShowBPMLine,
                 bpmLineOffsetFrame = settings.bpmLineOffsetFrame,
             };
+        }
+
+        private static ScenePresetSound CaptureSound()
+        {
+            var data = CaptureBgmSettings();
+            // 無音は空文字。適用時に「停止」として働く
+            data.gameBgmFile = BgmUtils.GetPlayingFileName() ?? "";
+            return data;
+        }
+
+        /// <summary>
+        /// BGM ファイル設定を書き戻す。パスが変わったときだけ読み直す
+        /// (BPM だけの変更で曲を止めない)
+        /// </summary>
+        public static void ApplyBgmSettings(ScenePresetSound src)
+        {
+            var settings = bgmManager.settings;
+            var pathChanged = settings.bgmPath != src.bgmPath;
+            settings.bgmPath = src.bgmPath;
+            settings.bpm = src.bpm;
+            settings.isShowBPMLine = src.isShowBPMLine;
+            settings.bpmLineOffsetFrame = src.bpmLineOffsetFrame;
+            if (pathChanged)
+            {
+                // パスが空なら Stop だけが走る
+                bgmManager.Reload();
+            }
         }
 
         /// <summary>null (v29 以前 / 未記録) なら何もしない</summary>
@@ -202,13 +237,15 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var settings = bgmManager.settings;
-            settings.bgmPath = src.bgmPath;
-            settings.bpm = src.bpm;
-            settings.isShowBPMLine = src.isShowBPMLine;
-            settings.bpmLineOffsetFrame = src.bpmLineOffsetFrame;
-            // パスが空なら Stop だけが走る
-            bgmManager.Reload();
+            // プリセットは従来どおり必ず 1 回読み直す。
+            // ApplyBgmSettings はパスが変わったときだけ Reload するので、
+            // 変わらなかったときにここで補う (呼び出し前のパスで判定する)
+            var prevBgmPath = bgmManager.settings.bgmPath;
+            ApplyBgmSettings(src);
+            if (prevBgmPath == src.bgmPath)
+            {
+                bgmManager.Reload();
+            }
 
             // タイムライン BGM ファイルが読めていてタイムライン再生中なら、次フレームの
             // BGMManager.Update が Play() → SoundMgr.StopBGM でゲーム BGM を止めてしまう。
@@ -252,11 +289,13 @@ namespace COM3D2.SceneEditor.Plugin
             soundData.Play();
         }
 
-        private static void CaptureVideos(ScenePresetEffects data)
+        /// <summary>動画全本を DTO へ吸い出す。履歴とプリセットで共用</summary>
+        public static List<ScenePresetVideo> CaptureVideos()
         {
+            var videos = new List<ScenePresetVideo>();
             foreach (var settings in movieManager.settingsList)
             {
-                data.videos.Add(new ScenePresetVideo
+                videos.Add(new ScenePresetVideo
                 {
                     enabled = settings.enabled,
                     displayType = (int)settings.displayType,
@@ -277,26 +316,31 @@ namespace COM3D2.SceneEditor.Plugin
                     frontmostAlpha = settings.frontmostAlpha,
                 });
             }
+            return videos;
         }
 
         /// <summary>
         /// 空 (v31 以前 / 未保存) なら触らない。
-        /// v31 以前は動画が 1 件しか無いため、適用すると本数も 1 本へ戻る
+        /// v31 以前は動画が 1 件しか無いため、適用すると本数も 1 本へ戻る。
+        /// reloadAll=false (履歴) では、パス・表示形式が変わった本だけプレイヤーを作り直し、
+        /// それ以外は値の反映だけにする (ReloadMovie は全本のデコーダ再生成で重い)
         /// </summary>
-        private static void ApplyVideos(ScenePresetEffects data)
+        public static void ApplyVideos(List<ScenePresetVideo> videos, bool reloadAll)
         {
-            if (data.videos.Count == 0)
+            if (videos == null || videos.Count == 0)
             {
                 return;
             }
 
+            var current = reloadAll ? null : CaptureVideos();
+
             // 手編集や破損 XML の異常値で大量生成しないよう UI と同じ上限へ丸める
-            var count = Mathf.Min(data.videos.Count, MTEP.MovieManager.MaxVideoCount);
+            var count = Mathf.Min(videos.Count, MTEP.MovieManager.MaxVideoCount);
             movieManager.videoCount = count;
 
             for (var i = 0; i < count; i++)
             {
-                var src = data.videos[i];
+                var src = videos[i];
                 var settings = movieManager.GetSettings(i);
                 settings.enabled = src.enabled;
                 settings.displayType = (MTEP.VideoDisplayType)src.displayType;
@@ -315,10 +359,36 @@ namespace COM3D2.SceneEditor.Plugin
                 settings.frontmostPosition = src.frontmostPosition;
                 settings.frontmostScale = src.frontmostScale;
                 settings.frontmostAlpha = src.frontmostAlpha;
+
+                if (reloadAll)
+                {
+                    continue;
+                }
+
+                var before = i < current.Count ? current[i] : null;
+                switch (VideoReloadPolicy.Decide(before, src))
+                {
+                    case VideoApplyAction.Reload:
+                        movieManager.ReloadMovie(i);
+                        break;
+                    case VideoApplyAction.Visible:
+                        movieManager.LoadMovie(i);
+                        movieManager.UpdateVisible(i);
+                        break;
+                }
+                // Reload した本へ重ねても無害 (プレイヤー未生成なら WithPlayer が何もしない)
+                movieManager.UpdateTransform(i);
+                movieManager.UpdateMesh(i);
+                movieManager.UpdateColor(i);
+                movieManager.UpdateVolume(i);
+                movieManager.UpdateSeekTime(i);
             }
 
-            // パス空の本は Unload だけが走る (LoadMovie は IsValidPath を見る)
-            movieManager.ReloadMovie();
+            if (reloadAll)
+            {
+                // パス空の本は Unload だけが走る (LoadMovie は IsValidPath を見る)
+                movieManager.ReloadMovie();
+            }
         }
     }
 }
