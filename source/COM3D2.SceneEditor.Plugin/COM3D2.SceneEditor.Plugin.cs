@@ -260,7 +260,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (config.GetKeyDown(KeyBindType.WindowsHiddenToggle))
             {
-                windowManager.SetWindowsHidden(!windowManager.isWindowsHidden);
+                // キー操作での切替はゲーム画面だけを見たい場面なのでメニューバーも隠す
+                // (復帰は同じキーで行う)
+                windowManager.SetWindowsHidden(!windowManager.isWindowsHidden, hideMenuBar: true);
             }
         }
 

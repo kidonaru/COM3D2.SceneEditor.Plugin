@@ -16,8 +16,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// プラグインのウィンドウを一時的に隠しているか。
         /// isShowWnd を書き換えずに描画だけ止めるため、復帰時は配置・タブ・連結がそのまま戻る。
         /// 一時的な表示切替なので config へは保存しない (セッション限り)。
-        /// 復帰手段はメニューバーの「ウィンドウ表示」トグルとキーバインドだけなので、
-        /// あちらに表示条件を付けるならここから戻れる経路も併せて用意すること。
+        /// 復帰手段はメニューバーの「ウィンドウ表示」トグルとキーバインドだけで、
+        /// キーバインドから隠したときはメニューバーも消えるためキーだけになる
+        /// (isMenuBarHidden)。キーバインド側に発動条件を足すなら戻れなくなるので、
+        /// ここから戻れる経路も併せて用意すること。
         /// GameView の最大化も連動させるため、書き換えは SetWindowsHidden 経由で行う
         /// </summary>
         public bool isWindowsHidden { get; private set; }
@@ -26,11 +28,20 @@ namespace COM3D2.SceneEditor.Plugin
         private bool _wasMaximizedBeforeHidden = false;
 
         /// <summary>
+        /// 一時非表示中にメニューバーも隠すか。
+        /// キーバインドからの切替はゲーム画面だけを見たい操作なのでメニューバーごと消す。
+        /// メニューバーのトグルから隠したときは戻す入口を残すため隠さない
+        /// </summary>
+        public bool isMenuBarHidden { get; private set; }
+
+        /// <summary>
         /// ウィンドウの一時非表示を切り替える。
         /// 非表示中はゲーム画面だけを見たい場面なので GameView を最大化し、
-        /// 復帰時は非表示前がウィンドウ表示だったときだけウィンドウ化へ戻す
+        /// 復帰時は非表示前がウィンドウ表示だったときだけウィンドウ化へ戻す。
+        /// hideMenuBar が効くのは非表示へ切り替わる遷移時だけで、
+        /// 非表示中に呼び直してもメニューバーの表示は変わらない
         /// </summary>
-        public void SetWindowsHidden(bool hidden)
+        public void SetWindowsHidden(bool hidden, bool hideMenuBar = false)
         {
             if (isWindowsHidden == hidden)
             {
@@ -38,6 +49,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             isWindowsHidden = hidden;
+            isMenuBarHidden = hidden && hideMenuBar;
             if (hidden)
             {
                 _wasMaximizedBeforeHidden = gameViewManager.isMaximized;
@@ -56,6 +68,7 @@ namespace COM3D2.SceneEditor.Plugin
         public void ResetWindowsHidden()
         {
             isWindowsHidden = false;
+            isMenuBarHidden = false;
             _wasMaximizedBeforeHidden = false;
         }
 
@@ -138,6 +151,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 一時非表示中はメニューバー (復帰操作の入口) と GameView (ゲーム画面そのもの) 以外を描かない。
+        /// キーバインドから隠した場合 (isMenuBarHidden) はメニューバーも描かず、復帰はキーだけになる。
         /// 描画を止めれば GuiWindowTracker の矩形も期限切れになるため、
         /// 隠れた領域でのカメラ操作の抑止も自動で解ける
         /// </summary>
@@ -155,7 +169,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 登録順と同じ順で描き、重なり順を通常時と揃える
             GameViewWindow.instance.OnGUI();
-            MenuBarWindow.instance.OnGUI();
+            if (!isMenuBarHidden)
+            {
+                MenuBarWindow.instance.OnGUI();
+            }
             ToastManager.OnGUI();
         }
 
