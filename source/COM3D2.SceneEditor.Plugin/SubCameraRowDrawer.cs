@@ -10,8 +10,6 @@ namespace COM3D2.SceneEditor.Plugin
     ///
     /// サブカメラには委譲先の個別ウィンドウが無いため、編集 UI はここが受け持つ
     /// (書き込み先は SubCameraData / MaidFollowSubCamera)。
-    /// 書き込み先はどのスナップショットにも含まれないため履歴は記録しない
-    /// (レイヤー側の UI も記録していない)。
     ///
     /// コンボボックスの開閉状態と回転オフセットのキャッシュを持つため、
     /// カメラごと・描画するビューごとにインスタンスを分ける
@@ -37,20 +35,38 @@ namespace COM3D2.SceneEditor.Plugin
             var camera = cameraData.camera;
             var follow = cameraData.follow;
 
-            view.DrawToggle("有効", cameraData.visible, 100, rowHeight,
-                newValue => cameraData.visible = newValue);
+            // 値を書き込む直前に呼ぶ。サブカメラ全台を 1 スナップショットで持つため対象キーは不要
+            Action<string> recordEdit = label => HistoryManager.instance.BeforeEdit(
+                null, HistoryScope.SubCamera, "サブカメラ: " + cameraData.name + " " + label,
+                null, () => SubCameraSnapshot.Capture());
 
-            _followRowDrawer.Draw(view, follow.state, labelWidth, rowHeight);
+            view.DrawToggle("有効", cameraData.visible, 100, rowHeight,
+                newValue =>
+                {
+                    recordEdit("有効");
+                    cameraData.visible = newValue;
+                });
+
+            _followRowDrawer.Draw(view, follow.state, labelWidth, rowHeight,
+                () => recordEdit("追従"));
 
             // 追従中の位置は追従点からのオフセットになる (SubCameraData.position と同じ扱い)
             Vector3RowDrawer.Draw(view,
                 follow.isFollow ? "オフセット" : "位置",
                 ObjectTransformRowDrawer.PositionSensitivity, labelWidth, rowHeight,
                 cameraData.position,
-                value => cameraData.position = value,
-                () => cameraData.position = Vector3.zero);
+                value =>
+                {
+                    recordEdit("位置");
+                    cameraData.position = value;
+                },
+                () =>
+                {
+                    recordEdit("位置");
+                    cameraData.position = Vector3.zero;
+                });
 
-            DrawRotationRow(view, cameraData, follow, labelWidth, rowHeight);
+            DrawRotationRow(view, cameraData, follow, labelWidth, rowHeight, recordEdit);
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
@@ -62,10 +78,14 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.1f,
                 defaultValue = DefaultFov,
                 value = camera.fieldOfView,
-                onChanged = value => camera.fieldOfView = value,
+                onChanged = value =>
+                {
+                    recordEdit("FoV");
+                    camera.fieldOfView = value;
+                },
             });
 
-            DrawViewportRows(view, cameraData, labelWidth, rowHeight);
+            DrawViewportRows(view, cameraData, labelWidth, rowHeight, recordEdit);
         }
 
         /// <summary>
@@ -75,15 +95,23 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawRotationRow(
             GUIView view, MTEP.SubCameraData cameraData, MTEP.MaidFollowSubCamera follow,
-            float labelWidth, float rowHeight)
+            float labelWidth, float rowHeight, Action<string> recordEdit)
         {
             if (follow.isFollow && follow.followRotation)
             {
                 Vector3RowDrawer.Draw(view, "回転",
                     ObjectTransformRowDrawer.RotationSensitivity, labelWidth, rowHeight,
                     follow.eulerAnglesOffset,
-                    value => follow.eulerAnglesOffset = value,
-                    () => follow.eulerAnglesOffset = Vector3.zero);
+                    value =>
+                    {
+                        recordEdit("回転");
+                        follow.eulerAnglesOffset = value;
+                    },
+                    () =>
+                    {
+                        recordEdit("回転");
+                        follow.eulerAnglesOffset = Vector3.zero;
+                    });
                 return;
             }
 
@@ -91,8 +119,16 @@ namespace COM3D2.SceneEditor.Plugin
             Vector3RowDrawer.Draw(view, "回転",
                 ObjectTransformRowDrawer.RotationSensitivity, labelWidth, rowHeight,
                 _offsetCache.GetOffset(cameraTransform, Quaternion.identity, false),
-                value => SetWorldEulerAngles(cameraTransform, value),
-                () => SetWorldEulerAngles(cameraTransform, Vector3.zero));
+                value =>
+                {
+                    recordEdit("回転");
+                    SetWorldEulerAngles(cameraTransform, value);
+                },
+                () =>
+                {
+                    recordEdit("回転");
+                    SetWorldEulerAngles(cameraTransform, Vector3.zero);
+                });
         }
 
         /// <summary>ワールド回転を書き込み、表示に使ったオイラー表現をキャッシュへ控える</summary>
@@ -107,7 +143,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// カメラへの反映は UpdateCameraViewport 経由で行う (レイヤー UI と同じ)
         /// </summary>
         private void DrawViewportRows(
-            GUIView view, MTEP.SubCameraData cameraData, float labelWidth, float rowHeight)
+            GUIView view, MTEP.SubCameraData cameraData, float labelWidth, float rowHeight,
+            Action<string> recordEdit)
         {
             view.DrawHorizontalLine(Color.gray);
             view.DrawLabel("ビューポート設定", -1, rowHeight);
@@ -127,6 +164,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (updated)
             {
+                // viewportRect はローカルコピーなので、反映前に呼べば変更前を捕捉できる
+                recordEdit("ビューポート");
                 subCameraManager.UpdateCameraViewport(cameraData.name, viewportRect);
             }
         }

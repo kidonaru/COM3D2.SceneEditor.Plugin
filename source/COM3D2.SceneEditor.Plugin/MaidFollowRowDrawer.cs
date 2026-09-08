@@ -10,7 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// メイド追従の設定行 (追従メイド / 追従ポイント / 向き反映)。
     /// サブカメラ・メインカメラ・SceneView カメラで共用する。
-    /// 書き込み先 (MaidFollowState) はどのスナップショットにも含まれないため履歴は記録しない。
+    /// 履歴の記録は呼び出し側の責務で、書き込み直前に onBeforeChange が呼ばれる。
     /// コンボボックスの開閉状態を持つため、描画するビューごとにインスタンスを分ける
     /// </summary>
     public class MaidFollowRowDrawer
@@ -35,9 +35,13 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<MTEP.MaidCache> _followMaidItems = new List<MTEP.MaidCache>();
 
         /// <summary>追従メイド行と、追従中のみ追従ポイント行・向き反映トグルを描く</summary>
-        public void Draw(GUIView view, MTEP.MaidFollowState follow, float labelWidth, float rowHeight)
+        /// <param name="onBeforeChange">
+        /// 値を書き込む直前に呼ばれる。履歴を記録しない呼び出し側は省略してよい
+        /// </param>
+        public void Draw(GUIView view, MTEP.MaidFollowState follow, float labelWidth, float rowHeight,
+            Action onBeforeChange = null)
         {
-            DrawFollowMaidRow(view, follow, labelWidth, rowHeight);
+            DrawFollowMaidRow(view, follow, labelWidth, rowHeight, onBeforeChange);
 
             if (!follow.isFollow)
             {
@@ -45,16 +49,25 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _followPointComboBox.currentIndex = (int)follow.maidPointType;
-            _followPointComboBox.onSelected = (type, _) => follow.maidPointType = type;
+            _followPointComboBox.onSelected = (type, _) =>
+            {
+                onBeforeChange?.Invoke();
+                follow.maidPointType = type;
+            };
             LabeledComboRow.Draw(view, "追従ポイント", _followPointComboBox, labelWidth, rowHeight);
 
             view.DrawToggle("向き反映", follow.followRotation, 100, rowHeight,
-                newValue => follow.followRotation = newValue);
+                newValue =>
+                {
+                    onBeforeChange?.Invoke();
+                    follow.followRotation = newValue;
+                });
         }
 
         /// <summary>追従メイドの選択行。先頭の「なし」を選ぶと追従を解除する</summary>
         private void DrawFollowMaidRow(
-            GUIView view, MTEP.MaidFollowState follow, float labelWidth, float rowHeight)
+            GUIView view, MTEP.MaidFollowState follow, float labelWidth, float rowHeight,
+            Action onBeforeChange)
         {
             _followMaidItems.Clear();
             _followMaidItems.Add(null);
@@ -63,8 +76,11 @@ namespace COM3D2.SceneEditor.Plugin
             _followMaidComboBox.items = _followMaidItems;
             _followMaidComboBox.currentIndex =
                 ToFollowMaidIndex(follow.maidSlotNo, _followMaidItems.Count);
-            _followMaidComboBox.onSelected =
-                (maidCache, index) => follow.maidSlotNo = ToFollowMaidSlotNo(index);
+            _followMaidComboBox.onSelected = (maidCache, index) =>
+            {
+                onBeforeChange?.Invoke();
+                follow.maidSlotNo = ToFollowMaidSlotNo(index);
+            };
 
             LabeledComboRow.Draw(view, "追従メイド", _followMaidComboBox, labelWidth, rowHeight);
         }

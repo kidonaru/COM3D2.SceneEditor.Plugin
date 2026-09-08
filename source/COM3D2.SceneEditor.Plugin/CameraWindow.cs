@@ -701,7 +701,12 @@ namespace COM3D2.SceneEditor.Plugin
                 subCameraManager.subCameras.Count,
                 MTEP.SubCameraManager.MinSubCameraCount,
                 MTEP.SubCameraManager.MaxSubCameraCount,
-                x => subCameraManager.SetCameraCount(x));
+                x =>
+                {
+                    HistoryManager.instance.BeforeEdit(null, HistoryScope.SubCamera, "サブカメラ: 台数",
+                        null, () => SubCameraSnapshot.Capture());
+                    subCameraManager.SetCameraCount(x);
+                });
         }
     }
 }
