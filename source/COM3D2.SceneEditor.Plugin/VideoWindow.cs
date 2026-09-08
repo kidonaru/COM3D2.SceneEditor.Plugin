@@ -51,6 +51,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         private MTEP.VideoSettings settings => movieManager.GetSettings(_videoIndex);
 
+        /// <summary>値を書き込む直前に呼ぶ。動画全本を 1 スナップショットで持つため対象キーは不要</summary>
+        private void RecordEdit(string label)
+        {
+            HistoryManager.instance.BeforeEdit(null, HistoryScope.Video,
+                "動画" + (_videoIndex + 1) + ": " + label, null, () => VideoSnapshot.Capture());
+        }
+
         private readonly GUIComboBox<int> _videoComboBox = new GUIComboBox<int>
         {
             // 表示は 1 始まり、内部添字は 0 始まり (VideoPreviewWindow のタイトルも同じ規約)
@@ -92,6 +99,7 @@ namespace COM3D2.SceneEditor.Plugin
             _videoComboBox.onSelected = (index, _) => _videoIndex = index;
             _videoDisplayTypeComboBox.onSelected = (type, index) =>
             {
+                RecordEdit("表示形式");
                 settings.displayType = type;
                 movieManager.ReloadMovie(_videoIndex);
             };
@@ -152,7 +160,11 @@ namespace COM3D2.SceneEditor.Plugin
             CountRowDrawer.Draw(view, "動画数", ROW_HEIGHT, movieManager.videoCount,
                 MTEP.MovieManager.MinVideoCount,
                 MTEP.MovieManager.MaxVideoCount,
-                count => movieManager.videoCount = count);
+                count =>
+                {
+                    RecordEdit("動画数");
+                    movieManager.videoCount = count;
+                });
 
             var videoCount = movieManager.videoCount;
             _videoIndex = Mathf.Clamp(_videoIndex, 0, videoCount - 1);
@@ -179,6 +191,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawToggle("有効", isEnabled, 60, ROW_HEIGHT, newValue =>
                 {
+                    RecordEdit("有効");
                     settings.enabled = newValue;
                     // 無効化しても読込は解除しない (プレビューでは見られるようにするため)。
                     // パス入力だけして未読込のまま有効化する経路があるので読込は試みる
@@ -215,6 +228,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
                     {
+                        RecordEdit("パス");
                         settings.path = openFileDialog.FileName;
                         movieManager.LoadMovie(_videoIndex);
                     }
@@ -227,7 +241,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawTextField(settings.path, -1, ROW_HEIGHT, newText => settings.path = newText);
+            view.DrawTextField(settings.path, -1, ROW_HEIGHT, newText =>
+            {
+                RecordEdit("パス");
+                settings.path = newText;
+            });
 
             if (timeline == null)
             {
@@ -280,11 +298,13 @@ namespace COM3D2.SceneEditor.Plugin
                     maxValue = duration > 0f ? duration : float.MaxValue,
                     onChanged = newValue =>
                     {
+                        RecordEdit("開始位置");
                         settings.startTime = newValue;
                         movieManager.UpdateSeekTime(_videoIndex);
                     },
                     onReset = () =>
                     {
+                        RecordEdit("開始位置");
                         settings.startTime = 0f;
                         movieManager.UpdateSeekTime(_videoIndex);
                     },
@@ -301,11 +321,13 @@ namespace COM3D2.SceneEditor.Plugin
                     maxValue = 1f,
                     onChanged = newValue =>
                     {
+                        RecordEdit("音量");
                         settings.volume = newValue;
                         movieManager.UpdateVolume(_videoIndex);
                     },
                     onReset = () =>
                     {
+                        RecordEdit("音量");
                         settings.volume = 0f;
                         movieManager.UpdateVolume(_videoIndex);
                     },
@@ -363,7 +385,11 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.01f,
                 defaultValue = 1f,
                 value = settings.guiScale,
-                onChanged = value => settings.guiScale = value,
+                onChanged = value =>
+                {
+                    RecordEdit("GUI表示サイズ");
+                    settings.guiScale = value;
+                },
             });
 
             view.DrawSliderValue(new GUIView.SliderOption
@@ -376,7 +402,11 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.01f,
                 defaultValue = 1f,
                 value = settings.guiAlpha,
-                onChanged = value => settings.guiAlpha = value,
+                onChanged = value =>
+                {
+                    RecordEdit("GUI透過度");
+                    settings.guiAlpha = value;
+                },
             });
         }
 
@@ -386,11 +416,13 @@ namespace COM3D2.SceneEditor.Plugin
                 settings.position,
                 newValue =>
                 {
+                    RecordEdit("位置");
                     settings.position = newValue;
                     movieManager.UpdateTransform(_videoIndex);
                 },
                 () =>
                 {
+                    RecordEdit("位置");
                     settings.position = Vector3.zero;
                     movieManager.UpdateTransform(_videoIndex);
                 });
@@ -399,11 +431,13 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformDataBase.GetNormalizedEulerAngles(settings.rotation),
                 newValue =>
                 {
+                    RecordEdit("回転");
                     settings.rotation = newValue;
                     movieManager.UpdateTransform(_videoIndex);
                 },
                 () =>
                 {
+                    RecordEdit("回転");
                     settings.rotation = Vector3.zero;
                     movieManager.UpdateTransform(_videoIndex);
                 });
@@ -420,6 +454,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = settings.scale,
                 onChanged = value =>
                 {
+                    RecordEdit("表示サイズ");
                     settings.scale = value;
                     movieManager.UpdateTransform(_videoIndex);
                 },
@@ -437,6 +472,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = settings.alpha,
                 onChanged = value =>
                 {
+                    RecordEdit("透過度");
                     settings.alpha = value;
                     movieManager.UpdateColor(_videoIndex);
                 },
@@ -447,6 +483,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             DrawPositionRow(view, settings.backmostPosition, Vector2.zero, newValue =>
             {
+                RecordEdit("位置");
                 settings.backmostPosition = newValue;
                 movieManager.UpdateMesh(_videoIndex);
             });
@@ -463,6 +500,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = settings.backmostScale,
                 onChanged = value =>
                 {
+                    RecordEdit("表示サイズ");
                     settings.backmostScale = value;
                     movieManager.UpdateTransform(_videoIndex);
                 },
@@ -480,6 +518,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = settings.backmostAlpha,
                 onChanged = value =>
                 {
+                    RecordEdit("透過度");
                     settings.backmostAlpha = value;
                     movieManager.UpdateColor(_videoIndex);
                 },
@@ -493,6 +532,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             DrawPositionRow(view, settings.frontmostPosition, FrontmostDefaultPosition, newValue =>
             {
+                RecordEdit("位置");
                 settings.frontmostPosition = newValue;
                 movieManager.UpdateMesh(_videoIndex);
             });
@@ -509,6 +549,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = settings.frontmostScale,
                 onChanged = value =>
                 {
+                    RecordEdit("表示サイズ");
                     settings.frontmostScale = value;
                     movieManager.UpdateTransform(_videoIndex);
                 },
@@ -526,6 +567,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = settings.frontmostAlpha,
                 onChanged = value =>
                 {
+                    RecordEdit("透過度");
                     settings.frontmostAlpha = value;
                     movieManager.UpdateColor(_videoIndex);
                 },

@@ -192,6 +192,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var settings = bgmManager.settings;
 
+            // 値を書き込む直前に呼ぶ。ゲーム BGM の再生は記録しない (再生操作のため)
+            Action<string> recordEdit = label => HistoryManager.instance.BeforeEdit(
+                null, HistoryScope.Sound, "BGM: " + label, null, () => SoundSnapshot.Capture());
+
             view.BeginHorizontal();
             {
                 view.DrawLabel("パス", 50, ROW_HEIGHT);
@@ -207,6 +211,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     if (openFileDialog.ShowDialog() == WinFormsDialogResult.OK)
                     {
+                        recordEdit("パス");
                         settings.bgmPath = openFileDialog.FileName;
                         bgmManager.Load();
                     }
@@ -219,7 +224,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.DrawTextField(settings.bgmPath, -1, ROW_HEIGHT, newText => settings.bgmPath = newText);
+            view.DrawTextField(settings.bgmPath, -1, ROW_HEIGHT, newText =>
+            {
+                recordEdit("パス");
+                settings.bgmPath = newText;
+            });
 
             if (timeline == null)
             {
@@ -264,6 +273,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawToggle("BPMライン表示", settings.isShowBPMLine, 120, ROW_HEIGHT, newValue =>
             {
+                recordEdit("BPMライン表示");
                 settings.isShowBPMLine = newValue;
             });
 
@@ -277,7 +287,11 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.1f,
                 defaultValue = 120,
                 value = settings.bpm,
-                onChanged = value => settings.bpm = value,
+                onChanged = value =>
+                {
+                    recordEdit("BPM");
+                    settings.bpm = value;
+                },
             });
 
             // オフセットの範囲はフレームレート依存。未読込時は既定の 30 を使う
@@ -292,7 +306,11 @@ namespace COM3D2.SceneEditor.Plugin
                 step = 0.1f,
                 defaultValue = 0,
                 value = settings.bpmLineOffsetFrame,
-                onChanged = value => settings.bpmLineOffsetFrame = value,
+                onChanged = value =>
+                {
+                    recordEdit("オフセット");
+                    settings.bpmLineOffsetFrame = value;
+                },
             });
         }
 
