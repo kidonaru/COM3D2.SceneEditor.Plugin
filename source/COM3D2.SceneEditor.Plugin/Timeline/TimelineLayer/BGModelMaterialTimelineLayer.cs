@@ -101,9 +101,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 material.Apply(start);
             }
 
-            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
+            // 数値は代表タンジェントで補間し、色は区間の進行率で線形補間する。
             float lerpTime = CalcTangentValue(motion, t);
-            material.Lerp(start, end, lerpTime);
+            material.Lerp(start, end, lerpTime, t);
         }
 
         public void OnBGModelSetup()

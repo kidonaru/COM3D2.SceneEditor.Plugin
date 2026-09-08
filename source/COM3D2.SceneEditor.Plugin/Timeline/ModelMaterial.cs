@@ -244,26 +244,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void Lerp(
             TransformDataModelMaterial start,
             TransformDataModelMaterial end,
-            float t)
+            float t,
+            float colorTime)
         {
             if (start.color != end.color)
             {
-                SetColor(ColorPropertyType._Color, Color.Lerp(start.color, end.color, t));
+                SetColor(ColorPropertyType._Color, Color.Lerp(start.color, end.color, colorTime));
             }
 
             if (start.ShadowColor != end.ShadowColor)
             {
-                SetColor(ColorPropertyType._ShadowColor, Color.Lerp(start.ShadowColor, end.ShadowColor, t));
+                SetColor(ColorPropertyType._ShadowColor, Color.Lerp(start.ShadowColor, end.ShadowColor, colorTime));
             }
 
             if (start.RimColor != end.RimColor)
             {
-                SetColor(ColorPropertyType._RimColor, Color.Lerp(start.RimColor, end.RimColor, t));
+                SetColor(ColorPropertyType._RimColor, Color.Lerp(start.RimColor, end.RimColor, colorTime));
             }
 
             if (start.OutlineColor != end.OutlineColor)
             {
-                SetColor(ColorPropertyType._OutlineColor, Color.Lerp(start.OutlineColor, end.OutlineColor, t));
+                SetColor(ColorPropertyType._OutlineColor, Color.Lerp(start.OutlineColor, end.OutlineColor, colorTime));
             }
 
             if (start.Shininess != end.Shininess)
@@ -289,22 +290,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // NPR用プロパティ
             if (start.EmissionColor != end.EmissionColor)
             {
-                SetColor(ColorPropertyType._EmissionColor, Color.Lerp(start.EmissionColor, end.EmissionColor, t));
+                SetColor(ColorPropertyType._EmissionColor, Color.Lerp(start.EmissionColor, end.EmissionColor, colorTime));
             }
 
             if (start.MatcapColor != end.MatcapColor)
             {
-                SetColor(ColorPropertyType._MatcapColor, Color.Lerp(start.MatcapColor, end.MatcapColor, t));
+                SetColor(ColorPropertyType._MatcapColor, Color.Lerp(start.MatcapColor, end.MatcapColor, colorTime));
             }
 
             if (start.MatcapMaskColor != end.MatcapMaskColor)
             {
-                SetColor(ColorPropertyType._MatcapMaskColor, Color.Lerp(start.MatcapMaskColor, end.MatcapMaskColor, t));
+                SetColor(ColorPropertyType._MatcapMaskColor, Color.Lerp(start.MatcapMaskColor, end.MatcapMaskColor, colorTime));
             }
 
             if (start.RimLightColor != end.RimLightColor)
             {
-                SetColor(ColorPropertyType._RimLightColor, Color.Lerp(start.RimLightColor, end.RimLightColor, t));
+                SetColor(ColorPropertyType._RimLightColor, Color.Lerp(start.RimLightColor, end.RimLightColor, colorTime));
             }
 
             if (start.NormalValue != end.NormalValue)
