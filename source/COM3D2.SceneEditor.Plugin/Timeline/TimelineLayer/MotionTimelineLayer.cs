@@ -216,7 +216,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
 
                 var menuItem = new BoneMenuItem(
-                    boneName, MaidIKHoldController.GetHoldTypeName(holdType));
+                    boneName, MaidIKHoldController.GetHoldTypeMenuName(holdType));
                 var boneSetType = MaidIKHoldController.GetBoneSetMenuType(holdType);
 
                 BoneSetMenuItem setMenuItem;

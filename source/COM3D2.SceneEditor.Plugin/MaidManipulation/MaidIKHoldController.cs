@@ -97,6 +97,15 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// タイムラインのボーン一覧用の表示名。実ボーン「足首(左)」等と同じ名前が
+        /// 同じグループに並んで区別できないため、IK 固定側には「IK」を前置する
+        /// </summary>
+        public static string GetHoldTypeMenuName(MaidIKHoldType type)
+        {
+            return "IK" + GetHoldTypeName(type);
+        }
+
+        /// <summary>
         /// 固定対象ボーン名 → 固定タイプの逆引き。Inspector の IK 選択表示が
         /// 選択中のドラッグ点に対応する固定トグルを出すために使う
         /// </summary>
