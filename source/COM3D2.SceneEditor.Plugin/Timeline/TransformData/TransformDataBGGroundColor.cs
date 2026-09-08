@@ -36,6 +36,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Vector3 initialScale => BGGround.DefaultScale;
         public override Color initialColor => BGGround.DefaultColor;
 
+        private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
+            new Dictionary<string, ColorValueInfo>
+            {
+                { ColorKey.Main, ColorValueInfo.Rgb("色", 6, BGGround.DefaultColor) },
+            };
+
+        public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
+
         public TransformDataBGGroundColor()
         {
         }

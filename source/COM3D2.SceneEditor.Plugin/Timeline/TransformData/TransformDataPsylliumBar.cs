@@ -396,6 +396,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             },
         };
 
+        public const string Color1aKey = "color1a";
+        public const string Color1bKey = "color1b";
+        public const string Color1cKey = "color1c";
+        public const string Color2aKey = "color2a";
+        public const string Color2bKey = "color2b";
+        public const string Color2cKey = "color2c";
+
+        private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
+            new Dictionary<string, ColorValueInfo>
+            {
+                { Color1aKey, ColorValueInfo.Rgba("中心色1", (int)Index.Color1aR, defaultConfig.color1a) },
+                { Color1bKey, ColorValueInfo.Rgba("縁色1", (int)Index.Color1bR, defaultConfig.color1b) },
+                { Color1cKey, ColorValueInfo.Rgba("散乱色1", (int)Index.Color1cR, defaultConfig.color1c) },
+                { Color2aKey, ColorValueInfo.Rgba("中心色2", (int)Index.Color2aR, defaultConfig.color2a) },
+                { Color2bKey, ColorValueInfo.Rgba("縁色2", (int)Index.Color2bR, defaultConfig.color2b) },
+                { Color2cKey, ColorValueInfo.Rgba("散乱色2", (int)Index.Color2cR, defaultConfig.color2c) },
+            };
+
+        public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
+
+
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;

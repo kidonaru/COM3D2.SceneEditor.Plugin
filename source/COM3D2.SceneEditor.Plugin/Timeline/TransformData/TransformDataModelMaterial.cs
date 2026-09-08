@@ -537,6 +537,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             },
         };
 
+        public const string ShadowColorKey = "ShadowColor";
+        public const string RimColorKey = "RimColor";
+        public const string OutlineColorKey = "OutlineColor";
+        public const string EmissionColorKey = "EmissionColor";
+        public const string MatcapColorKey = "MatcapColor";
+        public const string MatcapMaskColorKey = "MatcapMaskColor";
+        public const string RimLightColorKey = "RimLightColor";
+
+        private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
+            new Dictionary<string, ColorValueInfo>
+            {
+                { ColorKey.Main, ColorValueInfo.Rgba("色", (int)Index.ColorR, Color.white) },
+                { ShadowColorKey, ColorValueInfo.Rgba("影色", (int)Index.ShadowColorR, new Color(0f, 0f, 0f, 1f)) },
+                { RimColorKey, ColorValueInfo.Rgba("リム色", (int)Index.RimColorR, new Color(0f, 0f, 0f, 1f)) },
+                { OutlineColorKey, ColorValueInfo.Rgba("アウトライン", (int)Index.OutlineColorR, new Color(0f, 0f, 0f, 1f)) },
+                { EmissionColorKey, ColorValueInfo.Rgba("発光色", (int)Index.EmissionColorR, Color.white) },
+                { MatcapColorKey, ColorValueInfo.Rgba("マットキャップ色", (int)Index.MatcapColorR, Color.white) },
+                { MatcapMaskColorKey, ColorValueInfo.Rgba("マットキャップマスク色", (int)Index.MatcapMaskColorR, Color.white) },
+                { RimLightColorKey, ColorValueInfo.Rgba("リムライト色", (int)Index.RimLightColorR, Color.white) },
+            };
+
+        public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
+
+
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;

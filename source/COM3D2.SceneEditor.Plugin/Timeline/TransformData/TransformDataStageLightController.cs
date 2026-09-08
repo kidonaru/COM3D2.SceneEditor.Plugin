@@ -331,6 +331,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             },
         };
 
+        private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
+            new Dictionary<string, ColorValueInfo>
+            {
+                { ColorKey.Main, ColorValueInfo.Rgba("最小色", (int)Index.ColorR, new Color(1f, 1f, 1f, 0.3f)) },
+                { ColorKey.Sub, ColorValueInfo.Rgba("最大色", (int)Index.SubColorR, new Color(1f, 1f, 1f, 0.3f)) },
+            };
+
+        public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
+
+
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;

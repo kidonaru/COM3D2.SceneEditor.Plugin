@@ -340,6 +340,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             { "flareColorDA", Channel(Index.FlareColorDA, "ﾌﾚｱ色D A", 0.75f) },
         };
 
+        public const string FlareColorBKey = "flareColorB";
+        public const string FlareColorCKey = "flareColorC";
+        public const string FlareColorDKey = "flareColorD";
+
+        private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
+            new Dictionary<string, ColorValueInfo>
+            {
+                { ColorKey.Main, ColorValueInfo.Rgba("しきい値色", (int)Index.ColorR, Color.white) },
+                { ColorKey.Sub, ColorValueInfo.Rgba("ﾌﾚｱ色A", (int)Index.SubColorR, new Color(0.4f, 0.4f, 0.8f, 0.75f)) },
+                { FlareColorBKey, ColorValueInfo.Rgba("ﾌﾚｱ色B", (int)Index.FlareColorBR, InitialFlareColorB) },
+                { FlareColorCKey, ColorValueInfo.Rgba("ﾌﾚｱ色C", (int)Index.FlareColorCR, InitialFlareColorC) },
+                { FlareColorDKey, ColorValueInfo.Rgba("ﾌﾚｱ色D", (int)Index.FlareColorDR, InitialFlareColorD) },
+            };
+
+        public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
+
+
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;

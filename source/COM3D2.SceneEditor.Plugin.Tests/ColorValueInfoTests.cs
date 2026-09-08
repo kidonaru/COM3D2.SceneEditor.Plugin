@@ -109,6 +109,83 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Same(trans.values[7], tangents[0]);
         }
 
+        /// <summary>アセンブリ内の具象 TransformData を全部生成する</summary>
+        private static IEnumerable<TransformDataBase> AllTransforms()
+        {
+            var baseType = typeof(TransformDataBase);
+            foreach (var type in baseType.Assembly.GetTypes())
+            {
+                if (!type.IsSubclassOf(baseType) || type.IsAbstract
+                    || type.GetConstructor(System.Type.EmptyTypes) == null)
+                {
+                    continue;
+                }
+                var trans = (TransformDataBase)System.Activator.CreateInstance(type);
+                trans.Initialize("test");
+                yield return trans;
+            }
+        }
+
+        [Fact]
+        public void 旧colorValuesと新マップは同じ値を指す()
+        {
+            foreach (var trans in AllTransforms())
+            {
+                if (trans.colorValues.Length > 0)
+                {
+                    var info = trans.GetColorValueInfo("color");
+                    Assert.NotNull(info);
+                    Assert.Same(trans.colorValues[0], trans.values[info.indexR]);
+                    Assert.Same(trans.colorValues[1], trans.values[info.indexG]);
+                    Assert.Same(trans.colorValues[2], trans.values[info.indexB]);
+                    Assert.Equal(trans.colorValues.Length == 4, info.hasAlpha);
+                    if (info.hasAlpha)
+                    {
+                        Assert.Same(trans.colorValues[3], trans.values[info.indexA]);
+                    }
+                    Assert.Equal(trans.initialColor, info.defaultValue);
+                }
+                if (trans.subColorValues.Length > 0)
+                {
+                    var info = trans.GetColorValueInfo("subColor");
+                    Assert.NotNull(info);
+                    Assert.Same(trans.subColorValues[0], trans.values[info.indexR]);
+                    Assert.Same(trans.subColorValues[3], trans.values[info.indexA]);
+                    Assert.Equal(trans.initialSubColor, info.defaultValue);
+                }
+            }
+        }
+
+        [Fact]
+        public void ModelMaterialの追加色は型付きアクセサと一致する()
+        {
+            var trans = new TransformDataModelMaterial();
+            trans.Initialize("mm");
+            Assert.Same(trans.ShadowColorValues[0], trans.values[trans.GetColorValueInfo("ShadowColor").indexR]);
+            Assert.Same(trans.RimColorValues[0], trans.values[trans.GetColorValueInfo("RimColor").indexR]);
+            Assert.Same(trans.OutlineColorValues[0], trans.values[trans.GetColorValueInfo("OutlineColor").indexR]);
+            Assert.Same(trans.EmissionColorValues[0], trans.values[trans.GetColorValueInfo("EmissionColor").indexR]);
+            Assert.Same(trans.MatcapColorValues[0], trans.values[trans.GetColorValueInfo("MatcapColor").indexR]);
+            Assert.Same(trans.MatcapMaskColorValues[0], trans.values[trans.GetColorValueInfo("MatcapMaskColor").indexR]);
+            Assert.Same(trans.RimLightColorValues[0], trans.values[trans.GetColorValueInfo("RimLightColor").indexR]);
+        }
+
+        [Fact]
+        public void PsylliumBarとBloomの追加色は型付きアクセサと一致する()
+        {
+            var bar = new TransformDataPsylliumBar();
+            bar.Initialize("bar");
+            Assert.Same(bar.color1aValues[0], bar.values[bar.GetColorValueInfo("color1a").indexR]);
+            Assert.Same(bar.color2cValues[3], bar.values[bar.GetColorValueInfo("color2c").indexA]);
+
+            var bloom = new TransformDataBloom();
+            bloom.Initialize("bloom");
+            bloom.flareColorB = new Color(0.1f, 0.2f, 0.3f, 0.4f);
+            Assert.Equal(bloom.flareColorB, bloom.GetColorValue("flareColorB"));
+            bloom.flareColorD = new Color(0.5f, 0.6f, 0.7f, 0.8f);
+            Assert.Equal(bloom.flareColorD, bloom.GetColorValue("flareColorD"));
+        }
+
         private const string ColorKeyMain = "color";
     }
 }
