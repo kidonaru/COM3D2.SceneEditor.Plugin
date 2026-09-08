@@ -50,7 +50,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 直前キーの参照と色ピッカーの同定に使うため、項目名をそのまま渡す
                 _textRowDrawers.Get(item.name).Draw(
-                    view, textManager.GetFreeTextSet(index), RowHeight, item.name);
+                    view, textManager.GetFreeTextSet(index), RowHeight, item.name, index);
             }
 
             _textRowDrawers.PruneExcept(items);

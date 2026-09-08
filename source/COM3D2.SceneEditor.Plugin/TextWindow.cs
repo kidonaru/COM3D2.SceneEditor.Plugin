@@ -158,7 +158,8 @@ namespace COM3D2.SceneEditor.Plugin
             var boneName = MTEP.TextTimelineLayer.TextBoneName + _textIndex;
 
             _textRowDrawers.Get(boneName)
-                .Draw(_view, textManager.GetFreeTextSet(_textIndex), ROW_HEIGHT, boneName);
+                .Draw(_view, textManager.GetFreeTextSet(_textIndex), ROW_HEIGHT, boneName,
+                    _textIndex);
 
             _view.SetEnabled(_view.focusedComboBox == null);
             _view.EndScrollView();
@@ -181,6 +182,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void SetTextCount(int count)
         {
+            HistoryManager.instance.BeforeEdit(null, HistoryScope.Text, "テキスト: 表示数", null,
+                () => TextSnapshot.Capture());
+
             textManager.textCount = count;
 
             if (timelineManager.FindLayers(typeof(MTEP.TextTimelineLayer)).Count == 0)
