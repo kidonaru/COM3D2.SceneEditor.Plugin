@@ -231,9 +231,37 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーン表示トグル。メニューバーのトグルと連動する。
-        /// 実際に出すかは編集モードとの AND (isBoneEditing) で決まる
+        /// ボーンを実際に出すかは編集モードとの AND (isBoneEditing) で決まる。
+        /// オブジェクト用ギズモ (GizmoRenderer) の表示もこのトグルに従う
         /// </summary>
-        public bool isBoneVisible { get; set; } = true;
+        public bool isBoneVisible
+        {
+            get => _isBoneVisible;
+            set
+            {
+                if (_isBoneVisible == value)
+                {
+                    return;
+                }
+                _isBoneVisible = value;
+
+                if (!value)
+                {
+                    // 非表示に切り替えた瞬間は、見えないギズモを掴んだままにしない
+                    EndGizmoDrag(SceneViewManager.instance.gizmoRenderer);
+                    EndGizmoDrag(GameViewManager.instance.gizmoRenderer);
+                }
+            }
+        }
+        private bool _isBoneVisible = true;
+
+        private static void EndGizmoDrag(GizmoRenderer gizmoRenderer)
+        {
+            if (gizmoRenderer != null)
+            {
+                gizmoRenderer.EndDrag();
+            }
+        }
 
         /// <summary>
         /// 白丸・ボーンギズモを実際に出すか。

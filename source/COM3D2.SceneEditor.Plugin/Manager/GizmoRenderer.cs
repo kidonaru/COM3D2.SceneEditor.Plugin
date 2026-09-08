@@ -156,6 +156,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>SceneView ツールバーからのギズモ表示切替。false の間は描画もドラッグ開始もしない</summary>
         public bool drawEnabled = true;
 
+        /// <summary>
+        /// 実際に描画・ドラッグを許すか。ツールバーのギズモ表示 (drawEnabled) と
+        /// メニューバーの「ボーン表示」トグルの AND。
+        /// ボーンだけでなくオブジェクト用ギズモもまとめて消せるようにするため連動させている
+        /// </summary>
+        public bool isDrawEnabled => drawEnabled && MaidManipulateManager.instance.isBoneVisible;
+
         public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
         private static SelectionManager selectionManager => SelectionManager.instance;
@@ -394,7 +401,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 自前マテリアルの成否に依存せず描く
             GizmoHost.DrawExternals(_camera);
 
-            if (_lineMaterial == null || !drawEnabled)
+            if (_lineMaterial == null || !isDrawEnabled)
             {
                 return;
             }
@@ -697,7 +704,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool TryBeginDrag(Vector2 rtPoint)
         {
             // 非表示のギズモは掴めない (呼び出し側は通常のオブジェクト選択へフォールバックする)
-            if (!drawEnabled)
+            if (!isDrawEnabled)
             {
                 return false;
             }
