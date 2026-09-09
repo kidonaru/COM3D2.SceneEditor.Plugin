@@ -13,3 +13,9 @@ build.log
 build.err.log
 node_modules/
 package-lock.json
+
+# タイムラインの生成物・一時作業。正式なシーン資料は scenes/ に保存する。
+/tools/timeline/work/*
+!/tools/timeline/work/README.md
+__pycache__/
+*.pyc

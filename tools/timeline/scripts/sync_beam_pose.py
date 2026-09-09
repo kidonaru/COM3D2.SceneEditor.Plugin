@@ -25,11 +25,11 @@ def replace_values(block,changes):
         m=matches[i];block=block[:start+m.start()]+'<Value>'+v+'</Value>'+block[start+m.end():]
     return block
 
-def synchronize(raw,cfg):
+def synchronize(raw,cfg,reduce_keys=True,angle_tolerance=.05):
     root=s.parse(raw);s.require(root.attrib.get('version')=='33' and root.findtext('IsLoopAnm')=='false','非ループのversion 33のみ対応しています')
     slot=cfg.get('slot',0);end=int(root.findtext('MaxFrameNo'));fps=float(root.findtext('FrameRate'));delay=root.findtext('SingleFrameType') in ('Delay','Advance')
     laser=s.layer(root,'StageLaserTimelineLayer',slot);model=s.layer(root,'ModelTimelineLayer',slot)
-    lt,mt=s.tracks(laser),s.tracks(model);positions={};planned={};summary=[]
+    lt,mt=s.tracks(laser),s.tracks(model);positions={};planned={};summary=[];series_by_name={}
     for entry in cfg['mappings']:
         cn=entry['controller'];mn=entry['material'].split('/',1)[0]
         s.require(cn in lt and mn in mt,'対応するコントローラーまたはモデルがありません')
@@ -55,6 +55,7 @@ def synchronize(raw,cfg):
             if math.hypot(direction[0],direction[2])>1e-8:
                 target=math.atan2(direction[0],direction[2]);actual=math.atan2(check[0],check[2]);err=abs(math.atan2(math.sin(target-actual),math.cos(target-actual)))
                 s.require(err<1e-7,'モデルの水平方向が一致しません')
+        series_by_name[mn]=[tuple(float(v) for v in q) for q in series]
         frames={f for f,_ in mt[mn]}|{0,end}
         for f in range(1,end+1):
             if series[f]!=series[f-1]:frames.update((f-1,f))
@@ -109,12 +110,23 @@ def synchronize(raw,cfg):
                 for f,t in rows:
                     if f in oldframes:continue
                     v=s.values(t);base=s.values(before[n][0][1]);s.require(len(v)==12 and all(v[i]==base[i] for i in [0,1,2,7,8,9,10,11]),'追加モデルキーの対象外値が違います')
-    return out,{'mapping':summary,'controller_keys':count,'added_model_keys':added,'changed':out!=raw,'validated_frames':len(summary)*(end+1)}
+    reduction=[]
+    if reduce_keys:
+        from beam_curves import reduce_pose_keys
+        out,reduction=reduce_pose_keys(out,cfg,series_by_name,angle_tolerance)
+        final=s.tracks(s.layer(s.parse(out),'ModelTimelineLayer',slot))
+        for item in summary:item['model_keys']=len(final[item['model']])
+        added=sum(len(set(f for f,_ in final[n])-set(f for f,_ in mt[n])) for n in series_by_name)
+        if s.canonical(s.parse(out))==s.canonical(root):out=raw
+    return out,{'mapping':summary,'controller_keys':count,'added_model_keys':added,'reduction':reduction,'angle_tolerance':angle_tolerance,'changed':out!=raw,'validated_frames':len(summary)*(end+1)}
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('xml',type=Path);parser.add_argument('--config',type=Path,required=True);parser.add_argument('--apply',action='store_true');parser.add_argument('--sha256');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('xml',type=Path);parser.add_argument('--config',type=Path,required=True);parser.add_argument('--apply',action='store_true');parser.add_argument('--sha256')
+    parser.add_argument('--no-reduce',action='store_true',help='補間キー生成を無効にする')
+    parser.add_argument('--angle-tolerance',type=float,default=.05,help='回転補間の許容誤差（度、既定0.05）')
+    args=parser.parse_args()
     try:
-        raw=args.xml.read_bytes();digest=hashlib.sha256(raw).hexdigest();out,report=synchronize(raw,json.loads(args.config.read_text(encoding='utf-8-sig')));report['sha256']=digest
+        raw=args.xml.read_bytes();digest=hashlib.sha256(raw).hexdigest();out,report=synchronize(raw,json.loads(args.config.read_text(encoding='utf-8-sig')),not args.no_reduce,args.angle_tolerance);report['sha256']=digest
         if args.apply:
             s.require(args.sha256==digest and args.xml.read_bytes()==raw,'原本が更新されたため中止します')
             if out!=raw:

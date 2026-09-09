@@ -5,6 +5,7 @@ import xml.etree.ElementTree as E
 
 RGB = (21,22,23)
 EMISSION = 41
+COLOR_INDICES = set(range(1,17)) | set(range(21,37))
 
 def require(ok, message):
     if not ok: raise ValueError(message)
@@ -77,10 +78,11 @@ class Track:
 
     def material(self,frame):
         k,j,u=self.segment(frame)
-        # 材質はeasingスロットの正規化タンジェントを全フィールドで共有する。
+        # 数値はeasingの曲線、色は区間進行率で線形補間する。
         h=(u**3-2*u*u+u)*self.tangent(k,0,'Out')[0]+(-2*u**3+3*u*u)+(u**3-u*u)*self.tangent(j,0,'In')[0]
         h=max(0.,min(1.,h))
-        return [x*(1-h)+y*h for x,y in zip(self.data[k],self.data[j])]
+        return [x*(1-(u if i in COLOR_INDICES else h))+y*(u if i in COLOR_INDICES else h)
+                for i,(x,y) in enumerate(zip(self.data[k],self.data[j]))]
 
 def blend_color(core,edge,mode):
     if mode=='core': return core[:3]
@@ -126,7 +128,12 @@ def linear_bone(bone,nl):
         extra+=nl+'          </'+side+'Tangents>'
     return bone.replace('</Transform>',extra+nl+'        </Transform>')
 
-def synchronize(raw,config,channels):
+
+def reduce_material_keys(raw, config, tolerance):
+    from beam_curves import reduce_material_keys as reduce_curves
+    return reduce_curves(raw, config, tolerance)
+
+def synchronize(raw,config,channels,reduce_keys=True,reduction_tolerance=1e-6):
     root=parse(raw)
     require(root.attrib.get('version')=='33', '対応するXMLはversion 33です')
     require(root.findtext('IsLoopAnm')=='false', 'ループアニメーションには対応していません')
@@ -224,13 +231,28 @@ def synchronize(raw,config,channels):
         frames=sorted(f for f,n in planned if n==name)
         for left,right in zip(frames,frames[1:]):
             if right-left>1: require(all(series[f]==series[left] for f in range(left,right+1)), '省略区間の値が変化しています')
-    return out,{'mappings':summary,'added_keys':additions,'changed':out!=raw,'validated_integer_frames':len(names)*(end+1),'color_source':mode,'channels':sorted(channels)}
+    report={'mappings':summary,'added_keys':additions,'validated_integer_frames':len(names)*(end+1),'color_source':mode,'channels':sorted(channels)}
+    if reduce_keys:
+        out,reduction=reduce_material_keys(out,config,reduction_tolerance); report.update(reduction)
+        final_tracks=tracks(layer(parse(out),'ModelMaterialTimelineLayer',slot))
+        for item in summary: item['keys']=len(final_tracks[item['material']])
+        final_keys={(f,n) for n,rows in final_tracks.items() for f,_ in rows}
+        report['generated_keys']=additions
+        report['removed_sample_keys']=report['removed_keys']
+        report['added_keys']=len(final_keys-set(existing))
+        report['removed_keys']=len(set(existing)-final_keys)
+        # 再同期で一時生成したキーの空白だけが残る場合、原本のバイト列を再利用する。
+        if canonical(parse(out))==canonical(root): out=raw
+    report['changed']=out!=raw
+    return out,report
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('xml',type=Path,help='対象タイムラインXML')
     parser.add_argument('--config',type=Path,required=True,help='同期先と色取得方法のJSON')
     parser.add_argument('--channels',choices=['both','color','emission'],default='both',help='同期項目。colorは既存EmissionValueを維持')
+    parser.add_argument('--no-reduce',action='store_true',help='補間キー削減を無効にする')
+    parser.add_argument('--reduction-tolerance',type=float,default=1e-6,help='全材質成分の補間許容誤差（既定1e-6、最大1e-4）')
     parser.add_argument('--apply',action='store_true',help='検証後にバックアップを作成して上書き')
     parser.add_argument('--sha256',help='検証時の原本SHA256。反映時に必須')
     args=parser.parse_args()
@@ -238,7 +260,7 @@ def main():
         raw=args.xml.read_bytes(); digest=hashlib.sha256(raw).hexdigest()
         config=json.loads(args.config.read_text(encoding='utf-8-sig'))
         channels={'color','emission'} if args.channels=='both' else {args.channels}
-        out,report=synchronize(raw,config,channels); report['sha256']=digest
+        out,report=synchronize(raw,config,channels,not args.no_reduce,args.reduction_tolerance); report['sha256']=digest
         if args.apply:
             require(args.sha256==digest, '検証時のSHA256と一致しないため反映を中止します')
             require(args.xml.read_bytes()==raw, '原本が更新されたため反映を中止します')

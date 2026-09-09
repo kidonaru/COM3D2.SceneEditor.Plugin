@@ -19,6 +19,8 @@ https://github.com/user-attachments/assets/419cb107-f25d-426e-a117-f8c052b7da17
 
 ### テスト
 
+タイムラインXMLの変換・ビーム同期・床ライト編集は [タイムラインツール](tools/timeline/README.md) に集約しています。作業時の配置ルールは [AGENTS.md](AGENTS.md) を参照してください。
+
 タイムラインデータ層（XML シリアライズ・補間）のゲーム外テスト。
 
 前提: COM3D25 構成でプラグインをビルド済みであること（`bin/Debug/COM3D25/` の DLL を参照するため）。
