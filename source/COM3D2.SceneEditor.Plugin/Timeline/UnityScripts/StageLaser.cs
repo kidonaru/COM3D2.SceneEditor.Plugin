@@ -219,7 +219,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 if (_offsetRange == value) return;
                 _offsetRange = value;
-                _requestedMeshUpdate = true;
+                UpdatePosition();
             }
         }
 
@@ -426,13 +426,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _meshRenderer.material = material;
             }
 
-            transform.localPosition = DefaultPosition;
+            UpdatePosition();
             transform.localEulerAngles = _eulerAngles;
 
             UpdateName();
             UpdateMesh();
             UpdateMaterial();
             UpdateTransform();
+        }
+
+        /// <summary>
+        /// 開始地点をオフセット分ずらす。
+        /// 個別レーザーの回転を無視して親（コントローラー）の前方へずらすため、
+        /// どのレーザーも開始地点が揃う。
+        /// </summary>
+        private void UpdatePosition()
+        {
+            transform.localPosition = DefaultPosition + Vector3.forward * _offsetRange;
         }
 
         private Vector3[] _vertices = null;
@@ -447,7 +457,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             float range = laserRange;
             float width = laserWidth * 0.5f;
             
-            // 範囲方向の分割（オフセットは開始地点をずらすだけでビーム長は変えない）
+            // 範囲方向の分割（オフセットは transform 側でずらすのでメッシュは常に原点から全長分作る）
             float rangeStep = range / segmentRange;
 
             // 頂点の計算
@@ -469,11 +479,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             for (int r = 0; r <= segmentRange; r++)
             {
-                // 開始地点からの距離。減衰はこの距離で計算し、オフセットの影響を受けない
-                float localZ = rangeStep * r;
-                float z = offsetRange + localZ;
+                float z = rangeStep * r;
 
-                float distanceFalloff = Mathf.Pow(1 - Mathf.Clamp01(localZ / laserRange), falloffExp);
+                float distanceFalloff = Mathf.Pow(1 - Mathf.Clamp01(z / laserRange), falloffExp);
                 distanceFalloff = Smoothstep(0, 1, distanceFalloff);
                 distanceFalloff *= intensity;
 
