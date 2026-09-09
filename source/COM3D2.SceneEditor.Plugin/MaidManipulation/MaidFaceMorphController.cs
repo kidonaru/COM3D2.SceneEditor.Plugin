@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
-using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -356,14 +355,14 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// タイムライン表情レイヤーによるまばたき抑止の退避値。
-        /// キーはメイド、値は抑止前のユーザー設定 (boMabataki)。抑止解除時に復元する
+        /// タイムライン表情レイヤーによる boMabataki 上書きの退避値。
+        /// キーはメイド、値は上書き前のユーザー設定 (boMabataki)。上書き解除時に復元する
         /// </summary>
-        private static readonly Dictionary<Maid, bool> _mabatakiSuppressStates = new Dictionary<Maid, bool>();
+        private static readonly Dictionary<Maid, bool> _mabatakiOverrideStates = new Dictionary<Maid, bool>();
 
         /// <summary>
         /// まばたき自動更新の切り替え。オフにしないと eyeclose が毎フレーム上書きされる。
-        /// 抑止中はユーザー設定 (退避値) だけを書き換え、実体は抑止解除時に反映する
+        /// タイムラインの上書き中はユーザー設定 (退避値) だけを書き換え、実体は解除時に反映する
         /// </summary>
         public static void SetMabataki(Maid maid, bool enabled)
         {
@@ -372,9 +371,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (_mabatakiSuppressStates.ContainsKey(maid))
+            if (_mabatakiOverrideStates.ContainsKey(maid))
             {
-                _mabatakiSuppressStates[maid] = enabled;
+                _mabatakiOverrideStates[maid] = enabled;
                 return;
             }
 
@@ -382,45 +381,48 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// タイムライン表情レイヤーによるまばたき抑止。
-        /// 抑止中はゲーム側が立て直した boMabataki も毎回落とし、
-        /// ユーザー設定は退避して解除時に復元する
+        /// タイムライン表情レイヤーによる boMabataki の上書き。
+        /// キーの ON/OFF をそのまま実体へ反映する (ON = まばたき抑止、OFF = まばたき許可)。
+        /// ゲーム側が毎フレーム立て直すため上書き中は毎フレーム呼ぶ想定で、
+        /// ユーザー設定は初回に退避して ClearMabatakiOverride で復元する
         /// </summary>
-        public static void SetMabatakiSuppressed(Maid maid, bool suppressed)
+        public static void SetMabatakiOverride(Maid maid, bool forceOverride)
         {
             if (maid == null)
             {
-                // 破棄済みメイド (Unity の null 化) の退避値は復元先が無いため捨てる。
-                // Dictionary のキー比較は参照ベースで Unity の == と異なり破棄済みでも引ける。
-                // 真の null (ReferenceEquals) だけは Remove が例外になるため除外する
-                if (!suppressed && !ReferenceEquals(maid, null))
-                {
-                    _mabatakiSuppressStates.Remove(maid);
-                }
+                return;
+            }
+
+            if (!_mabatakiOverrideStates.ContainsKey(maid))
+            {
+                _mabatakiOverrideStates[maid] = maid.boMabataki;
+            }
+
+            maid.boMabataki = !forceOverride;
+        }
+
+        /// <summary>タイムラインの上書きを解除し、退避したユーザー設定へ戻す</summary>
+        public static void ClearMabatakiOverride(Maid maid)
+        {
+            // Dictionary のキー比較は参照ベースで Unity の == と異なり破棄済みでも引ける。
+            // 真の null (ReferenceEquals) だけは Remove が例外になるため除外する
+            if (ReferenceEquals(maid, null))
+            {
                 return;
             }
 
             bool stored;
-            var isSuppressed = _mabatakiSuppressStates.TryGetValue(maid, out stored);
-
-            if (suppressed)
+            if (!_mabatakiOverrideStates.TryGetValue(maid, out stored))
             {
-                if (!isSuppressed)
-                {
-                    _mabatakiSuppressStates[maid] = maid.boMabataki;
-                }
-                maid.boMabataki = false;
+                return;
             }
-            else if (isSuppressed)
+            _mabatakiOverrideStates.Remove(maid);
+
+            // 破棄済みメイド (Unity の null 化) は復元先が無いため退避値を捨てるだけにする
+            if (maid != null)
             {
-                _mabatakiSuppressStates.Remove(maid);
                 maid.boMabataki = stored;
             }
-        }
-
-        public static bool IsMabatakiSuppressed(Maid maid)
-        {
-            return maid != null && _mabatakiSuppressStates.ContainsKey(maid);
         }
 
         /// <summary>現在の表情ブレンドセット名 (Maid.FaceAnime のタグ)。未設定なら空文字</summary>
@@ -474,7 +476,7 @@ namespace COM3D2.SceneEditor.Plugin
                 || morph.dicBlendSet.ContainsKey(blendSetName + "〓通常");
         }
 
-        /// <summary>ユーザー設定としてのまばたき。抑止中は実体ではなく退避値を返す</summary>
+        /// <summary>ユーザー設定としてのまばたき。上書き中は実体ではなく退避値を返す</summary>
         public static bool GetMabataki(Maid maid)
         {
             if (maid == null)
@@ -483,7 +485,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             bool stored;
-            if (_mabatakiSuppressStates.TryGetValue(maid, out stored))
+            if (_mabatakiOverrideStates.TryGetValue(maid, out stored))
             {
                 return stored;
             }
@@ -492,8 +494,9 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 強制上書きの実効値。タイムラインの表情レイヤーが抑止している間は
-        /// 退避されたユーザー設定によらず ON が効いている
+        /// 強制上書きの実効値。タイムラインの表情レイヤーが上書きしている間は
+        /// 退避されたユーザー設定ではなくキーの値が実体へ入っているため、
+        /// GetMabataki (退避値) ではなく boMabataki の実体を見る
         /// </summary>
         public static bool IsForceOverride(Maid maid)
         {
@@ -502,11 +505,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return false;
             }
 
-            return MTEP.FaceMorphUtils.ResolveForceOverride(
-                IsMabatakiSuppressed(maid), GetMabataki(maid));
+            return !maid.boMabataki;
         }
 
-        /// <summary>強制上書きの切り替え。抑止中は退避値へ書き、解除時に反映される</summary>
+        /// <summary>強制上書きの切り替え。タイムライン上書き中は退避値へ書き、解除時に反映される</summary>
         public static void SetForceOverride(Maid maid, bool enabled)
         {
             SetMabataki(maid, !enabled);

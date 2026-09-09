@@ -61,14 +61,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// まばたきの抑止を切り替える (タイムラインの目閉じ値が毎フレーム上書きされるのを防ぐ)。
+        /// 強制上書きキーの値でまばたきを上書きする
+        /// (ON なら目閉じ値が毎フレーム上書きされるのを防ぎ、OFF ならゲーム側へ返す)。
         /// boMabataki の書き換えは SE 側コントローラへ委譲し、ユーザー設定は解除時に復元される
         /// </summary>
-        public void SetMabatakiSuppressed(Maid maid, bool suppressed)
+        public void SetMabatakiOverride(Maid maid, bool forceOverride)
         {
-            SEP.MaidFaceMorphController.SetMabatakiSuppressed(maid, suppressed);
+            SEP.MaidFaceMorphController.SetMabatakiOverride(maid, forceOverride);
 
-            if (suppressed)
+            if (forceOverride)
             {
                 var morph = GetFaceMorph(maid);
                 if (morph != null)
@@ -77,6 +78,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     morph.EyeMabataki = 0f;
                 }
             }
+        }
+
+        /// <summary>まばたきの上書きを解除し、ユーザー設定へ戻す</summary>
+        public void ClearMabatakiOverride(Maid maid)
+        {
+            SEP.MaidFaceMorphController.ClearMabatakiOverride(maid);
         }
 
         private static TMorph GetFaceMorph(Maid maid)

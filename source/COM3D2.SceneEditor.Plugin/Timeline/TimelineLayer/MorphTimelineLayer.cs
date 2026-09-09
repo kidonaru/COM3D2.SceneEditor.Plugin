@@ -53,8 +53,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private Dictionary<string, float> _applyMorphMap = new Dictionary<string, float>();
 
-        /// <summary>現在まばたきを抑止しているメイド。未抑止なら null</summary>
-        private Maid _mabatakiSuppressedMaid;
+        /// <summary>現在まばたきを上書きしているメイド。未上書きなら null</summary>
+        private Maid _mabatakiOverriddenMaid;
 
         /// <summary>このフレームで適用する強制上書き。キーが無ければ ON</summary>
         private bool _isForceOverride = true;
@@ -147,39 +147,39 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             else
             {
                 // ポーズ編集中は適用を止めるため、まばたきの操作を SE 側へ返す
-                UpdateMabatakiSuppression(null);
+                UpdateMabatakiOverride(null, false);
             }
         }
 
         public override void Dispose()
         {
             base.Dispose();
-            UpdateMabatakiSuppression(null);
+            UpdateMabatakiOverride(null, false);
         }
 
         public override void OnPluginDisable()
         {
             base.OnPluginDisable();
-            UpdateMabatakiSuppression(null);
+            UpdateMabatakiOverride(null, false);
         }
 
         /// <summary>
-        /// まばたき抑止の対象を差し替える (null で解除)。
+        /// まばたきを上書きする対象と値を差し替える (maid が null なら解除)。
         /// 実体の書き換えと復元は SE 側コントローラが行う
         /// </summary>
-        private void UpdateMabatakiSuppression(Maid maid)
+        private void UpdateMabatakiOverride(Maid maid, bool forceOverride)
         {
             // Unity の fake-null (破棄済みメイド) でも解除を呼び、SE 側の退避エントリを掃除させる
-            if (!ReferenceEquals(_mabatakiSuppressedMaid, null) && !ReferenceEquals(_mabatakiSuppressedMaid, maid))
+            if (!ReferenceEquals(_mabatakiOverriddenMaid, null) && !ReferenceEquals(_mabatakiOverriddenMaid, maid))
             {
-                faceManager.SetMabatakiSuppressed(_mabatakiSuppressedMaid, false);
+                faceManager.ClearMabatakiOverride(_mabatakiOverriddenMaid);
             }
-            _mabatakiSuppressedMaid = maid;
+            _mabatakiOverriddenMaid = maid;
 
             if (maid != null)
             {
-                // 抑止中もゲーム側が boMabataki を立て直すため毎フレーム呼ぶ
-                faceManager.SetMabatakiSuppressed(maid, true);
+                // 上書き中もゲーム側が boMabataki を立て直すため毎フレーム呼ぶ
+                faceManager.SetMabatakiOverride(maid, forceOverride);
             }
         }
 
@@ -188,7 +188,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var maid = this.maid;
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
             {
-                UpdateMabatakiSuppression(null);
+                UpdateMabatakiOverride(null, false);
                 return;
             }
 
@@ -199,7 +199,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             base.ApplyPlayData();
 
-            UpdateMabatakiSuppression(_isForceOverride ? maid : null);
+            // 強制上書き OFF はゲーム側のまばたきを許可する値として実体へ反映する。
+            // 解除 (ユーザー設定への復元) ではないので、レイヤーが生きている間は上書きを維持する
+            UpdateMabatakiOverride(maid, _isForceOverride);
 
             // 強制上書き OFF 中もモーフ適用は続ける (まばたきに潰されるのは目まわりだけ)
             faceManager.SetMorphValue(maid, _applyMorphMap);

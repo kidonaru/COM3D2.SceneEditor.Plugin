@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -196,15 +196,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public static float ToForceOverrideValue(bool enabled)
         {
             return enabled ? 1f : 0f;
-        }
-
-        /// <summary>
-        /// 強制上書きの実効値。タイムラインが抑止しているときは
-        /// 退避されたユーザー設定によらず ON が効いている
-        /// </summary>
-        public static bool ResolveForceOverride(bool isMabatakiSuppressed, bool mabataki)
-        {
-            return isMabatakiSuppressed || !mabataki;
         }
     }
 }

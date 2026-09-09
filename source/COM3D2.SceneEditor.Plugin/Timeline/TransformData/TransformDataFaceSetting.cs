@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -38,8 +38,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 new CustomValueInfo
                 {
                     index = (int)Index.ForceOverride,
-                    // キーが無い既存データを ON 扱いにするため、既定値は 1 にする
                     name = FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME,
+                    // ON/OFF の 2 値。min/max/step を入れないと CustomValueType が
+                    // FloatValue になり、キーフレーム詳細がトグルではなく数値欄で描かれる
+                    min = 0f,
+                    max = 1f,
+                    step = 1f,
+                    // キーが無い既存データを ON 扱いにするため、既定値は 1 にする
                     defaultValue = 1f,
                 }
             },
