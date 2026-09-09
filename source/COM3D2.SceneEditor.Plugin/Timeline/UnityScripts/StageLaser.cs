@@ -447,8 +447,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             float range = laserRange;
             float width = laserWidth * 0.5f;
             
-            // 範囲方向の分割
-            float rangeStep = (range - offsetRange) / segmentRange;
+            // 範囲方向の分割（オフセットは開始地点をずらすだけでビーム長は変えない）
+            float rangeStep = range / segmentRange;
 
             // 頂点の計算
             int verticesCount = 6 * (segmentRange + 1);
@@ -469,9 +469,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             for (int r = 0; r <= segmentRange; r++)
             {
-                float z = offsetRange + rangeStep * r;
+                // 開始地点からの距離。減衰はこの距離で計算し、オフセットの影響を受けない
+                float localZ = rangeStep * r;
+                float z = offsetRange + localZ;
 
-                float distanceFalloff = Mathf.Pow(1 - Mathf.Clamp01(z / laserRange), falloffExp);
+                float distanceFalloff = Mathf.Pow(1 - Mathf.Clamp01(localZ / laserRange), falloffExp);
                 distanceFalloff = Smoothstep(0, 1, distanceFalloff);
                 distanceFalloff *= intensity;
 
