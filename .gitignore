@@ -19,3 +19,13 @@ package-lock.json
 !/tools/timeline/work/README.md
 __pycache__/
 *.pyc
+
+# UnityProject（mte_bundle ビルド用）。生成物は追跡しない。Bundles/ の正本は source 側のコピー
+UnityProject/Library/
+UnityProject/Logs/
+UnityProject/Temp/
+UnityProject/UserSettings/
+UnityProject/*.sln
+UnityProject/*.csproj
+UnityProject/Assets/PostProcessing*
+UnityProject/Assets/Bundles/
