@@ -27,6 +27,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         private TimelineData _timeline = null;
         public override TimelineData timeline => _timeline;
+
+        /// <summary>
+        /// タイムラインの新規作成・読み込みごとに増える識別番号。
+        /// Undo/Redo の差し替え (UpdateTimeline) では変わらないので、
+        /// ビュー側の表示状態を初期化してよい切替かどうかの判定に使う
+        /// </summary>
+        public int timelineSessionId { get; private set; }
         public HashSet<BoneData> selectedBones = new HashSet<BoneData>();
         private int prevPlayingFrameNo = -1;
         public string errorMessage = "";
@@ -342,6 +349,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
             // タイムライン間の壊れた undo エントリを積むため、切替時に必ずクリアする
             historyManager.ClearHistory();
+            timelineSessionId++;
             currentLayerIndex = 0;
 
             _timeline = new TimelineData
@@ -390,6 +398,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
             // タイムライン間の壊れた undo エントリを積むため、切替時に必ずクリアする
             historyManager.ClearHistory();
+            timelineSessionId++;
             currentLayerIndex = 0;
 
             using (var stream = new FileStream(path, FileMode.Open))

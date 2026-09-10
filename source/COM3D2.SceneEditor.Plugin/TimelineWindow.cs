@@ -103,7 +103,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>レイヤーの非表示集合と展開集合 (セッション内のみ保持)</summary>
         private readonly TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem> _rowState
-            = new TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>();
+            = new TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>(GetLayerStateKey);
 
         /// <summary>
         /// 今フレームの操作対象レイヤー (他メイドのレイヤーを除いたもの)。DrawBody で詰め直す。
@@ -116,7 +116,10 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>> _rows
             = new List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>>(256);
 
-        /// <summary>タイムライン差し替え検知用。別インスタンスになったら表示状態をリセットする</summary>
+        /// <summary>タイムライン切替検知用。新規作成・読み込みで表示状態をリセットする</summary>
+        private int _lastTimelineSessionId = -1;
+
+        /// <summary>タイムライン再構築の検知用。レイヤーが別インスタンスになったら Prune する</summary>
         private MTEP.TimelineData _lastTimeline = null;
 
         /// <summary>レイヤー数の変化検知用。Prune を毎フレーム走らせないためのガード</summary>
@@ -573,20 +576,24 @@ namespace COM3D2.SceneEditor.Plugin
 
             bool guiEnabled = contentView.focusedComboBox == null;
 
-            // タイムラインが差し替わったら表示状態を初期化 (全表示・全折りたたみ)
-            if (timeline != _lastTimeline)
+            // タイムラインを切り替えたら表示状態を初期化 (全表示・全折りたたみ)。
+            // Undo/Redo もタイムラインを作り直すが、そこで初期化すると巻き戻すたびに
+            // 展開状態が失われるため、インスタンスではなくセッション番号で判定する
+            if (timelineManager.timelineSessionId != _lastTimelineSessionId)
             {
-                _lastTimeline = timeline;
+                _lastTimelineSessionId = timelineManager.timelineSessionId;
                 _rowState.Reset();
             }
 
             if (editEnabled)
             {
                 // レイヤーの追加・削除は必ず数の変化を伴うため、Prune は数が変わったときだけで足りる。
-                // 同一フレームで削除と追加が同数起きた場合は死に参照が残るが、layers に無いので
-                // 誤描画はしない (掃除されるまで表示状態集合が旧インスタンスを参照し続ける点のみ許容)
-                if (timelineManager.layers.Count != _lastLayerCount)
+                // 同一フレームで削除と追加が同数起きた場合は掃除が遅れるが、layers に無いので
+                // 誤描画はしない。加えて Undo/Redo と読み込みはタイムラインごと作り直して
+                // レイヤーを別インスタンスにするため、キーキャッシュを貼り直しに行く
+                if (timeline != _lastTimeline || timelineManager.layers.Count != _lastLayerCount)
                 {
+                    _lastTimeline = timeline;
                     _lastLayerCount = timelineManager.layers.Count;
                     _rowState.Prune(timelineManager.layers);
                 }
@@ -1349,6 +1356,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _rowState.SetAllCollapsed(layers, currentLayer, !allCollapsed);
             }
+        }
+
+        /// <summary>
+        /// 表示状態をレイヤーに紐づけるキー。レイヤーはクラスとスロット番号の組で
+        /// 一意 (TimelineManager.GetLayer と同じ同定条件) なので、タイムラインを
+        /// 作り直しても同じレイヤーには同じキーが対応する
+        /// </summary>
+        private static string GetLayerStateKey(MTEP.ITimelineLayer layer)
+        {
+            return layer.layerName + "@" + (layer.hasSlotNo ? layer.slotNo : 0);
         }
 
         /// <summary>

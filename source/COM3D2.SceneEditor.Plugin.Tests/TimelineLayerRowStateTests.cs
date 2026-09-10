@@ -6,9 +6,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 {
     public class TimelineLayerRowStateTests
     {
-        // TLayer/TItem は参照型なら何でもよいのでテストでは string を使う
+        // TLayer/TItem は参照型なら何でもよいのでテストでは string を使い、
+        // レイヤー自身をそのままキーにする
         private readonly TimelineLayerRowState<string, string> _state
-            = new TimelineLayerRowState<string, string>();
+            = new TimelineLayerRowState<string, string>(layer => layer);
 
         private static void CollectItems(string layer, List<string> result)
         {
@@ -60,6 +61,34 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(_state.IsVisible("B", "A"));
             // 展開状態も捨てられ、既定の折りたたみへ戻る
             Assert.True(_state.IsCollapsed("B"));
+        }
+
+        [Fact]
+        public void 同じキーの別インスタンスへ状態が引き継がれる()
+        {
+            // Undo でタイムラインが作り直され、レイヤーが別インスタンスになる状況を模す
+            var layer = new string("A".ToCharArray());
+            var rebuiltLayer = new string("A".ToCharArray());
+            Assert.False(ReferenceEquals(layer, rebuiltLayer));
+
+            _state.ToggleCollapsed(layer);
+            _state.ToggleVisible(layer, "current");
+
+            Assert.False(_state.IsCollapsed(rebuiltLayer));
+            Assert.False(_state.IsVisible(rebuiltLayer, "current"));
+        }
+
+        [Fact]
+        public void Prune後も同じキーなら状態が残る()
+        {
+            // Undo 後の Prune (キーキャッシュ貼り直し) で状態まで落とさないことを確認する
+            _state.ToggleCollapsed("A");
+            _state.ToggleVisible("B", "current");
+
+            _state.Prune(new List<string> { new string("A".ToCharArray()), new string("B".ToCharArray()) });
+
+            Assert.False(_state.IsCollapsed("A"));
+            Assert.False(_state.IsVisible("B", "current"));
         }
 
         [Fact]
