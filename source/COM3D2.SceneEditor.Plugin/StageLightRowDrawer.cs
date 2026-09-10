@@ -15,6 +15,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class StageLightRowDrawer
     {
+        /// <summary>カスタム値のラベル幅 (「ﾉｲｽﾞｻｲｽﾞ」等が収まる幅。KeyFrameInspector と揃える)</summary>
+        private const float CustomLabelWidth = 100f;
+
+        /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
+        private const float CustomSliderWidth = -1f;
+
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
@@ -170,52 +176,72 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.spotAngleInfo,
                     lightInfo.spotAngle,
-                    x => lightInfo.spotAngle = x);
+                    x => lightInfo.spotAngle = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.spotRangeInfo,
                     lightInfo.spotRange,
-                    x => lightInfo.spotRange = x);
+                    x => lightInfo.spotRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.rangeMultiplierInfo,
                     lightInfo.rangeMultiplier,
-                    x => lightInfo.rangeMultiplier = x);
+                    x => lightInfo.rangeMultiplier = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.falloffExpInfo,
                     lightInfo.falloffExp,
-                    x => lightInfo.falloffExp = x);
+                    x => lightInfo.falloffExp = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseStrengthInfo,
                     lightInfo.noiseStrength,
-                    x => lightInfo.noiseStrength = x);
+                    x => lightInfo.noiseStrength = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseScaleInfo,
                     lightInfo.noiseScale,
-                    x => lightInfo.noiseScale = x);
+                    x => lightInfo.noiseScale = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.coreRadiusInfo,
                     lightInfo.coreRadius,
-                    x => lightInfo.coreRadius = x);
+                    x => lightInfo.coreRadius = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.offsetRangeInfo,
                     lightInfo.offsetRange,
-                    x => lightInfo.offsetRange = x);
+                    x => lightInfo.offsetRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueInt(
                     defaultTrans.segmentAngleInfo,
                     lightInfo.segmentAngle,
-                    x => lightInfo.segmentAngle = x);
+                    x => lightInfo.segmentAngle = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueInt(
                     defaultTrans.segmentRangeInfo,
                     lightInfo.segmentRange,
-                    x => lightInfo.segmentRange = x);
+                    x => lightInfo.segmentRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueBool(
                     defaultTrans.zTestInfo,
@@ -287,52 +313,72 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.spotAngleInfo,
                     light.spotAngle,
-                    x => light.spotAngle = x);
+                    x => light.spotAngle = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.spotRangeInfo,
                     light.spotRange,
-                    x => light.spotRange = x);
+                    x => light.spotRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.rangeMultiplierInfo,
                     light.rangeMultiplier,
-                    x => light.rangeMultiplier = x);
+                    x => light.rangeMultiplier = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.falloffExpInfo,
                     light.falloffExp,
-                    x => light.falloffExp = x);
+                    x => light.falloffExp = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseStrengthInfo,
                     light.noiseStrength,
-                    x => light.noiseStrength = x);
+                    x => light.noiseStrength = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseScaleInfo,
                     light.noiseScale,
-                    x => light.noiseScale = x);
+                    x => light.noiseScale = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.coreRadiusInfo,
                     light.coreRadius,
-                    x => light.coreRadius = x);
+                    x => light.coreRadius = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.offsetRangeInfo,
                     light.offsetRange,
-                    x => light.offsetRange = x);
+                    x => light.offsetRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueInt(
                     defaultTrans.segmentAngleInfo,
                     light.segmentAngle,
-                    x => light.segmentAngle = x);
+                    x => light.segmentAngle = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueInt(
                     defaultTrans.segmentRangeInfo,
                     light.segmentRange,
-                    x => light.segmentRange = x);
+                    x => light.segmentRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueBool(
                     defaultTrans.zTestInfo,

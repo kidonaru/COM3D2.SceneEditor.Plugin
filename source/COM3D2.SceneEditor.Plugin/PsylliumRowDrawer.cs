@@ -18,6 +18,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class PsylliumRowDrawer
     {
+        /// <summary>カスタム値のラベル幅 (「乱数Seed」等が収まる幅。KeyFrameInspector と揃える)</summary>
+        private const float CustomLabelWidth = 100f;
+
+        /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
+        private const float CustomSliderWidth = -1f;
+
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1aFieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color1bFieldCache = new ColorFieldCache("", true);
@@ -149,37 +155,51 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.baseScaleInfo,
                 barConfig.baseScale,
-                y => barConfig.baseScale = y);
+                y => barConfig.baseScale = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.widthInfo,
                 barConfig.width,
-                y => barConfig.width = y);
+                y => barConfig.width = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.heightInfo,
                 barConfig.height,
-                y => barConfig.height = y);
+                y => barConfig.height = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.positionYInfo,
                 barConfig.positionY,
-                y => barConfig.positionY = y);
+                y => barConfig.positionY = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.radiusInfo,
                 barConfig.radius,
-                y => barConfig.radius = y);
+                y => barConfig.radius = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.topThresholdInfo,
                 barConfig.topThreshold,
-                y => barConfig.topThreshold = y);
+                y => barConfig.topThreshold = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.cutoffAlphaInfo,
                 barConfig.cutoffAlpha,
-                y => barConfig.cutoffAlpha = y);
+                y => barConfig.cutoffAlpha = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             if (updateTransform)
             {
@@ -198,7 +218,9 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.handSpacingInfo,
                 handConfig.handSpacing,
-                y => handConfig.handSpacing = y);
+                y => handConfig.handSpacing = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             var transformCache = view.GetTransformCache(null);
 
@@ -282,123 +304,169 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.sizeXInfo,
                 areaConfig.size.x,
-                x => areaConfig.size.x = x);
+                x => areaConfig.size.x = x,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.sizeYInfo,
                 areaConfig.size.y,
-                y => areaConfig.size.y = y);
+                y => areaConfig.size.y = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.seatDistanceXInfo,
                 areaConfig.seatDistance.x,
-                x => areaConfig.seatDistance.x = x);
+                x => areaConfig.seatDistance.x = x,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.seatDistanceYInfo,
                 areaConfig.seatDistance.y,
-                y => areaConfig.seatDistance.y = y);
+                y => areaConfig.seatDistance.y = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.randomPositionRangeXInfo,
                 areaConfig.randomPositionRange.x,
-                x => areaConfig.randomPositionRange.x = x);
+                x => areaConfig.randomPositionRange.x = x,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.randomPositionRangeYInfo,
                 areaConfig.randomPositionRange.y,
-                y => areaConfig.randomPositionRange.y = y);
+                y => areaConfig.randomPositionRange.y = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.randomPositionRangeZInfo,
                 areaConfig.randomPositionRange.z,
-                z => areaConfig.randomPositionRange.z = z);
+                z => areaConfig.randomPositionRange.z = z,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawLabel("バー数の重み", 200, 20);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight0Info,
                 areaConfig.barCountWeight0,
-                y => areaConfig.barCountWeight0 = y);
+                y => areaConfig.barCountWeight0 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight1Info,
                 areaConfig.barCountWeight1,
-                y => areaConfig.barCountWeight1 = y);
+                y => areaConfig.barCountWeight1 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight2Info,
                 areaConfig.barCountWeight2,
-                y => areaConfig.barCountWeight2 = y);
+                y => areaConfig.barCountWeight2 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight3Info,
                 areaConfig.barCountWeight3,
-                y => areaConfig.barCountWeight3 = y);
+                y => areaConfig.barCountWeight3 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawLabel("色の重み", 200, 20);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.colorWeight1Info,
                 areaConfig.colorWeight1,
-                y => areaConfig.colorWeight1 = y);
+                y => areaConfig.colorWeight1 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.colorWeight2Info,
                 areaConfig.colorWeight2,
-                y => areaConfig.colorWeight2 = y);
+                y => areaConfig.colorWeight2 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawLabel("パターンの重み", 200, 20);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight0Info,
                 areaConfig.patternWeight0,
-                y => areaConfig.patternWeight0 = y);
+                y => areaConfig.patternWeight0 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight1Info,
                 areaConfig.patternWeight1,
-                y => areaConfig.patternWeight1 = y);
+                y => areaConfig.patternWeight1 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight2Info,
                 areaConfig.patternWeight2,
-                y => areaConfig.patternWeight2 = y);
+                y => areaConfig.patternWeight2 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight3Info,
                 areaConfig.patternWeight3,
-                y => areaConfig.patternWeight3 = y);
+                y => areaConfig.patternWeight3 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight4Info,
                 areaConfig.patternWeight4,
-                y => areaConfig.patternWeight4 = y);
+                y => areaConfig.patternWeight4 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight5Info,
                 areaConfig.patternWeight5,
-                y => areaConfig.patternWeight5 = y);
+                y => areaConfig.patternWeight5 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight6Info,
                 areaConfig.patternWeight6,
-                y => areaConfig.patternWeight6 = y);
+                y => areaConfig.patternWeight6 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight7Info,
                 areaConfig.patternWeight7,
-                y => areaConfig.patternWeight7 = y);
+                y => areaConfig.patternWeight7 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight8Info,
                 areaConfig.patternWeight8,
-                y => areaConfig.patternWeight8 = y);
+                y => areaConfig.patternWeight8 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight9Info,
                 areaConfig.patternWeight9,
-                y => areaConfig.patternWeight9 = y);
+                y => areaConfig.patternWeight9 = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueIntRandom(
                 defaultTrans.randomSeedInfo,

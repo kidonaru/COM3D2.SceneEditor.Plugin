@@ -61,6 +61,12 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D _gtToneMapTexture;
         private MTEP.GTToneMapData _gtToneMapTextureData;
 
+        /// <summary>カスタム値のラベル幅 (「ﾌﾚｱﾌﾞﾗｰ回数」等が収まる幅。KeyFrameInspector と揃える)</summary>
+        private const float CustomLabelWidth = 100f;
+
+        /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
+        private const float CustomSliderWidth = -1f;
+
         /// <summary>
         /// 同種の別インデックスへ設定をコピーする行。
         /// コンボは項目ごとの Drawer が持つため、エフェクトごとに選択状態が残る
@@ -169,22 +175,30 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.focalLengthInfo,
                 depthOfField.focalLength,
-                newValue => depthOfField.focalLength = newValue);
+                newValue => depthOfField.focalLength = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.focalSizeInfo,
                 depthOfField.focalSize,
-                newValue => depthOfField.focalSize = newValue);
+                newValue => depthOfField.focalSize = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.apertureInfo,
                 depthOfField.aperture,
-                newValue => depthOfField.aperture = newValue);
+                newValue => depthOfField.aperture = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.maxBlurSizeInfo,
                 depthOfField.maxBlurSize,
-                newValue => depthOfField.maxBlurSize = newValue);
+                newValue => depthOfField.maxBlurSize = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.BeginHorizontal();
             {
@@ -240,63 +254,87 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.centerPositionXInfo,
                 paraffin.centerPosition.x,
-                newValue => paraffin.centerPosition.x = newValue);
+                newValue => paraffin.centerPosition.x = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.centerPositionYInfo,
                 paraffin.centerPosition.y,
-                newValue => paraffin.centerPosition.y = newValue);
+                newValue => paraffin.centerPosition.y = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.radiusFarInfo,
                 paraffin.radiusFar,
-                newValue => paraffin.radiusFar = newValue);
+                newValue => paraffin.radiusFar = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.radiusNearInfo,
                 paraffin.radiusNear,
-                newValue => paraffin.radiusNear = newValue);
+                newValue => paraffin.radiusNear = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.radiusScaleXInfo,
                 paraffin.radiusScale.x,
-                newValue => paraffin.radiusScale.x = newValue);
+                newValue => paraffin.radiusScale.x = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.radiusScaleYInfo,
                 paraffin.radiusScale.y,
-                newValue => paraffin.radiusScale.y = newValue);
+                newValue => paraffin.radiusScale.y = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.maskModeInfo,
                 paraffin.maskMode,
-                newValue => paraffin.maskMode = newValue);
+                newValue => paraffin.maskMode = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useNormalInfo,
                 paraffin.useNormal,
-                newValue => paraffin.useNormal = newValue);
+                newValue => paraffin.useNormal = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useAddInfo,
                 paraffin.useAdd,
-                newValue => paraffin.useAdd = newValue);
+                newValue => paraffin.useAdd = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useMultiplyInfo,
                 paraffin.useMultiply,
-                newValue => paraffin.useMultiply = newValue);
+                newValue => paraffin.useMultiply = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useOverlayInfo,
                 paraffin.useOverlay,
-                newValue => paraffin.useOverlay = newValue);
+                newValue => paraffin.useOverlay = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useSubstructInfo,
                 paraffin.useSubstruct,
-                newValue => paraffin.useSubstruct = newValue);
+                newValue => paraffin.useSubstruct = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -336,44 +374,60 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.fogStartInfo,
                 distanceFog.fogStart,
-                newValue => distanceFog.fogStart = newValue);
+                newValue => distanceFog.fogStart = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.fogEndInfo,
                 distanceFog.fogEnd,
-                newValue => distanceFog.fogEnd = newValue);
+                newValue => distanceFog.fogEnd = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
             
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.fogExpInfo,
                 distanceFog.fogExp,
-                newValue => distanceFog.fogExp = newValue);
+                newValue => distanceFog.fogExp = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useNormalInfo,
                 distanceFog.useNormal,
-                newValue => distanceFog.useNormal = newValue);
+                newValue => distanceFog.useNormal = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useAddInfo,
                 distanceFog.useAdd,
-                newValue => distanceFog.useAdd = newValue);
+                newValue => distanceFog.useAdd = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useMultiplyInfo,
                 distanceFog.useMultiply,
-                newValue => distanceFog.useMultiply = newValue);
+                newValue => distanceFog.useMultiply = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useOverlayInfo,
                 distanceFog.useOverlay,
-                newValue => distanceFog.useOverlay = newValue);
+                newValue => distanceFog.useOverlay = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useSubstructInfo,
                 distanceFog.useSubstruct,
-                newValue => distanceFog.useSubstruct = newValue);
+                newValue => distanceFog.useSubstruct = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -435,7 +489,9 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.maskModeInfo,
                 rimlight.maskMode,
-                newValue => rimlight.maskMode = newValue);
+                newValue => rimlight.maskMode = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueBool(
                 defaultTrans.excludeFaceInfo,
@@ -454,44 +510,60 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.lightAreaInfo,
                 rimlight.lightArea,
-                newValue => rimlight.lightArea = newValue);
+                newValue => rimlight.lightArea = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.fadeRangeInfo,
                 rimlight.fadeRange,
-                newValue => rimlight.fadeRange = newValue);
+                newValue => rimlight.fadeRange = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.fadeExpInfo,
                 rimlight.fadeExp,
-                newValue => rimlight.fadeExp = newValue);
+                newValue => rimlight.fadeExp = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawLabel("ブレンドモード", 100, 20);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useNormalInfo,
                 rimlight.useNormal,
-                newValue => rimlight.useNormal = newValue);
+                newValue => rimlight.useNormal = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useAddInfo,
                 rimlight.useAdd,
-                newValue => rimlight.useAdd = newValue);
+                newValue => rimlight.useAdd = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useMultiplyInfo,
                 rimlight.useMultiply,
-                newValue => rimlight.useMultiply = newValue);
+                newValue => rimlight.useMultiply = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useOverlayInfo,
                 rimlight.useOverlay,
-                newValue => rimlight.useOverlay = newValue);
+                newValue => rimlight.useOverlay = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.useSubstructInfo,
                 rimlight.useSubstruct,
-                newValue => rimlight.useSubstruct = newValue);
+                newValue => rimlight.useSubstruct = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -522,32 +594,44 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.maxBrightnessInfo,
                 data.maxBrightness,
-                newValue => data.maxBrightness = newValue);
+                newValue => data.maxBrightness = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.contrastInfo,
                 data.contrast,
-                newValue => data.contrast = newValue);
+                newValue => data.contrast = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.linearStartInfo,
                 data.linearStart,
-                newValue => data.linearStart = newValue);
+                newValue => data.linearStart = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.linearLengthInfo,
                 data.linearLength,
-                newValue => data.linearLength = newValue);
+                newValue => data.linearLength = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.blackTightnessInfo,
                 data.blackTightness,
-                newValue => data.blackTightness = newValue);
+                newValue => data.blackTightness = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.blackOffsetInfo,
                 data.blackOffset,
-                newValue => data.blackOffset = newValue);
+                newValue => data.blackOffset = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             if (updateTransform)
             {
@@ -583,7 +667,9 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.hdrInfo,
                 bloom.hdr,
-                newValue => bloom.hdr = newValue);
+                newValue => bloom.hdr = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             // 0=Screen / 1=Add
             updateTransform |= view.DrawCustomValueBool(
@@ -599,12 +685,16 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.intensityInfo,
                 bloom.intensity,
-                newValue => bloom.intensity = newValue);
+                newValue => bloom.intensity = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.thresholdInfo,
                 bloom.threshold,
-                newValue => bloom.threshold = newValue);
+                newValue => bloom.threshold = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             DrawColorImmediate(
                 view, _bloomThresholdColorFieldCache, bloom,
@@ -616,12 +706,16 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.blurIterationsInfo,
                 bloom.blurIterations,
-                newValue => bloom.blurIterations = newValue);
+                newValue => bloom.blurIterations = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.blurSpreadInfo,
                 bloom.blurSpread,
-                newValue => bloom.blurSpread = newValue);
+                newValue => bloom.blurSpread = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             view.DrawHorizontalLine(Color.gray);
             view.DrawLabel("キャラと背景の分離", 200, 20);
@@ -647,17 +741,23 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.separationCharacterIntensityInfo,
                     bloom.separationCharacterIntensity,
-                    newValue => bloom.separationCharacterIntensity = newValue);
+                    newValue => bloom.separationCharacterIntensity = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.separationCharacterThresholdInfo,
                     bloom.separationCharacterThreshold,
-                    newValue => bloom.separationCharacterThreshold = newValue);
+                    newValue => bloom.separationCharacterThreshold = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.separationCharacterRadiusInfo,
                     bloom.separationCharacterRadius,
-                    newValue => bloom.separationCharacterRadius = newValue);
+                    newValue => bloom.separationCharacterRadius = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
             }
 
             view.DrawHorizontalLine(Color.gray);
@@ -666,37 +766,51 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.lensFlareModeInfo,
                 bloom.lensFlareMode,
-                newValue => bloom.lensFlareMode = newValue);
+                newValue => bloom.lensFlareMode = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.lensFlareIntensityInfo,
                 bloom.lensFlareIntensity,
-                newValue => bloom.lensFlareIntensity = newValue);
+                newValue => bloom.lensFlareIntensity = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.lensFlareSaturationInfo,
                 bloom.lensFlareSaturation,
-                newValue => bloom.lensFlareSaturation = newValue);
+                newValue => bloom.lensFlareSaturation = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.lensFlareThresholdInfo,
                 bloom.lensFlareThreshold,
-                newValue => bloom.lensFlareThreshold = newValue);
+                newValue => bloom.lensFlareThreshold = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.flareRotationInfo,
                 bloom.flareRotation,
-                newValue => bloom.flareRotation = newValue);
+                newValue => bloom.flareRotation = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.hollyStretchWidthInfo,
                 bloom.hollyStretchWidth,
-                newValue => bloom.hollyStretchWidth = newValue);
+                newValue => bloom.hollyStretchWidth = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.hollywoodFlareBlurIterationsInfo,
                 bloom.hollywoodFlareBlurIterations,
-                newValue => bloom.hollywoodFlareBlurIterations = newValue);
+                newValue => bloom.hollywoodFlareBlurIterations = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             DrawColorImmediate(
                 view, _bloomFlareColorFieldCaches[0], bloom,

@@ -13,6 +13,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class LiveEffectWindow : EditorSubWindow
     {
+        /// <summary>カスタム値のラベル幅 (「ShiftMin」等が収まる幅。KeyFrameInspector と揃える)</summary>
+        private const float CustomLabelWidth = 100f;
+
+        /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
+        private const float CustomSliderWidth = -1f;
+
         public static readonly int WINDOW_ID = 8903393;
 
         protected override int windowId => WINDOW_ID;
@@ -976,22 +982,30 @@ namespace COM3D2.SceneEditor.Plugin
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.timeCountInfo,
                 patternConfig.timeCount,
-                y => patternConfig.timeCount = y);
+                y => patternConfig.timeCount = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.timeRangeInfo,
                 patternConfig.timeRange,
-                y => patternConfig.timeRange = y);
+                y => patternConfig.timeRange = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.timeShiftMinInfo,
                 patternConfig.timeShiftMin,
-                y => patternConfig.timeShiftMin = y);
+                y => patternConfig.timeShiftMin = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.timeShiftMaxInfo,
                 patternConfig.timeShiftMax,
-                y => patternConfig.timeShiftMax = y);
+                y => patternConfig.timeShiftMax = y,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
 
             updateTransform |= view.DrawCustomValueIntRandom(
                 defaultTrans.randomSeedInfo,

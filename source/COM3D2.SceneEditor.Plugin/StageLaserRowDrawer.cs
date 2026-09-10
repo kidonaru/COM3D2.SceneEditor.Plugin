@@ -15,6 +15,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class StageLaserRowDrawer
     {
+        /// <summary>カスタム値のラベル幅 (「ﾉｲｽﾞｻｲｽﾞ」等が収まる幅。KeyFrameInspector と揃える)</summary>
+        private const float CustomLabelWidth = 100f;
+
+        /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
+        private const float CustomSliderWidth = -1f;
+
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
@@ -174,52 +180,72 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.intensityInfo,
                     laserInfo.intensity,
-                    x => laserInfo.intensity = x);
+                    x => laserInfo.intensity = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.laserRangeInfo,
                     laserInfo.laserRange,
-                    x => laserInfo.laserRange = x);
+                    x => laserInfo.laserRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.laserWidthInfo,
                     laserInfo.laserWidth,
-                    x => laserInfo.laserWidth = x);
+                    x => laserInfo.laserWidth = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.falloffExpInfo,
                     laserInfo.falloffExp,
-                    x => laserInfo.falloffExp = x);
+                    x => laserInfo.falloffExp = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseStrengthInfo,
                     laserInfo.noiseStrength,
-                    x => laserInfo.noiseStrength = x);
+                    x => laserInfo.noiseStrength = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseScaleInfo,
                     laserInfo.noiseScale,
-                    x => laserInfo.noiseScale = x);
+                    x => laserInfo.noiseScale = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.coreRadiusInfo,
                     laserInfo.coreRadius,
-                    x => laserInfo.coreRadius = x);
+                    x => laserInfo.coreRadius = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.offsetRangeInfo,
                     laserInfo.offsetRange,
-                    x => laserInfo.offsetRange = x);
+                    x => laserInfo.offsetRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.glowWidthInfo,
                     laserInfo.glowWidth,
-                    x => laserInfo.glowWidth = x);
+                    x => laserInfo.glowWidth = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueInt(
                     defaultTrans.segmentRangeInfo,
                     laserInfo.segmentRange,
-                    x => laserInfo.segmentRange = x);
+                    x => laserInfo.segmentRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueBool(
                     defaultTrans.zTestInfo,
@@ -294,52 +320,72 @@ namespace COM3D2.SceneEditor.Plugin
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.intensityInfo,
                     laser.intensity,
-                    x => laser.intensity = x);
+                    x => laser.intensity = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.laserRangeInfo,
                     laser.laserRange,
-                    x => laser.laserRange = x);
+                    x => laser.laserRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.laserWidthInfo,
                     laser.laserWidth,
-                    x => laser.laserWidth = x);
+                    x => laser.laserWidth = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.falloffExpInfo,
                     laser.falloffExp,
-                    x => laser.falloffExp = x);
+                    x => laser.falloffExp = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseStrengthInfo,
                     laser.noiseStrength,
-                    x => laser.noiseStrength = x);
+                    x => laser.noiseStrength = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.noiseScaleInfo,
                     laser.noiseScale,
-                    x => laser.noiseScale = x);
+                    x => laser.noiseScale = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.coreRadiusInfo,
                     laser.coreRadius,
-                    x => laser.coreRadius = x);
+                    x => laser.coreRadius = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.offsetRangeInfo,
                     laser.offsetRange,
-                    x => laser.offsetRange = x);
+                    x => laser.offsetRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.glowWidthInfo,
                     laser.glowWidth,
-                    x => laser.glowWidth = x);
+                    x => laser.glowWidth = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
                 
                 updateTransform |= view.DrawCustomValueInt(
                     defaultTrans.segmentRangeInfo,
                     laser.segmentRange,
-                    x => laser.segmentRange = x);
+                    x => laser.segmentRange = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
 
                 updateTransform |= view.DrawCustomValueBool(
                     defaultTrans.zTestInfo,
