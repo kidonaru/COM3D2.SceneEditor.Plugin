@@ -149,7 +149,7 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D texColorGradient = null;
 
         /// <summary>色レーンの帯がレーン高さに占める割合</summary>
-        private const float COLOR_LANE_HEIGHT_RATIO = 0.6f;
+        private const float COLOR_LANE_HEIGHT_RATIO = 0.3f;
         /// <summary>色レーンの不透明度。背景の目盛りとキーフレームが埋もれない程度に抑える</summary>
         private const float COLOR_LANE_ALPHA = 0.7f;
         private const int COLOR_GRADIENT_TEXTURE_WIDTH = 64;
@@ -1252,7 +1252,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 2 キー間の色帯を 1 区間ぶん描く。左の色を塗った上に右の色をアルファ勾配テクスチャで重ね、
-        /// 線形ブレンドに見せる。to が null のときは from の色で塗りつぶす
+        /// 線形ブレンドに見せる。to が null のときは from の色で塗りつぶす。
+        /// from が表示 OFF のキーなら何も描かない
         /// </summary>
         private void DrawColorLaneSegment(
             GUIView view,
@@ -1267,6 +1268,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var width = x1 - x0;
             if (width <= 0f || x1 < scrollX || x0 > scrollX + viewWidth)
+            {
+                return;
+            }
+
+            // 表示 OFF は次のキーまで保持されるので、その区間は色を出さない
+            if (from.hasVisible && !from.visible)
             {
                 return;
             }
