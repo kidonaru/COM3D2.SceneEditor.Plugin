@@ -145,6 +145,14 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D texWhite => GUIView.texWhite;
         private Texture2D texTimelineBG = null;
         private Texture2D texKeyFrame = null;
+        /// <summary>色レーンのキー間グラデーション用 (左透明→右不透明)</summary>
+        private Texture2D texColorGradient = null;
+
+        /// <summary>色レーンの帯がレーン高さに占める割合</summary>
+        private const float COLOR_LANE_HEIGHT_RATIO = 0.6f;
+        /// <summary>色レーンの不透明度。背景の目盛りとキーフレームが埋もれない程度に抑える</summary>
+        private const float COLOR_LANE_ALPHA = 0.7f;
+        private const int COLOR_GRADIENT_TEXTURE_WIDTH = 64;
 
         private readonly GUIStyle gsFrameLabel = new GUIStyle("label")
         {
@@ -466,6 +474,12 @@ namespace COM3D2.SceneEditor.Plugin
                 texKeyFrame = TextureUtils.CreateDiamondTexture(
                     tc.frameWidth,
                     Color.white);
+            }
+
+            if (texColorGradient == null)
+            {
+                texColorGradient = TextureUtils.CreateHorizontalAlphaGradientTexture(
+                    COLOR_GRADIENT_TEXTURE_WIDTH);
             }
         }
 
@@ -807,6 +821,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            // 色レーン表示 (キーフレームより下、選択ハイライトより上)
+            DrawColorLanes(view, scrollPosition, viewWidth, viewHeight, frameWidth, frameHeight);
+
             // BPMライン表示
             if (timeline.bgm.isShowBPMLine && timeline.bgm.bpm > 0)
             {
@@ -1137,6 +1154,162 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// 色を持つ項目の行に、キー間の色をグラデーション帯として描く。
+        /// 複数の色 (主色/副色など) を持つ型は帯を上下に分割して並べる。
+        /// 最後のキー以降は末尾まで同じ色を保持する。
+        /// 折りたたみ中のレイヤーは項目行が無く、ヘッダー行へは集約しないため帯は出ない
+        /// </summary>
+        private void DrawColorLanes(
+            GUIView view,
+            Vector2 scrollPosition,
+            float viewWidth,
+            float viewHeight,
+            float frameWidth,
+            float frameHeight)
+        {
+            var halfFrameWidth = frameWidth * 0.5f;
+            var laneHeight = frameHeight * COLOR_LANE_HEIGHT_RATIO;
+            var laneOffsetY = (frameHeight - laneHeight) * 0.5f;
+            var endX = timeline.maxFrameCount * frameWidth;
+            var viewRightX = scrollPosition.x + viewWidth;
+
+            for (var i = 0; i < _rows.Count; i++)
+            {
+                var rowY = i * frameHeight;
+                if (rowY + frameHeight < scrollPosition.y ||
+                    rowY > scrollPosition.y + viewHeight)
+                {
+                    continue;
+                }
+
+                var row = _rows[i];
+                if (row.isHeader || row.menuItem.isSetMenu)
+                {
+                    continue;
+                }
+
+                var layer = row.layer;
+                var boneName = row.menuItem.name;
+                var keyFrameCount = layer.keyFrameCount;
+                var laneY = rowY + laneOffsetY;
+                MTEP.BoneData prevBone = null;
+                // 表示範囲の右端を越えたキーまで描いたら残りは見えないので打ち切る
+                var reachedViewRight = false;
+
+                for (var frameIndex = 0; frameIndex < keyFrameCount && !reachedViewRight; frameIndex++)
+                {
+                    var frame = layer.GetKeyFrameAt(frameIndex);
+                    var bone = frame.GetBone(boneName);
+                    if (bone == null)
+                    {
+                        // このキーに項目のボーンが無ければ直前のキーからの区間を延ばす
+                        continue;
+                    }
+
+                    // 色を持たない型の行はここで打ち切る (型は行内で一定)
+                    if (bone.transform.GetColorValueInfoMap().Count == 0)
+                    {
+                        break;
+                    }
+
+                    var boneX = bone.frameNo * frameWidth + halfFrameWidth;
+                    reachedViewRight = boneX > viewRightX;
+
+                    if (prevBone != null)
+                    {
+                        DrawColorLaneSegment(
+                            view,
+                            from: prevBone.transform,
+                            to: bone.transform,
+                            x0: prevBone.frameNo * frameWidth + halfFrameWidth,
+                            x1: boneX,
+                            y: laneY,
+                            height: laneHeight,
+                            scrollX: scrollPosition.x,
+                            viewWidth: viewWidth);
+                    }
+                    prevBone = bone;
+                }
+
+                if (prevBone != null && !reachedViewRight)
+                {
+                    DrawColorLaneSegment(
+                        view,
+                        from: prevBone.transform,
+                        to: null,
+                        x0: prevBone.frameNo * frameWidth + halfFrameWidth,
+                        x1: endX,
+                        y: laneY,
+                        height: laneHeight,
+                        scrollX: scrollPosition.x,
+                        viewWidth: viewWidth);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 2 キー間の色帯を 1 区間ぶん描く。左の色を塗った上に右の色をアルファ勾配テクスチャで重ね、
+        /// 線形ブレンドに見せる。to が null のときは from の色で塗りつぶす
+        /// </summary>
+        private void DrawColorLaneSegment(
+            GUIView view,
+            MTEP.ITransformData from,
+            MTEP.ITransformData to,
+            float x0,
+            float x1,
+            float y,
+            float height,
+            float scrollX,
+            float viewWidth)
+        {
+            var width = x1 - x0;
+            if (width <= 0f || x1 < scrollX || x0 > scrollX + viewWidth)
+            {
+                return;
+            }
+
+            var colorMap = from.GetColorValueInfoMap();
+            var bandHeight = height / colorMap.Count;
+            var bandY = y;
+
+            foreach (var pair in colorMap)
+            {
+                var colorKey = pair.Key;
+                var fromColor = ToLaneColor(from.GetColorValue(colorKey));
+
+                view.currentPos.x = x0;
+                view.currentPos.y = bandY;
+                view.DrawTexture(texWhite, width, bandHeight, fromColor);
+
+                if (to != null)
+                {
+                    var toColor = ToLaneColor(to.GetColorValue(colorKey));
+                    if (toColor != fromColor)
+                    {
+                        view.currentPos.x = x0;
+                        view.currentPos.y = bandY;
+                        view.DrawTexture(texColorGradient, width, bandHeight, toColor);
+                    }
+                }
+
+                bandY += bandHeight;
+            }
+        }
+
+        /// <summary>
+        /// HDR 値を表示範囲に丸め、帯の不透明度を掛けた表示用の色にする。
+        /// 1 を超える強度差は帯には反映しない (色相の推移が分かれば十分とみなす)
+        /// </summary>
+        private static Color ToLaneColor(Color color)
+        {
+            return new Color(
+                Mathf.Clamp01(color.r),
+                Mathf.Clamp01(color.g),
+                Mathf.Clamp01(color.b),
+                Mathf.Clamp01(color.a) * COLOR_LANE_ALPHA);
         }
 
         /// <summary>
