@@ -587,7 +587,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         // 実機で従来の板ポリ描画と明るさが近くなる係数
-        private const float DensityScale = 8f;
+        private const float DensityScale = 12f;
 
         private static class Uniforms
         {
