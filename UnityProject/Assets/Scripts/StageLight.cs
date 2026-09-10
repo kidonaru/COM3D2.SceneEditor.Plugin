@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.Rendering;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -227,6 +226,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_offsetRange == value) return;
                 _offsetRange = value;
                 _requestedMeshUpdate = true;
+                _requestedMaterialUpdate = true;
             }
         }
 
@@ -313,9 +313,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private bool _requestedMeshUpdate = false;
         private bool _requestedMaterialUpdate = false;
 
-        private GameObject _meshObject;
-        private MeshFilter _meshFilter;
-        private MeshRenderer _meshRenderer;
+        // COM3D2 (2.0) ビルドでは Initialize が生成しないため null のまま
+        private GameObject _meshObject = null;
+        private MeshFilter _meshFilter = null;
+        private MeshRenderer _meshRenderer = null;
 
 #if COM3D2
         private static TimelineBundleManager bundleManager => TimelineBundleManager.instance;
@@ -414,6 +415,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             segmentRange = other.segmentRange;
         }
 
+#if COM3D2 && !COM3D25
+        // COM3D2 (2.0) ビルドは 5.6 製バンドルのままで新シェーダを持たないため描画非対応
+        private static bool _unsupportedWarned = false;
+#endif
+
         public void Initialize()
         {
             if (spotLight != null && spotLight.type != LightType.Spot)
@@ -421,6 +427,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 Debug.LogError("このコンポーネントはスポットライトにのみ使用できます");
             }
 
+#if COM3D2 && !COM3D25
+            if (!_unsupportedWarned)
+            {
+                _unsupportedWarned = true;
+                Debug.LogWarning("COM3D2 ではステージライトの描画は未対応です");
+            }
+            transform.localPosition = _position;
+            transform.localEulerAngles = _eulerAngles;
+            UpdateName();
+            return;
+#else
             var meshTransform = transform.Find("Mesh");
             _meshObject = meshTransform != null ? meshTransform.gameObject : null;
             if (_meshObject == null)
@@ -459,75 +476,63 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateMesh();
             UpdateMaterial();
             UpdateTransform();
+#endif
         }
 
         private Vector3[] _vertices = null;
         private int[] _triangles = null;
 
+        // 先端リング (z=offsetRange) と底面リング (z=range) を側面で結び、両端をキャップで閉じた円錐。
+        // 法線が外向きになる巻き順にする (シェーダは Cull Front で裏面を描く)
         void UpdateMesh()
         {
             Mesh mesh = _meshFilter.mesh;
             mesh.Clear();
 
-            float angle = spotAngle * 0.5f * Mathf.Deg2Rad;
+            float tanHalf = Mathf.Tan(spotAngle * 0.5f * Mathf.Deg2Rad);
             float range = CalculateEffectiveRange();
-            
-            // 半径を計算
-            float radius = Mathf.Tan(angle) * range;
+            float zNear = Mathf.Clamp(offsetRange, 0f, range);
+            int segments = Mathf.Max(segmentAngle, 3);
 
-            // 角度方向の分割数
-            float radiusStep = radius * 2f / segmentAngle;
-
-            // 範囲方向の分割
-            float rangeStep = (range - offsetRange) / segmentRange;
-
-            // 頂点の計算
-            int verticesCount = (segmentAngle + 1) * (segmentRange + 1);
-            int vertexIndex = 0;
-
+            int ringCount = segments + 1;
+            int verticesCount = ringCount * 2 + 2;
             if (_vertices == null || _vertices.Length != verticesCount)
             {
                 _vertices = new Vector3[verticesCount];
             }
 
-            for (int r = 0; r <= segmentRange; r++)
+            for (int a = 0; a < ringCount; a++)
             {
-                float z = offsetRange + rangeStep * r;
-                float radiusRate = z / range;
-
-                for (int a = 0; a <= segmentAngle; a++)
-                {
-                    float x = (-radius + radiusStep * a) * radiusRate;
-                    _vertices[vertexIndex++] = new Vector3(x, 0, z);
-                }
+                float theta = a * Mathf.PI * 2f / segments;
+                float cos = Mathf.Cos(theta);
+                float sin = Mathf.Sin(theta);
+                _vertices[a] = new Vector3(cos * zNear * tanHalf, sin * zNear * tanHalf, zNear);
+                _vertices[ringCount + a] = new Vector3(cos * range * tanHalf, sin * range * tanHalf, range);
             }
+            int nearCenter = ringCount * 2;
+            int farCenter = nearCenter + 1;
+            _vertices[nearCenter] = new Vector3(0f, 0f, zNear);
+            _vertices[farCenter] = new Vector3(0f, 0f, range);
 
-            // インデックスの計算
-            int trianglesCount = segmentAngle * segmentRange * 6;
-            int triangleIndex = 0;
-
+            // 側面 2 三角形 + 先端キャップ 1 + 底面キャップ 1 = 12 インデックス / セグメント
+            int trianglesCount = segments * 12;
             if (_triangles == null || _triangles.Length != trianglesCount)
             {
                 _triangles = new int[trianglesCount];
             }
 
-            for (int r = 0; r < segmentRange; r++)
+            int t = 0;
+            for (int a = 0; a < segments; a++)
             {
-                for (int a = 0; a < segmentAngle; a++)
-                {
-                    int current = r * (segmentAngle + 1) + a;
-                    int next = current + (segmentAngle + 1);
+                int n0 = a;
+                int n1 = a + 1;
+                int f0 = ringCount + a;
+                int f1 = ringCount + a + 1;
 
-                    // 1つ目の三角形
-                    _triangles[triangleIndex++] = current;
-                    _triangles[triangleIndex++] = current + 1;
-                    _triangles[triangleIndex++] = next + 1;
-
-                    // 2つ目の三角形
-                    _triangles[triangleIndex++] = current;
-                    _triangles[triangleIndex++] = next + 1;
-                    _triangles[triangleIndex++] = next;
-                }
+                _triangles[t++] = n0; _triangles[t++] = f0; _triangles[t++] = n1;
+                _triangles[t++] = n1; _triangles[t++] = f0; _triangles[t++] = f1;
+                _triangles[t++] = nearCenter; _triangles[t++] = n1; _triangles[t++] = n0;
+                _triangles[t++] = farCenter; _triangles[t++] = f0; _triangles[t++] = f1;
             }
 
             mesh.vertices = _vertices;
@@ -548,22 +553,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     spotLight.transform.rotation = transform.rotation;
                 }
             }
-
-            Camera camera = GetCurrentCamera();
-            if (camera == null)
-            {
-                Debug.LogWarning("カメラが見つかりません");
-            }
-
-            if (_meshFilter != null && camera != null)
-            {
-                _meshFilter.transform.LookAt(camera.transform, transform.forward);
-                
-                var localRotation = _meshFilter.transform.localRotation;
-                localRotation.x = 0;
-                localRotation.y = 0;
-                _meshFilter.transform.localRotation = localRotation;
-            }
         }
 
         private void UpdateMaterial()
@@ -571,8 +560,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_meshRenderer != null && _meshRenderer.material != null)
             {
                 var material = _meshRenderer.material;
-                material.SetFloat(Uniforms._SpotRange, CalculateEffectiveRange());
-                material.SetFloat(Uniforms._SpotAngle, spotAngle);
+                float range = CalculateEffectiveRange();
+                material.SetFloat(Uniforms._SpotRange, range);
+                material.SetFloat(Uniforms._OffsetRange, Mathf.Clamp(offsetRange, 0f, range));
                 material.SetColor(Uniforms._Color, color);
                 material.SetColor(Uniforms._SubColor, color);
                 material.SetFloat(Uniforms._FalloffExp, falloffExp);
@@ -580,14 +570,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 material.SetFloat(Uniforms._NoiseScaleInv, 1f / noiseScale);
                 material.SetFloat(Uniforms._CoreRadius, coreRadius);
                 material.SetFloat(Uniforms._TanHalfAngle, Mathf.Tan(spotAngle * 0.5f * Mathf.Deg2Rad));
-                material.SetInt(Uniforms._zTest, (int) (zTest ? CompareFunction.LessEqual : CompareFunction.Always));
+                // 積分は経路長に比例するため距離で正規化する (係数は実機で調整済み)
+                material.SetFloat(Uniforms._Density, DensityScale / Mathf.Max(range, 0.01f));
+                material.SetFloat(Uniforms._DepthClip, zTest ? 1f : 0f);
             }
         }
+
+        // 実機で従来の板ポリ描画と明るさが近くなる係数
+        private const float DensityScale = 8f;
 
         private static class Uniforms
         {
             internal static readonly int _SpotRange = Shader.PropertyToID("_SpotRange");
-            internal static readonly int _SpotAngle = Shader.PropertyToID("_SpotAngle");
+            internal static readonly int _OffsetRange = Shader.PropertyToID("_OffsetRange");
             internal static readonly int _Color = Shader.PropertyToID("_Color");
             internal static readonly int _SubColor = Shader.PropertyToID("_SubColor");
             internal static readonly int _FalloffExp = Shader.PropertyToID("_FalloffExp");
@@ -595,7 +590,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             internal static readonly int _NoiseScaleInv = Shader.PropertyToID("_NoiseScaleInv");
             internal static readonly int _CoreRadius = Shader.PropertyToID("_CoreRadius");
             internal static readonly int _TanHalfAngle = Shader.PropertyToID("_TanHalfAngle");
-            internal static readonly int _zTest = Shader.PropertyToID("_ZTest");
+            internal static readonly int _Density = Shader.PropertyToID("_Density");
+            internal static readonly int _DepthClip = Shader.PropertyToID("_DepthClip");
         }
 
         private void UpdateName()
@@ -610,21 +606,5 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return spotRange * rangeMultiplier;
         }
 
-        private Camera GetCurrentCamera()
-        {
-#if COM3D2
-            return PluginUtils.MainCamera;
-#else
-#if UNITY_EDITOR
-            // EditMode時はSceneViewのカメラを使用
-            if (!Application.isPlaying)
-            {
-                SceneView sceneView = SceneView.lastActiveSceneView;
-                return sceneView != null ? sceneView.camera : null;
-            }
-#endif // UNITY_EDITOR
-            return Camera.main;
-#endif // COM3D2
-        }
     }
 }
