@@ -186,6 +186,9 @@ Shader "MTE/StageLight"
                 // 区間内を等間隔サンプルして減衰とノイズを積分
                 float step = (t1 - t0) / SAMPLE_COUNT;
                 float sum = 0.0;
+                // どちらも 0 になると smoothstep / 除算がゼロ割りになるため下限を設ける
+                float edgeSoftness = max(_EdgeSoftness, 1e-4);
+                float coreFalloffWidth = max(1.0 - _CoreRadius, 1e-4);
                 for (int s = 0; s < SAMPLE_COUNT; s++)
                 {
                     float t = t0 + step * (s + 0.5);
@@ -193,12 +196,12 @@ Shader "MTE/StageLight"
                     float z = max(p.z, 1e-4);
 
                     float distanceFalloff = pow(1.0 - saturate(z / _SpotRange), _FalloffExp);
-                    distanceFalloff = smoothstep(0.0, _EdgeSoftness, distanceFalloff);
+                    distanceFalloff = smoothstep(0.0, edgeSoftness, distanceFalloff);
 
-                    float normalizedRadius = length(p.xy) / (z * _TanHalfAngle);
-                    float rt = saturate((normalizedRadius - _CoreRadius) / (1.0 - _CoreRadius));
+                    float normalizedRadius = length(p.xy) / max(z * _TanHalfAngle, 1e-6);
+                    float rt = saturate((normalizedRadius - _CoreRadius) / coreFalloffWidth);
                     float angleFalloff = 1.0 - smoothstep(0.0, 1.0, rt);
-                    angleFalloff = smoothstep(0.0, _EdgeSoftness, angleFalloff);
+                    angleFalloff = smoothstep(0.0, edgeSoftness, angleFalloff);
 
                     float3 pw = camWorld + dirWorld * t;
                     sum += distanceFalloff * angleFalloff * SampleNoise(pw);

@@ -280,14 +280,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        // 描画非対応の COM3D2 (2.0) では _meshObject が生成されないため、
+        // 表示状態はメッシュの活性ではなくフィールドで保持する (キーフレームの記録値がずれないように)
+        [SerializeField]
+        private bool _visible = true;
         public bool visible
         {
             get
             {
-                return _meshObject != null && _meshObject.activeSelf;
+                return _visible;
             }
             set
             {
+                _visible = value;
                 if (_meshObject != null && _meshObject.activeSelf != value)
                 {
                     _meshObject.SetActive(value);
@@ -361,7 +366,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         void LateUpdate()
         {
-            if (!visible)
+            // _meshFilter が null なのは描画非対応ビルド。更新するものが無い
+            if (!visible || _meshFilter == null)
             {
                 return;
             }
@@ -447,6 +453,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _meshObject.transform.localPosition = Vector3.zero;
                 _meshObject.transform.localRotation = Quaternion.identity;
             }
+            _meshObject.SetActive(_visible);
 
             _meshFilter = _meshObject.GetComponent<MeshFilter>();
             if (_meshFilter == null)
@@ -479,6 +486,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 #endif
         }
 
+        private const int MinConeSegments = 3;
+
         private Vector3[] _vertices = null;
         private int[] _triangles = null;
 
@@ -492,7 +501,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             float tanHalf = Mathf.Tan(spotAngle * 0.5f * Mathf.Deg2Rad);
             float range = CalculateEffectiveRange();
             float zNear = Mathf.Clamp(offsetRange, 0f, range);
-            int segments = Mathf.Max(segmentAngle, 3);
+            // UI は 1 から選べるが、円錐として成立するには 3 分割が要る
+            int segments = Mathf.Max(segmentAngle, MinConeSegments);
 
             int ringCount = segments + 1;
             int verticesCount = ringCount * 2 + 2;
