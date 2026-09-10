@@ -23,7 +23,7 @@
 
 ### 1. シェーダ `MTE/StageLight`（`UnityProject/Assets/Shaders/StageLight.shader`）
 
-- 描画対象は閉じた円錐メッシュ 1 個。`Cull Front`（裏面のみ描画）でカメラが円錐内部にあっても描ける。`ZTest Always` / `ZWrite Off` / `Blend One One`（加算）。
+- 描画対象は閉じた円錐メッシュ 1 個。`Cull Front`（裏面のみ描画）でカメラが円錐内部にあっても描ける。`ZTest Always` / `ZWrite Off` / `Blend One One`（加算）。遮蔽は不透明物のみ対象で、他の半透明オブジェクトとの前後関係は既存シェーダ同様に未対応。
 - 頂点シェーダ: クリップ座標とワールド座標を出力するのみ。
 - フラグメントシェーダ:
   1. カメラ位置と視線方向をオブジェクト空間へ変換（`unity_WorldToObject`）。
