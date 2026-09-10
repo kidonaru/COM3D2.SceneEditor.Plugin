@@ -207,7 +207,9 @@ Shader "MTE/StageLight"
                     sum += distanceFalloff * angleFalloff * SampleNoise(pw);
                 }
 
-                float alpha = saturate(sum * step * _Density * _Color.a);
+                // 積分値をそのまま飽和させると平坦なベタ塗りになり縁が硬く見えるため、
+                // 1 に漸近する軟飽和で頭打ちを無くす
+                float alpha = 1.0 - exp(-sum * step * _Density * _Color.a);
                 float4 finalColor = lerp(_SubColor, _Color, alpha);
                 finalColor.rgb *= alpha;
                 finalColor.a = alpha;
