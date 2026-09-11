@@ -85,6 +85,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             New,
             OutputAnm,
+            OutputImage,
         }
 
         private readonly GUIComboBox<FileMenuType> fileMenuComboBox = new GUIComboBox<FileMenuType>
@@ -94,6 +95,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 FileMenuType.New,
                 FileMenuType.OutputAnm,
+                FileMenuType.OutputImage,
             },
             getName = (type, index) =>
             {
@@ -103,6 +105,8 @@ namespace COM3D2.SceneEditor.Plugin
                         return "新規作成";
                     case FileMenuType.OutputAnm:
                         return "アニメ出力";
+                    case FileMenuType.OutputImage:
+                        return "連番画像出力";
                     default:
                         return "";
                 }
@@ -113,6 +117,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     case FileMenuType.OutputAnm:
                         return timelineManager.IsValidData();
+                    case FileMenuType.OutputImage:
+                        return timelineManager.IsValidData() && !timelineManager.isOutputtingImage;
                     default:
                         return true;
                 }
@@ -126,6 +132,9 @@ namespace COM3D2.SceneEditor.Plugin
                         break;
                     case FileMenuType.OutputAnm:
                         timelineManager.OutputAnm();
+                        break;
+                    case FileMenuType.OutputImage:
+                        timelineManager.OutputImage();
                         break;
                 }
             },

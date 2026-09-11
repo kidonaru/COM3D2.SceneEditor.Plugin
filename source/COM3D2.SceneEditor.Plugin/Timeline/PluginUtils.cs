@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
 using System.Linq;
@@ -41,6 +41,31 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 return path;
             }
+        }
+
+        /// <summary>連番画像の出力先ルート (MTE 互換: Photo フォルダ横の _Image)</summary>
+        public static string ImageOutputDirPath
+        {
+            get
+            {
+                string path = PhotoWindowManager.path_photo_folder + "_Image";
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+
+                return path;
+            }
+        }
+
+        public static string GetImageOutputDirPath(string anmName)
+        {
+            return MTEUtils.CombinePaths(ImageOutputDirPath, anmName);
+        }
+
+        public static bool IsExistsImageOutputDirPath(string anmName)
+        {
+            return Directory.Exists(GetImageOutputDirPath(anmName));
         }
 
         public static Camera MainCamera

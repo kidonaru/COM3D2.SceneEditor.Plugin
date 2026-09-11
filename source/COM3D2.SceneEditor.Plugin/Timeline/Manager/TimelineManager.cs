@@ -13,6 +13,7 @@ using System.Collections;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     using MTE = MotionTimelineEditor;
+    using SE = SceneEditor.Plugin;
 
     public class FadeTimeLineRow
     {
@@ -985,7 +986,225 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             MTEUtils.ShowDialog("モーション「" + timeline.anmName + "」を生成しました");
         }
 
-        // 連番画像出力・DCM 連携 (OutputDCM / OutputImage) は未移植のため削除
+        // DCM 連携 (OutputDCM) は未移植のため削除
+
+        public void OutputImage()
+        {
+            MTEUtils.ShowConfirmDialog("連番画像出力を開始しますか？\n出力中は[Esc]キーで停止できます", () =>
+            {
+                MTEUtils.Log("連番画像出力を開始しました");
+                GameMain.Instance.StartCoroutine(OutputImageInternal());
+            });
+        }
+
+        /// <summary>連番画像出力の実行中。UI 側でメニューを無効化するために使う</summary>
+        public bool isOutputtingImage { get; private set; }
+
+        /// <summary>
+        /// SceneEditor はゲーム画面をドッキングウィンドウ内の RT に描くモードがあり、
+        /// MTE のようにバックバッファを ReadPixels するとエディタ UI ごと写るため、
+        /// ScreenshotManager と同様にカメラを一時 RT へ手動描画する。
+        /// 画面と同じアスペクトで描いて中央を切り出すため、構図とレターボックスは画面表示と一致する
+        /// </summary>
+        private IEnumerator OutputImageInternal()
+        {
+            if (!IsValidData())
+            {
+                MTEUtils.ShowDialog(errorMessage);
+                yield break;
+            }
+
+            // 出力名は自由入力なので、パス区切りや '..' で出力先の外へ書かれないようにする
+            if (!IsValidFileName(timeline.imageOutputFormat)
+                || timeline.imageOutputFormat.Contains(Path.AltDirectorySeparatorChar.ToString()))
+            {
+                MTEUtils.ShowDialog("出力名にパス区切り文字や '..' は使用できません");
+                yield break;
+            }
+
+            var mainCamera = cameraManager.mainCamera;
+            if (mainCamera == null)
+            {
+                MTEUtils.ShowDialog("メインカメラが見つからないため出力できません");
+                yield break;
+            }
+
+            var anmName = timeline.anmName;
+            var outputDir = PluginUtils.GetImageOutputDirPath(anmName);
+            var frameRate = timeline.imageOutputFrameRate;
+            if (frameRate <= 0f)
+            {
+                MTEUtils.ShowDialog("フレームレートは 0 より大きい値を指定してください");
+                yield break;
+            }
+            var frameDuration = 1f / frameRate;
+            var fileNameFormat = timeline.imageOutputFormat + ".png";
+
+            try
+            {
+                if (Directory.Exists(outputDir))
+                {
+                    Directory.Delete(outputDir, true);
+                }
+                Directory.CreateDirectory(outputDir);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+                // 出力先をエクスプローラやビューアで開いていると削除に失敗するため、原因を伝える
+                MTEUtils.ShowDialog($"出力先フォルダを準備できませんでした\n{outputDir}\n{e.Message}");
+                yield break;
+            }
+
+            int imageWidth, imageHeight, renderWidth, renderHeight;
+            ImageOutputLayout.ClampImageSize(timeline.imageOutputSize, out imageWidth, out imageHeight);
+            var screenAspect = (float)Screen.width / Screen.height;
+            ImageOutputLayout.GetRenderSize(screenAspect, timeline.imageOutputSize, out renderWidth, out renderHeight);
+            var cropRect = ImageOutputLayout.GetCropRect(renderWidth, renderHeight, imageWidth, imageHeight);
+
+            var formatParams = new Dictionary<string, object>
+            {
+                { "name", anmName },
+            };
+
+            var minFrameTime = 0f;
+            var maxFrameTime = timeline.maxFrameNo * timeline.frameDuration;
+
+            if (timeline.activeTrackIndex >= 0)
+            {
+                var activeTrack = timeline.activeTrack;
+                minFrameTime = activeTrack.startFrameNo * timeline.frameDuration;
+                maxFrameTime = activeTrack.endFrameNo * timeline.frameDuration;
+            }
+
+            var frameNo = 0;
+            var frameTime = minFrameTime;
+
+            Pause();
+            studioHackManager.isPoseEditing = false;
+
+            isOutputtingImage = true;
+            config.isKeyInputEnabled = false;
+
+            RenderTexture renderTexture = null;
+            Texture2D outputTexture = null;
+            // ループ外で例外が起きてもキー入力とメニューを止めたままにしないよう、状態復元は finally で行う
+            try
+            {
+                SetPlayingTimeAll(frameTime);
+                onSeekCurrentFrame?.Invoke();
+
+                ApplyCurrentFrame(false);
+
+                yield return new WaitForSeconds(0.5f);
+
+                renderTexture = RenderTexture.GetTemporary(renderWidth, renderHeight, 24);
+                outputTexture = new Texture2D(imageWidth, imageHeight, TextureFormat.RGB24, false);
+
+                while (frameTime <= maxFrameTime)
+                {
+                    SetPlayingTimeAll(frameTime);
+                    onSeekCurrentFrame?.Invoke();
+
+                    yield return new WaitForEndOfFrame();
+
+                    try
+                    {
+                        formatParams["frame"] = frameNo;
+
+                        var fileName = MTEUtils.FormatWithNamedParameters(fileNameFormat, formatParams);
+                        var filePath = Path.Combine(outputDir, fileName);
+
+                        CaptureFrame(mainCamera, renderTexture, outputTexture, cropRect);
+                        File.WriteAllBytes(filePath, outputTexture.EncodeToPNG());
+
+                        if (Input.GetKeyDown(KeyCode.Escape))
+                        {
+                            break;
+                        }
+
+                        frameNo++;
+                        frameTime = minFrameTime + frameNo * frameDuration;
+                    }
+                    catch (Exception e)
+                    {
+                        MTEUtils.LogException(e);
+                        break;
+                    }
+                }
+
+                yield return new WaitForEndOfFrame();
+            }
+            finally
+            {
+                if (outputTexture != null)
+                {
+                    UnityEngine.Object.Destroy(outputTexture);
+                }
+                if (renderTexture != null)
+                {
+                    RenderTexture.ReleaseTemporary(renderTexture);
+                }
+
+                config.isKeyInputEnabled = true;
+                isOutputtingImage = false;
+            }
+
+            if (frameTime <= maxFrameTime)
+            {
+                MTEUtils.ShowDialog($"連番画像出力を中断しました\n{outputDir}");
+            }
+            else
+            {
+                MTEUtils.ShowDialog($"連番画像出力が完了しました\n{outputDir}");
+            }
+        }
+
+        /// <summary>
+        /// メインカメラと前面カメラ (レターボックス・動画の最前面表示) を一時 RT へ描き、
+        /// 中央を切り出して outputTexture へ読み出す。
+        /// 前面カメラはウィンドウ化中にゲームビューの RT を targetTexture に持つため、
+        /// メインカメラと同様に退避・復元する
+        /// </summary>
+        private static void CaptureFrame(
+            Camera mainCamera,
+            RenderTexture renderTexture,
+            Texture2D outputTexture,
+            Rect cropRect)
+        {
+            var frontCamera = cameraManager.createdFrontCamera;
+            var savedMainTarget = mainCamera.targetTexture;
+            var savedFrontTarget = frontCamera != null ? frontCamera.targetTexture : null;
+            var savedActive = RenderTexture.active;
+            var hiddenOverlays = new List<Behaviour>();
+            try
+            {
+                SE.ScreenshotManager.HideOverlays(hiddenOverlays);
+
+                mainCamera.targetTexture = renderTexture;
+                mainCamera.Render();
+
+                if (frontCamera != null && frontCamera.enabled)
+                {
+                    frontCamera.targetTexture = renderTexture;
+                    frontCamera.Render();
+                }
+
+                RenderTexture.active = renderTexture;
+                outputTexture.ReadPixels(cropRect, 0, 0);
+                outputTexture.Apply();
+            }
+            finally
+            {
+                SE.ScreenshotManager.RestoreOverlays(hiddenOverlays);
+                RenderTexture.active = savedActive;
+                mainCamera.targetTexture = savedMainTarget;
+                if (frontCamera != null)
+                {
+                    frontCamera.targetTexture = savedFrontTarget;
+                }
+            }
+        }
 
         public void AddTrack()
         {

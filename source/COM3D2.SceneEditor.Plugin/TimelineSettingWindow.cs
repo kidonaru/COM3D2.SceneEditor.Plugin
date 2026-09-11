@@ -244,6 +244,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            DrawImageOutputSection(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
             if (view.DrawButton("個別設定を初期化", 130, ROW_HEIGHT))
             {
                 MTEUtils.ShowConfirmDialog("個別設定を初期化しますか？", () =>
@@ -303,6 +307,85 @@ namespace COM3D2.SceneEditor.Plugin
                     cameraManager.ResetCache();
                 },
             });
+        }
+
+        /// <summary>連番画像出力の設定 (MTE の TimelineSettingUI から移植)</summary>
+        private void DrawImageOutputSection(GUIView view)
+        {
+            view.DrawLabel("連番画像出力設定", -1, ROW_HEIGHT);
+
+            view.BeginHorizontal();
+            {
+                var newFrameRate = timeline.imageOutputFrameRate;
+
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    label = "フレームレート",
+                    value = timeline.imageOutputFrameRate,
+                    width = 150,
+                    height = ROW_HEIGHT,
+                    onChanged = x => newFrameRate = x,
+                });
+
+                if (view.DrawButton("30", 30, ROW_HEIGHT))
+                {
+                    newFrameRate = 30;
+                }
+
+                if (view.DrawButton("60", 30, ROW_HEIGHT))
+                {
+                    newFrameRate = 60;
+                }
+
+                if (newFrameRate != timeline.imageOutputFrameRate)
+                {
+                    timeline.imageOutputFrameRate = newFrameRate;
+                }
+            }
+            view.EndLayout();
+
+            view.DrawTextField(new GUIView.TextFieldOption
+            {
+                label = "出力名",
+                labelWidth = 50,
+                value = timeline.imageOutputFormat,
+                onChanged = value => timeline.imageOutputFormat = value,
+                hiddenButton = true,
+            });
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("画像サイズ", 70, ROW_HEIGHT);
+
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    label = "幅",
+                    labelWidth = 30,
+                    fieldType = FloatFieldType.Int,
+                    value = timeline.imageOutputSize.x,
+                    width = 80,
+                    height = ROW_HEIGHT,
+                    onChanged = x => timeline.imageOutputSize.x = x,
+                });
+
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    label = "高さ",
+                    labelWidth = 30,
+                    fieldType = FloatFieldType.Int,
+                    value = timeline.imageOutputSize.y,
+                    width = 80,
+                    height = ROW_HEIGHT,
+                    onChanged = x => timeline.imageOutputSize.y = x,
+                });
+            }
+            view.EndLayout();
+
+            var enabled = MTEP.PluginUtils.IsExistsImageOutputDirPath(timeline.anmName);
+            if (view.DrawButton("画像出力先を開く", 120, ROW_HEIGHT, enabled))
+            {
+                MTEUtils.OpenDirectory(MTEP.PluginUtils.GetImageOutputDirPath(timeline.anmName));
+            }
         }
 
         /// <summary>地面色と背景表示の連動</summary>

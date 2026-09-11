@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
@@ -235,7 +235,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// GizmoRenderer は OnPostRender、MaidDragPointRing は OnRenderObject で描くため、
         /// コンポーネントを無効化すれば手動の camera.Render() でも描かれない
         /// </summary>
-        private static void HideOverlays(List<Behaviour> hidden)
+        internal static void HideOverlays(List<Behaviour> hidden)
         {
             // 撮影対象はメインカメラのため、そこに紐づく GameViewManager 側だけを止める
             // (SceneViewManager のギズモ・骨格線は別カメラなので写らない)
@@ -259,7 +259,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static void RestoreOverlays(List<Behaviour> hidden)
+        internal static void RestoreOverlays(List<Behaviour> hidden)
         {
             foreach (var behaviour in hidden)
             {
