@@ -195,7 +195,8 @@ Shader "MTE/StageLight"
                     float3 p = o + d * t;
                     float z = max(p.z, 1e-4);
 
-                    float distanceFalloff = pow(1.0 - saturate(z / _SpotRange), _FalloffExp);
+                    float zRate = saturate(z / _SpotRange);
+                    float distanceFalloff = pow(1.0 - zRate, _FalloffExp);
                     distanceFalloff = smoothstep(0.0, edgeSoftness, distanceFalloff);
 
                     float normalizedRadius = length(p.xy) / max(z * _TanHalfAngle, 1e-6);
