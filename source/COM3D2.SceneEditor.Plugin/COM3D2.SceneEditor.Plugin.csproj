@@ -423,7 +423,6 @@
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuManager.cs" />
     <Compile Include="Timeline\BoneMenu\BoneSetMenuItem.cs" />
-    <Compile Include="Timeline\BoneMenu\EasyMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\ExtendBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\IBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\MaidBoneMenuItem.cs" />

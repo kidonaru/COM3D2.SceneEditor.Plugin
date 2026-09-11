@@ -4,8 +4,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     public class BoneMenuManager : ManagerBase
     {
-        private List<IBoneMenuItem> easyMenuItems = null;
-
         private static BoneMenuManager _instance = null;
         public static BoneMenuManager Instance
         {
@@ -27,13 +25,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void Init()
         {
-            if (easyMenuItems == null)
-            {
-                easyMenuItems = new List<IBoneMenuItem>
-                {
-                    new EasyMenuItem()
-                };
-            }
         }
 
         /// <summary>全レイヤーのメニュー選択を解除する (行の選択ハイライトはレイヤーをまたぐため)</summary>
@@ -52,11 +43,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public List<IBoneMenuItem> GetVisibleItems()
         {
-            if (config.isEasyEdit)
-            {
-                return easyMenuItems;
-            }
-
             _visibleItems.Clear();
             CollectVisibleItems(allMenuItems, _visibleItems);
             return _visibleItems;
@@ -64,7 +50,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// 指定レイヤーの可視メニュー項目を result へ追記する。
-        /// 複数レイヤー表示の行リスト構築用 (isEasyEdit の分岐は呼び出し側が行う)
+        /// 複数レイヤー表示の行リスト構築用
         /// </summary>
         public void GetVisibleItems(ITimelineLayer layer, List<IBoneMenuItem> result)
         {
@@ -101,11 +87,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public List<IBoneMenuItem> GetSelectedItems()
         {
-            if (config.isEasyEdit)
-            {
-                return easyMenuItems;
-            }
-
             _selectedItems.Clear();
 
             foreach (var setMenuItem in allMenuItems)

@@ -600,7 +600,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             WrapIfNeeded(view, 60);
-            if (view.DrawButton("縦選択", 60, ROW_HEIGHT, !timelineConfig.isEasyEdit))
+            if (view.DrawButton("縦選択", 60, ROW_HEIGHT))
             {
                 timelineManager.SelectVerticalBones();
             }

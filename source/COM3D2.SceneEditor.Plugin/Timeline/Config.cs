@@ -63,7 +63,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int version = 0;
 
         // 動作設定
-        public bool isEasyEdit = false;
         public TimelineLayerViewMode layerViewMode = TimelineLayerViewMode.Category;
         public bool isCameraSync = true;
         public bool isFixedFoV = false;

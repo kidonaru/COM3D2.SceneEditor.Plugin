@@ -622,23 +622,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>表示行リストを組み立てる。簡易表示時は従来どおり単一レイヤーでカテゴリ行なし</summary>
+        /// <summary>表示行リストを組み立てる</summary>
         private void BuildRows()
         {
-            if (timelineConfig.isEasyEdit)
-            {
-                _rows.Clear();
-                foreach (var item in boneMenuManager.GetVisibleItems())
-                {
-                    _rows.Add(new LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>
-                    {
-                        layer = currentLayer,
-                        menuItem = item,
-                    });
-                }
-                return;
-            }
-
             _rowState.BuildRows(_targetLayers, CollectVisibleItems, _rows);
         }
 
@@ -719,7 +705,7 @@ namespace COM3D2.SceneEditor.Plugin
             var viewHeight = timelineViewHeight;
             var scrollContentRect = new Rect(0, 0, contentWidth, contentHeight);
             bool alwaysShowHorizontal = true;
-            bool alwaysShowVertical = !tc.isEasyEdit;
+            bool alwaysShowVertical = true;
 
             // 自動スクロール
             if (tc.isAutoScroll &&
@@ -1321,17 +1307,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 全レイヤーの折りたたみを一括で切り替えるボタン。
         /// アイコンでは意味が伝わりにくいため、押したときに起きることを文字で示す。
-        /// スクロールビュー下端の空き帯 (右端の幅変更ボタンの左側) に置く。
-        /// 簡易表示はレイヤー行を持たないため出さない
-        /// (表示・非表示の一括操作はレイヤー選択ドロップダウンの先頭行が担う)
+        /// スクロールビュー下端の空き帯 (右端の幅変更ボタンの左側) に置く
         /// </summary>
         private void DrawRowStateControls(GUIView view, MTEP.Config tc)
         {
-            if (tc.isEasyEdit)
-            {
-                return;
-            }
-
             var layers = _targetLayers;
             var allCollapsed = _rowState.AreAllCollapsed(layers);
 
@@ -1491,8 +1470,7 @@ namespace COM3D2.SceneEditor.Plugin
             var scrollPosition = view.scrollPosition;
             timelineView.scrollPosition.y = scrollPosition.y;
 
-            // 簡易表示はカテゴリ行を持たないため字下げしない
-            var indent = tc.isEasyEdit ? 0 : MENU_INDENT_WIDTH;
+            var indent = MENU_INDENT_WIDTH;
 
             for (int i = 0; i < _rows.Count; i++)
             {

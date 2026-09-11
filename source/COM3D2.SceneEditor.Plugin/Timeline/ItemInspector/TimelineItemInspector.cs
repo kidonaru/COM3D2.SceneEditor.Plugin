@@ -25,11 +25,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return false;
             }
-            // 簡易表示の GetSelectedItems は疑似項目 EasyMenuItem を常に返すため対象外
-            if (timelineConfig.isEasyEdit)
-            {
-                return false;
-            }
             if (TimelineItemInspectorRegistry.Find(timelineManager.currentLayer) == null)
             {
                 return false;

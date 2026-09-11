@@ -26,8 +26,6 @@ namespace COM3D2.SceneEditor.Plugin
             private readonly List<IManager> _managers = new List<IManager>
             {
                 MTEP.ConfigManager.instance,
-                // Init で簡易表示用のメニュー項目を生成する。未登録だと
-                // 簡易表示 ON 時に easyMenuItems が null のままになる
                 MTEP.BoneMenuManager.Instance,
                 studioHackManager,
                 MTEP.MaidManager.instance,

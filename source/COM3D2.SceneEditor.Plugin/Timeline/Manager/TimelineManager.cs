@@ -529,43 +529,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>アクティブレイヤーの範囲を選択へ追加する (他レイヤーの既存選択には影響しない)</summary>
         public void SelectFramesRange(int startFrameNo, int endFrameNo)
         {
-            if (config.isEasyEdit)
+            var selectedMenuItems = boneMenuManager.GetSelectedItems();
+            for (int i = startFrameNo; i <= endFrameNo; i++)
             {
-                for (int i = startFrameNo; i <= endFrameNo; i++)
+                var frame = currentLayer.GetFrame(i);
+                if (frame != null)
                 {
-                    var frame = currentLayer.GetFrame(i);
-                    if (frame != null)
+                    foreach (var bone in frame.bones)
                     {
-                        foreach (var bone in frame.bones)
+                        if (selectedMenuItems.Count == 0)
                         {
                             selectedBones.Add(bone);
                         }
-                    }
-                }
-            }
-            else
-            {
-                var selectedMenuItems = boneMenuManager.GetSelectedItems();
-                for (int i = startFrameNo; i <= endFrameNo; i++)
-                {
-                    var frame = currentLayer.GetFrame(i);
-                    if (frame != null)
-                    {
-                        foreach (var bone in frame.bones)
+                        else
                         {
-                            if (selectedMenuItems.Count == 0)
+                            foreach (var boneMenuItem in selectedMenuItems)
                             {
-                                selectedBones.Add(bone);
-                            }
-                            else
-                            {
-                                foreach (var boneMenuItem in selectedMenuItems)
+                                if (boneMenuItem.IsTargetBone(bone))
                                 {
-                                    if (boneMenuItem.IsTargetBone(bone))
-                                    {
-                                        selectedBones.Add(bone);
-                                        break;
-                                    }
+                                    selectedBones.Add(bone);
+                                    break;
                                 }
                             }
                         }
@@ -673,45 +656,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private FrameData FindFrame(int start, int step)
         {
-            if (config.isEasyEdit)
+            var selectedMenuItems = boneMenuManager.GetSelectedItems();
+            for (int i = start; i >= 0 && i <= timeline.maxFrameNo; i += step)
             {
-                for (int i = start; i >= 0 && i <= timeline.maxFrameNo; i += step)
+                var frame = currentLayer.GetFrame(i);
+                if (frame != null)
                 {
-                    var frame = currentLayer.GetFrame(i);
-                    if (frame != null)
+                    if (selectedMenuItems.Count == 0)
                     {
                         return frame;
                     }
-                }
-                return null;
-            }
-            else
-            {
-                var selectedMenuItems = boneMenuManager.GetSelectedItems();
-                for (int i = start; i >= 0 && i <= timeline.maxFrameNo; i += step)
-                {
-                    var frame = currentLayer.GetFrame(i);
-                    if (frame != null)
-                    {
-                        if (selectedMenuItems.Count == 0)
-                        {
-                            return frame;
-                        }
 
-                        foreach (var bone in frame.bones)
+                    foreach (var bone in frame.bones)
+                    {
+                        foreach (var boneMenuItem in selectedMenuItems)
                         {
-                            foreach (var boneMenuItem in selectedMenuItems)
+                            if (boneMenuItem.IsTargetBone(bone))
                             {
-                                if (boneMenuItem.IsTargetBone(bone))
-                                {
-                                    return frame;
-                                }
+                                return frame;
                             }
                         }
                     }
                 }
-                return null;
             }
+            return null;
         }
 
         public FrameData GetPrevFrame(int frameNo)
@@ -788,11 +756,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void SelectVerticalBones()
         {
-            if (config.isEasyEdit)
-            {
-                return;
-            }
-
             var frames = new HashSet<FrameData>();
             foreach (var bone in selectedBones)
             {
