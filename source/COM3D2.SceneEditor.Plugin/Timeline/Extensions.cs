@@ -6,6 +6,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     public static partial class Extensions
     {
+        /// <summary>カスタム値 (float) の数値欄の幅 (ラベルを含まない)</summary>
+        private const float CustomFloatFieldWidth = 90f;
+
         public static Vector2 ToVector2(this ValueData[] values)
         {
             if (values.Length != 2)
@@ -235,14 +238,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             else
             {
+                // DrawTextField はラベル幅 0 以下をビューの既定幅へ読み替えるため、
+                // 下の width 計算でも同じ幅を使うようにそろえる
+                var fieldLabelWidth = labelWidth > 0f ? labelWidth : view.labelWidth;
+
                 return view.DrawFloatField(new GUIView.FloatFieldOption
                 {
                     label = info.name,
-                    labelWidth = labelWidth,
+                    labelWidth = fieldLabelWidth,
                     minValue = info.min,
                     maxValue = info.max,
                     value = value,
-                    width = 90,
+                    // DrawFloatField の width はラベルを含む行全体の幅で、内部でラベル幅を差し引く。
+                    // 固定値だとラベル幅の広い呼び出し側で数値欄の幅が負になって消えるため加算する
+                    width = fieldLabelWidth + CustomFloatFieldWidth,
                     height = 20,
                     onChanged = onChanged,
                     onReset = onReset,
