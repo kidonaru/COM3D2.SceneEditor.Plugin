@@ -92,22 +92,47 @@ namespace COM3D2.SceneEditor.Plugin
         private Rect areaDragRect = new Rect();
         private readonly GUIView.DragInfo _menuWidthDraggableInfo = new GUIView.DragInfo();
 
-        /// <summary>表示レイヤーの複数選択コンボ。ボーンメニュー上部に置く</summary>
-        private readonly GUIMultiSelectComboBox<MTEP.ITimelineLayer> _displayLayerComboBox
-            = new GUIMultiSelectComboBox<MTEP.ITimelineLayer>
+        /// <summary>モードボタンのアイコン余白 (TimelineControlWindow.ICON_TOGGLE_OFFSET と同じ値)</summary>
+        private static readonly float MODE_ICON_OFFSET = 4f;
+
+        /// <summary>レイヤーモードの選択コンボ。操作対象レイヤーから 1 つ選んでアクティブ化する</summary>
+        private readonly GUIComboBox<MTEP.ITimelineLayer> _layerComboBox = new GUIComboBox<MTEP.ITimelineLayer>
         {
             contentSize = new Vector2(200, 300),
             // menuWidth (100〜300px) に収めるため前後送りの矢印は省略する
             showArrow = false,
         };
 
-        /// <summary>レイヤーの非表示集合と展開集合 (セッション内のみ保持)</summary>
+        /// <summary>カテゴリモードの選択コンボ。カテゴリを選ぶとその先頭レイヤーをアクティブ化する</summary>
+        private readonly GUIComboBox<MTEP.TimelineLayerCategory> _categoryComboBox
+            = new GUIComboBox<MTEP.TimelineLayerCategory>
+        {
+            contentSize = new Vector2(200, 300),
+            showArrow = false,
+        };
+
+        /// <summary>カテゴリの列挙順 (enum 定義順)</summary>
+        private static readonly List<MTEP.TimelineLayerCategory> ALL_CATEGORIES =
+            MTEUtils.GetEnumValues<MTEP.TimelineLayerCategory>();
+
+        /// <summary>カテゴリごとの操作対象レイヤー数。BuildTargetLayers で詰め直す</summary>
+        private readonly int[] _categoryLayerCounts = new int[ALL_CATEGORIES.Count];
+
+        /// <summary>操作対象レイヤーが 1 件以上あるカテゴリ (コンボの項目)。BuildTargetLayers で詰め直す</summary>
+        private readonly List<MTEP.TimelineLayerCategory> _availableCategories
+            = new List<MTEP.TimelineLayerCategory>(ALL_CATEGORIES.Count);
+
+        /// <summary>今フレームの表示対象レイヤー (_targetLayers を表示モードで絞ったもの)。DrawBody で詰め直す</summary>
+        private readonly List<MTEP.ITimelineLayer> _displayLayers
+            = new List<MTEP.ITimelineLayer>(32);
+
+        /// <summary>レイヤーの展開集合 (セッション内のみ保持)</summary>
         private readonly TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem> _rowState
             = new TimelineLayerRowState<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>(GetLayerStateKey);
 
         /// <summary>
         /// 今フレームの操作対象レイヤー (他メイドのレイヤーを除いたもの)。DrawBody で詰め直す。
-        /// レイヤーごとの表示トグル (_rowState) とは別の軸なので「表示」の語は使わない
+        /// 表示対象 (_displayLayers) はこれを表示モードで絞ったもの
         /// </summary>
         private readonly List<MTEP.ITimelineLayer> _targetLayers
             = new List<MTEP.ITimelineLayer>(32);
@@ -191,7 +216,25 @@ namespace COM3D2.SceneEditor.Plugin
 
             // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
             // ドロップダウンは操作対象で絞った一覧なのでメイド名は省く
-            _displayLayerComboBox.getName = (layer, _) => GetLayerDisplayName(layer, false);
+            _layerComboBox.getName = (layer, _) => GetLayerDisplayName(layer, false);
+            _layerComboBox.onSelected = (layer, _) =>
+            {
+                if (layer != timelineManager.currentLayer)
+                {
+                    timelineManager.SetCurrentLayer(layer);
+                }
+            };
+
+            _categoryComboBox.getName = (category, _) => GetCategoryLabel(category);
+            _categoryComboBox.onSelected = (category, _) =>
+            {
+                var first = TimelineLayerViewFilter.FindFirstLayer(
+                    _targetLayers, category, GetLayerCategory, GetLayerPriority);
+                if (first != null && first != timelineManager.currentLayer)
+                {
+                    timelineManager.SetCurrentLayer(first);
+                }
+            };
         }
 
         // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能)
@@ -605,11 +648,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// タイムラインに出すレイヤーを詰め直す。メイドに紐づくレイヤーは
         /// タイムライン操作ウィンドウで選んだ操作対象のものだけに絞る
-        /// (スロットを持たないカメラ・背景等は常に対象)
+        /// (スロットを持たないカメラ・背景等は常に対象)。
+        /// あわせてカテゴリ別の件数と、表示モードで絞った表示対象も組み立てる
         /// </summary>
         private void BuildTargetLayers()
         {
             _targetLayers.Clear();
+            Array.Clear(_categoryLayerCounts, 0, _categoryLayerCounts.Length);
 
             var slotNo = maidManager.maidSlotNo;
             foreach (var layer in timelineManager.layers)
@@ -618,14 +663,27 @@ namespace COM3D2.SceneEditor.Plugin
                 if (!layer.hasSlotNo || layer.slotNo == slotNo || layer == currentLayer)
                 {
                     _targetLayers.Add(layer);
+                    _categoryLayerCounts[(int)GetLayerCategory(layer)]++;
                 }
             }
+
+            _availableCategories.Clear();
+            foreach (var category in ALL_CATEGORIES)
+            {
+                if (_categoryLayerCounts[(int)category] > 0)
+                {
+                    _availableCategories.Add(category);
+                }
+            }
+
+            TimelineLayerViewFilter.Filter(
+                _targetLayers, currentLayer, timelineConfig.layerViewMode, GetLayerCategory, _displayLayers);
         }
 
-        /// <summary>表示行リストを組み立てる</summary>
+        /// <summary>表示対象レイヤーから表示行リストを組み立てる</summary>
         private void BuildRows()
         {
-            _rowState.BuildRows(_targetLayers, CollectVisibleItems, _rows);
+            _rowState.BuildRows(_displayLayers, CollectVisibleItems, _rows);
         }
 
         private void CollectVisibleItems(MTEP.ITimelineLayer layer, List<MTEP.IBoneMenuItem> result)
@@ -1311,7 +1369,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawRowStateControls(GUIView view, MTEP.Config tc)
         {
-            var layers = _targetLayers;
+            var layers = _displayLayers;
             var allCollapsed = _rowState.AreAllCollapsed(layers);
 
             view.currentPos.x = 0;
@@ -1327,6 +1385,26 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _rowState.SetAllCollapsed(layers, !allCollapsed);
             }
+        }
+
+        // GetLayerInfo は未登録の型に null を返す。全レイヤー型は登録済みの前提だが、
+        // GetLayerDisplayName と同じく null を握って「その他 / 最後尾」へ寄せる
+        private static MTEP.TimelineLayerCategory GetLayerCategory(MTEP.ITimelineLayer layer)
+        {
+            var info = timelineManager.GetLayerInfo(layer.layerType);
+            return info != null ? info.category : MTEP.TimelineLayerCategory.Other;
+        }
+
+        private static int GetLayerPriority(MTEP.ITimelineLayer layer)
+        {
+            var info = timelineManager.GetLayerInfo(layer.layerType);
+            return info != null ? info.priority : int.MaxValue;
+        }
+
+        /// <summary>カテゴリコンボの項目名。カテゴリ名 + 操作対象レイヤー数</summary>
+        private string GetCategoryLabel(MTEP.TimelineLayerCategory category)
+        {
+            return MTEP.Extensions.ToDisplayName(category) + " (" + _categoryLayerCounts[(int)category] + ")";
         }
 
         /// <summary>
@@ -1361,26 +1439,39 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
-        /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
+        /// モード切替 + 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
         /// </summary>
         private void DrawLayerControls(GUIView view, int menuWidth)
         {
             var layerType = currentLayer.layerType;
+            var isCategoryMode = timelineConfig.layerViewMode == MTEP.TimelineLayerViewMode.Category;
 
             view.currentPos.x = 0;
             view.currentPos.y = 0;
+            DrawViewModeButton(view, isCategoryMode);
 
             // メニュー幅が極端に狭くてもボタンが負座標へ回り込まないよう下限を設ける
-            var comboWidth = Mathf.Max(LAYER_BUTTON_WIDTH, menuWidth - LAYER_BUTTON_WIDTH * 2);
+            var comboWidth = Mathf.Max(
+                LAYER_BUTTON_WIDTH, menuWidth - FRAME_LABEL_HEIGHT - LAYER_BUTTON_WIDTH * 2);
 
-            _displayLayerComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
-            _displayLayerComboBox.items = _targetLayers;
-            // DrawListView のアクセント色でアクティブレイヤーを示す
-            _displayLayerComboBox.currentIndex = _targetLayers.IndexOf(timelineManager.currentLayer);
-            _displayLayerComboBox.defaultName = GetLayerComboLabel();
-            _displayLayerComboBox.DrawButton(view);
+            view.currentPos.x = FRAME_LABEL_HEIGHT;
+            view.currentPos.y = 0;
+            if (isCategoryMode)
+            {
+                _categoryComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
+                _categoryComboBox.items = _availableCategories;
+                _categoryComboBox.currentIndex = _availableCategories.IndexOf(GetLayerCategory(currentLayer));
+                _categoryComboBox.DrawButton(view);
+            }
+            else
+            {
+                _layerComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
+                _layerComboBox.items = _targetLayers;
+                _layerComboBox.currentIndex = _targetLayers.IndexOf(currentLayer);
+                _layerComboBox.DrawButton(view);
+            }
 
-            view.currentPos.x = comboWidth;
+            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth;
             view.currentPos.y = 0;
             if (view.DrawButton("-", LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT,
                     layerType != typeof(MTEP.MotionTimelineLayer)))
@@ -1388,7 +1479,7 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineManager.RemoveLayers(layerType);
             }
 
-            view.currentPos.x = comboWidth + LAYER_BUTTON_WIDTH;
+            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth + LAYER_BUTTON_WIDTH;
             view.currentPos.y = 0;
             _addLayerComboBox.currentIndex = -1;
             // 現在のメイドでまだ使っていない型を列挙する (スロット無しレイヤーは存在チェックのみ)。
@@ -1405,10 +1496,28 @@ namespace COM3D2.SceneEditor.Plugin
             _addLayerComboBox.DrawButton(view);
         }
 
-        /// <summary>コンボのボタン面ラベル。アクティブレイヤー名</summary>
-        private string GetLayerComboLabel()
+        /// <summary>
+        /// 表示モードの切替ボタン。現在のモードのアイコンを出し、押すともう一方へ切り替える。
+        /// アイコンが読めない環境では 1 文字のテキストボタンにフォールバックする
+        /// </summary>
+        private void DrawViewModeButton(GUIView view, bool isCategoryMode)
         {
-            return GetLayerDisplayName(currentLayer, false);
+            var kind = isCategoryMode ? ToolbarIcons.Kind.CategoryMode : ToolbarIcons.Kind.LayerMode;
+            var tooltip = isCategoryMode ? "カテゴリモード" : "レイヤーモード";
+            var icon = ToolbarIcons.GetTexture(kind);
+
+            var clicked = icon != null
+                ? view.DrawTextureButton(icon, FRAME_LABEL_HEIGHT, FRAME_LABEL_HEIGHT, MODE_ICON_OFFSET, tooltip: tooltip)
+                : view.DrawButton(isCategoryMode ? "カ" : "レ", FRAME_LABEL_HEIGHT, FRAME_LABEL_HEIGHT);
+            if (!clicked)
+            {
+                return;
+            }
+
+            timelineConfig.layerViewMode = isCategoryMode
+                ? MTEP.TimelineLayerViewMode.Layer
+                : MTEP.TimelineLayerViewMode.Category;
+            timelineConfig.dirty = true;
         }
 
         /// <summary>現在の MouseDown がダブルクリックの 2 回目か</summary>
