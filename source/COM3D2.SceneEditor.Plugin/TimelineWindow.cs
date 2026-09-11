@@ -1386,14 +1386,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        // GetLayerInfo は未登録の型に null を返す。全レイヤー型は登録済みの前提だが、
-        // GetLayerDisplayName と同じく null を握って「その他 / 最後尾」へ寄せる
+        // Filter / FindFirstLayer へメソッドグループとして渡すためのラッパー
         private static MTEP.TimelineLayerCategory GetLayerCategory(MTEP.ITimelineLayer layer)
         {
-            var info = timelineManager.GetLayerInfo(layer.layerType);
-            return info != null ? info.category : MTEP.TimelineLayerCategory.Other;
+            return timelineManager.GetLayerCategory(layer);
         }
 
+        // GetLayerInfo は未登録の型に null を返す。全レイヤー型は登録済みの前提だが、
+        // GetLayerDisplayName と同じく null を握って「最後尾」へ寄せる
         private static int GetLayerPriority(MTEP.ITimelineLayer layer)
         {
             var info = timelineManager.GetLayerInfo(layer.layerType);

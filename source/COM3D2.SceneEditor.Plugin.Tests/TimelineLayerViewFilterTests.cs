@@ -78,6 +78,27 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void メイドカテゴリ編集中はスロット無しのカメラが対象から外れる()
+        {
+            // 手動キーフレーム登録のスコープ計算。カメラはスロットを持たないため
+            // 編集対象レイヤー一覧には常に載るが、メイドカテゴリの表示中は対象外になること
+            var editTargets = new List<string> { "motion", "eyes", "camera", "light" };
+            var result = new List<string>();
+            TimelineLayerViewFilter.Filter(editTargets, "motion", TimelineLayerViewMode.Category, GetCategory, result);
+            Assert.Equal(new[] { "motion", "eyes" }, result);
+            Assert.DoesNotContain("camera", result);
+        }
+
+        [Fact]
+        public void カメラカテゴリ編集中はカメラだけが対象になる()
+        {
+            var editTargets = new List<string> { "motion", "eyes", "camera", "light" };
+            var result = new List<string>();
+            TimelineLayerViewFilter.Filter(editTargets, "camera", TimelineLayerViewMode.Category, GetCategory, result);
+            Assert.Equal(new[] { "camera" }, result);
+        }
+
+        [Fact]
         public void FindFirstLayerはpriority昇順の先頭を返す()
         {
             var targets = new List<string> { "psyllium", "light" };
