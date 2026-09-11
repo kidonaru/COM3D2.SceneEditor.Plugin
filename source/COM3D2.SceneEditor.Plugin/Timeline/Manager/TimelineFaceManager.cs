@@ -86,6 +86,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SEP.MaidFaceMorphController.ClearMabatakiOverride(maid);
         }
 
+        /// <summary>まばたきの上書きを解除するが、現在の実効値は維持する</summary>
+        public void CommitMabatakiOverride(Maid maid)
+        {
+            SEP.MaidFaceMorphController.CommitMabatakiOverride(maid);
+        }
+
         private static TMorph GetFaceMorph(Maid maid)
         {
             return SEP.MaidFaceMorphController.GetFaceMorph(maid);

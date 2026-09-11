@@ -146,8 +146,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             else
             {
-                // ポーズ編集中は適用を止めるため、まばたきの操作を SE 側へ返す
-                UpdateMabatakiOverride(null, false);
+                // ポーズ編集中は適用を止めるため、まばたきの操作を SE 側へ返す。
+                // 退避値へ戻すと編集モードへ入った瞬間に強制上書きが巻き戻るので、
+                // 直前まで適用していたキーの値を維持したまま上書きだけ手放す
+                CommitMabatakiOverride();
             }
         }
 
@@ -181,6 +183,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 // 上書き中もゲーム側が boMabataki を立て直すため毎フレーム呼ぶ
                 faceManager.SetMabatakiOverride(maid, forceOverride);
             }
+        }
+
+        /// <summary>
+        /// まばたきの上書きを手放すが、実体は現在値のまま残す。
+        /// 退避値の復元を伴わないため、表情ウィンドウの強制上書きトグルが
+        /// 直前のキーの値を保ったまま SE 側の操作対象へ戻る
+        /// </summary>
+        private void CommitMabatakiOverride()
+        {
+            if (ReferenceEquals(_mabatakiOverriddenMaid, null))
+            {
+                return;
+            }
+
+            faceManager.CommitMabatakiOverride(_mabatakiOverriddenMaid);
+            _mabatakiOverriddenMaid = null;
         }
 
         protected override void ApplyPlayData()

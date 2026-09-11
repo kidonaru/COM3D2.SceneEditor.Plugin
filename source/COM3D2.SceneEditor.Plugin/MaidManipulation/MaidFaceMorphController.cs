@@ -401,6 +401,23 @@ namespace COM3D2.SceneEditor.Plugin
             maid.boMabataki = !forceOverride;
         }
 
+        /// <summary>
+        /// タイムラインの上書きを解除するが、実体 (boMabataki) は現在値のまま残す。
+        /// 編集モードへの遷移のように「上書きをやめても今の見た目を保ちたい」場面で使う。
+        /// 実効値がそのままユーザー設定へ昇格するため、以後の SetMabataki は実体へ直接効く
+        /// </summary>
+        public static void CommitMabatakiOverride(Maid maid)
+        {
+            // 破棄済みメイド (Unity の null 化) でも辞書からは引けるので除外しない。
+            // 真の null だけは Remove が例外になるため弾く (ClearMabatakiOverride と同じ)
+            if (ReferenceEquals(maid, null))
+            {
+                return;
+            }
+
+            _mabatakiOverrideStates.Remove(maid);
+        }
+
         /// <summary>タイムラインの上書きを解除し、退避したユーザー設定へ戻す</summary>
         public static void ClearMabatakiOverride(Maid maid)
         {
