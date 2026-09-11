@@ -30,6 +30,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         GC,
     }
 
+    /// <summary>タイムラインの表示モード。表示/編集対象レイヤーの絞り方を決める</summary>
+    public enum TimelineLayerViewMode
+    {
+        // アクティブレイヤーと同じカテゴリのレイヤーを並べる
+        Category,
+        // アクティブレイヤーだけを出す
+        Layer,
+    }
+
     // 簡易設定の種類
     public enum EasySettingType
     {
@@ -55,6 +64,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         // 動作設定
         public bool isEasyEdit = false;
+        public TimelineLayerViewMode layerViewMode = TimelineLayerViewMode.Category;
         public bool isCameraSync = true;
         public bool isFixedFoV = false;
         public bool isFixedFocus = false;
