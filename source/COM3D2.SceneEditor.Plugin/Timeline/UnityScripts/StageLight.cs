@@ -539,8 +539,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 int f0 = ringCount + a;
                 int f1 = ringCount + a + 1;
 
-                _triangles[t++] = n0; _triangles[t++] = f0; _triangles[t++] = n1;
-                _triangles[t++] = n1; _triangles[t++] = f0; _triangles[t++] = f1;
+                _triangles[t++] = n0; _triangles[t++] = n1; _triangles[t++] = f0;
+                _triangles[t++] = n1; _triangles[t++] = f1; _triangles[t++] = f0;
                 _triangles[t++] = nearCenter; _triangles[t++] = n1; _triangles[t++] = n0;
                 _triangles[t++] = farCenter; _triangles[t++] = f0; _triangles[t++] = f1;
             }
