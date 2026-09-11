@@ -192,14 +192,6 @@ namespace COM3D2.SceneEditor.Plugin
             // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
             // ドロップダウンは操作対象で絞った一覧なのでメイド名は省く
             _displayLayerComboBox.getName = (layer, _) => GetLayerDisplayName(layer, false);
-            _displayLayerComboBox.getChecked = (layer, _) => _rowState.IsVisible(layer, currentLayer);
-            _displayLayerComboBox.onToggle = (layer, _) => _rowState.ToggleVisible(layer, currentLayer);
-            _displayLayerComboBox.getHeaderName = () => "全て表示";
-            _displayLayerComboBox.getHeaderChecked =
-                () => _rowState.AreAllVisible(_targetLayers, currentLayer);
-            _displayLayerComboBox.onHeader = () => _rowState.SetAllVisible(
-                _targetLayers,
-                !_rowState.AreAllVisible(_targetLayers, currentLayer));
         }
 
         // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能)
@@ -647,7 +639,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _rowState.BuildRows(_targetLayers, currentLayer, CollectVisibleItems, _rows);
+            _rowState.BuildRows(_targetLayers, CollectVisibleItems, _rows);
         }
 
         private void CollectVisibleItems(MTEP.ITimelineLayer layer, List<MTEP.IBoneMenuItem> result)
@@ -1341,7 +1333,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var layers = _targetLayers;
-            var allCollapsed = _rowState.AreAllCollapsed(layers, currentLayer);
+            var allCollapsed = _rowState.AreAllCollapsed(layers);
 
             view.currentPos.x = 0;
             view.currentPos.y = curvePaneTop - FOLD_ALL_BUTTON_HEIGHT;
@@ -1354,7 +1346,7 @@ namespace COM3D2.SceneEditor.Plugin
                     buttonWidth,
                     FOLD_ALL_BUTTON_HEIGHT))
             {
-                _rowState.SetAllCollapsed(layers, currentLayer, !allCollapsed);
+                _rowState.SetAllCollapsed(layers, !allCollapsed);
             }
         }
 
@@ -1434,20 +1426,10 @@ namespace COM3D2.SceneEditor.Plugin
             _addLayerComboBox.DrawButton(view);
         }
 
-        /// <summary>コンボのボタン面ラベル。アクティブレイヤー名 + 他に表示中があれば「他N」</summary>
+        /// <summary>コンボのボタン面ラベル。アクティブレイヤー名</summary>
         private string GetLayerComboLabel()
         {
-            var visibleCount = 0;
-            foreach (var layer in _targetLayers)
-            {
-                if (_rowState.IsVisible(layer, currentLayer))
-                {
-                    visibleCount++;
-                }
-            }
-
-            var name = GetLayerDisplayName(currentLayer, false);
-            return visibleCount > 1 ? name + " 他" + (visibleCount - 1) : name;
+            return GetLayerDisplayName(currentLayer, false);
         }
 
         /// <summary>現在の MouseDown がダブルクリックの 2 回目か</summary>
