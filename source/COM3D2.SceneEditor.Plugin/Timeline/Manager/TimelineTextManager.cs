@@ -105,6 +105,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private Camera _camera = null;
         private readonly Dictionary<string, Font> _fontMap = new Dictionary<string, Font>();
 
+        /// <summary>
+        /// 字幕カメラ。連番画像出力のようにカメラを手動描画する経路は、
+        /// このカメラも描かないと字幕が写らない
+        /// </summary>
+        public Camera textCamera => _camera;
+
         public override void OnLoad()
         {
             InitTexts();

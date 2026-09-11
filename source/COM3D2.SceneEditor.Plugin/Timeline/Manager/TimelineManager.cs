@@ -1160,10 +1160,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>連番画像出力の重ね描きに使う作業リスト。毎フレーム呼ばれるので使い回す</summary>
+        private static readonly List<Camera> _captureCameras = new List<Camera>();
+        private static readonly List<RenderTexture> _savedCaptureTargets = new List<RenderTexture>();
+
         /// <summary>
-        /// メインカメラと前面カメラ (レターボックス・動画の最前面表示) を一時 RT へ描き、
-        /// 中央を切り出して outputTexture へ読み出す。
-        /// 前面カメラはウィンドウ化中にゲームビューの RT を targetTexture に持つため、
+        /// メインカメラ・前面カメラ (レターボックス・動画の最前面表示)・字幕カメラを
+        /// 一時 RT へ重ね描きし、中央を切り出して outputTexture へ読み出す。
+        /// メインカメラ以外はウィンドウ化中にゲームビューの RT を targetTexture に持つため、
         /// メインカメラと同様に退避・復元する
         /// </summary>
         private static void CaptureFrame(
@@ -1172,22 +1176,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Texture2D outputTexture,
             Rect cropRect)
         {
-            var frontCamera = cameraManager.createdFrontCamera;
-            var savedMainTarget = mainCamera.targetTexture;
-            var savedFrontTarget = frontCamera != null ? frontCamera.targetTexture : null;
+            var cameras = _captureCameras;
+            cameras.Clear();
+            cameras.Add(mainCamera);
+            // 重ね描きカメラの集め方はスクリーンショットと共通 (depth 昇順に整えられる)
+            SE.ScreenshotManager.AddExtraCameras(cameras);
+
+            var savedTargets = _savedCaptureTargets;
+            savedTargets.Clear();
+            foreach (var camera in cameras)
+            {
+                savedTargets.Add(camera.targetTexture);
+            }
+
             var savedActive = RenderTexture.active;
             var hiddenOverlays = new List<Behaviour>();
             try
             {
                 SE.ScreenshotManager.HideOverlays(hiddenOverlays);
 
-                mainCamera.targetTexture = renderTexture;
-                mainCamera.Render();
-
-                if (frontCamera != null && frontCamera.enabled)
+                foreach (var camera in cameras)
                 {
-                    frontCamera.targetTexture = renderTexture;
-                    frontCamera.Render();
+                    camera.targetTexture = renderTexture;
+                    camera.Render();
                 }
 
                 RenderTexture.active = renderTexture;
@@ -1198,13 +1209,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 SE.ScreenshotManager.RestoreOverlays(hiddenOverlays);
                 RenderTexture.active = savedActive;
-                mainCamera.targetTexture = savedMainTarget;
-                if (frontCamera != null)
+                for (var i = 0; i < cameras.Count; i++)
                 {
-                    frontCamera.targetTexture = savedFrontTarget;
+                    cameras[i].targetTexture = savedTargets[i];
                 }
             }
         }
+
 
         public void AddTrack()
         {
