@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -79,7 +80,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>undo/redo の適用中か。外部エントリからの再入を弾くのに使う</summary>
         private bool _isApplying;
 
-        public bool canUndo => currentIndex >= 0 || _pending != null;
+        /// <summary>
+        /// タイムラインモードか。シーン操作とタイムライン操作が 1 つのスタックに混ざると
+        /// undo の対象が追えなくなるため、タイムライン読み込み中は履歴をタイムライン操作専用にする
+        /// </summary>
+        public bool isTimelineMode => MTEP.TimelineManager.instance.timeline != null;
+
+        /// <summary>前フレームのモード。切り替わりを検出して履歴を捨てるのに使う</summary>
+        private bool _wasTimelineMode;
+
+        public bool canUndo => currentIndex >= 0 || (_pending != null && !isTimelineMode);
         public bool canRedo => currentIndex + 1 < _entries.Count;
 
         /// <summary>
@@ -162,8 +172,24 @@ namespace COM3D2.SceneEditor.Plugin
             BeforeEdit(maid, scope, description, targetBonesProvider());
         }
 
+        /// <summary>
+        /// モードの切り替わりを検出し、残った履歴を捨てる (別モードの操作になるため)。
+        /// 読み込み直後の登録が同フレーム内で消されないよう、Update だけでなく登録時にも呼ぶ
+        /// </summary>
+        private void SyncTimelineMode()
+        {
+            var currentMode = isTimelineMode;
+            if (currentMode != _wasTimelineMode)
+            {
+                _wasTimelineMode = currentMode;
+                ClearHistory();
+            }
+        }
+
         public override void Update()
         {
+            SyncTimelineMode();
+
             // マウスを離すまで確定を遅らせ、ドラッグ 1 回を 1 エントリにする
             if (_pending != null && !Input.GetMouseButton(0))
             {
@@ -191,7 +217,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            AddEntry(pending);
+            // タイムラインモードではシーン操作を履歴に積まないが、
+            // 自動キーフレーム登録は変更の確定を頼りにするため通知だけは行う
+            if (!isTimelineMode)
+            {
+                AddEntry(pending);
+            }
 
             // AddEntry は適用中 (_isApplying) に受け付けないため、履歴に載らない操作は通知しない
             if (notify && !_isApplying)
@@ -212,16 +243,27 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 適用中の登録は _entries を作り替えて適用ループの走査を壊すため受け付けない
+            // (モード同期の ClearHistory も同じ理由で適用中は走らせない)
             if (_isApplying)
             {
                 MTEUtils.LogWarning("履歴の適用中は登録できません: {0}", entry.description);
                 return;
             }
 
+            SyncTimelineMode();
+
             // 外部からの登録時に確定待ちの内部操作が残っていれば先に確定し、時系列を保つ
             if (_pending != null && _pending != entry)
             {
                 CommitPending();
+            }
+
+            // タイムラインモードではタイムライン操作だけを履歴に残す
+            if (isTimelineMode && !(entry is TimelineHistoryEntry))
+            {
+                MTEUtils.Log("タイムラインモード中のためシーン操作の履歴登録を省略しました: {0}",
+                    entry.description);
+                return;
             }
 
             // 履歴一覧での識別用に記録時刻を付ける
