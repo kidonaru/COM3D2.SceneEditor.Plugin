@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("テキスト", 53)]
+    [TimelineLayerDesc("テキスト", 53, TimelineLayerCategory.Other)]
     public class TextTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(TextTimelineLayer);

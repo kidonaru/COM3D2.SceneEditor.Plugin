@@ -22,7 +22,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string option;
     }
 
-    [TimelineLayerDesc("メイドアニメ", 0)]
+    [TimelineLayerDesc("メイドアニメ", 0, TimelineLayerCategory.Maid)]
     public class MotionTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(MotionTimelineLayer);

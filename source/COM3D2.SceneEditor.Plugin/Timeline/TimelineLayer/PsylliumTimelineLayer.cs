@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("サイリウム", 44)]
+    [TimelineLayerDesc("サイリウム", 44, TimelineLayerCategory.Effect)]
     public class PsylliumTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(PsylliumTimelineLayer);

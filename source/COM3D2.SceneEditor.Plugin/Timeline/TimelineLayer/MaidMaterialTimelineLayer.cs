@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("メイドマテリアル", 17)]
+    [TimelineLayerDesc("メイドマテリアル", 17, TimelineLayerCategory.Maid)]
     public class MaidMaterialTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(MaidMaterialTimelineLayer);

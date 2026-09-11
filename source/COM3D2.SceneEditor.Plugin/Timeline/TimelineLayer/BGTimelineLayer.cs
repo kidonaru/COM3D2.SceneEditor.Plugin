@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("背景", 31)]
+    [TimelineLayerDesc("背景", 31, TimelineLayerCategory.Background)]
     public partial class BGTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(BGTimelineLayer);

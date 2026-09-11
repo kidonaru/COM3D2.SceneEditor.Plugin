@@ -7,7 +7,7 @@ using static COM3D2.MotionTimelineEditor.Plugin.ModelMaterial;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("背景モデルマテリアル", 34)]
+    [TimelineLayerDesc("背景モデルマテリアル", 34, TimelineLayerCategory.Background)]
     public class BGModelMaterialTimelineLayer : BGModelTimelineLayerBase
     {
         public override Type layerType => typeof(BGModelMaterialTimelineLayer);

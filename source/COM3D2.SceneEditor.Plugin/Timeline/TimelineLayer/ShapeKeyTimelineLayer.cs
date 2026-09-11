@@ -6,7 +6,7 @@ using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("メイドシェイプ", 13)]
+    [TimelineLayerDesc("メイドシェイプ", 13, TimelineLayerCategory.Maid)]
     public partial class ShapeKeyTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(ShapeKeyTimelineLayer);

@@ -16,7 +16,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         LookAtTarget,
     }
 
-    [TimelineLayerDesc("メイド瞳", 12)]
+    [TimelineLayerDesc("メイド瞳", 12, TimelineLayerCategory.Maid)]
     public class EyesTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(EyesTimelineLayer);

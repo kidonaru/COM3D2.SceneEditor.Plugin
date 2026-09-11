@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("ポストエフェクト", 52)]
+    [TimelineLayerDesc("ポストエフェクト", 52, TimelineLayerCategory.Other)]
     public partial class PostEffectTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(PostEffectTimelineLayer);

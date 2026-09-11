@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("メイド表情", 10)]
+    [TimelineLayerDesc("メイド表情", 10, TimelineLayerCategory.Maid)]
     public class MorphTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(MorphTimelineLayer);

@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("メイド移動", 11)]
+    [TimelineLayerDesc("メイド移動", 11, TimelineLayerCategory.Maid)]
     public partial class MoveTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(MoveTimelineLayer);

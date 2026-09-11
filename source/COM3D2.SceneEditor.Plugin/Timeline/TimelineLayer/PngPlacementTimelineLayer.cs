@@ -14,7 +14,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// SE に対応機能が無い値 (Inversion / StopRotation / FixCamera / Attach / APng 系等) は
     /// XML には保持するが適用しない。billboard は per-frame 値でないため対象外
     /// </summary>
-    [TimelineLayerDesc("PNG配置", 35)]
+    [TimelineLayerDesc("PNG配置", 35, TimelineLayerCategory.Background)]
     public class PngPlacementTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(PngPlacementTimelineLayer);

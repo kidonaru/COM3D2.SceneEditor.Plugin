@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("カメラ", 20)]
+    [TimelineLayerDesc("カメラ", 20, TimelineLayerCategory.Camera)]
     public class CameraTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(CameraTimelineLayer);

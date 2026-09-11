@@ -3,16 +3,32 @@ using System.Reflection;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    /// <summary>
+    /// タイムラインのレイヤーカテゴリ。カテゴリモードの表示範囲とカテゴリコンボの並び順に使う。
+    /// 並びは TimelineLayerDesc の priority 番号帯 (0〜17 / 20 番台 / 30 番台 / 40 番台 / 50 番台) に合わせる
+    /// </summary>
+    public enum TimelineLayerCategory
+    {
+        Maid,
+        Camera,
+        Model,
+        Background,
+        Effect,
+        Other,
+    }
+
     [AttributeUsage(AttributeTargets.Class)]
     public class TimelineLayerDescAttribute : Attribute
     {
         public string DisplayName { get; set; }
         public int Priority { get; set; }
+        public TimelineLayerCategory Category { get; set; }
 
-        public TimelineLayerDescAttribute(string displayName, int priority)
+        public TimelineLayerDescAttribute(string displayName, int priority, TimelineLayerCategory category)
         {
             DisplayName = displayName;
             Priority = priority;
+            Category = category;
         }
     }
 
@@ -20,6 +36,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         public int index;
         public readonly int priority;
+        public readonly TimelineLayerCategory category;
         public readonly Type layerType;
         public readonly string className;
         public readonly string displayName;
@@ -40,6 +57,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 displayName = displayNameAttr.DisplayName;
                 priority = displayNameAttr.Priority;
+                category = displayNameAttr.Category;
             }
         }
 

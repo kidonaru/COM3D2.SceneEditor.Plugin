@@ -334,5 +334,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             return easySettingNames[(int) type];
         }
+
+        public static string ToDisplayName(this TimelineLayerCategory category)
+        {
+            switch (category)
+            {
+                case TimelineLayerCategory.Maid: return "メイド";
+                case TimelineLayerCategory.Camera: return "カメラ";
+                case TimelineLayerCategory.Model: return "モデル";
+                case TimelineLayerCategory.Background: return "背景";
+                case TimelineLayerCategory.Effect: return "ライト・演出";
+                case TimelineLayerCategory.Other: return "その他";
+                default: return category.ToString();
+            }
+        }
     }
 }

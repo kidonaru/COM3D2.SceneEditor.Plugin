@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("メイド脱衣", 16)]
+    [TimelineLayerDesc("メイド脱衣", 16, TimelineLayerCategory.Maid)]
     public class UndressTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(UndressTimelineLayer);

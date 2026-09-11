@@ -9,7 +9,7 @@ using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("モデルボーン", 22)]
+    [TimelineLayerDesc("モデルボーン", 22, TimelineLayerCategory.Model)]
     public partial class ModelBoneTimelineLayer : ModelTimelineLayerBase
     {
         public override Type layerType => typeof(ModelBoneTimelineLayer);

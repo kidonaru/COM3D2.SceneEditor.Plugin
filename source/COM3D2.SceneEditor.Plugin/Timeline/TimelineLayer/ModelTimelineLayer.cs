@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("モデル", 21)]
+    [TimelineLayerDesc("モデル", 21, TimelineLayerCategory.Model)]
     public class ModelTimelineLayer : ModelTimelineLayerBase
     {
         public override Type layerType => typeof(ModelTimelineLayer);

@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("ライト", 41)]
+    [TimelineLayerDesc("ライト", 41, TimelineLayerCategory.Effect)]
     public class LightTimelineLayer : LightTimelineLayerBase
     {
         public override Type layerType => typeof(LightTimelineLayer);

@@ -7,7 +7,7 @@ using UnityEngine;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     // MTE 原本の priority 21 は ModelTimelineLayer と重複するため SE では 25 に変更
-    [TimelineLayerDesc("サブカメラ", 25)]
+    [TimelineLayerDesc("サブカメラ", 25, TimelineLayerCategory.Camera)]
     public class SubCameraTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(SubCameraTimelineLayer);
