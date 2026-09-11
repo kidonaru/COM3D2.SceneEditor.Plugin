@@ -23,4 +23,11 @@ python tools/timeline/scenes/kasou-hiro/scripts/correct-floor-long-fade.py --hel
 
 355〜498F向けの「4フレーム点灯・4フレーム消灯・4フレーム休止」は撤回済み。[旧スクリプトと設定](../../archive/floor-355-498-withdrawn/) は経緯の参照用として保管している。
 
+## ステージライト
+
+| 内容 | ファイル |
+| --- | --- |
+| 円錐化で細く見えるライトを太くする（spotAngle 倍率・coreRadius 下限） | [thicken-stage-light.py](scripts/thicken-stage-light.py) |
+| 133 への反映記録 | [stage-light-thicken-133.md](docs/stage-light-thicken-133.md) |
+
 生成物・試作は `tools/timeline/work/kasou-hiro/<task-id>/` に置く。
