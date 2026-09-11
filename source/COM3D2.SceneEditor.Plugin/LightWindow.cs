@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -23,8 +24,22 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
 
-        /// <summary>編集中のライト（メイン / 追加）。破棄・削除で null になりうる</summary>
+        /// <summary>追加・削除ボタンの幅</summary>
+        private const float BUTTON_WIDTH = 60f;
+
+        // ライト名タブ 1 つぶんの寸法。幅に収まらない長い名前は末尾が切れる
+        private const float TAB_WIDTH = 100f;
+        private const float TAB_MARGIN = 2f;
+
+        /// <summary>
+        /// 編集中のライト（メイン / 追加）。
+        /// null は未選択で、描画時はメインライトを選んだ状態として扱う
+        /// </summary>
         private Light _selectedLight = null;
+
+        // タブの見出しと対応するライト。毎フレーム作り直さないよう使い回す
+        private readonly List<Light> _tabLights = new List<Light>();
+        private readonly List<string> _tabLabels = new List<string>();
 
         // 編集欄は常に 1 灯ぶんなので、行ドロワーも 1 つで足りる
         private readonly LightRowDrawer _rowDrawer = new LightRowDrawer();
@@ -87,13 +102,18 @@ namespace COM3D2.SceneEditor.Plugin
 
             // GetComponent を挟むため 1 描画につき 1 回だけ引いて使い回す
             var mainLight = LightRowDrawer.MainLightComponent;
+            // 未選択・選択中のライトが消えた場合はメインライトを既定の編集対象にする
+            var selectedLight = _selectedLight != null ? _selectedLight : mainLight;
 
-            DrawLightListSection(mainLight);
+            DrawLightListSection(mainLight, selectedLight);
 
-            if (_selectedLight != null)
+            // 一覧での追加・削除を待たずに編集欄へ反映する（同じフレームで対象が変わる）
+            selectedLight = _selectedLight != null ? _selectedLight : mainLight;
+
+            if (selectedLight != null)
             {
                 _view.DrawHorizontalLine();
-                DrawLightEditSection(_selectedLight, mainLight);
+                DrawLightEditSection(selectedLight, mainLight);
             }
 
             _view.EndScrollView();
@@ -103,35 +123,71 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>ライト一覧（メインライト + 追加ライト）と、追加ライトの追加・削除</summary>
-        private void DrawLightListSection(Light mainLight)
+        private void DrawLightListSection(Light mainLight, Light selectedLight)
         {
-            _view.DrawLabel("ライト一覧", -1, ROW_HEIGHT);
-
             _view.BeginHorizontal();
             {
-                if (_view.DrawButton("追加", 60, ROW_HEIGHT))
+                _view.DrawLabel("ライト一覧", LABEL_WIDTH, ROW_HEIGHT);
+
+                // 追加・削除は行の右端へ寄せる（ボタン 2 つとその間の margin ぶん）
+                _view.AddRightAlignSpace(BUTTON_WIDTH * 2 + _view.margin, ROW_HEIGHT);
+
+                if (_view.DrawButton("追加", BUTTON_WIDTH, ROW_HEIGHT))
                 {
                     LightRowDrawer.RecordLightEdit("追加");
                     SelectLight(lightManager.AddLight(), mainLight);
                 }
 
                 // メインライトはゲーム側の実体なので削除させない
-                if (_view.DrawButton("削除", 60, ROW_HEIGHT,
-                    _selectedLight != null && _selectedLight != mainLight))
+                if (_view.DrawButton("削除", BUTTON_WIDTH, ROW_HEIGHT,
+                    selectedLight != null && selectedLight != mainLight))
                 {
-                    RemoveSelectedLight();
+                    RemoveSelectedLight(selectedLight);
                 }
             }
             _view.EndLayout();
 
-            if (mainLight != null)
-            {
-                DrawLightRow(mainLight, "メインライト", mainLight);
-            }
-            else
+            if (mainLight == null)
             {
                 _view.DrawLabel("メインライトが見つかりません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
+            }
+
+            DrawLightTabs(mainLight, selectedLight);
+        }
+
+        /// <summary>ライト 1 灯 1 タブの切替。選んだライトが編集対象になる</summary>
+        private void DrawLightTabs(Light mainLight, Light selectedLight)
+        {
+            CollectLights(mainLight, _tabLights, _tabLabels);
+            if (_tabLights.Count == 0)
+            {
+                return;
+            }
+
+            // 編集対象が一覧に無い（メインライトも取れず未選択）場合は -1 になり、
+            // どのタブも強調されない
+            var currentIndex = _tabLights.IndexOf(selectedLight);
+
+            var newIndex = _view.DrawTabs(
+                _tabLabels, currentIndex, TAB_WIDTH, ROW_HEIGHT, TAB_MARGIN);
+            if (newIndex != currentIndex)
+            {
+                SelectLight(_tabLights[newIndex], mainLight);
+            }
+        }
+
+        /// <summary>タブに並べるライトと見出しを集める。破棄済みのライトは除く</summary>
+        private static void CollectLights(
+            Light mainLight, List<Light> lights, List<string> labels)
+        {
+            lights.Clear();
+            labels.Clear();
+
+            if (mainLight != null)
+            {
+                lights.Add(mainLight);
+                labels.Add("メイン");
             }
 
             foreach (var light in lightManager.lights)
@@ -140,18 +196,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                DrawLightRow(light, light.gameObject.name, mainLight);
-            }
-        }
-
-        /// <summary>一覧の 1 行。クリックで編集対象にする</summary>
-        private void DrawLightRow(Light light, string label, Light mainLight)
-        {
-            var isSelected = light == _selectedLight;
-            if (_view.DrawButton(label, -1, ROW_HEIGHT, true,
-                isSelected ? Color.cyan : Color.white))
-            {
-                SelectLight(light, mainLight);
+                lights.Add(light);
+                labels.Add(light.gameObject.name);
             }
         }
 
@@ -167,10 +213,10 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>選択中の追加ライトを削除する</summary>
-        private void RemoveSelectedLight()
+        private void RemoveSelectedLight(Light light)
         {
             // 呼び出し元のボタン活性だけに安全性を委ねない
-            if (_selectedLight == null)
+            if (light == null)
             {
                 return;
             }
@@ -178,11 +224,13 @@ namespace COM3D2.SceneEditor.Plugin
             LightRowDrawer.RecordLightEdit("削除");
 
             // 消したライトを Inspector に残さない
-            if (SelectionManager.instance.selectedObject == _selectedLight.gameObject)
+            if (SelectionManager.instance.selectedObject == light.gameObject)
             {
                 SelectionManager.instance.Select(null);
             }
-            lightManager.RemoveLight(_selectedLight);
+            lightManager.RemoveLight(light);
+
+            // 未選択に戻し、次の描画でメインライトを選んだ状態にする
             _selectedLight = null;
         }
 

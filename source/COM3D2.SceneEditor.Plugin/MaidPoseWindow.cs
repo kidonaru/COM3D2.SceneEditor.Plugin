@@ -204,7 +204,7 @@ namespace COM3D2.SceneEditor.Plugin
                     ApplyNavEntry(maid, 1);
                 }
 
-                AddRightAlignSpace(view, 30);
+                view.AddRightAlignSpace(30, ROW_HEIGHT);
 
                 // 再生中は停止、停止中は再生と、状態に応じて 1 つのボタンを切り替える
                 var isPlaying = MaidMotionState.IsPlaying(maid);
@@ -263,7 +263,7 @@ namespace COM3D2.SceneEditor.Plugin
                     MTEUtils.OpenDirectory(folder);
                 }
 
-                AddRightAlignSpace(view, 60);
+                view.AddRightAlignSpace(60, ROW_HEIGHT);
 
                 // 崩したポーズを復帰先 (停止前のモーション / 読み込んだポーズ) で元に戻すリセット
                 if (view.DrawButton("リセット", 60, ROW_HEIGHT,
@@ -275,22 +275,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             view.EndLayout();
-        }
-
-        /// <summary>
-        /// 横並び行の残り幅ぶんの空白を挿入し、以降の要素を右端に寄せる。
-        /// contentWidth には右揃えする要素の幅とその要素間 margin の合計を渡す
-        /// </summary>
-        private void AddRightAlignSpace(GUIView view, float contentWidth)
-        {
-            // viewRect はスクロールビュー中もコンテンツ幅を返す (GetDrawRect の auto-width と同じ式)。
-            // 空白自身の後ろにも margin が入るためそのぶんも差し引く
-            var space = view.viewRect.width - view.padding.x * 2
-                - view.currentPos.x - view.margin - contentWidth;
-            if (space > 0f)
-            {
-                view.AddSpace(space, ROW_HEIGHT);
-            }
         }
 
         /// <summary>
