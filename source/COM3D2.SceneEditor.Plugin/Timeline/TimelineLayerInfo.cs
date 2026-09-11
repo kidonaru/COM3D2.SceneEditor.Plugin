@@ -5,7 +5,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
     /// タイムラインのレイヤーカテゴリ。カテゴリモードの表示範囲とカテゴリコンボの並び順に使う。
-    /// 並びは TimelineLayerDesc の priority 番号帯 (0〜17 / 20 番台 / 30 番台 / 40 番台 / 50 番台) に合わせる
+    /// 各レイヤーの所属は TimelineLayerDesc の Category で明示する。priority の数値帯とは独立で、
+    /// 同じ番号帯に複数カテゴリが混在することもある (Camera は 20/25、Model は 21〜24)
     /// </summary>
     public enum TimelineLayerCategory
     {

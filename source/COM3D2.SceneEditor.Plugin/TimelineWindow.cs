@@ -27,6 +27,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int FRAME_LABEL_HEIGHT = 20;
         /// <summary>レイヤー操作ボタン (削除 / 追加コンボ) の幅</summary>
         private static readonly int LAYER_BUTTON_WIDTH = 20;
+        /// <summary>表示モード切替ボタンのアイコン余白 (TimelineControlWindow.ICON_TOGGLE_OFFSET と同じ値)</summary>
+        private static readonly float MODE_ICON_OFFSET = 4f;
         /// <summary>レイヤーカテゴリ行に対するボーンメニュー行の字下げ幅</summary>
         private static readonly int MENU_INDENT_WIDTH = 10;
         /// <summary>折りたたみトグルの列幅。記号と後ろの文字が離れないよう記号幅に詰めている</summary>
@@ -91,9 +93,6 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIView.DragInfo _seekDragInfo = new GUIView.DragInfo();
         private Rect areaDragRect = new Rect();
         private readonly GUIView.DragInfo _menuWidthDraggableInfo = new GUIView.DragInfo();
-
-        /// <summary>モードボタンのアイコン余白 (TimelineControlWindow.ICON_TOGGLE_OFFSET と同じ値)</summary>
-        private static readonly float MODE_ICON_OFFSET = 4f;
 
         /// <summary>レイヤーモードの選択コンボ。操作対象レイヤーから 1 つ選んでアクティブ化する</summary>
         private readonly GUIComboBox<MTEP.ITimelineLayer> _layerComboBox = new GUIComboBox<MTEP.ITimelineLayer>
@@ -1498,7 +1497,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 表示モードの切替ボタン。現在のモードのアイコンを出し、押すともう一方へ切り替える。
-        /// アイコンが読めない環境では 1 文字のテキストボタンにフォールバックする
+        /// アイコンテクスチャの生成に失敗した場合は 1 文字のテキストボタンにフォールバックする
         /// </summary>
         private void DrawViewModeButton(GUIView view, bool isCategoryMode)
         {
