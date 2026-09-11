@@ -78,6 +78,7 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
+        private static MTEP.CameraManager cameraManager => MTEP.CameraManager.instance;
 
         private static TimelineSettingWindow _instance = null;
         public static TimelineSettingWindow instance
@@ -231,6 +232,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            DrawLetterBoxSection(view);
+
+            view.DrawHorizontalLine(Color.gray);
+
             DrawGroundLinkSection(view);
 
             view.DrawHorizontalLine(Color.gray);
@@ -253,6 +258,51 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineManager.ApplyCurrentFrame(true);
                 }, null);
             }
+        }
+
+        /// <summary>アスペクト比とレターボックス透過度 (幅か高さが 0 なら LetterBoxView 側で非表示になる)</summary>
+        private void DrawLetterBoxSection(GUIView view)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("アスペクト比", 70, ROW_HEIGHT);
+
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    label = "幅",
+                    labelWidth = 30,
+                    value = timeline.aspectWidth,
+                    width = 80,
+                    height = ROW_HEIGHT,
+                    onChanged = x => timeline.aspectWidth = x,
+                });
+
+                view.DrawFloatField(new GUIView.FloatFieldOption
+                {
+                    label = "高さ",
+                    labelWidth = 30,
+                    value = timeline.aspectHeight,
+                    width = 80,
+                    height = ROW_HEIGHT,
+                    onChanged = x => timeline.aspectHeight = x,
+                });
+            }
+            view.EndLayout();
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "ﾚﾀｰﾎﾞｯｸｽ透過度",
+                labelWidth = 100,
+                min = 0f,
+                max = 1f,
+                defaultValue = 1f,
+                value = timeline.letterBoxAlpha,
+                onChanged = value =>
+                {
+                    timeline.letterBoxAlpha = value;
+                    cameraManager.ResetCache();
+                },
+            });
         }
 
         /// <summary>地面色と背景表示の連動</summary>

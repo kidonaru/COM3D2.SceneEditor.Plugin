@@ -3,8 +3,8 @@ using UnityEngine;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
-    /// MTE の CameraManager から frontCamera 部分のみ移植。
-    /// LetterBoxView (レターボックス描画) は SE スコープ外のため削除している
+    /// MTE の CameraManager から移植。frontCamera (動画の最前面表示) と
+    /// LetterBoxView (レターボックス描画) を管理する
     /// </summary>
     public class CameraManager : ManagerBase
     {
@@ -22,6 +22,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private Camera _frontCamera = null;
+        private LetterBoxView _letterBoxView = null;
 
         public Camera mainCamera => PluginUtils.MainCamera;
 
@@ -58,6 +59,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             DestroyCamera();
         }
 
+        /// <summary>レターボックスの描画キャッシュを破棄し、次フレームで再計算させる</summary>
+        public void ResetCache()
+        {
+            if (_letterBoxView != null)
+            {
+                _letterBoxView.ResetCache();
+            }
+        }
+
         private void CreateCamera()
         {
             if (_frontCamera == null)
@@ -80,6 +90,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _frontCamera.allowHDR = false;
                 _frontCamera.allowMSAA = false;
             }
+
+            if (_letterBoxView == null)
+            {
+                GameObject go = new GameObject("LetterBoxView");
+                _letterBoxView = go.AddComponent<LetterBoxView>();
+            }
         }
 
         private void DestroyCamera()
@@ -88,6 +104,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 GameObject.Destroy(_frontCamera.gameObject);
                 _frontCamera = null;
+            }
+
+            if (_letterBoxView != null)
+            {
+                GameObject.Destroy(_letterBoxView.gameObject);
+                _letterBoxView = null;
             }
         }
     }

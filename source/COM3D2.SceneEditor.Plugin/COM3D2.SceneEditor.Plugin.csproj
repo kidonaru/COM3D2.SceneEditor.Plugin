@@ -478,6 +478,7 @@
     <Compile Include="Timeline\Manager\TimelineTemplateManager.cs" />
     <Compile Include="Timeline\Manager\MovieManager.cs" />
     <Compile Include="Timeline\Manager\TimelineManager.cs" />
+    <Compile Include="Timeline\LetterBoxView.cs" />
     <Compile Include="Timeline\MotionData.cs" />
     <Compile Include="Timeline\MotionPlayData.cs" />
     <Compile Include="Timeline\MotionTimelineEditor.cs" />
