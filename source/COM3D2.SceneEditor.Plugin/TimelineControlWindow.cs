@@ -308,9 +308,15 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (view.currentPos.x + width > view.viewRect.width - view.padding.x * 2)
             {
-                view.EndLayout();
-                view.BeginHorizontal();
+                BeginNewLine(view);
             }
+        }
+
+        /// <summary>右端に余裕があっても次の要素を新しい行から並べる</summary>
+        private static void BeginNewLine(GUIView view)
+        {
+            view.EndLayout();
+            view.BeginHorizontal();
         }
 
         /// <summary>
@@ -664,15 +670,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawRangeControls(GUIView view)
         {
-            // 開始 (S) ～終了 (E) の入力欄とリセットは見出しごとまとめて折り返す (要素間 margin 4 つ分を含む)
+            // 開始 (A) ～終了 (B) の入力欄とリセットは見出しごとまとめて折り返す (要素間 margin 4 つ分を含む)
             var rangeFieldWidth = RANGE_LABEL_WIDTH + GUIView.defaultMargin + RANGE_FIELD_WIDTH;
             DrawGroupLabel(view, "範囲操作",
                 rangeFieldWidth * 2 + 20 + GUIView.defaultMargin * 4, SHORT_LABEL_WIDTH);
 
-            // S / E はラベルドラッグでも増減できる
+            // A / B はラベルドラッグでも増減できる
             view.DrawDragIntField(new GUIView.DragIntFieldOption
             {
-                label = "S",
+                label = "A",
                 labelWidth = RANGE_LABEL_WIDTH,
                 value = selectStartFrameNo,
                 fieldWidth = RANGE_FIELD_WIDTH,
@@ -682,7 +688,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawDragIntField(new GUIView.DragIntFieldOption
             {
-                label = "E",
+                label = "B",
                 labelWidth = RANGE_LABEL_WIDTH,
                 value = selectEndFrameNo,
                 fieldWidth = RANGE_FIELD_WIDTH,
@@ -732,16 +738,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>操作対象メイドの選択。レイヤー選択自体は TimelineWindow のボーンメニュー上部にある</summary>
         private void DrawTargetMaidControls(GUIView view)
         {
-            if (!currentLayer.hasSlotNo)
-            {
-                return;
-            }
-
-            // 操作対象ラベルとメイドコンボはまとめて折り返す
-            WrapIfNeeded(view, 60 + 150);
+            // 上の行と混ざると見つけにくいので必ず行頭から並べる
+            BeginNewLine(view);
             view.DrawLabel("操作対象", 60, ROW_HEIGHT);
 
-            _maidComboBox.currentIndex = currentLayer.slotNo;
+            // スロットを持たないレイヤー (カメラ等) でも選択中のメイドを出す
+            _maidComboBox.currentIndex = currentLayer.hasSlotNo
+                ? currentLayer.slotNo
+                : maidManager.maidSlotNo;
             _maidComboBox.items = maidManager.maidCaches;
             _maidComboBox.DrawButton(view);
         }
