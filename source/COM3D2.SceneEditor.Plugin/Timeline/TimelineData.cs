@@ -220,7 +220,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class TimelineData
     {
-        public static readonly int CurrentVersion = 33;
+        public static readonly int CurrentVersion = 34;
         public static readonly TimelineData DefaultTimeline = new TimelineData();
 
         public int version = 0;
@@ -400,10 +400,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isTangentModel = true;
         public bool isTangentModelBone = true;
         public bool isTangentModelShapeKey = true;
-
-        public bool isLightColorEasing = true;
-        public bool isLightExtraEasing = false;
-        public bool isLightCompatibilityMode = true;
 
         public List<int> stageLaserCountList = new List<int>();
         public List<int> stageLightCountList = new List<int>();
@@ -807,9 +803,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isTangentModel = xml.isTangentModel;
             isTangentModelBone = xml.isTangentModelBone;
             isTangentModelShapeKey = xml.isTangentModelShapeKey;
-            isLightColorEasing = xml.isLightColorEasing;
-            isLightExtraEasing = xml.isLightExtraEasing;
-            isLightCompatibilityMode = xml.isLightCompatibilityMode;
             stageLaserCountList = xml.stageLaserCountList.ToList();
             stageLightCountList = xml.stageLightCountList.ToList();
             additionalSeNames = xml.additionalSeNames.ToList();
@@ -961,9 +954,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.isTangentModel = isTangentModel;
             xml.isTangentModelBone = isTangentModelBone;
             xml.isTangentModelShapeKey = isTangentModelShapeKey;
-            xml.isLightColorEasing = isLightColorEasing;
-            xml.isLightExtraEasing = isLightExtraEasing;
-            xml.isLightCompatibilityMode = isLightCompatibilityMode;
             xml.stageLaserCountList = stageLaserCountList.ToList();
             xml.stageLightCountList = stageLightCountList.ToList();
             xml.additionalSeNames = additionalSeNames.ToList();

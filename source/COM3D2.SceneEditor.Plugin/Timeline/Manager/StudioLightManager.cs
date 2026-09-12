@@ -262,8 +262,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
-            // SE のライトに写真モードの互換プレハブ構造はないため isLightCompatibilityMode は no-op
-
             LateUpdate(true);
         }
 

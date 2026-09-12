@@ -158,48 +158,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 end.rotationValues,
                 t);
 
-            if (timeline.isLightColorEasing)
-            {
-                light.color = Color.Lerp(start.color, end.color, t);
-            }
+            // 色は他レイヤーと同じく線形補間、数値は Tangent 補間で常に補間する
+            light.color = Color.Lerp(start.color, end.color, t);
 
-            if (timeline.isLightExtraEasing)
-            {
-                light.range = PluginUtils.HermiteValue(
-                    t0,
-                    t1,
-                    start.rangeValue,
-                    end.rangeValue,
-                    t);
+            light.range = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.rangeValue,
+                end.rangeValue,
+                t);
 
-                light.intensity = PluginUtils.HermiteValue(
-                    t0,
-                    t1,
-                    start.intensityValue,
-                    end.intensityValue,
-                    t);
+            light.intensity = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.intensityValue,
+                end.intensityValue,
+                t);
 
-                light.spotAngle = PluginUtils.HermiteValue(
-                    t0,
-                    t1,
-                    start.spotAngleValue,
-                    end.spotAngleValue,
-                    t);
+            light.spotAngle = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.spotAngleValue,
+                end.spotAngleValue,
+                t);
 
-                light.shadowStrength = PluginUtils.HermiteValue(
-                    t0,
-                    t1,
-                    start.shadowStrengthValue,
-                    end.shadowStrengthValue,
-                    t);
+            light.shadowStrength = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.shadowStrengthValue,
+                end.shadowStrengthValue,
+                t);
 
-                light.shadowBias = PluginUtils.HermiteValue(
-                    t0,
-                    t1,
-                    start.shadowBiasValue,
-                    end.shadowBiasValue,
-                    t);
-            }
+            light.shadowBias = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.shadowBiasValue,
+                end.shadowBiasValue,
+                t);
 
             lightManager.ApplyLight(stat);
         }

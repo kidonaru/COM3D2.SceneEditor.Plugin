@@ -240,10 +240,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            DrawLightToggleSection(view);
-
-            view.DrawHorizontalLine(Color.gray);
-
             DrawImageOutputSection(view);
 
             view.DrawHorizontalLine(Color.gray);
@@ -394,29 +390,6 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawToggle("地面色表示を背景表示と連動", timeline.isGroundLinkedToBackground, -1, ROW_HEIGHT, newValue =>
             {
                 timeline.isGroundLinkedToBackground = newValue;
-            });
-        }
-
-        /// <summary>
-        /// ライトの補間まわりのトグル。
-        /// いずれもタイムラインに保存される個別設定のためこのタブに置く
-        /// </summary>
-        private void DrawLightToggleSection(GUIView view)
-        {
-            view.DrawToggle("ライトで色補間を有効化", timeline.isLightColorEasing, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.isLightColorEasing = newValue;
-            });
-
-            view.DrawToggle("ライトで拡張補間を有効化", timeline.isLightExtraEasing, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.isLightExtraEasing = newValue;
-            });
-
-            view.DrawToggle("ライトの互換性モードを有効化", timeline.isLightCompatibilityMode, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.isLightCompatibilityMode = newValue;
-                // SE では互換モードの実体がないためフラグの保存のみ行う
             });
         }
 

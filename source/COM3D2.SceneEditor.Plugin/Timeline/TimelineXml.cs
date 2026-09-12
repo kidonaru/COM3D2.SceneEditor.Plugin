@@ -257,6 +257,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("IsTangentModelShapeKey")]
         public bool isTangentModelShapeKey = false;
 
+        // 以下のライト補間設定 3 項目は v33 以前の読込互換用。v34 でライトは他レイヤーと同じく
+        // 常時補間になったため値は参照せず、ShouldSerialize で書き出しだけ抑止する
         [XmlElement("IsLightColorEasing")]
         public bool isLightColorEasing = true;
 
@@ -265,6 +267,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         [XmlElement("IsLightCompatibilityMode")]
         public bool isLightCompatibilityMode = true;
+
+        public bool ShouldSerializeisLightColorEasing() { return false; }
+        public bool ShouldSerializeisLightExtraEasing() { return false; }
+        public bool ShouldSerializeisLightCompatibilityMode() { return false; }
 
         [XmlElement("StageLaserCountList")]
         public List<int> stageLaserCountList = new List<int>();
@@ -1023,12 +1029,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         break;
                     }
                 }
-            }
-
-            if (version < 26)
-            {
-                // 旧バージョンではライト互換モード無効
-                isLightCompatibilityMode = false;
             }
 
             if (version < 27)

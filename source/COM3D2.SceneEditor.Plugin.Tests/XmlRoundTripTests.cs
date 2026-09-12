@@ -58,6 +58,11 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 "UsePostEffectExtra",
                 "UsePostEffectBlend",
 
+                // v34 でライトの補間トグルを廃止し常時補間にした。読込互換専用で書き出さない
+                "IsLightColorEasing",
+                "IsLightExtraEasing",
+                "IsLightCompatibilityMode",
+
                 // v33 で動画設定は Video リストへ移した。平置き項目は読込互換専用で書き出さない
                 // (値そのものは Initialize() が <Video> の 1 本目へ引き継ぐ)
                 "VideoEnabled",
