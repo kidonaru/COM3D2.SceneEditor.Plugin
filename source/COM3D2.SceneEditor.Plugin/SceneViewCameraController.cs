@@ -157,9 +157,14 @@ namespace COM3D2.SceneEditor.Plugin
             _targetDistance = Mathf.Clamp(_targetDistance - scrollAxis * ZoomSpeed, MinDistance, MaxDistance);
         }
 
-        /// <summary>F キー: 対象のバウンズ全体が収まる距離まで寄る</summary>
+        /// <summary>
+        /// F キー: 対象のバウンズ全体が収まる距離まで寄る。
+        /// 追従中は ApplyFollow が注視点を毎フレーム上書きして寄った先が保てないため、追従を解除する
+        /// </summary>
         public void Focus(Bounds bounds)
         {
+            follow.maidSlotNo = -1;
+
             _targetGoal = bounds.center;
             var radius = Mathf.Max(bounds.extents.magnitude, 0.1f);
             _targetDistance = Mathf.Clamp(radius * FocusDistanceFactor, MinDistance, MaxDistance);

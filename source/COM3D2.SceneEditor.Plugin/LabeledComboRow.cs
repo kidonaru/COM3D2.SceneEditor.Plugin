@@ -21,11 +21,16 @@ namespace COM3D2.SceneEditor.Plugin
         private const float ComboContentHeight = 300f;
 
         /// <summary>ラベル + コンボの 1 行でコンボに使える幅</summary>
-        public static float CalcComboWidth(GUIView view, float labelWidth)
+        /// <param name="comboCount">
+        /// 同じ行に並べるコンボの個数。2 個目以降は矢印 1 組とコンボ間のマージンを余分に要する。
+        /// 戻り値は全コンボの合計幅なので、呼び出し側で分配する
+        /// </param>
+        public static float CalcComboWidth(GUIView view, float labelWidth, int comboCount = 1)
         {
             return Mathf.Max(
                 view.viewRect.width - view.padding.x * 2
-                    - labelWidth - view.margin - ComboArrowWidth,
+                    - labelWidth - view.margin
+                    - ComboArrowWidth * comboCount - view.margin * (comboCount - 1),
                 MinComboWidth);
         }
 
@@ -44,10 +49,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel(label, labelWidth, rowHeight, style: GUIView.gsLabelRight);
 
-                var comboWidth = CalcComboWidth(view, labelWidth) - trailingWidth;
-                comboBox.buttonSize = new Vector2(comboWidth, rowHeight);
-                comboBox.contentSize = new Vector2(comboWidth, ComboContentHeight);
-                comboBox.DrawButton(view);
+                DrawCombo(view, comboBox, CalcComboWidth(view, labelWidth) - trailingWidth, rowHeight);
 
                 if (drawTrailing != null)
                 {
@@ -55,6 +57,26 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// 指定個数のコンボを 1 行に並べても、それぞれが下限幅を保てるか。
+        /// 保てない幅で並べると各コンボが下限幅へクランプされて行からはみ出すため、
+        /// 呼び出し側はここが false の間は行を分ける
+        /// </summary>
+        public static bool CanFitCombos(GUIView view, float labelWidth, int comboCount)
+        {
+            return CalcComboWidth(view, labelWidth, comboCount) >= MinComboWidth * comboCount;
+        }
+
+        /// <summary>幅を指定してコンボボックスのボタンを描く (1 行に複数並べる呼び出し用)</summary>
+        public static void DrawCombo<T>(
+            GUIView view, GUIComboBox<T> comboBox, float comboWidth, float rowHeight)
+        {
+            comboWidth = Mathf.Max(comboWidth, MinComboWidth);
+            comboBox.buttonSize = new Vector2(comboWidth, rowHeight);
+            comboBox.contentSize = new Vector2(comboWidth, ComboContentHeight);
+            comboBox.DrawButton(view);
         }
     }
 }
