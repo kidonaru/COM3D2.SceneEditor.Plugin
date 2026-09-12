@@ -94,11 +94,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     var startBone = sequence[i];
                     var endBone = sequence[i + 1];
-                    // 保持キーが開始キーと連続すると 1 フレーム補間の調整が前側にも効き、
-                    // 開始キー側のタンジェントが潰れる。開始キーとの間が 1 フレーム以上
-                    // 空かない区間は挿入せず、短いフェードを許容する
+                    // 保持キーが開始キーと連続する、または終端キーの次のキーが終端キーと連続すると、
+                    // 1 フレーム補間の調整が隣のキーにも効いてタンジェントが潰れる。
+                    // どちらかに当てはまる区間は挿入せず、短いフェードを許容する
                     var holdFrameNo = endBone.frameNo - 1;
                     if (holdFrameNo - startBone.frameNo < 2)
+                    {
+                        continue;
+                    }
+                    if (i + 2 < sequence.Count && sequence[i + 2].frameNo - endBone.frameNo < 2)
                     {
                         continue;
                     }
