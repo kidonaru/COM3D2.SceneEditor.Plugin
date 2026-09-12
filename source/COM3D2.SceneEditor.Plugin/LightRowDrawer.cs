@@ -52,7 +52,6 @@ namespace COM3D2.SceneEditor.Plugin
                 items = Enum.GetValues(typeof(LightTargetMode)).Cast<LightTargetMode>().ToList(),
                 getName = (mode, _) => GetLightTargetName(mode),
                 contentSize = new Vector2(120, 100),
-                showArrow = false,
             };
 
         /// <summary>追従先メイドのコンボ</summary>
