@@ -28,6 +28,34 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void MarkRangeで複数をまとめてチェック済みにできる()
+        {
+            var store = new EditTargetStore();
+            store.Mark("eyeclose");
+            var before = store.version;
+
+            store.MarkRange(new[] { "eyeclose", "mayuup", null, "" });
+
+            Assert.True(store.IsModified("eyeclose"));
+            Assert.True(store.IsModified("mayuup"));
+            Assert.Equal(2, store.GetNames().Count);
+            Assert.Equal(before + 1, store.version);
+        }
+
+        [Fact]
+        public void MarkRangeは既存項目だけならversionを進めない()
+        {
+            var store = new EditTargetStore();
+            store.Mark("eyeclose");
+            var before = store.version;
+
+            store.MarkRange(new[] { "eyeclose" });
+            store.MarkRange(null);
+
+            Assert.Equal(before, store.version);
+        }
+
+        [Fact]
         public void SetNamesで丸ごと置き換わる()
         {
             var store = new EditTargetStore();

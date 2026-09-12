@@ -81,6 +81,44 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME);
                 setting.forceOverride = FaceMorphUtils.ToForceOverrideValue(true);
             }
+
+            MarkKeyFrameMorphs();
+        }
+
+        public override void OnMaidChanged(Maid maid)
+        {
+            base.OnMaidChanged(maid);
+
+            // 読み込み時にメイドが未配置だと Init では Mark できないため、配置後にも反映する。
+            // 通常のメイド入れ替えでも発火するが、スロットのキーは新しいメイドにも適用されるので意図どおり
+            MarkKeyFrameMorphs();
+        }
+
+        /// <summary>
+        /// キーフレームに記載のあるモーフを表情ウィンドウのチェック済みにする。
+        /// タイムラインに項目があるのにウィンドウでは未チェック、という食い違いを無くすため
+        /// </summary>
+        private void MarkKeyFrameMorphs()
+        {
+            var maid = this.maid;
+            if (maid == null)
+            {
+                return;
+            }
+
+            var keyFrameNames = new HashSet<string>();
+            foreach (var frame in _keyFrames)
+            {
+                keyFrameNames.UnionWith(frame.boneNames);
+            }
+            if (keyFrameNames.Count == 0)
+            {
+                return;
+            }
+
+            // 強制上書きキーはモーフではないので候補表 (saveMorphNames) との積で落とす
+            keyFrameNames.IntersectWith(FaceMorphUtils.saveMorphNames);
+            FaceEditManager.instance.GetStore(maid).MarkRange(keyFrameNames);
         }
 
         protected override void InitMenuItems()

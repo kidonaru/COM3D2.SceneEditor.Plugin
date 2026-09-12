@@ -31,6 +31,29 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>複数項目をまとめてチェック済みにする。集合が実際に増えたときだけ version を進める</summary>
+        public void MarkRange(IEnumerable<string> names)
+        {
+            if (names == null)
+            {
+                return;
+            }
+
+            var added = false;
+            foreach (var name in names)
+            {
+                if (!string.IsNullOrEmpty(name) && _modifiedNames.Add(name))
+                {
+                    added = true;
+                }
+            }
+
+            if (added)
+            {
+                version++;
+            }
+        }
+
         public void Unmark(string name)
         {
             if (name != null && _modifiedNames.Remove(name))
