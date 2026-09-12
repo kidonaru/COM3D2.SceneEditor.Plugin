@@ -15,6 +15,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class KeyFrameBatchDrawer
     {
+        private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
+
         private const float RowHeight = 20f;
         private const float TransformLabelWidth = 50f;
         private const float FoldMarkWidth = 16f;
@@ -443,10 +445,12 @@ namespace COM3D2.SceneEditor.Plugin
             return result;
         }
 
-        /// <summary>グループの所属レイヤーへ重複なく反映する (選択は複数レイヤーにまたがりうる)</summary>
+        /// <summary>グループの所属レイヤーへ重複なく反映し、履歴を要求する (選択は複数レイヤーにまたがりうる)</summary>
         private void Apply(Group group)
         {
             MTEUtils.LogDebug("キーフレームを一括更新します：" + group.type);
+            // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
+            timelineManager.RequestHistory("キーフレーム一括編集: " + group.type);
             _applyLayers.Clear();
             foreach (var bone in group.bones)
             {

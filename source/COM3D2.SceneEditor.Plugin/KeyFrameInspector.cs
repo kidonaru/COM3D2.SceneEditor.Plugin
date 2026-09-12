@@ -299,6 +299,7 @@ namespace COM3D2.SceneEditor.Plugin
                     bone.transform.Reset();
                     MTEUtils.LogDebug("キーフレームを初期化します：" + bone.name);
                     bone.parentLayer.ApplyCurrentFrame(true);
+                    timelineManager.RequestHistory("キーフレーム初期化: " + bone.name);
                 }
 
                 if (view.DrawButton("削除", HeaderButtonWidth, RowHeight))
@@ -568,12 +569,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>編集を即時反映する</summary>
+        /// <summary>編集を即時反映し、履歴を要求する</summary>
         private void Apply(MTEP.BoneData bone)
         {
             MTEUtils.LogDebug("キーフレームを更新します：" + bone.name);
             // 選択は複数レイヤーにまたがるため、所属レイヤーへ反映する
             bone.parentLayer.ApplyCurrentFrame(true);
+            // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
+            timelineManager.RequestHistory("キーフレーム編集: " + bone.name);
         }
     }
 }
