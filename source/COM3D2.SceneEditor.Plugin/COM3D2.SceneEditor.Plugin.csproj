@@ -503,6 +503,7 @@
     <Compile Include="Timeline\BlendShapeController.cs" />
     <Compile Include="Timeline\ModelMaterial.cs" />
     <Compile Include="Timeline\ModelMaterialController.cs" />
+    <Compile Include="Timeline\LightHoldKeyConversion.cs" />
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentUnification.cs" />
     <Compile Include="Timeline\TangentPair.cs" />

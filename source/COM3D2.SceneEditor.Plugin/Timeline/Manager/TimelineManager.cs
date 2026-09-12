@@ -391,11 +391,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             timelineSessionId++;
             currentLayerIndex = 0;
 
+            var needsLightHoldKeys = false;
+            var holdLightColor = false;
+            var holdLightExtra = false;
+
             using (var stream = new FileStream(path, FileMode.Open))
             {
                 var serializer = new XmlSerializer(typeof(TimelineXml));
                 var xml = (TimelineXml)serializer.Deserialize(stream);
                 xml.Initialize();
+
+                // 旧ライト補間トグルは TimelineData に持たないため、XML から直接読む
+                needsLightHoldKeys = LightHoldKeyConversion.IsRequired(
+                    xml.version, xml.isLightColorEasing, xml.isLightExtraEasing);
+                holdLightColor = !xml.isLightColorEasing;
+                holdLightExtra = !xml.isLightExtraEasing;
 
                 _timeline = new TimelineData();
                 _timeline.FromXml(xml);
@@ -414,6 +424,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             CreateAndApplyAnmAll();
+
+            if (needsLightHoldKeys)
+            {
+                // 補間 OFF だったライトの段差を保持キーで再現する。
+                // 補間値の評価にタンジェントが要るため anm 生成後に行い、挿入後に再生成する
+                var lightLayer = GetLayer(typeof(LightTimelineLayer));
+                var insertedCount = LightHoldKeyConversion.ConvertLayer(
+                    lightLayer, _timeline, holdLightColor, holdLightExtra);
+                if (insertedCount > 0)
+                {
+                    MTEUtils.Log("旧ライト補間設定の段差を保持キーへ変換しました count={0}", insertedCount);
+                    lightLayer.CreateAndApplyAnm();
+                }
+            }
+
             SeekCurrentFrame(0);
             Refresh();
 
