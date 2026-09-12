@@ -120,6 +120,10 @@ namespace COM3D2.SceneEditor.Plugin
         private void BeforeEditCore(Maid maid, HistoryScope scope, string description,
             object targetKey, Func<IStateSnapshot> capture, IEnumerable<Transform> targetBones)
         {
+            // 値を書き換える操作の直前に必ず通る場所なので、ここで編集モードへ入る。
+            // 履歴が無効 (historyLimit <= 0) でも自動移行は必要なため、早期 return より前に置く
+            AutoEditMode.Enter();
+
             if ((maid == null && HistoryScopeUtils.RequiresMaid(scope))
                 || config.historyLimit <= 0)
             {
@@ -165,6 +169,7 @@ namespace COM3D2.SceneEditor.Plugin
         public void BeforeEdit(Maid maid, HistoryScope scope, string description,
             Func<IEnumerable<Transform>> targetBonesProvider)
         {
+            // 確定待ちがあるなら BeforeEditCore を通っており編集モードにも入っているため、そのまま抜けてよい
             if (_pending != null && _pending.maid == maid && _pending.scope == scope)
             {
                 return;
@@ -417,6 +422,9 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return false;
                 }
+
+                // 戻した値もパラメータ変更と同じく編集モード外では書き戻されるため、当てる前に入る
+                AutoEditMode.Enter();
 
                 if (useBefore)
                 {
