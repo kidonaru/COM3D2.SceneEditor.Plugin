@@ -436,9 +436,16 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEUtils.ShowDialog(studioHack.errorMessage);
                 return;
             }
-            if (!TimelineLoadWindow.instance.isShowWnd)
+            var loadWindow = TimelineLoadWindow.instance;
+            if (!loadWindow.isShowWnd)
             {
-                WindowManager.ToggleWindowVisible(TimelineLoadWindow.instance);
+                WindowManager.ToggleWindowVisible(loadWindow);
+            }
+
+            // ドッキング中は表示済みでも背面タブのままになりうるので前面へ出す
+            if (loadWindow.group != null)
+            {
+                loadWindow.group.SetActive(loadWindow);
             }
         }
 
