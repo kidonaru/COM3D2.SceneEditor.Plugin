@@ -36,6 +36,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int TypeButtonWidth = 70;
 
+        /// <summary>コピー / ペーストボタンの幅（MaterialPropertyRowsDrawer と同じ）</summary>
+        private const float ClipboardButtonWidth = 60f;
+
         /// <summary>追従の入切トグルの幅</summary>
         private const float FollowToggleWidth = 20f;
 
@@ -84,6 +87,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var lightMain = lightManager.mainLight;
 
+            DrawClipboardRow(view, rowHeight,
+                () => LightClipboard.CopyMain(light),
+                () => LightClipboard.PasteMain(lightMain, light));
+
             // 既定の横回転 180 度はスライダー範囲の両端どちらでも同じ向きになる。
             // 正規化表示 (-180, 180] と符号を揃えるため -180 側を既定値にする
             DrawRotationSliders(view, labelWidth,
@@ -128,6 +135,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 followLight = FindFollowLight(light);
             }
+
+            DrawClipboardRow(view, rowHeight,
+                () => LightClipboard.Copy(light, followLight),
+                () => LightClipboard.Paste(light, followLight));
 
             view.BeginHorizontal();
             {
@@ -227,6 +238,27 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>コピー / ペーストの 2 ボタン。ペーストはクリップボードが空なら押せない</summary>
+        private static void DrawClipboardRow(
+            GUIView view, float rowHeight, Action onCopy, Action onPaste)
+        {
+            view.BeginHorizontal();
+            {
+                if (view.DrawButton("コピー", ClipboardButtonWidth, rowHeight))
+                {
+                    onCopy();
+                }
+
+                if (view.DrawButton("ペースト", ClipboardButtonWidth, rowHeight,
+                        enabled: LightClipboard.hasData))
+                {
+                    RecordLightEdit("ペースト");
+                    onPaste();
+                }
+            }
+            view.EndLayout();
+        }
+
         /// <summary>
         /// メイド追従の切替と追従先の選択。
         /// メインライトはゲーム側の恒久オブジェクトのため追従対象にしない
@@ -264,7 +296,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// タイムライン側が持つ追従コンポーネント。
         /// ライト一覧はタイムライン側で遅延収集されるため、未収集なら null を返す
         /// </summary>
-        private static MTEP.MaidFollowLight FindFollowLight(Light light)
+        public static MTEP.MaidFollowLight FindFollowLight(Light light)
         {
             var stat = MTEP.StudioLightManager.instance.lights
                 .FirstOrDefault(s => s != null && s.light == light);

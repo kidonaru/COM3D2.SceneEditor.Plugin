@@ -85,6 +85,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>照射対象 (LightTargetMode の数値: 0=全て / 1=キャラのみ / 2=背景のみ)。旧プリセットは 0</summary>
         [XmlAttribute]
         public int target = (int)LightTargetMode.All;
+
+        // 影と追従。旧プリセットには無いので、生成時の既定値で初期化して見た目を変えない
+        public float shadowStrength = LightRowDrawer.DefaultAdditionalShadowStrength;
+        public float shadowBias = LightRowDrawer.DefaultAdditionalShadowBias;
+        /// <summary>追従先メイドのスロット番号。-1 で追従なし</summary>
+        public int maidSlotNo = -1;
+        public Vector3 followOffset = Vector3.zero;
     }
 
     /// <summary>ライトの状態。メインライトと追加ライト一式</summary>
@@ -97,6 +104,8 @@ namespace COM3D2.SceneEditor.Plugin
         public Color mainColor = Color.white;
         public float mainIntensity;
         public float mainShadowStrength;
+        /// <summary>旧プリセットには無いので、生成時の既定値で初期化して見た目を変えない</summary>
+        public float mainShadowBias = LightRowDrawer.DefaultMainShadowBias;
 
         [XmlElement("additionalLight")]
         public List<ScenePresetAdditionalLight> additionalLights =
