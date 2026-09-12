@@ -212,20 +212,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
-            var isPoseEditing = studioHackManager.isPoseEditing;
-            if (isPrevPoseEditing != isPoseEditing)
-            {
-                if (isPoseEditing)
-                {
-                    OnPoseEditStart();
-                }
-                else
-                {
-                    OnPoseEditEnd();
-                }
-                isPrevPoseEditing = isPoseEditing;
-            }
+            SyncPoseEditing();
 
+            var isPoseEditing = studioHackManager.isPoseEditing;
             if (isPoseEditing && config.disablePoseHistory)
             {
                 studioHack.ClearPoseHistory();
@@ -2186,6 +2175,31 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 //MTEUtils.LogDebug("Save Maid Position name={0} initialEditPosition={1} initialEditRotation={2}",
                 //    maid.name, initialEditPosition, initialEditRotation);
             }
+        }
+
+        /// <summary>
+        /// 編集モードの切り替わりを検出し、開始 / 終了処理を行う。
+        /// Update のほか、パラメータ変更で編集モードへ入った直後 (AutoEditMode.Enter) にも呼ぶ。
+        /// 翌フレームの Update まで待つと OnPoseEditStart の ApplyCurrentFrame が
+        /// 変更したばかりの値を再生値で上書きし、スナップショットも変更後の値になってしまう
+        /// </summary>
+        public void SyncPoseEditing()
+        {
+            var isPoseEditing = studioHackManager.isPoseEditing;
+            if (isPrevPoseEditing == isPoseEditing)
+            {
+                return;
+            }
+
+            if (isPoseEditing)
+            {
+                OnPoseEditStart();
+            }
+            else
+            {
+                OnPoseEditEnd();
+            }
+            isPrevPoseEditing = isPoseEditing;
         }
 
         private void OnPoseEditStart()

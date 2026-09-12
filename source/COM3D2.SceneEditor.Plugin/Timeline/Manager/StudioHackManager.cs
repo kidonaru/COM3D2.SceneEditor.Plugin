@@ -1,4 +1,4 @@
-using UnityEngine.SceneManagement;
+﻿using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using UnityEngine.Events;
 
@@ -94,14 +94,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _studioHack = activeStudioHacks[0];
             }
 
-            if (mte.isEnable)
+            SyncPoseEditing();
+        }
+
+        /// <summary>
+        /// studioHack 側の編集モードをキャッシュへ反映し、変化していれば通知する。
+        /// PreUpdate のほか、パラメータ変更で同フレーム中に編集モードへ入ったとき
+        /// (AutoEditMode.Enter) にも呼び、以降の描画が古いキャッシュを見ないようにする
+        /// </summary>
+        public void SyncPoseEditing()
+        {
+            if (!mte.isEnable)
             {
-                var isPoseEditingNow = _studioHack?.isPoseEditing ?? false;
-                if (isPoseEditingNow != _isPoseEditing)
-                {
-                    _isPoseEditing = isPoseEditingNow;
-                    onPoseEditingChanged?.Invoke(isPoseEditingNow);
-                }
+                return;
+            }
+
+            var isPoseEditingNow = _studioHack?.isPoseEditing ?? false;
+            if (isPoseEditingNow != _isPoseEditing)
+            {
+                _isPoseEditing = isPoseEditingNow;
+                onPoseEditingChanged?.Invoke(isPoseEditingNow);
             }
         }
 

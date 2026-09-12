@@ -269,6 +269,7 @@
     <Compile Include="Manager\WindowManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="COM3D2.SceneEditor.Plugin.cs" />
+    <Compile Include="AutoEditMode.cs" />
     <Compile Include="AutoKeyFrameGate.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="EditorSubWindow.cs" />

@@ -203,7 +203,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private bool _isEditMode;
 
-        /// <summary>編集モード。メニューバーのトグルと連動する。ボーンを動かし始めると自動で ON になる</summary>
+        /// <summary>編集モード。メニューバーのトグルと連動する。パラメータを変更すると自動で ON になる (AutoEditMode.Enter)</summary>
         public bool isEditMode
         {
             get => _isEditMode;
