@@ -297,7 +297,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     /// <summary>
     /// キーフレームテンプレートの管理。MTE から移植。
-    /// XML はレイヤー名単位のファイルで、スキーマは MTE と互換
+    /// XML はレイヤー名単位のファイルで、スキーマは MTE と互換。
+    /// 保存先は MTE と同一ディレクトリのため、MTE と同時起動して両方で編集すると
+    /// 読み込みは起動時 1 回・保存はファイル丸ごと上書きとなり後勝ちで片方の変更が失われる
     /// </summary>
     public class TimelineTemplateManager : ManagerBase
     {
@@ -337,8 +339,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             templateLayerMap.Clear();
 
-            ImportMteTemplatesIfEmpty();
-
             var templateDirPath = PluginUtils.TemplateDirPath;
             var filePaths = Directory.GetFiles(templateDirPath, "*.xml");
 
@@ -358,60 +358,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     MTEUtils.LogException(e);
                 }
-            }
-        }
-
-        /// <summary>MTE 資産の初回インポートを実施済みか (セッション内で 1 回だけ試行する)</summary>
-        private bool _mteImportTried = false;
-
-        /// <summary>
-        /// SE 側にテンプレが 1 件も無い初回だけ、MTE のテンプレ資産をコピーして引き継ぐ。
-        /// 以後は SE 側のファイルを正とし、MTE 側の変更は追従しない。
-        /// SE 側のテンプレを意図的に全削除した場合も次回起動時に再インポートされる点に注意
-        /// </summary>
-        private void ImportMteTemplatesIfEmpty()
-        {
-            if (_mteImportTried)
-            {
-                return;
-            }
-            _mteImportTried = true;
-
-            try
-            {
-                var templateDirPath = PluginUtils.TemplateDirPath;
-                if (Directory.GetFiles(templateDirPath, "*.xml").Length > 0)
-                {
-                    return;
-                }
-
-                var mteDirPath = PluginUtils.MteTemplateDirPath;
-                if (!Directory.Exists(mteDirPath))
-                {
-                    return;
-                }
-
-                var count = 0;
-                foreach (var srcPath in Directory.GetFiles(mteDirPath, "*.xml"))
-                {
-                    // 1 ファイルの失敗 (ロック中・権限エラー等) で残りのコピーを止めない
-                    try
-                    {
-                        var dstPath = MTEUtils.CombinePaths(templateDirPath, Path.GetFileName(srcPath));
-                        File.Copy(srcPath, dstPath, false);
-                        count++;
-                    }
-                    catch (Exception e)
-                    {
-                        MTEUtils.LogException(e);
-                    }
-                }
-
-                MTEUtils.Log($"MTE のテンプレートを {count} 件取り込みました: {mteDirPath}");
-            }
-            catch (Exception e)
-            {
-                MTEUtils.LogException(e);
             }
         }
 
