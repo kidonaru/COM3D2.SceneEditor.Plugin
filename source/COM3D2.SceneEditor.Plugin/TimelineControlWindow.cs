@@ -192,6 +192,7 @@ namespace COM3D2.SceneEditor.Plugin
         private enum FileMenuType
         {
             New,
+            Unload,
             OutputAnm,
             OutputImage,
         }
@@ -202,6 +203,7 @@ namespace COM3D2.SceneEditor.Plugin
             items = new List<FileMenuType>
             {
                 FileMenuType.New,
+                FileMenuType.Unload,
                 FileMenuType.OutputAnm,
                 FileMenuType.OutputImage,
             },
@@ -211,6 +213,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     case FileMenuType.New:
                         return "新規作成";
+                    case FileMenuType.Unload:
+                        return "アンロード";
                     case FileMenuType.OutputAnm:
                         return "アニメ出力";
                     case FileMenuType.OutputImage:
@@ -223,6 +227,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 switch (type)
                 {
+                    case FileMenuType.Unload:
+                        return timelineManager.timeline != null;
                     case FileMenuType.OutputAnm:
                         return timelineManager.IsValidData();
                     case FileMenuType.OutputImage:
@@ -237,6 +243,11 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     case FileMenuType.New:
                         timelineManager.CreateNewTimeline();
+                        break;
+                    case FileMenuType.Unload:
+                        MTEUtils.ShowConfirmDialog(
+                            "タイムラインをアンロードしますか？\n未保存の変更は失われます",
+                            () => timelineManager.UnloadTimeline());
                         break;
                     case FileMenuType.OutputAnm:
                         timelineManager.OutputAnm();

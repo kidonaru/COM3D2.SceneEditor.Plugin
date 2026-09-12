@@ -322,6 +322,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 現在のタイムラインを破棄し、切替に伴う状態をまとめてリセットする。
+        /// 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
+        /// タイムライン間の壊れた undo エントリを積むため、履歴は必ずクリアする
+        /// </summary>
+        private void ResetTimelineState()
+        {
+            ClearTimeline();
+            historyManager.ClearHistory();
+            timelineSessionId++;
+            currentLayerIndex = 0;
+        }
+
+        /// <summary>読み込み中のタイムラインを破棄して未読込状態へ戻す</summary>
+        public void UnloadTimeline()
+        {
+            if (timeline == null)
+            {
+                return;
+            }
+
+            // 新規作成・ロードと違い後続で anm を作り直さないため、再生を明示的に止める
+            Stop();
+            ResetTimelineState();
+            Refresh();
+        }
+
         public void CreateNewTimeline()
         {
             if (!studioHack.IsValid())
@@ -335,12 +362,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            ClearTimeline();
-            // 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
-            // タイムライン間の壊れた undo エントリを積むため、切替時に必ずクリアする
-            historyManager.ClearHistory();
-            timelineSessionId++;
-            currentLayerIndex = 0;
+            ResetTimelineState();
 
             _timeline = new TimelineData
             {
@@ -384,12 +406,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            ClearTimeline();
-            // 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
-            // タイムライン間の壊れた undo エントリを積むため、切替時に必ずクリアする
-            historyManager.ClearHistory();
-            timelineSessionId++;
-            currentLayerIndex = 0;
+            ResetTimelineState();
 
             var needsLightHoldKeys = false;
             var holdLightColor = false;
