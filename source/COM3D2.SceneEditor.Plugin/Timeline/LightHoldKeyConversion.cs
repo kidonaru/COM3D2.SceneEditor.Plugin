@@ -13,6 +13,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>この変換が導入されたタイムラインバージョン</summary>
         public const int IntroducedVersion = 34;
 
+        /// <summary>
+        /// 「値が変わった」とみなす最小差。スライダー編集の丸め程度の差 (例: 71.2 と 71.19843) で
+        /// 見た目に影響しない保持キーが増えるのを防ぐ
+        /// </summary>
+        public const float ChangeTolerance = 0.01f;
+
         private static readonly TransformDataLight.Index[] ExtraIndices =
         {
             TransformDataLight.Index.Range,
@@ -183,7 +189,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             foreach (var index in indices)
             {
-                if (start.values[(int)index].value != end.values[(int)index].value)
+                var diff = end.values[(int)index].value - start.values[(int)index].value;
+                if (Mathf.Abs(diff) > ChangeTolerance)
                 {
                     result.Add((int)index);
                 }

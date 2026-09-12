@@ -42,6 +42,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 許容誤差以下の差はキーを作らない()
+        {
+            // スライダー編集の丸め程度の差 (71.2 と 71.19843) は実変化とみなさない
+            var start = NewLight(1f, Color.red, Vector3.zero);
+            start.spotAngle = 71.19843f;
+            var end = NewLight(1f, Color.red, Vector3.zero);
+            end.spotAngle = 71.2f;
+
+            var hold = LightHoldKeyConversion.CreateHoldKey(start, end, 0f, 1f, 0.5f, true, true);
+
+            Assert.Null(hold);
+        }
+
+        [Fact]
         public void 拡張補間OFFなら数値は開始キーの値を保持し色は補間する()
         {
             var start = NewLight(1f, Color.black, Vector3.zero);
