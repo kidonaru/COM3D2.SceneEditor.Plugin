@@ -11,7 +11,9 @@ namespace COM3D2.SceneEditor.Plugin
     /// 選択中キーフレームの詳細表示・編集。
     /// 選択キーフレームごとに折りたたみ可能なブロックを縦に並べ、
     /// Transform は標準 Inspector と同じ横並び行、色・カスタム値・表示・文字列値は
-    /// タイムライン項目の現在値 UI (TimelineItemInspector) と同じ部品で 1 値 1 行に描く
+    /// タイムライン項目の現在値 UI (TimelineItemInspector) と同じ部品で 1 値 1 行に描く。
+    /// 「一括」トグルで同じ型のキーフレームをまとめて編集する一括モードへ切り替えられる
+    /// (KeyFrameBatchDrawer が担当)。
     /// (「補間曲線」タブに KeyFrameTangentDrawer のタンジェント曲線エディタを表示する。
     /// 区間ごとの実値カーブ編集は TimelineCurveEditor が担当)
     /// </summary>
@@ -31,6 +33,8 @@ namespace COM3D2.SceneEditor.Plugin
         private const float HeaderButtonWidth = 44f;
         /// <summary>一括開閉ボタンの幅 (「すべて折りたたみ」が収まる幅)</summary>
         private const float FoldAllButtonWidth = 90f;
+        /// <summary>一括編集モードのトグル幅</summary>
+        private const float BatchToggleWidth = 50f;
         /// <summary>ヘッダーのボーン名を切り詰める下限 (これ以下だと名前が読めない)</summary>
         private const float MinHeaderLabelWidth = 40f;
         /// <summary>文字列値のラベル幅 (「ﾎﾟｰｽﾞ名」等が収まる幅)</summary>
@@ -76,8 +80,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>描画順を安定させるための並べ替えバッファ (毎フレームの確保を避ける)</summary>
         private readonly List<MTEP.BoneData> _sortedBones = new List<MTEP.BoneData>();
 
-        /// <summary>描画ループ終了後にまとめて削除するボーン</summary>
-        private MTEP.BoneData _pendingDeleteBone = null;
+        /// <summary>描画ループ終了後にまとめて削除するボーン (一括モードではグループ全体)</summary>
+        private readonly List<MTEP.BoneData> _pendingDeleteBones = new List<MTEP.BoneData>();
+
+        /// <summary>一括編集モード (セッション中のみ有効。config へは永続化しない)</summary>
+        private bool _isBatchMode = false;
+
+        private readonly KeyFrameBatchDrawer _batchDrawer = new KeyFrameBatchDrawer();
+
+        /// <summary>削除時にレイヤーを重複なく整理するためのバッファ</summary>
+        private readonly HashSet<MTEP.ITimelineLayer> _deleteLayers = new HashSet<MTEP.ITimelineLayer>();
 
         /// <summary>描画ループ終了後に開閉を切り替えるボーン</summary>
         private MTEP.BoneData _pendingToggleBone = null;
@@ -118,6 +130,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (!ShouldDraw())
             {
                 _collapsedBones.Clear();
+                _batchDrawer.Clear();
                 KeyFrameTangentDrawer.instance.CancelDrag();
                 view.DrawLabel("キーフレームが選択されていません", -1, RowHeight);
                 return;
@@ -161,19 +174,27 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTitleRow(view, totalCount, drawCount);
 
-            for (var i = 0; i < drawCount; i++)
+            if (_isBatchMode)
             {
-                DrawBoneBlock(view, _sortedBones[i]);
+                // 一括モードは型ごとにまとまるため表示上限を設けず、全選択を対象にする
+                _batchDrawer.Draw(view, _sortedBones, bones => _pendingDeleteBones.AddRange(bones));
             }
-
-            if (totalCount > drawCount)
+            else
             {
-                view.DrawLabel(
-                    string.Format("他 {0} 個は非表示", totalCount - drawCount), -1, RowHeight);
-            }
+                for (var i = 0; i < drawCount; i++)
+                {
+                    DrawBoneBlock(view, _sortedBones[i]);
+                }
 
-            // 一括開閉は表示中のブロックが対象なので、_sortedBones を捨てる前に反映する
-            ProcessPendingFold(drawCount);
+                if (totalCount > drawCount)
+                {
+                    view.DrawLabel(
+                        string.Format("他 {0} 個は非表示", totalCount - drawCount), -1, RowHeight);
+                }
+
+                // 一括開閉は表示中のブロックが対象なので、_sortedBones を捨てる前に反映する
+                ProcessPendingFold(drawCount);
+            }
             _sortedBones.Clear();
 
             ProcessPendingDelete();
@@ -189,14 +210,15 @@ namespace COM3D2.SceneEditor.Plugin
             return string.CompareOrdinal(a.name, b.name);
         }
 
-        /// <summary>選択数の表示と、表示中ブロックの一括開閉ボタンの 1 行</summary>
+        /// <summary>選択数の表示、一括編集トグル、表示中ブロックの一括開閉ボタンの 1 行</summary>
         private void DrawTitleRow(GUIView view, int totalCount, int drawCount)
         {
             var allCollapsed = IsAllCollapsed(drawCount);
 
             var available = view.viewRect.width - view.padding.x * 2;
             var labelWidth = Mathf.Max(
-                available - FoldAllButtonWidth - view.margin * 2, MinHeaderLabelWidth);
+                available - BatchToggleWidth - FoldAllButtonWidth - view.margin * 3,
+                MinHeaderLabelWidth);
 
             view.BeginHorizontal();
             {
@@ -204,6 +226,11 @@ namespace COM3D2.SceneEditor.Plugin
                     string.Format("キーフレーム詳細 ({0}個選択中)", totalCount),
                     labelWidth, RowHeight);
 
+                view.DrawToggle("一括", _isBatchMode, BatchToggleWidth, RowHeight,
+                    newValue => _isBatchMode = newValue);
+
+                // 一括開閉は個別表示のブロックが対象なので、一括モードでは押せなくする
+                view.BeginEnabled(!_isBatchMode);
                 // 全部畳んでいるときだけ「すべて展開」にして、押すたびに全開・全閉を往復させる
                 if (view.DrawButton(
                         allCollapsed ? "すべて展開" : "すべて折りたたみ",
@@ -212,6 +239,7 @@ namespace COM3D2.SceneEditor.Plugin
                     _pendingFoldAll = allCollapsed
                         ? FoldAllRequest.Expand : FoldAllRequest.Collapse;
                 }
+                view.EndEnabled();
             }
             view.EndLayout();
         }
@@ -275,7 +303,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (view.DrawButton("削除", HeaderButtonWidth, RowHeight))
                 {
-                    _pendingDeleteBone = bone;
+                    _pendingDeleteBones.Add(bone);
                 }
             }
             view.EndLayout();
@@ -320,28 +348,36 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>削除は selectedBones を変更するため、描画ループを抜けてから実行する</summary>
         private void ProcessPendingDelete()
         {
-            var bone = _pendingDeleteBone;
-            if (bone == null)
+            if (_pendingDeleteBones.Count == 0)
             {
                 return;
             }
-            _pendingDeleteBone = null;
 
-            // RemoveBone で parentFrame が外れる前に所属レイヤーを確保する
-            var layer = bone.parentLayer;
-            var frame = bone.parentFrame;
-            if (frame != null)
+            // 選択は複数レイヤーにまたがるため、各レイヤーの整理は削除後にまとめて 1 回行う
+            _deleteLayers.Clear();
+            foreach (var bone in _pendingDeleteBones)
             {
-                frame.RemoveBone(bone);
+                // RemoveBone で parentFrame が外れる前に所属レイヤーを確保する
+                _deleteLayers.Add(bone.parentLayer);
+                var frame = bone.parentFrame;
+                if (frame != null)
+                {
+                    frame.RemoveBone(bone);
+                }
+
+                selectedBones.Remove(bone);
+                _collapsedBones.Remove(bone);
+                MTEUtils.LogDebug("キーフレームを削除します：" + bone.name);
             }
+            _pendingDeleteBones.Clear();
 
-            selectedBones.Remove(bone);
-            _collapsedBones.Remove(bone);
+            foreach (var layer in _deleteLayers)
+            {
+                layer.CleanFrames();
+                layer.ApplyCurrentFrame(true);
+            }
+            _deleteLayers.Clear();
 
-            layer.CleanFrames();
-            layer.ApplyCurrentFrame(true);
-
-            MTEUtils.LogDebug("キーフレームを削除します：" + bone.name);
             timelineManager.RequestHistory("キーフレーム削除");
         }
 

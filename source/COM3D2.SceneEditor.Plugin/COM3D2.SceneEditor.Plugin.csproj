@@ -286,6 +286,7 @@
     <Compile Include="TangentCurveTexture.cs" />
     <Compile Include="TangentTargetList.cs" />
     <Compile Include="KeyFrameTangentLogic.cs" />
+    <Compile Include="KeyFrameBatchDrawer.cs" />
     <Compile Include="KeyFrameInspector.cs" />
     <Compile Include="LightWindow.cs" />
     <Compile Include="MaidWindowBase.cs" />
