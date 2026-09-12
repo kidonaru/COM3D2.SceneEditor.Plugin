@@ -1,4 +1,4 @@
-﻿using COM3D2.MotionTimelineEditor;
+using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
