@@ -6,7 +6,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// パラメータ変更時に編集モードへ自動で入るための唯一の入口。
     /// 値を書き換える「前」に呼ぶこと。編集モード外はタイムラインのレイヤーが
     /// 毎フレーム再生値を書き戻すため、先に入っておかないと変更が巻き戻る。
-    /// 既に編集モードなら何もしない
+    /// 既に編集モードなら何もしない。
+    ///
+    /// 行ドロワーの値変更は GUIView の onBeforeValueChanged 経由で自動的にここを通る
+    /// (GUIViewAutoEditModeExtensions.BeginAutoEditMode)。
+    /// ボタン (DrawButton) やドラッグ図のようにコールバックを経由しない操作は、
+    /// 値を書く側が自分でこれを呼ぶこと
     /// </summary>
     public static class AutoEditMode
     {

@@ -70,7 +70,6 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (view.DrawButton("複製", 45, RowHeight))
                 {
-                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                     AutoEditMode.Enter();
                     timelineManager.CopyModel(model);
                 }

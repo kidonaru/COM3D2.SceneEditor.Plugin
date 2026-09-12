@@ -27,8 +27,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、
-            // 値を書く直前に編集モードへ入る (BeginAutoEditMode)
             view.BeginAutoEditMode();
 
             // 項目は 1 つだけなので、選択内容によらず SE の行を出す

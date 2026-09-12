@@ -233,13 +233,7 @@ namespace COM3D2.SceneEditor.Plugin
                     toggle = () =>
                     {
                         var manager = MaidManipulateManager.instance;
-                        var turnOn = !manager.isBoneVisible;
-                        // ボーンは編集モード中しか出ないため、ON にするなら編集モードへ入る
-                        if (turnOn)
-                        {
-                            AutoEditMode.Enter();
-                        }
-                        manager.isBoneVisible = turnOn;
+                        manager.SetBoneVisible(!manager.isBoneVisible);
                     },
                 },
                 new MenuItem

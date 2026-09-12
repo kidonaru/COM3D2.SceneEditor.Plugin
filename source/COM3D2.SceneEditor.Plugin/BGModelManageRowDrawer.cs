@@ -118,7 +118,6 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (view.DrawButton("複製", ButtonWidth, RowHeight))
                 {
-                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                     AutoEditMode.Enter();
                     action = BGModelRowAction.Duplicate;
                 }
@@ -156,7 +155,6 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (view.DrawButton("削除", ButtonWidth, RowHeight))
                 {
-                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                     AutoEditMode.Enter();
                     action = BGModelRowAction.Delete;
                 }

@@ -262,6 +262,19 @@ namespace COM3D2.SceneEditor.Plugin
         }
         private bool _isBoneVisible = true;
 
+        /// <summary>
+        /// ボーン表示を切り替える。ボーンは編集モード中しか出ないため、
+        /// ON にするときは編集モードへも入る (トグルを押しても何も出ない状態を作らない)
+        /// </summary>
+        public void SetBoneVisible(bool value)
+        {
+            if (value)
+            {
+                AutoEditMode.Enter();
+            }
+            isBoneVisible = value;
+        }
+
         private static void EndGizmoDrag(GizmoRenderer gizmoRenderer)
         {
             if (gizmoRenderer != null)

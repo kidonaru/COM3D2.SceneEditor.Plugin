@@ -22,7 +22,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
         private static MTEP.TimelineTextManager textManager => MTEP.TimelineTextManager.instance;
 
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
@@ -144,7 +143,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // 値を書く直前に編集モードへ入る (編集モード外はレイヤーが毎フレーム再生値を書き戻すため)
             _view.BeginAutoEditMode();
 
             // 直前キーの参照と色ピッカーの同定に使うため、レイヤーの項目名と同じ名前を渡す

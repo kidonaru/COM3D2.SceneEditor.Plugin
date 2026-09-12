@@ -23,7 +23,6 @@ namespace COM3D2.SceneEditor.Plugin
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "サウンド";
 
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
         private static MTEP.BGMManager bgmManager => MTEP.BGMManager.instance;
         private static MTEP.TimelineData timeline => MTEP.TimelineManager.instance.timeline;

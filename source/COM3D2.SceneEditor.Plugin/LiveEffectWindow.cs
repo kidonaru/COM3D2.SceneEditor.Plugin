@@ -358,7 +358,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToLight != null && copyToLight != light)
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
                         copyToLight.CopyFrom(light);
                     }
@@ -525,7 +524,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToController != null && copyToController != controller)
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
                         copyToController.CopyFrom(controller);
                         copyToController.UpdateLasers();
@@ -601,7 +599,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToLaser != null && copyToLaser != laser)
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
                         copyToLaser.CopyFrom(laser);
                     }
@@ -786,7 +783,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToController != null && copyToController != controller)
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
                         copyToController.CopyFrom(controller);
                         copyToController.Refresh();
@@ -1035,7 +1031,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToPattern != null && copyToPattern != pattern)
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
                         copyToPattern.patternConfig.CopyFrom(patternConfig);
                         controller.ManualUpdate(psylliumPlayingTime);
@@ -1170,7 +1165,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToPattern != null && copyToPattern != pattern)
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
                         copyToPattern.transformConfig.CopyFrom(transformConfig);
                         copyToPattern.ClearTransformData();
@@ -1272,15 +1266,13 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         if (copyToArea != null && copyToArea != area)
                         {
-                            // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
-                            AutoEditMode.Enter();
+                                AutoEditMode.Enter();
                             copyToArea.CopyFrom(area, timelineConfig.psylliumAreaCopyIgnoreTransform);
                         }
                     }
 
                     if (view.DrawButton("全エリアにコピー", 120, 20))
                     {
-                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
                         AutoEditMode.Enter();
 
                         foreach (var a in areas)

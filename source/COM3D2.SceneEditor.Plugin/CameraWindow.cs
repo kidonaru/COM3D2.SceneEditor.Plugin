@@ -100,7 +100,6 @@ namespace COM3D2.SceneEditor.Plugin
         // ---- サブカメラタブ ----
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
         private static MTEP.SubCameraManager subCameraManager => MTEP.SubCameraManager.instance;
 
         private readonly GUIComboBox<MTEP.SubCameraData> _subCameraComboBox =
@@ -676,7 +675,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // 値を書く直前に編集モードへ入る (編集モード外はレイヤーが毎フレーム再生値を書き戻すため)
             _view.BeginAutoEditMode();
 
             _subCameraRowDrawers.Get(cameraData.name)

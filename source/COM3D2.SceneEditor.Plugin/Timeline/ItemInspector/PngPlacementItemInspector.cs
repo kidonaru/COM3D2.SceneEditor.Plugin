@@ -28,8 +28,6 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
         {
-            // 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、
-            // 値を書く直前に編集モードへ入る (BeginAutoEditMode)
             view.BeginAutoEditMode();
 
             foreach (var item in items)
