@@ -113,22 +113,24 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel(model.displayName, labelWidth, RowHeight,
                     onClickAction: toggle);
 
-                // 複製・削除はその場でモデル一覧を書き換えるため、編集モード中のみ操作させる
-                view.SetEnabled(view.focusedComboBox == null
-                    && MTEP.StudioHackManager.instance.isPoseEditing);
+                // 複製・削除はレイヤーの書き戻し対象なので、値を書く直前に編集モードへ入る
+                view.BeginAutoEditMode();
 
                 if (view.DrawButton("複製", ButtonWidth, RowHeight))
                 {
+                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                    AutoEditMode.Enter();
                     action = BGModelRowAction.Duplicate;
                 }
 
                 if (view.DrawButton("削除", ButtonWidth, RowHeight))
                 {
+                    AutoEditMode.Enter();
                     action = BGModelRowAction.Delete;
                 }
 
-                // 後続の Transform 行まで無効のままにしない
-                view.SetEnabled(view.focusedComboBox == null);
+                // 後続の Transform 行まで自動移行の対象にしない
+                view.EndAutoEditMode();
             }
             view.EndLayout();
 
@@ -149,16 +151,17 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel(model.displayName + " (モデルが見つかりません)",
                     labelWidth, RowHeight, Color.gray);
 
-                // 削除は一覧を書き換えるため、他の削除操作と同じく編集モード中のみ許す
-                view.SetEnabled(view.focusedComboBox == null
-                    && MTEP.StudioHackManager.instance.isPoseEditing);
+                // 削除は一覧を書き換えるため、他の削除操作と同じく値を書く直前に編集モードへ入る
+                view.BeginAutoEditMode();
 
                 if (view.DrawButton("削除", ButtonWidth, RowHeight))
                 {
+                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                    AutoEditMode.Enter();
                     action = BGModelRowAction.Delete;
                 }
 
-                view.SetEnabled(view.focusedComboBox == null);
+                view.EndAutoEditMode();
             }
             view.EndLayout();
 

@@ -99,7 +99,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             InitTexture();
 
-            BeginEditable(view);
+            view.BeginAutoEditMode();
 
             var basePos = view.currentPos;
 
@@ -119,22 +119,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos = basePos;
             view.currentPos.y += ImageSize;
 
-            EndEditable(view);
-        }
-
-        /// <summary>
-        /// 編集モード中だけ操作させる。編集モード外はレイヤーが毎フレーム再生値を
-        /// 書き戻すため、触れても即座に巻き戻る (旧レイヤー編集ウィンドウと同じ制約)
-        /// </summary>
-        private static void BeginEditable(GUIView view)
-        {
-            view.SetEnabled(view.focusedComboBox == null
-                && MTEP.StudioHackManager.instance.isPoseEditing);
-        }
-
-        private static void EndEditable(GUIView view)
-        {
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
         }
 
         /// <summary>
@@ -170,7 +155,7 @@ namespace COM3D2.SceneEditor.Plugin
             var vertical = eyesValue.y;
             var updateTransform = false;
 
-            BeginEditable(view);
+            view.BeginAutoEditMode();
 
             view.BeginHorizontal();
             {
@@ -184,7 +169,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            EndEditable(view);
+            view.EndAutoEditMode();
 
             if (updateTransform)
             {
@@ -226,7 +211,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _eyesPositionTex,
                 ImageSize,
                 ImageSize,
-                studioHackManager.isPoseEditing ? Color.white : Color.gray);
+                Color.white);
 
             HandleEyesDrag(view, maidCache, drawRect);
 
@@ -280,9 +265,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (e.type == EventType.MouseDown && e.button == 0 &&
                 drawRect.Contains(e.mousePosition) &&
-                view.focusedComboBox == null &&
-                studioHackManager.isPoseEditing)
+                view.focusedComboBox == null)
             {
+                // 位置図は GUIView のコールバックを通らないため、掴んだ時点で編集モードへ入る
+                AutoEditMode.Enter();
+
                 var pos = e.mousePosition - drawRect.position;
                 _draggingEyesType = FindNearestEyesType(maidCache, pos);
                 ApplyEyesDrag(maidCache, pos);

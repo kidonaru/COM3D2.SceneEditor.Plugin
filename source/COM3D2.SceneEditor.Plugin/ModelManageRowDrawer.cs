@@ -48,9 +48,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 複製・削除はその場でモデル一覧を書き換えるため、編集モード中のみ操作させる
-            view.SetEnabled(view.focusedComboBox == null
-                && MTEP.StudioHackManager.instance.isPoseEditing);
+            // 複製・削除・表示切替はレイヤーの書き戻し対象なので、値を書く直前に編集モードへ入る
+            view.BeginAutoEditMode();
 
             view.DrawToggle("表示", model.visible, 80, RowHeight, newValue =>
             {
@@ -71,11 +70,14 @@ namespace COM3D2.SceneEditor.Plugin
 
                 if (view.DrawButton("複製", 45, RowHeight))
                 {
+                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                    AutoEditMode.Enter();
                     timelineManager.CopyModel(model);
                 }
 
                 if (view.DrawButton("削除", 45, RowHeight))
                 {
+                    AutoEditMode.Enter();
                     modelManager.DeleteModel(model);
                 }
             }
@@ -114,8 +116,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            // 後続の Transform 行まで無効のままにしない
-            view.SetEnabled(view.focusedComboBox == null);
+            // 後続の Transform 行まで自動移行の対象にしない
+            view.EndAutoEditMode();
         }
 
         /// <summary>プラグイン名から選択肢の添字を引く。未設定・未知の名前は先頭 (Default) 扱い</summary>
