@@ -28,15 +28,9 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
         {
-            // 編集していない間はレイヤーが毎フレーム再生値を書き戻すため、
-            // 編集モードでないときは触らせない (他の演出系レイヤーと同じ制約)
-            if (!MTEP.StudioHackManager.instance.isPoseEditing)
-            {
-                view.DrawLabel("編集モード中のみPNG配置を操作できます", -1, RowHeight,
-                    textColor: Color.yellow);
-                _transformRowDrawers.PruneExcept(items);
-                return;
-            }
+            // 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、
+            // 値を書く直前に編集モードへ入る (BeginAutoEditMode)
+            view.BeginAutoEditMode();
 
             foreach (var item in items)
             {
@@ -64,6 +58,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _transformRowDrawers.PruneExcept(items);
+
+            view.EndAutoEditMode();
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)

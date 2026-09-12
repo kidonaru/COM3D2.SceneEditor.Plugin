@@ -25,16 +25,9 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
         {
-            // 編集していない間はレイヤーが毎フレーム再生値を書き戻すため、
-            // 編集モードでないときは触らせない (レイヤー UI と同じ制約)
-            if (!MTEP.StudioHackManager.instance.isPoseEditing)
-            {
-                view.DrawLabel("編集モード中のみサブカメラを操作できます", -1, RowHeight,
-                    textColor: Color.yellow);
-                // 行を描かない間も選択の追従は続ける (外れた項目のドロワーを溜め込まない)
-                _cameraRowDrawers.PruneExcept(items);
-                return;
-            }
+            // 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、
+            // 値を書く直前に編集モードへ入る (BeginAutoEditMode)
+            view.BeginAutoEditMode();
 
             foreach (var item in items)
             {
@@ -54,6 +47,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _cameraRowDrawers.PruneExcept(items);
+
+            view.EndAutoEditMode();
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)

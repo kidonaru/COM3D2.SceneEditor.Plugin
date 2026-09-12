@@ -27,17 +27,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 編集していない間はレイヤーが毎フレーム再生値を書き戻すため、
-            // 編集モードでないときは触らせない (サウンドウィンドウと同じ制約)
-            if (!MTEP.StudioHackManager.instance.isPoseEditing)
-            {
-                view.DrawLabel("編集モード中のみ効果音を操作できます", -1, RowHeight,
-                    textColor: Color.yellow);
-                return;
-            }
+            // 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、
+            // 値を書く直前に編集モードへ入る (BeginAutoEditMode)
+            view.BeginAutoEditMode();
 
             // 項目は 1 つだけなので、選択内容によらず SE の行を出す
             _seRowDrawer.Draw(view, timeline, RowHeight);
+
+            view.EndAutoEditMode();
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)
