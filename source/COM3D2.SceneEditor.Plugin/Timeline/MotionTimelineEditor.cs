@@ -68,9 +68,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>サムネ用にゲーム画面を保存する (実体は ThumbnailCapture.Save)</summary>
-        public void SaveScreenShot(string filePath, int width, int height)
+        public bool SaveScreenShot(string filePath, int width, int height)
         {
-            SceneEditor.Plugin.ThumbnailCapture.Save(filePath, width, height);
+            return SceneEditor.Plugin.ThumbnailCapture.Save(filePath, width, height);
         }
     }
 }

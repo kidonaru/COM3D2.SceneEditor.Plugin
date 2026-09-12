@@ -244,6 +244,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
+            // サムネは保存時に未作成の場合しか撮られないので、撮り直しはここから行う
+            if (view.DrawButton("サムネイル更新", 130, ROW_HEIGHT) && timelineManager.SaveThumbnail())
+            {
+                // 撮り直したサムネを一覧へ反映する
+                TimelineLoadManager.Reload();
+            }
+
             if (view.DrawButton("個別設定を初期化", 130, ROW_HEIGHT))
             {
                 MTEUtils.ShowConfirmDialog("個別設定を初期化しますか？", () =>

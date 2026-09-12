@@ -505,17 +505,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Refresh();
         }
 
-        public void SaveThumbnail()
+        /// <returns>更新できたら true</returns>
+        public bool SaveThumbnail()
         {
             if (!IsValidData())
             {
                 MTEUtils.ShowDialog(errorMessage);
-                return;
+                return false;
             }
 
-            MTE.instance.SaveScreenShot(timeline.thumPath, config.thumWidth, config.thumHeight);
+            if (!MTE.instance.SaveScreenShot(timeline.thumPath, config.thumWidth, config.thumHeight))
+            {
+                MTEUtils.ShowDialog("サムネイルの更新に失敗しました");
+                return false;
+            }
 
             MTEUtils.ShowDialog("サムネイルを更新しました");
+            return true;
         }
 
         public CacheBoneDataArray GetCacheBoneDataArray()
