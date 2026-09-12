@@ -343,6 +343,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         label = info.name,
                         labelWidth = CustomLabelWidth,
+                        dragSensitivity = MTEP.Extensions.SliderDragSensitivity(info.min, info.max, isInt: true),
                         width = CustomSliderWidth,
                         fieldType = FloatFieldType.Int,
                         min = info.min,
