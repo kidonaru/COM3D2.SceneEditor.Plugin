@@ -1,0 +1,40 @@
+{
+  "source_sha256": "fbae0e815ec0db844946bf7dfd25d51868e4a34d636ff48c81fadc3b99ad5bef",
+  "class_name": "StageLightTimelineLayer",
+  "slot_no": 0,
+  "range": [1153, 1211],
+  "reference": "仮装狂騒曲 篠澤広2.avi",
+  "video_offset_seconds": 0.17,
+  "lights": {
+    "StageLight (1, 3)": {
+      "position": [0, 10, 5],
+      "rotation_start": [103, 90, 0], "rotation_end": [76, 90, 0],
+      "color": [0.18, 0.95, 1],
+      "alpha": [[1153, 0.75], [1156, 0.9], [1162, 0.6], [1168, 0.25], [1174, 0], [1211, 0]]
+    },
+    "StageLight (1, 2)": {
+      "position": [-4, 10, 5],
+      "rotation_start": [82, 90, 0], "rotation_end": [110, 90, 0],
+      "color": [1, 0.25, 0.7],
+      "alpha": [[1153, 0.1], [1159, 0.2], [1168, 0.55], [1177, 0.95], [1183, 0.7], [1192, 0.3], [1201, 0], [1211, 0]]
+    },
+    "StageLight (1, 6)": {
+      "position": [3, 10, 8],
+      "rotation_start": [77, 90, 0], "rotation_end": [103, 90, 0],
+      "color": [1, 0.25, 0.7],
+      "alpha": [[1153, 0], [1165, 0], [1171, 0.2], [1177, 0.65], [1186, 0.9], [1192, 0.55], [1201, 0.15], [1207, 0], [1211, 0]]
+    },
+    "StageLight (1, 9)": {
+      "position": [0, 10, 8],
+      "rotation_start": [110, 90, 0], "rotation_end": [86, 90, 0],
+      "color": [0.18, 0.95, 1],
+      "alpha": [[1153, 0], [1195, 0], [1198, 0.15], [1201, 0.45], [1207, 0.8], [1211, 0.65]]
+    },
+    "StageLight (3, 0)": {
+      "position": [-6, 10, 10],
+      "rotation_start": [84, 90, 0], "rotation_end": [102, 90, 0],
+      "color": [0.18, 0.95, 1],
+      "alpha": [[1153, 0.2], [1159, 0.35], [1165, 0.2], [1174, 0], [1211, 0]]
+    }
+  }
+}

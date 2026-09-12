@@ -25,7 +25,7 @@ python -m unittest discover -s tools/timeline/scripts -p 'test_*.py'
 
 ## シーンと作業履歴
 
-- [仮装狂騒曲 篠澤広](scenes/kasou-hiro/README.md): 床ライトの現行スクリプト、設定、動画比較記録、参照画像。
+- [仮装狂騒曲 篠澤広](scenes/kasou-hiro/README.md): 床ライトの現行スクリプト、設定、動画比較記録、参照画像、ステージライトの再現手順。
 - [archive](archive/README.md): 旧 `beam-XXX-work` 一式と撤回した床ライト設定。現行ツールとして実行しない。
 - [work](work/README.md): 生成XML・検証結果・一時作業の置き場。通常のソース検索とGit管理から除外する。
 

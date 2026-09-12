@@ -29,5 +29,8 @@ python tools/timeline/scenes/kasou-hiro/scripts/correct-floor-long-fade.py --hel
 | --- | --- |
 | 円錐化で細く見えるライトを太くする（spotAngle 倍率・coreRadius 下限） | [thicken-stage-light.py](scripts/thicken-stage-light.py) |
 | 133 への反映記録 | [stage-light-thicken-133.md](docs/stage-light-thicken-133.md) |
+| 動画から点灯・減光・向きを再現する手順（955〜1027F） | [再現方法](docs/stage-light-video-reproduction.md) |
+| 同区間の確定色・ライト別キーフレーム表 | [設定JSON](plans/stage-light-video-955-1027.json) |
+| 1153〜1211Fの動画再現・終端補間の実機検証 | [記録](docs/stage-light-video-1153-1211.md)、[設定JSON](plans/stage-light-video-1153-1211.json) |
 
 生成物・試作は `tools/timeline/work/kasou-hiro/<task-id>/` に置く。
