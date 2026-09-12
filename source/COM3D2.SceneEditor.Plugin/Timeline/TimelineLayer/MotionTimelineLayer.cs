@@ -303,7 +303,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     ApplyGroundingMotion(motion);
                     break;
                 case TransformType.FingerBlend:
-                    ApplyFingerBlendMotion(motion);
+                    ApplyFingerBlendMotion(motion, t);
                     break;
             }
         }
@@ -408,7 +408,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             holdParams.footGroundAngle = start.footGroundAngle;
         }
 
-        private void ApplyFingerBlendMotion(MotionData motion)
+        /// <summary>補間結果の書き込み先。毎フレームの生成を避けるため使い回す</summary>
+        private TransformDataFingerBlend _fingerBlendWork = null;
+
+        private void ApplyFingerBlendMotion(MotionData motion, float t)
         {
             // 指ブレンドはポーズ編集中のみ反映
             if (!studioHackManager.isPoseEditing || !timeline.fingerBlendEnabled)
@@ -417,8 +420,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             var blendType = ConvertToFingerBlendType(motion.name);
-            var trans = motion.start as TransformDataFingerBlend;
-            trans.ApplyUnit(GetFingerBlendUnit(blendType));
+            var start = motion.start as TransformDataFingerBlend;
+            var end = motion.end as TransformDataFingerBlend;
+
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
+
+            if (_fingerBlendWork == null)
+            {
+                _fingerBlendWork = new TransformDataFingerBlend();
+                _fingerBlendWork.Initialize(start.name);
+            }
+
+            TransformDataFingerBlend.Interpolate(start, end, t0, t1, t, _fingerBlendWork);
+            _fingerBlendWork.ApplyUnit(GetFingerBlendUnit(blendType));
         }
 
         public override void OnMaidChanged(Maid maid)

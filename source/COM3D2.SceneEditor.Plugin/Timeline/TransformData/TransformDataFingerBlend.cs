@@ -31,6 +31,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override int valueCount => 17;
 
+        // 開き/閉じと各指のロック値はキー間でエルミート補間する。
+        // ロック有効フラグ (bool) は補間できないので対象から外し、開始キーの値をステップ適用する
+        public override bool hasTangent => true;
+
+        // UpdateTangent (キー編集時のみ) から呼ばれるだけなので都度組み立てる
+        public override ValueData[] tangentValues
+        {
+            get
+            {
+                var list = new List<ValueData>(values.Length);
+                for (var i = 0; i < values.Length; i++)
+                {
+                    if (!IsLockEnabledIndex(i))
+                    {
+                        list.Add(values[i]);
+                    }
+                }
+                return list.ToArray();
+            }
+        }
+
+        private static bool IsLockEnabledIndex(int index)
+        {
+            return index >= (int)Index.LockEnabled0 && index <= (int)Index.LockEnabled4;
+        }
+
         public TransformDataFingerBlend()
         {
         }
@@ -379,6 +405,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             unit.valueOpen = ValueOpen;
             unit.valueFist = ValueFist;
             unit.Apply();
+        }
+
+        /// <summary>
+        /// start と end の間を時刻 t で補間した値を result へ書く。
+        /// float 値はエルミート補間、ロック有効フラグは start の値をそのまま使う。
+        /// 毎フレーム呼ばれるため result は呼び出し側で使い回す
+        /// </summary>
+        public static void Interpolate(
+            TransformDataFingerBlend start,
+            TransformDataFingerBlend end,
+            float t0,
+            float t1,
+            float t,
+            TransformDataFingerBlend result)
+        {
+            for (var i = 0; i < start.values.Length; i++)
+            {
+                if (IsLockEnabledIndex(i))
+                {
+                    result.values[i].boolValue = start.values[i].boolValue;
+                    continue;
+                }
+
+                result.values[i].value = PluginUtils.HermiteValue(
+                    t0, t1, start.values[i], end.values[i], t);
+            }
         }
 
         /// <summary>SE の指ブレンドユニットから現在値を読む (キーフレーム記録用)</summary>
