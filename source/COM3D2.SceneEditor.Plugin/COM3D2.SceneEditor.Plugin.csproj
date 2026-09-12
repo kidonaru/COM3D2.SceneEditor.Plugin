@@ -309,6 +309,7 @@
     <Compile Include="SubCameraRowDrawer.cs" />
     <Compile Include="MaidFollowRowDrawer.cs" />
     <Compile Include="LightRowDrawer.cs" />
+    <Compile Include="LightTarget.cs" />
     <Compile Include="AngleUtils.cs" />
     <Compile Include="BackgroundRowDrawer.cs" />
     <Compile Include="VoiceRowDrawer.cs" />

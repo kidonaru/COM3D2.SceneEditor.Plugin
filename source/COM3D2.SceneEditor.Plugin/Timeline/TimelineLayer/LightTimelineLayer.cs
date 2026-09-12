@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -123,6 +124,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             light.spotAngle = start.spotAngle;
             light.shadowStrength = start.shadowStrength;
             light.shadowBias = start.shadowBias;
+
+            // 照射対象は補間しない。メインライト (index 0) はゲーム側の恒久オブジェクトのため触らない
+            if (stat.index > 0)
+            {
+                light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(start.lightTarget));
+            }
 
             lightManager.ApplyLight(stat);
         }
@@ -258,6 +265,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.shadowStrength = light.shadowStrength;
                 trans.shadowBias = light.shadowBias;
                 trans.maidSlotNo = followLight.maidSlotNo;
+                // 本プラグインが書いたマスク以外は判別できないため「全て」としてキー化する。
+                // メインライト (index 0) は適用側でも無視するため常に「全て」
+                trans.lightTarget = stat.index > 0
+                    ? (int)LightTarget.FromCullingMask(light.cullingMask)
+                    : (int)LightTargetMode.All;
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);

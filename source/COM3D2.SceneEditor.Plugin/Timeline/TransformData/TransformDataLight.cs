@@ -24,12 +24,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ShadowStrength = 14,
             ShadowBias = 15,
             MaidSlotNo = 16,
-            Visible = 17
+            Visible = 17,
+            LightTarget = 18
         }
 
         public override TransformType type => TransformType.Light;
 
-        public override int valueCount => 18;
+        public override int valueCount => 19;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -116,6 +117,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     defaultValue = -1f,
                 }
             },
+            {
+                "lightTarget", new CustomValueInfo
+                {
+                    index = (int)Index.LightTarget,
+                    name = "対象",
+                    // 0=全て / 1=キャラのみ / 2=背景のみ (LightTargetMode)。実体は int なので丸めて渡す
+                    min = 0f,
+                    max = 2f,
+                    step = 1f,
+                    defaultValue = 0f,
+                }
+            },
         };
 
         private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
@@ -138,6 +151,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData shadowStrengthValue => values[(int)Index.ShadowStrength];
         public ValueData shadowBiasValue => values[(int)Index.ShadowBias];
         public ValueData maidSlotNoValue => values[(int)Index.MaidSlotNo];
+        public ValueData lightTargetValue => values[(int)Index.LightTarget];
 
         // プロパティアクセサ
         public float range
@@ -174,6 +188,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             get => maidSlotNoValue.intValue;
             set => maidSlotNoValue.intValue = value;
+        }
+
+        public int lightTarget
+        {
+            get => lightTargetValue.intValue;
+            set => lightTargetValue.intValue = value;
         }
     }
 }

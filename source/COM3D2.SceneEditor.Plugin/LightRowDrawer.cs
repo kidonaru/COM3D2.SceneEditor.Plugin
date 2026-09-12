@@ -126,6 +126,16 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
+            // 照射対象。CharaDirectionalLight と同じ cullingMask の切替で、キャラ用/背景用のライトを分ける
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("対象", labelWidth, rowHeight);
+                DrawLightTargetButton(view, rowHeight, light, LightTargetMode.All, "全て");
+                DrawLightTargetButton(view, rowHeight, light, LightTargetMode.Character, "キャラ");
+                DrawLightTargetButton(view, rowHeight, light, LightTargetMode.Background, "背景");
+            }
+            view.EndLayout();
+
             view.DrawToggle("有効", light.enabled, -1, rowHeight,
                 value =>
                 {
@@ -293,6 +303,19 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 RecordLightEdit("種別");
                 lightManager.SetLightType(light, type);
+            }
+        }
+
+        /// <summary>照射対象切替ボタン 1 つ。種別ボタンと同じ見た目で選択中を示す</summary>
+        private static void DrawLightTargetButton(
+            GUIView view, float rowHeight, Light light, LightTargetMode mode, string label)
+        {
+            var isCurrent = LightTarget.FromCullingMask(light.cullingMask) == mode;
+            if (view.DrawButton(label, TypeButtonWidth, rowHeight, true,
+                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            {
+                RecordLightEdit("対象");
+                light.cullingMask = LightTarget.ToCullingMask(mode);
             }
         }
 

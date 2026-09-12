@@ -81,6 +81,10 @@ namespace COM3D2.SceneEditor.Plugin
         public float range;
         public float spotAngle;
         public bool enabled = true;
+
+        /// <summary>照射対象 (LightTargetMode の数値: 0=全て / 1=キャラのみ / 2=背景のみ)。旧プリセットは 0</summary>
+        [XmlAttribute]
+        public int target = (int)LightTargetMode.All;
     }
 
     /// <summary>ライトの状態。メインライトと追加ライト一式</summary>

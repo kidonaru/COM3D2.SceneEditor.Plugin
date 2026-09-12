@@ -52,6 +52,8 @@ namespace COM3D2.SceneEditor.Plugin
                     range = light.range,
                     spotAngle = light.spotAngle,
                     enabled = light.enabled,
+                    // 本プラグインが書いたマスク以外は判別できないため「全て」として記録する
+                    target = (int)LightTarget.FromCullingMask(light.cullingMask),
                 });
             }
 
@@ -124,6 +126,7 @@ namespace COM3D2.SceneEditor.Plugin
             light.range = lightState.range;
             light.spotAngle = lightState.spotAngle;
             light.enabled = lightState.enabled;
+            light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(lightState.target));
         }
 
         public void AddBones(IEnumerable<Transform> targetBones)
@@ -163,7 +166,8 @@ namespace COM3D2.SceneEditor.Plugin
                     || a.color != b.color
                     || !Mathf.Approximately(a.intensity, b.intensity)
                     || !Mathf.Approximately(a.range, b.range)
-                    || !Mathf.Approximately(a.spotAngle, b.spotAngle))
+                    || !Mathf.Approximately(a.spotAngle, b.spotAngle)
+                    || a.target != b.target)
                 {
                     return false;
                 }
