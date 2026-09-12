@@ -81,6 +81,114 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.timelineControlVisible = value;
         }
 
+        public override void Update()
+        {
+            base.Update();
+
+            if (!isWndVisible)
+            {
+                return;
+            }
+
+            UpdateKeyInput();
+        }
+
+        /// <summary>
+        /// タイムライン操作のキーバインド。
+        /// 有効/無効はこのウィンドウ自身の表示状態に従う (TimelineWindow の表示状態とは独立)。
+        /// テキスト入力中は誤発動を防ぐため無視する
+        /// </summary>
+        private void UpdateKeyInput()
+        {
+            if (GUIUtility.keyboardControl != 0)
+            {
+                return;
+            }
+
+            if (studioHack == null || maidManager.maid == null ||
+                !timelineManager.IsValidData())
+            {
+                return;
+            }
+
+            var tc = timelineConfig;
+
+            if (tc.GetKeyDown(MTEP.KeyBindType.AddKeyFrame))
+            {
+                timelineManager.AddKeyFrameDiff();
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.AddKeyFrameAll))
+            {
+                currentLayer.AddKeyFrameAll();
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.RemoveKeyFrame))
+            {
+                timelineManager.RemoveSelectedFrame();
+            }
+            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.PrevFrame))
+            {
+                SeekFrameWithScroll(timelineManager.currentFrameNo - 1);
+            }
+            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.NextFrame))
+            {
+                SeekFrameWithScroll(timelineManager.currentFrameNo + 1);
+            }
+            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.PrevKeyFrame))
+            {
+                var prevFrame = timelineManager.GetPrevFrame(timelineManager.currentFrameNo);
+                if (prevFrame != null)
+                {
+                    SeekFrameWithScroll(prevFrame.frameNo);
+                }
+            }
+            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.NextKeyFrame))
+            {
+                var nextFrame = timelineManager.GetNextFrame(timelineManager.currentFrameNo);
+                if (nextFrame != null)
+                {
+                    SeekFrameWithScroll(nextFrame.frameNo);
+                }
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.Play))
+            {
+                if (currentLayer.isAnmPlaying)
+                {
+                    timelineManager.Pause();
+                }
+                else
+                {
+                    timelineManager.Play();
+                }
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.Copy))
+            {
+                timelineManager.CopyFramesToClipboard();
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.Paste))
+            {
+                timelineManager.PasteFramesFromClipboard(false);
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.FlipPaste))
+            {
+                timelineManager.PasteFramesFromClipboard(true);
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.PoseCopy))
+            {
+                timelineManager.CopyPoseToClipboard();
+            }
+            if (tc.GetKeyDown(MTEP.KeyBindType.PosePaste))
+            {
+                timelineManager.PastePoseFromClipboard();
+            }
+        }
+
+        /// <summary>フレーム移動し、タイムラインの表示位置も追従させる</summary>
+        private static void SeekFrameWithScroll(int frameNo)
+        {
+            timelineManager.SeekCurrentFrame(frameNo);
+            TimelineWindow.instance.FixScrollPosition();
+        }
+
         private enum FileMenuType
         {
             New,
@@ -456,8 +564,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (newFrameNo != timelineManager.currentFrameNo)
             {
-                timelineManager.SeekCurrentFrame(newFrameNo);
-                TimelineWindow.instance.FixScrollPosition();
+                SeekFrameWithScroll(newFrameNo);
             }
 
             WrapIfNeeded(view, 60 + GUIView.defaultMargin + 50 + GUIView.ResetButtonWidth);

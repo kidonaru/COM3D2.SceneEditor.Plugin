@@ -167,7 +167,11 @@ namespace COM3D2.SceneEditor.Plugin
             showArrow = false,
         };
 
-        private bool isMultiSelect = false;
+        /// <summary>
+        /// キー入力処理をタイムライン操作ウィンドウ側に移したため、キャッシュせず都度参照する。
+        /// 旧実装と異なりテキスト入力中も実キー状態を反映する
+        /// </summary>
+        private bool isMultiSelect => timelineConfig.GetKey(MTEP.KeyBindType.MultiSelect);
 
         private Texture2D texWhite => GUIView.texWhite;
         private Texture2D texTimelineBG = null;
@@ -379,102 +383,6 @@ namespace COM3D2.SceneEditor.Plugin
                 requestUpdateTexture = false;
                 UpdateTexture();
             }
-
-            UpdateKeyInput();
-        }
-
-        /// <summary>
-        /// タイムライン操作のキーバインド (MTE 本体 Update から移植)。
-        /// テキスト入力中は誤発動を防ぐため無視する
-        /// </summary>
-        private void UpdateKeyInput()
-        {
-            if (GUIUtility.keyboardControl != 0)
-            {
-                return;
-            }
-
-            if (studioHack == null || maidManager.maid == null ||
-                !timelineManager.IsValidData())
-            {
-                return;
-            }
-
-            var tc = timelineConfig;
-
-            if (tc.GetKeyDown(MTEP.KeyBindType.AddKeyFrame))
-            {
-                timelineManager.AddKeyFrameDiff();
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.AddKeyFrameAll))
-            {
-                currentLayer.AddKeyFrameAll();
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.RemoveKeyFrame))
-            {
-                timelineManager.RemoveSelectedFrame();
-            }
-            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.PrevFrame))
-            {
-                timelineManager.SeekCurrentFrame(timelineManager.currentFrameNo - 1);
-                FixScrollPosition();
-            }
-            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.NextFrame))
-            {
-                timelineManager.SeekCurrentFrame(timelineManager.currentFrameNo + 1);
-                FixScrollPosition();
-            }
-            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.PrevKeyFrame))
-            {
-                var prevFrame = timelineManager.GetPrevFrame(timelineManager.currentFrameNo);
-                if (prevFrame != null)
-                {
-                    timelineManager.SeekCurrentFrame(prevFrame.frameNo);
-                    FixScrollPosition();
-                }
-            }
-            if (tc.GetKeyDownRepeat(MTEP.KeyBindType.NextKeyFrame))
-            {
-                var nextFrame = timelineManager.GetNextFrame(timelineManager.currentFrameNo);
-                if (nextFrame != null)
-                {
-                    timelineManager.SeekCurrentFrame(nextFrame.frameNo);
-                    FixScrollPosition();
-                }
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.Play))
-            {
-                if (currentLayer.isAnmPlaying)
-                {
-                    timelineManager.Pause();
-                }
-                else
-                {
-                    timelineManager.Play();
-                }
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.Copy))
-            {
-                timelineManager.CopyFramesToClipboard();
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.Paste))
-            {
-                timelineManager.PasteFramesFromClipboard(false);
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.FlipPaste))
-            {
-                timelineManager.PasteFramesFromClipboard(true);
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.PoseCopy))
-            {
-                timelineManager.CopyPoseToClipboard();
-            }
-            if (tc.GetKeyDown(MTEP.KeyBindType.PosePaste))
-            {
-                timelineManager.PastePoseFromClipboard();
-            }
-
-            isMultiSelect = tc.GetKey(MTEP.KeyBindType.MultiSelect);
         }
 
         private void UpdateTexture()
