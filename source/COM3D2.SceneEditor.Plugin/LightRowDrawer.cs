@@ -42,6 +42,19 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>追従メイドのコンボの幅</summary>
         private const float FollowComboWidth = 120f;
 
+        /// <summary>照射対象のコンボの幅</summary>
+        private const float LightTargetComboWidth = 120f;
+
+        /// <summary>照射対象のコンボ。開閉状態を持つため追従コンボと同じくインスタンスごとに分ける</summary>
+        private readonly GUIComboBox<LightTargetMode> _lightTargetComboBox =
+            new GUIComboBox<LightTargetMode>
+            {
+                items = Enum.GetValues(typeof(LightTargetMode)).Cast<LightTargetMode>().ToList(),
+                getName = (mode, _) => GetLightTargetName(mode),
+                contentSize = new Vector2(120, 100),
+                showArrow = false,
+            };
+
         /// <summary>追従先メイドのコンボ</summary>
         private readonly GUIComboBox<MTEP.MaidCache> _followMaidComboBox =
             new GUIComboBox<MTEP.MaidCache>
@@ -126,15 +139,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            // 照射対象。CharaDirectionalLight と同じ cullingMask の切替で、キャラ用/背景用のライトを分ける
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("対象", labelWidth, rowHeight);
-                DrawLightTargetButton(view, rowHeight, light, LightTargetMode.All, "全て");
-                DrawLightTargetButton(view, rowHeight, light, LightTargetMode.Character, "キャラ");
-                DrawLightTargetButton(view, rowHeight, light, LightTargetMode.Background, "背景");
-            }
-            view.EndLayout();
+            DrawLightTargetRow(view, labelWidth, rowHeight, light);
 
             view.DrawToggle("有効", light.enabled, -1, rowHeight,
                 value =>
@@ -306,16 +311,39 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>照射対象切替ボタン 1 つ。種別ボタンと同じ見た目で選択中を示す</summary>
-        private static void DrawLightTargetButton(
-            GUIView view, float rowHeight, Light light, LightTargetMode mode, string label)
+        /// <summary>
+        /// 照射対象のドロップダウン。
+        /// CharaDirectionalLight と同じ cullingMask の切替で、キャラ用/背景用のライトを分ける
+        /// </summary>
+        private void DrawLightTargetRow(GUIView view, float labelWidth, float rowHeight, Light light)
         {
-            var isCurrent = LightTarget.FromCullingMask(light.cullingMask) == mode;
-            if (view.DrawButton(label, TypeButtonWidth, rowHeight, true,
-                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            view.BeginHorizontal();
             {
-                RecordLightEdit("対象");
-                light.cullingMask = LightTarget.ToCullingMask(mode);
+                view.DrawLabel("対象", labelWidth, rowHeight);
+
+                _lightTargetComboBox.buttonSize = new Vector2(LightTargetComboWidth, rowHeight);
+                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す
+                _lightTargetComboBox.currentItem = LightTarget.FromCullingMask(light.cullingMask);
+                _lightTargetComboBox.onSelected = (mode, _) =>
+                {
+                    RecordLightEdit("対象");
+                    light.cullingMask = LightTarget.ToCullingMask(mode);
+                };
+                _lightTargetComboBox.DrawButton(view);
+            }
+            view.EndLayout();
+        }
+
+        private static string GetLightTargetName(LightTargetMode mode)
+        {
+            switch (mode)
+            {
+                case LightTargetMode.Character:
+                    return "キャラのみ";
+                case LightTargetMode.Background:
+                    return "背景のみ";
+                default:
+                    return "全て";
             }
         }
 

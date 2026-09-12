@@ -20,7 +20,7 @@
 - タイムライン: `TransformDataLight` の末尾に `lightTarget`（index 18）を追加。補間せず開始キーの値を適用。メインライト（`stat.index == 0`）には適用しない
 - プリセット XML: `ScenePresetAdditionalLight.target`（XmlAttribute、既定 0）。旧プリセットは要素が無いので 0 = All
 - 履歴（`LightSnapshot`）: `target` を比較・復元に含める
-- UI（`LightRowDrawer.DrawAdditionalLightParams`）: 「種別」行の直下に「対象」行を置き、種別ボタンと同じ 3 ボタン（全て / キャラ / 背景）で切替。履歴ラベルは「対象」
+- UI（`LightRowDrawer.DrawAdditionalLightParams`）: 「種別」行の直下に「対象」行を置き、ドロップダウン（全て / キャラのみ / 背景のみ）で切替。履歴ラベルは「対象」（当初は 3 ボタン案だったがタブ状で分かりにくいためドロップダウンへ変更）
 - キーフレーム詳細（Inspector）は `CustomValueInfo`（0〜2 の int スライダー、名前「対象」）で編集できる。ポストエフェクトの `maskMode` と同じ扱い
 
 ## Global Constraints
