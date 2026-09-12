@@ -1087,7 +1087,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 yield return new WaitForSeconds(0.5f);
 
-                renderTexture = RenderTexture.GetTemporary(renderWidth, renderHeight, 24);
+                // RT 描画には QualitySettings の MSAA が反映されないため、画面と同じ段数を明示する
+                renderTexture = RenderTexture.GetTemporary(
+                    renderWidth, renderHeight, 24,
+                    RenderTextureFormat.Default, RenderTextureReadWrite.Default,
+                    Mathf.Max(1, QualitySettings.antiAliasing));
                 outputTexture = new Texture2D(imageWidth, imageHeight, TextureFormat.RGB24, false);
 
                 while (frameTime <= maxFrameTime)

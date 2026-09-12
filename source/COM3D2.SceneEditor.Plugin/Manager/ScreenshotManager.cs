@@ -95,7 +95,11 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 int captureWidth, captureHeight;
                 GetCaptureSize(out captureWidth, out captureHeight);
-                renderTexture = RenderTexture.GetTemporary(captureWidth, captureHeight, 24);
+                // RT 描画には QualitySettings の MSAA が反映されないため、画面と同じ段数を明示する
+                renderTexture = RenderTexture.GetTemporary(
+                    captureWidth, captureHeight, 24,
+                    RenderTextureFormat.Default, RenderTextureReadWrite.Default,
+                    Mathf.Max(1, QualitySettings.antiAliasing));
                 HideOverlays(hiddenOverlays);
 
                 camera.targetTexture = renderTexture;
