@@ -519,7 +519,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 DeleteStaleSidecars(xmlPath, oldData, data);
 
-                SaveThumbnail(GetThumFilePath(xmlPath));
+                ThumbnailCapture.Save(GetThumFilePath(xmlPath), THUM_WIDTH, THUM_HEIGHT);
 
                 MTEUtils.Log("プリセットを保存しました: {0}", GetPresetKey(xmlPath));
                 // 保存したプリセットが以後の「読み込み中」扱いになる
@@ -2795,49 +2795,6 @@ namespace COM3D2.SceneEditor.Plugin
             FaceEditManager.instance.GetStore(maid).SetNames(savedValues.Keys);
 
             MaidFaceMorphController.SetMabataki(maid, state.mabataki);
-        }
-
-        /// <summary>
-        /// メインカメラを一時 RenderTexture へ描画してサムネを保存する。
-        /// 画面キャプチャと違いプラグイン UI や NGUI が写り込まず、最大化中でも使える
-        /// </summary>
-        private static void SaveThumbnail(string filePath)
-        {
-            var mainCamera = GameMain.Instance.MainCamera;
-            var camera = mainCamera != null ? mainCamera.camera : null;
-            if (camera == null)
-            {
-                return;
-            }
-
-            var renderTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 24);
-            var savedTargetTexture = camera.targetTexture;
-            var savedActive = RenderTexture.active;
-            Texture2D texture = null;
-            try
-            {
-                camera.targetTexture = renderTexture;
-                camera.Render();
-
-                RenderTexture.active = renderTexture;
-                texture = new Texture2D(renderTexture.width, renderTexture.height,
-                    TextureFormat.RGB24, false);
-                texture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-                texture.Apply();
-
-                texture.ResizeTexture(THUM_WIDTH, THUM_HEIGHT);
-                UTY.SaveImage(texture, filePath);
-            }
-            finally
-            {
-                camera.targetTexture = savedTargetTexture;
-                RenderTexture.active = savedActive;
-                RenderTexture.ReleaseTemporary(renderTexture);
-                if (texture != null)
-                {
-                    UnityEngine.Object.Destroy(texture);
-                }
-            }
         }
 
         /// <summary>拡張子以外にドットを含むファイル名はサイドカーとみなす。
