@@ -286,13 +286,6 @@ namespace COM3D2.SceneEditor.Plugin
                             "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
                         holdController.SetHold(maid, holdType, on);
                     });
-
-                // IK 固定はボーン編集（編集モード）中しか効かないため、モード外なら注意を出す
-                // (MaidIKWindow と同じ案内)
-                if (!maidManager.isEditMode)
-                {
-                    _view.DrawLabel("※編集モードで有効", -1, RowHeight, textColor: Color.yellow);
-                }
             }
             _view.EndLayout();
         }

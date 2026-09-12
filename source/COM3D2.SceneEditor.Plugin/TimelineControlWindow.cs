@@ -669,14 +669,18 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineConfig.dirty = true;
                 });
 
-                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.FovLock, "視野角固定", timelineConfig.isFixedFoV, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.FovLock, "視野角固定", timelineConfig.isFixedFoV, !currentLayer.isCameraLayer, newValue =>
                 {
+                    // 編集中のカメラ固定なので、切り替えたら編集モードへ入る
+                    AutoEditMode.Enter();
                     timelineConfig.isFixedFoV = newValue;
                     timelineConfig.dirty = true;
                 });
 
-                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.FocusLock, "フォーカス固定", timelineConfig.isFixedFocus, !currentLayer.isCameraLayer && studioHackManager.isPoseEditing, newValue =>
+                cameraUpdated |= DrawIconToggle(view, ToolbarIcons.Kind.FocusLock, "フォーカス固定", timelineConfig.isFixedFocus, !currentLayer.isCameraLayer, newValue =>
                 {
+                    // 編集中のカメラ固定なので、切り替えたら編集モードへ入る
+                    AutoEditMode.Enter();
                     timelineConfig.isFixedFocus = newValue;
                     timelineConfig.dirty = true;
                 });

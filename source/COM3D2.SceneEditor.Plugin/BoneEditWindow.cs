@@ -348,7 +348,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// タブの上の共通ヘッダー。
-        /// メニューバーと同じボーン表示トグル (編集モード中のみ操作できる) と、
+        /// メニューバーと同じボーン表示トグル (ON にすると編集モードへ入る) と、
         /// どのタブからでも押せるプリセット保存ボタンを並べる
         /// </summary>
         private void DrawHeaderRow(Maid target)
@@ -360,8 +360,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawToggle("ボーン表示", manager.isBoneVisible, 100, ROW_HEIGHT,
-                    manager.isEditMode, value => manager.isBoneVisible = value);
+                view.DrawToggle("ボーン表示", manager.isBoneVisible, 100, ROW_HEIGHT, value =>
+                {
+                    // ボーンは編集モード中しか出ないため、ON にするなら編集モードへ入る
+                    if (value)
+                    {
+                        AutoEditMode.Enter();
+                    }
+                    manager.isBoneVisible = value;
+                });
 
                 // 保存対象は選択中の対象の編集差分。差分が無いときは押させない
                 if (view.DrawButton("プリセット保存", 110, ROW_HEIGHT,

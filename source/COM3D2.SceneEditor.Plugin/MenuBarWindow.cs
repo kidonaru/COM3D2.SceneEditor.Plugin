@@ -230,12 +230,16 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     label = "ボーン表示",
                     isOn = () => MaidManipulateManager.instance.isBoneVisible,
-                    // ボーンは編集モード中しか出さないため、モード外では触らせない
-                    enabled = () => MaidManipulateManager.instance.isEditMode,
                     toggle = () =>
                     {
                         var manager = MaidManipulateManager.instance;
-                        manager.isBoneVisible = !manager.isBoneVisible;
+                        var turnOn = !manager.isBoneVisible;
+                        // ボーンは編集モード中しか出ないため、ON にするなら編集モードへ入る
+                        if (turnOn)
+                        {
+                            AutoEditMode.Enter();
+                        }
+                        manager.isBoneVisible = turnOn;
                     },
                 },
                 new MenuItem
