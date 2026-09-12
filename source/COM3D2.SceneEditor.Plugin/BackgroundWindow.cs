@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -308,12 +308,11 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
 
-            _view.SetEnabled(_view.focusedComboBox == null
-                && MTEP.StudioHackManager.instance.isPoseEditing);
+            _view.BeginAutoEditMode();
 
             _modelTreeView.Draw(_view, _view.GetDrawRect(-1, -1));
 
-            _view.SetEnabled(_view.focusedComboBox == null);
+            _view.EndAutoEditMode();
 
             ApplyPendingCheck(bgModelManager);
         }

@@ -1,4 +1,4 @@
-using COM3D2.MotionTimelineEditor;
+﻿using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -289,11 +289,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _lightRowDrawer.DrawControllerRows(view, controller, controller.name);
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -342,7 +342,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _lightRowDrawer.DrawLightRows(view, controller, light, light.name);
 
@@ -358,6 +358,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToLight != null && copyToLight != light)
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
                         copyToLight.CopyFrom(light);
                     }
                 }
@@ -366,7 +368,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.AddSpace(5);
             }
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -507,7 +509,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _laserRowDrawer.DrawControllerRows(view, controller, controller.name);
 
@@ -523,6 +525,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToController != null && copyToController != controller)
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
                         copyToController.CopyFrom(controller);
                         copyToController.UpdateLasers();
                     }
@@ -532,7 +536,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.AddSpace(5);
             }
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -581,7 +585,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _laserRowDrawer.DrawLaserRows(view, controller, laser, laser.name);
 
@@ -597,6 +601,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToLaser != null && copyToLaser != laser)
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
                         copyToLaser.CopyFrom(laser);
                     }
                 }
@@ -605,7 +611,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.AddSpace(5);
             }
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -764,7 +770,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _psylliumRowDrawer.DrawControllerRows(view, controller);
 
@@ -780,13 +786,15 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToController != null && copyToController != controller)
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
                         copyToController.CopyFrom(controller);
                         copyToController.Refresh();
                     }
                 }
             }
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -816,11 +824,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _psylliumRowDrawer.DrawBarConfigRows(view, controller, controller.barConfig.name);
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -850,11 +858,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _psylliumRowDrawer.DrawHandConfigRows(view, controller);
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 
@@ -928,7 +936,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             var patternConfig = pattern.patternConfig;
             var updateTransform = false;
@@ -1027,13 +1035,15 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToPattern != null && copyToPattern != pattern)
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
                         copyToPattern.patternConfig.CopyFrom(patternConfig);
                         controller.ManualUpdate(psylliumPlayingTime);
                     }
                 }
             }
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
 
             view.EndScrollView();
         }
@@ -1160,6 +1170,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToPattern != null && copyToPattern != pattern)
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
                         copyToPattern.transformConfig.CopyFrom(transformConfig);
                         copyToPattern.ClearTransformData();
                         copyToPattern.ApplyTransformData(transformConfig);
@@ -1242,7 +1254,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _psylliumRowDrawer.DrawAreaRows(view, area);
 
@@ -1260,12 +1272,17 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         if (copyToArea != null && copyToArea != area)
                         {
+                            // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                            AutoEditMode.Enter();
                             copyToArea.CopyFrom(area, timelineConfig.psylliumAreaCopyIgnoreTransform);
                         }
                     }
 
                     if (view.DrawButton("全エリアにコピー", 120, 20))
                     {
+                        // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                        AutoEditMode.Enter();
+
                         foreach (var a in areas)
                         {
                             if (a != area)
@@ -1286,7 +1303,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.AddSpace(5);
             }
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
     }

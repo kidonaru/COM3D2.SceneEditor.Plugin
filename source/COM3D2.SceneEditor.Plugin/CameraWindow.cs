@@ -676,21 +676,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // タイムライン読込中はレイヤーが毎フレーム再生値を書き戻すため編集モード中のみ、
-            // 未読込時はレイヤーが動かないため常時編集できる
-            var canEdit = timelineManager.timeline == null ||
-                studioHackManager.isPoseEditing;
-            if (!canEdit)
-            {
-                _view.DrawLabel("編集モード中のみサブカメラを操作できます", -1, ROW_HEIGHT,
-                    textColor: Color.yellow);
-            }
-            _view.SetEnabled(_view.focusedComboBox == null && canEdit);
+            // 値を書く直前に編集モードへ入る (編集モード外はレイヤーが毎フレーム再生値を書き戻すため)
+            _view.BeginAutoEditMode();
 
             _subCameraRowDrawers.Get(cameraData.name)
                 .Draw(_view, cameraData, LABEL_WIDTH, ROW_HEIGHT);
 
-            _view.SetEnabled(_view.focusedComboBox == null);
+            _view.EndAutoEditMode();
             _view.EndScrollView();
         }
 

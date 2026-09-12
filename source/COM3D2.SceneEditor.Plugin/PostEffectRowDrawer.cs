@@ -92,6 +92,8 @@ namespace COM3D2.SceneEditor.Plugin
                 var copyToIndex = _copyToComboBox.currentIndex;
                 if (copyToIndex != -1 && copyToIndex != sourceIndex)
                 {
+                    // ボタンは GUIView の値変更フックを通らないため、書く前に編集モードへ入る
+                    AutoEditMode.Enter();
                     copyTo(copyToIndex);
                 }
             }

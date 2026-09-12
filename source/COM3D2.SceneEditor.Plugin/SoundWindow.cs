@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -385,11 +385,11 @@ namespace COM3D2.SceneEditor.Plugin
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             VoiceRowDrawer.Draw(view, maidCache, ROW_HEIGHT);
 
-            view.SetEnabled(view.focusedComboBox == null);
+            view.EndAutoEditMode();
 
             view.DrawHorizontalLine(Color.gray);
 
@@ -441,10 +441,11 @@ namespace COM3D2.SceneEditor.Plugin
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             _seRowDrawer.Draw(view, timeline, ROW_HEIGHT);
 
+            view.EndAutoEditMode();
             view.EndScrollView();
         }
 

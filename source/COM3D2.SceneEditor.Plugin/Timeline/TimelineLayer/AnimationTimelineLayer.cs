@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using UnityEngine;
+using COM3D2.SceneEditor.Plugin;   // BeginAutoEditMode / EndAutoEditMode
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -277,7 +278,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            view.SetEnabled(view.focusedComboBox == null && studioHackManager.isPoseEditing);
+            view.BeginAutoEditMode();
 
             var defaultTrans = TransformDataAnimation.defaultTrans;
             var updateTransform = false;
@@ -342,6 +343,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 maidCache.ApplyAnimationLayerInfo(info, dt);
                 maidCache.animation.Sample();
             }
+
+            view.EndAutoEditMode();
 
             view.DrawHorizontalLine();
         }

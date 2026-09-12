@@ -144,15 +144,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            // タイムライン読込中はレイヤーが毎フレーム再生値を書き戻すため編集モード中のみ、
-            // 未読込時はレイヤーが動かないため常時編集できる
-            var canEdit = timeline == null || studioHackManager.isPoseEditing;
-            if (!canEdit)
-            {
-                _view.DrawLabel("編集モード中のみテキストを操作できます", -1, ROW_HEIGHT,
-                    textColor: Color.yellow);
-            }
-            _view.SetEnabled(_view.focusedComboBox == null && canEdit);
+            // 値を書く直前に編集モードへ入る (編集モード外はレイヤーが毎フレーム再生値を書き戻すため)
+            _view.BeginAutoEditMode();
 
             // 直前キーの参照と色ピッカーの同定に使うため、レイヤーの項目名と同じ名前を渡す
             var boneName = MTEP.TextTimelineLayer.TextBoneName + _textIndex;
@@ -161,7 +154,7 @@ namespace COM3D2.SceneEditor.Plugin
                 .Draw(_view, textManager.GetFreeTextSet(_textIndex), ROW_HEIGHT, boneName,
                     _textIndex);
 
-            _view.SetEnabled(_view.focusedComboBox == null);
+            _view.EndAutoEditMode();
             _view.EndScrollView();
         }
 
