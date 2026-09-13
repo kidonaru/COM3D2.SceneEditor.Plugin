@@ -91,6 +91,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => manipulateManager.isBoneVisible = value;
         }
 
+        /// <summary>
+        /// モーションの有効/無効。SE では再生 (PlayMotion) に写像している。
+        /// 編集モード中の有効化は無視する: 再生すると speed=0 の anm を Unity が毎フレームサンプルし、
+        /// LateUpdate の IK 固定と交互にボーンを書いてポーズがブレるため
+        /// (モーション以外のレイヤーがアクティブだと TimelineManager.isMotionEditing 経由で true が来る)。
+        /// シーク時のポーズ反映は MaidCache.motionSliderRate が停止中でも担う
+        /// </summary>
         public override bool isAnmEnabled
         {
             get
@@ -100,6 +107,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             set
             {
+                if (value && isPoseEditing)
+                {
+                    return;
+                }
+
                 foreach (var maid in allMaids)
                 {
                     if (value)
