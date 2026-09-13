@@ -147,6 +147,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             _tab = DrawInnerTabs(_tab, 70);
 
+            // 視線タブは瞳レイヤー、それ以外（表情・プリセット）は表情レイヤーへ記録される。
+            // プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
+            var layerType = _tab == FaceTab.視線
+                ? typeof(MTEP.EyesTimelineLayer)
+                : typeof(MTEP.MorphTimelineLayer);
+            TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
+
             if (_tab == FaceTab.プリセット)
             {
                 DrawPresetContent(view, target);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -243,6 +244,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (boneEditManager.isModelMode)
             {
+                TimelineLayerGate.Begin(view, typeof(MTEP.ModelBoneTimelineLayer), ROW_HEIGHT);
                 DrawModelContent();
                 return;
             }
@@ -265,6 +267,8 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel("プロパティ適用中...", -1, ROW_HEIGHT, textColor: Color.yellow);
                 return;
             }
+
+            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
 
             // スロット選択はプリセットの適用先も兼ねるため、タブの上に共通で置く
             DrawHeaderRow(target);

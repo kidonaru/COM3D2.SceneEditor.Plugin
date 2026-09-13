@@ -378,6 +378,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            TimelineLayerGate.Begin(view, typeof(MTEP.VoiceTimelineLayer), target, ROW_HEIGHT);
+
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
@@ -413,6 +415,8 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel("タイムライン読込後に使用できます", -1, ROW_HEIGHT);
                 return;
             }
+
+            TimelineLayerGate.Begin(view, typeof(MTEP.SeTimelineLayer), ROW_HEIGHT);
 
             view.SetEnabled(view.focusedComboBox == null);
 

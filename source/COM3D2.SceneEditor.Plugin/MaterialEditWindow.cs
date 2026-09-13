@@ -105,17 +105,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void DrawMaidContent(Maid target)
         {
-            // GUIView.SetEnabled はグローバルな GUI.enabled を書き換える。
-            // 無効のまま抜けると、このウィンドウの後に描かれる ComboBoxPopupWindow まで
-            // 操作できなくなるため、どの経路を通っても最後に必ず戻す
-            try
-            {
-                DrawBody(target);
-            }
-            finally
-            {
-                view.SetEnabled(true);
-            }
+            // GUI.enabled の戻しは基底の DrawContent が TimelineLayerGate.End で必ず行う
+            DrawBody(target);
         }
 
         private void DrawBody(Maid target)
@@ -128,9 +119,11 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawMaidMaterial(target);
                     break;
                 case TargetTabType.モデル:
+                    TimelineLayerGate.Begin(view, typeof(MTEP.ModelMaterialTimelineLayer), ROW_HEIGHT);
                     DrawModelMaterial();
                     break;
                 case TargetTabType.背景:
+                    TimelineLayerGate.Begin(view, typeof(MTEP.BGModelMaterialTimelineLayer), ROW_HEIGHT);
                     DrawBGModelMaterial();
                     break;
             }
@@ -144,6 +137,9 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
+
+            // メイドマテリアルレイヤーは全メイド共用 (hasSlotNo == false) なのでメイドを渡さない
+            TimelineLayerGate.Begin(view, typeof(MTEP.MaidMaterialTimelineLayer), ROW_HEIGHT);
 
             var maidCache = timelineMaidManager.GetMaidCache(target);
             if (maidCache == null)
