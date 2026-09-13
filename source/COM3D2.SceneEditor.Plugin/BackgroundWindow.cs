@@ -178,7 +178,14 @@ namespace COM3D2.SceneEditor.Plugin
             _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
 
-            DrawBody();
+            try
+            {
+                DrawBody();
+            }
+            finally
+            {
+                TimelineLayerGate.End(_view);
+            }
 
             // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
             // (MaidWindowBase と同じ流儀)
@@ -200,6 +207,8 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawBgTab();
                     break;
                 case BgTabType.地面:
+                    // 地面は背景色レイヤーが BGGround ごとキー化する
+                    TimelineLayerGate.Begin(_view, typeof(MTEP.BGColorTimelineLayer), ROW_HEIGHT);
                     BackgroundRowDrawer.DrawGroundRows(_view, LABEL_WIDTH, ROW_HEIGHT);
                     break;
                 case BgTabType.モデル:
@@ -244,12 +253,19 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 現在背景の行は背景レイヤー、背景色は背景色レイヤーへ記録されるため区間ごとに判定する。
+            // 入れ子にすると内側の End が外側の無効化を解いてしまうので順番に置くこと
+            TimelineLayerGate.Begin(_view, typeof(MTEP.BGTimelineLayer), ROW_HEIGHT);
             DrawCurrentBgRow(bgMgr);
+            TimelineLayerGate.End(_view);
 
             // 背景色は背景の有無に関わらず編集できる
+            TimelineLayerGate.Begin(_view, typeof(MTEP.BGColorTimelineLayer), ROW_HEIGHT);
             BackgroundRowDrawer.DrawBgColorRow(_view, ROW_HEIGHT);
+            TimelineLayerGate.End(_view);
 
             _view.DrawHorizontalLine();
+            TimelineLayerGate.Begin(_view, typeof(MTEP.BGTimelineLayer), ROW_HEIGHT);
             DrawFilterRows();
             DrawBgList(bgMgr);
         }
@@ -267,6 +283,8 @@ namespace COM3D2.SceneEditor.Plugin
                     textColor: Color.yellow);
                 return;
             }
+
+            TimelineLayerGate.Begin(_view, typeof(MTEP.BGModelTimelineLayer), ROW_HEIGHT);
 
             _modelTabType = DrawTabHeader(_modelTabType);
 

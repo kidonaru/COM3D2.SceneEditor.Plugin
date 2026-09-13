@@ -96,7 +96,14 @@ namespace COM3D2.SceneEditor.Plugin
             _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
 
-            DrawTopTabs();
+            try
+            {
+                DrawTopTabs();
+            }
+            finally
+            {
+                TimelineLayerGate.End(_view);
+            }
 
             // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
@@ -124,12 +131,15 @@ namespace COM3D2.SceneEditor.Plugin
             switch (_topTab)
             {
                 case TopTab.ライト:
+                    TimelineLayerGate.Begin(_view, typeof(StageLightTimelineLayer), ROW_HEIGHT);
                     DrawStageLight(_view);
                     break;
                 case TopTab.レーザー:
+                    TimelineLayerGate.Begin(_view, typeof(StageLaserTimelineLayer), ROW_HEIGHT);
                     DrawStageLaser(_view);
                     break;
                 case TopTab.サイリウム:
+                    TimelineLayerGate.Begin(_view, typeof(PsylliumTimelineLayer), ROW_HEIGHT);
                     DrawPsyllium(_view);
                     break;
             }
