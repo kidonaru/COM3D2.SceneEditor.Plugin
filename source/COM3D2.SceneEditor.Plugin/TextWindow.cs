@@ -94,7 +94,14 @@ namespace COM3D2.SceneEditor.Plugin
             _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
 
-            DrawBody();
+            try
+            {
+                DrawBody();
+            }
+            finally
+            {
+                TimelineLayerGate.End(_view);
+            }
 
             // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
@@ -102,6 +109,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawBody()
         {
+            TimelineLayerGate.Begin(_view, typeof(MTEP.TextTimelineLayer), ROW_HEIGHT);
+
             _view.SetEnabled(_view.focusedComboBox == null);
 
             DrawTextCountRow();

@@ -98,6 +98,23 @@ namespace COM3D2.SceneEditor.Plugin
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
 
+            try
+            {
+                TimelineLayerGate.Begin(_view, typeof(MTEP.LightTimelineLayer), ROW_HEIGHT);
+                DrawBody();
+            }
+            finally
+            {
+                // 強制無効のまま抜けると ComboBoxPopupWindow まで操作できなくなるため必ず戻す
+                TimelineLayerGate.End(_view);
+            }
+
+            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
+        }
+
+        private void DrawBody()
+        {
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             // GetComponent を挟むため 1 描画につき 1 回だけ引いて使い回す
@@ -117,9 +134,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _view.EndScrollView();
-
-            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
-            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
         /// <summary>ライト一覧（メインライト + 追加ライト）と、追加ライトの追加・削除</summary>

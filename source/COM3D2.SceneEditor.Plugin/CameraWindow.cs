@@ -164,19 +164,29 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTargetRow();
 
-            if (_targetIndex == 0)
+            try
             {
-                // プリセットは Main カメラ専用のため他タブでは行を出さない
-                DrawPresetRow();
-                DrawMainCameraContent();
+                if (_targetIndex == 0)
+                {
+                    TimelineLayerGate.Begin(_view, typeof(MTEP.CameraTimelineLayer), ROW_HEIGHT);
+                    // プリセットは Main カメラ専用のため他タブでは行を出さない
+                    DrawPresetRow();
+                    DrawMainCameraContent();
+                }
+                else if (_targetIndex == 1)
+                {
+                    // SceneView カメラは対応するレイヤーが無いためゲートを掛けない
+                    DrawSceneViewCameraContent();
+                }
+                else if (_targetIndex == 2)
+                {
+                    TimelineLayerGate.Begin(_view, typeof(MTEP.SubCameraTimelineLayer), ROW_HEIGHT);
+                    DrawSubCameraContent();
+                }
             }
-            else if (_targetIndex == 1)
+            finally
             {
-                DrawSceneViewCameraContent();
-            }
-            else if (_targetIndex == 2)
-            {
-                DrawSubCameraContent();
+                TimelineLayerGate.End(_view);
             }
 
             // 右クリックで _rootView に登録されたフォーカスをポップアップへ引き渡す
