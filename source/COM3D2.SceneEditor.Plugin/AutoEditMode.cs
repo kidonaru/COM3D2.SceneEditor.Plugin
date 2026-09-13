@@ -27,7 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (studioHack.isPoseEditing)
+            if (studioHackManager.isPoseEditing)
             {
                 return;
             }
@@ -35,10 +35,9 @@ namespace COM3D2.SceneEditor.Plugin
             // StudioHackManager 経由で入ると再生停止も一緒に行われる (SceneEditorHack.isPoseEditing)
             studioHackManager.isPoseEditing = true;
 
-            // キャッシュとスナップショットを同フレームで揃える。
-            // 翌フレームの PreUpdate / Update に任せると、このあと書く値が
+            // スナップショットを同フレームで取る。
+            // 翌フレームの TimelineManager.Update に任せると、このあと書く値が
             // OnPoseEditStart の ApplyCurrentFrame で上書きされる
-            studioHackManager.SyncPoseEditing();
             MTEP.TimelineManager.instance.SyncPoseEditing();
         }
     }

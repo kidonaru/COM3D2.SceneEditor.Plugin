@@ -1,6 +1,5 @@
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
-using UnityEngine.Events;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -12,16 +11,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private StudioHackBase _studioHack = null;
         public override StudioHackBase studioHack => _studioHack;
 
-        private bool _isPoseEditing = false;
-
         /// <summary>
-        /// ポーズ編集モード。
+        /// ポーズ編集モード。studioHack 側の値をそのまま返す (キャッシュしない)。
+        /// フレーム頭で同期するキャッシュを挟むと、同フレーム中に編集モードへ
+        /// 入った直後の読み手が古い値を見て食い違う。
         /// ボーン表示トグルは追従させない (モード外はボーン自体が出ないため、
         /// トグルの値はユーザーが決めた表示設定として保つ)
         /// </summary>
         public bool isPoseEditing
         {
-            get => _isPoseEditing;
+            get => _studioHack != null && _studioHack.isPoseEditing;
             set
             {
                 if (_studioHack != null)
@@ -30,8 +29,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
         }
-
-        public static event UnityAction<bool> onPoseEditingChanged;
 
         private static StudioHackManager _instance;
         public static StudioHackManager instance
@@ -92,28 +89,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_studioHack == null && activeStudioHacks.Count > 0)
             {
                 _studioHack = activeStudioHacks[0];
-            }
-
-            SyncPoseEditing();
-        }
-
-        /// <summary>
-        /// studioHack 側の編集モードをキャッシュへ反映し、変化していれば通知する。
-        /// PreUpdate のほか、パラメータ変更で同フレーム中に編集モードへ入ったとき
-        /// (AutoEditMode.Enter) にも呼び、以降の描画が古いキャッシュを見ないようにする
-        /// </summary>
-        public void SyncPoseEditing()
-        {
-            if (!mte.isEnable)
-            {
-                return;
-            }
-
-            var isPoseEditingNow = _studioHack?.isPoseEditing ?? false;
-            if (isPoseEditingNow != _isPoseEditing)
-            {
-                _isPoseEditing = isPoseEditingNow;
-                onPoseEditingChanged?.Invoke(isPoseEditingNow);
             }
         }
 
