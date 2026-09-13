@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
@@ -27,6 +27,8 @@ namespace COM3D2.SceneEditor.Plugin
         private const float RowHeight = 20f;
         /// <summary>Transform 行のラベル幅 (InspectorWindow と揃える)</summary>
         private const float TransformLabelWidth = 50f;
+        /// <summary>連動トグル付きの拡縮行のラベル幅 (InspectorWindow.ScaleLabelWidth と同じ)</summary>
+        private const float ScaleLabelWidth = 25f;
         /// <summary>ブロックヘッダーの開閉マーク幅</summary>
         private const float FoldMarkWidth = 16f;
         /// <summary>ブロックヘッダー右端のボタン幅</summary>
@@ -46,10 +48,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。文字列値の行と揃える)</summary>
         private const float CustomSliderWidth = -1f;
 
-        // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
+        // 1px ドラッグあたりの増減量 (InspectorWindow と揃える。拡縮は ScaleRowDrawer 側が持つ)
         private const float PositionSensitivity = 0.01f;
         private const float RotationSensitivity = 1f;
-        private const float ScaleSensitivity = 0.01f;
 
         /// <summary>タブ 1 個の幅 (「補間曲線」が収まる幅)</summary>
         private const float TabWidth = 70f;
@@ -403,10 +404,18 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (transform.hasScale)
             {
-                DrawVector3Row(view, bone, "拡縮", ScaleSensitivity,
-                    transform.scale,
-                    value => transform.scale = value,
-                    () => transform.scale = transform.initialScale);
+                // 拡縮だけは Object・ボーンの行と同じく XYZ 連動トグルを出す
+                ScaleRowDrawer.Draw(view, transform.scale, ScaleLabelWidth, RowHeight,
+                    value =>
+                    {
+                        transform.scale = value;
+                        Apply(bone);
+                    },
+                    () =>
+                    {
+                        transform.scale = transform.initialScale;
+                        Apply(bone);
+                    });
             }
         }
 
