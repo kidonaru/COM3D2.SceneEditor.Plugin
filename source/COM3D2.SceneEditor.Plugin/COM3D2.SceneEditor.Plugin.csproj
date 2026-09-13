@@ -325,6 +325,7 @@
     <Compile Include="PostEffectRowDrawer.cs" />
     <Compile Include="TimelinePrevKeyUtils.cs" />
     <Compile Include="TimelineLayerGateText.cs" />
+    <Compile Include="TimelineLayerGate.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="EyesPosRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
