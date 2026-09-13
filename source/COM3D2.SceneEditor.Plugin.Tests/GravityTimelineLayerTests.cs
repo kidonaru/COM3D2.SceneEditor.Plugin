@@ -53,5 +53,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             trans.offset = new Vector3(0f, 0.1f, 0f);
             Assert.False(trans.isDefault);
         }
+
+        [Fact]
+        public void GravityItemInspector_は項目名からカテゴリを引き未知の名前ではnullを返す()
+        {
+            Assert.Equal("hair", GravityItemInspector.ResolveCategory("hair").id);
+            Assert.Equal("skirt", GravityItemInspector.ResolveCategory("skirt").id);
+            Assert.Null(GravityItemInspector.ResolveCategory("unknown"));
+        }
     }
 }

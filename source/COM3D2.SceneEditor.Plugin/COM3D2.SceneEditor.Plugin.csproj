@@ -399,6 +399,7 @@
     <Compile Include="Timeline\MaidLookBridge.cs" />
     <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />
