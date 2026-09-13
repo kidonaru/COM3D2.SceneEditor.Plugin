@@ -589,6 +589,7 @@
     <Compile Include="Timeline\TransformData\TransformDataFaceSetting.cs" />
     <Compile Include="Timeline\TransformData\TransformDataFingerBlend.cs" />
     <Compile Include="Timeline\TransformData\TransformDataGrounding.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataGravity.cs" />
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
