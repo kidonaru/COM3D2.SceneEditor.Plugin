@@ -309,6 +309,8 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.MoveTimelineLayer), MTEP.MoveTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.GravityTimelineLayer), MTEP.GravityTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.AnimationTimelineLayer), MTEP.AnimationTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.BGTimelineLayer), MTEP.BGTimelineLayer.Create);
@@ -474,6 +476,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.Grounding,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGrounding>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.Gravity,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGravity>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.IKHold,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataIKHold>);
