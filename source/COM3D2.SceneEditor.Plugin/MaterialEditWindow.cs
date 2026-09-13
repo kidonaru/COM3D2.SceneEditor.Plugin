@@ -138,8 +138,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // メイドマテリアルレイヤーは全メイド共用 (hasSlotNo == false) なのでメイドを渡さない
-            TimelineLayerGate.Begin(view, typeof(MTEP.MaidMaterialTimelineLayer), ROW_HEIGHT);
+            TimelineLayerGate.Begin(view, typeof(MTEP.MaidMaterialTimelineLayer), target, ROW_HEIGHT);
 
             var maidCache = timelineMaidManager.GetMaidCache(target);
             if (maidCache == null)
