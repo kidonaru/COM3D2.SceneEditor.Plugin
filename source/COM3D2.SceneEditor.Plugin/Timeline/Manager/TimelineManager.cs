@@ -363,6 +363,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             _timeline.Initialize();
             mte.OnLoad();
+            PostEffectsClient.ShowTimelineMode();
             _timeline.LayerInit();
 
             CreateAndApplyAnmAll();
@@ -418,6 +419,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _timeline.directoryName = directoryName;
                 _timeline.Initialize();
                 mte.OnLoad();
+                // undo/redo の UpdateTimeline では呼ばない。ユーザーが選んだタブを奪わないため
+                PostEffectsClient.ShowTimelineMode();
                 _timeline.LayerInit();
 
                 _usingLayerInfoList = null;
