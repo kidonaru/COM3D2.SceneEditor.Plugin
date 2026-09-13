@@ -135,7 +135,8 @@
 | キー名 | 既定値 | 内容 |
 |---|---|---|
 | `PluginToggle` | `F10` | モード切替 |
-| `EditModeToggle` | `Tab` | 編集モード切替 |
+| `EditModeToggle` | `F1` | 編集モード切替 |
+| `WindowsHiddenToggle` | `Tab` | ウィンドウの一括非表示 |
 | `GizmoMove` | `Z` | ギズモを移動モードにする |
 | `GizmoRotate` | `X` | ギズモを回転モードにする |
 | `GizmoScale` | `C` | ギズモを拡縮モードにする |
