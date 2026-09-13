@@ -53,5 +53,15 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(2, (int)TimelineLayerGateState.Missing);
             Assert.Equal(3, (int)TimelineLayerGateState.Ready);
         }
+
+        [Fact]
+        public void レイヤー名は外部プラグインとの文字列契約なので固定()
+        {
+            // TimelineLayerGateHost はレイヤーを Type ではなくクラス名文字列で受け取る。
+            // 外部プラグイン側は同じ文字列を直書きしており、コンパイル時参照禁止の制約上
+            // リネームを型システムで検知できないため、ここで名前を固定する
+            Assert.Equal("PostEffectTimelineLayer",
+                typeof(COM3D2.MotionTimelineEditor.Plugin.PostEffectTimelineLayer).Name);
+        }
     }
 }
