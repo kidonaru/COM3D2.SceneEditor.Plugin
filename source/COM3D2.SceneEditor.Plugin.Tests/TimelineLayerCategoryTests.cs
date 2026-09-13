@@ -40,7 +40,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             { "StageLaserTimelineLayer", TimelineLayerCategory.Effect },
             { "PsylliumTimelineLayer", TimelineLayerCategory.Effect },
             { "SeTimelineLayer", TimelineLayerCategory.Other },
-            { "PostEffectTimelineLayer", TimelineLayerCategory.Other },
+            { "PostEffectTimelineLayer", TimelineLayerCategory.Effect },
             { "TextTimelineLayer", TimelineLayerCategory.Other },
         };
 
