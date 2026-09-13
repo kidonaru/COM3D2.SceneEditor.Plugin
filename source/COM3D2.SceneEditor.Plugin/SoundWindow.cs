@@ -23,6 +23,9 @@ namespace COM3D2.SceneEditor.Plugin
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "サウンド";
 
+        // 内部タブの幅。他ウィンドウ (MaidGravityWindow 等) に合わせる
+        private static readonly int TAB_WIDTH = 80;
+
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
         private static MTEP.BGMManager bgmManager => MTEP.BGMManager.instance;
         private static MTEP.TimelineData timeline => MTEP.TimelineManager.instance.timeline;
@@ -84,7 +87,7 @@ namespace COM3D2.SceneEditor.Plugin
         // showMaidSelector が false のため target は使わない。対象は DrawVoice 内で取り直す
         protected override void DrawMaidContent(Maid target)
         {
-            _tabType = DrawInnerTabs(_tabType, 50);
+            _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
 
             switch (_tabType)
             {
@@ -125,7 +128,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawBgm(GUIView view)
         {
-            _bgmTabType = DrawInnerTabs(_bgmTabType, 60);
+            _bgmTabType = DrawInnerTabs(_bgmTabType, TAB_WIDTH);
 
             switch (_bgmTabType)
             {
@@ -197,7 +200,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawLabel("パス", 50, ROW_HEIGHT);
+                view.DrawLabel("パス", LABEL_WIDTH, ROW_HEIGHT);
 
                 if (view.DrawButton("選択", 50, ROW_HEIGHT))
                 {
@@ -255,7 +258,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "音量",
-                labelWidth = 50,
+                labelWidth = LABEL_WIDTH,
                 width = -1,
                 fieldType = FloatFieldType.Int,
                 min = 0,
@@ -279,7 +282,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "BPM",
-                labelWidth = 50,
+                labelWidth = LABEL_WIDTH,
                 width = -1,
                 min = 1,
                 max = 300,
@@ -298,7 +301,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "オフセット",
-                labelWidth = 50,
+                labelWidth = LABEL_WIDTH,
                 width = -1,
                 min = -frameRate,
                 max = frameRate,
@@ -420,7 +423,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
-            _seTabType = DrawInnerTabs(_seTabType, 50);
+            _seTabType = DrawInnerTabs(_seTabType, TAB_WIDTH);
 
             switch (_seTabType)
             {
@@ -461,7 +464,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTextField(new GUIView.TextFieldOption
             {
                 label = "SE名",
-                labelWidth = 50,
+                labelWidth = LABEL_WIDTH,
                 value = _additionalSeName,
                 onChanged = value => _additionalSeName = value,
             });

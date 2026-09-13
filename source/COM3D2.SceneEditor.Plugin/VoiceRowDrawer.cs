@@ -14,11 +14,8 @@ namespace COM3D2.SceneEditor.Plugin
     {
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
 
-        /// <summary>スライダーのラベル幅 (「開始」「Fade」が収まる幅)</summary>
-        private const float SliderLabelWidth = 30f;
-
-        /// <summary>テキスト入力のラベル幅 (「ループボイス」が収まる幅)</summary>
-        private const float TextLabelWidth = 75f;
+        /// <summary>ラベル幅。最長の「ループボイス」が収まる幅で全行を揃える</summary>
+        private const float LabelWidth = 75f;
 
         public static void Draw(GUIView view, MTEP.MaidCache maidCache, float rowHeight)
         {
@@ -27,7 +24,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "開始",
-                labelWidth = SliderLabelWidth,
+                labelWidth = LabelWidth,
+                width = -1,
                 min = 0f,
                 max = maxLength,
                 step = 0.01f,
@@ -39,7 +37,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "長さ",
-                labelWidth = SliderLabelWidth,
+                labelWidth = LabelWidth,
+                width = -1,
                 min = 0f,
                 max = maxLength,
                 step = 0.01f,
@@ -51,7 +50,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "Fade",
-                labelWidth = SliderLabelWidth,
+                labelWidth = LabelWidth,
+                width = -1,
                 min = 0f,
                 max = maxLength,
                 step = 0.01f,
@@ -63,7 +63,8 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "音程",
-                labelWidth = SliderLabelWidth,
+                labelWidth = LabelWidth,
+                width = -1,
                 min = 0f,
                 max = 2f,
                 step = 0.01f,
@@ -75,7 +76,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTextField(new GUIView.TextFieldOption
             {
                 label = "ボイス名",
-                labelWidth = TextLabelWidth,
+                labelWidth = LabelWidth,
                 value = maidCache.oneShotVoiceName,
                 onChanged = value => maidCache.oneShotVoiceName = value,
             });
@@ -83,7 +84,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawTextField(new GUIView.TextFieldOption
             {
                 label = "ループボイス",
-                labelWidth = TextLabelWidth,
+                labelWidth = LabelWidth,
                 value = maidCache.loopVoiceName,
                 onChanged = value => maidCache.loopVoiceName = value,
             });

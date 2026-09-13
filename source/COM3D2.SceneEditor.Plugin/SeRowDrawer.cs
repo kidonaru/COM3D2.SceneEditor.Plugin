@@ -18,8 +18,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.TimelineSeManager seManager => MTEP.TimelineSeManager.instance;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
 
-        /// <summary>再生間隔スライダーのラベル幅</summary>
-        private const float IntervalLabelWidth = 60f;
+        /// <summary>ラベル幅。MaidWindowBase.LABEL_WIDTH (70) と同値</summary>
+        private const float LabelWidth = 70f;
 
         /// <summary>タイムライン固有の追加 SE と公式 SE を連結したコンボボックス用の一覧</summary>
         private readonly List<string> _seNames = new List<string>();
@@ -82,13 +82,14 @@ namespace COM3D2.SceneEditor.Plugin
                 updated = true;
             };
 
-            _seNameComboBox.DrawButton("SE名", view);
+            LabeledComboRow.Draw(view, "SE名", _seNameComboBox, LabelWidth, rowHeight);
 
             updated |= view.DrawSliderValue(
                 new GUIView.SliderOption
                 {
                     label = "再生間隔",
-                    labelWidth = IntervalLabelWidth,
+                    labelWidth = LabelWidth,
+                    width = -1,
                     min = 0f,
                     max = timelineConfig.voiceMaxLength,
                     step = 0.01f,
