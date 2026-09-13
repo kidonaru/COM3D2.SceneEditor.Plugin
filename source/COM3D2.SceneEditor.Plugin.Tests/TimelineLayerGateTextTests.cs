@@ -1,4 +1,4 @@
-using COM3D2.SceneEditor.Plugin;
+﻿using COM3D2.SceneEditor.Plugin;
 using Xunit;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
@@ -41,6 +41,17 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 TimelineLayerGateText.NoticeText("メイド表情"));
             Assert.Equal("「メイド表情」レイヤーを追加",
                 TimelineLayerGateText.AddButtonText("メイド表情"));
+        }
+
+        [Fact]
+        public void 状態の数値は外部プラグインとの契約なので固定()
+        {
+            // TimelineLayerGateHost.GetState が int で返す値。MTEUtils の
+            // TimelineLayerGateClient がこの数値で解釈するため、並び替え・挿入は禁止
+            Assert.Equal(0, (int)TimelineLayerGateState.NoTimeline);
+            Assert.Equal(1, (int)TimelineLayerGateState.MaidNotFound);
+            Assert.Equal(2, (int)TimelineLayerGateState.Missing);
+            Assert.Equal(3, (int)TimelineLayerGateState.Ready);
         }
     }
 }
