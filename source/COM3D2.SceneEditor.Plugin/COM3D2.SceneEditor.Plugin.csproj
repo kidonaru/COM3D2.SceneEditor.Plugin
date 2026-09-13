@@ -329,6 +329,7 @@
     <Compile Include="TimelineLayerGate.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="EyesPosRowDrawer.cs" />
+    <Compile Include="GravityRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="MaidFaceWindow.cs" />
     <Compile Include="MaidFingerWindow.cs" />
