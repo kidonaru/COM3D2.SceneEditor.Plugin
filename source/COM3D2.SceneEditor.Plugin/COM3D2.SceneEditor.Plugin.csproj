@@ -135,6 +135,7 @@
     <Compile Include="MTEUtils\DockingClient.cs" />
     <Compile Include="MTEUtils\DockableWindowBase.cs" />
     <Compile Include="MTEUtils\EditorStateClient.cs" />
+    <Compile Include="MTEUtils\TimelineLayerGateClient.cs" />
     <Compile Include="MTEUtils\MaidSelectClient.cs" />
     <Compile Include="MTEUtils\ModelSelectClient.cs" />
     <Compile Include="MTEUtils\Extensions.cs" />
