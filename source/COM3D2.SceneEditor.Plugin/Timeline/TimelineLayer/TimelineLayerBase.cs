@@ -192,7 +192,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected static bool useMuneKeyR => timeline.useMuneKeyR;
         protected static bool isLoopAnm => timeline.isLoopAnm;
         protected static MaidManager maidManager => MaidManager.instance;
-        protected static StudioHackManager studioHackManager => StudioHackManager.instance;
         protected static PhotoBGManager photoBGManager => PhotoBGManager.instance;
         protected static BGModelManager bgModelManager => BGModelManager.instance;
         protected static StageLaserManager stageLaserManager => StageLaserManager.instance;
@@ -202,7 +201,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         protected static PostEffectManager postEffectManager => PostEffectManager.instance;
         protected static StudioModelManager modelManager => StudioModelManager.instance;
         protected static ModelHackManager modelHackManager => ModelHackManager.instance;
-        protected static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        protected static SceneEditorHack studioHack => SceneEditorHack.instance;
         protected static StudioLightManager lightManager => StudioLightManager.instance;
 
         protected TimelineLayerBase(int slotNo)

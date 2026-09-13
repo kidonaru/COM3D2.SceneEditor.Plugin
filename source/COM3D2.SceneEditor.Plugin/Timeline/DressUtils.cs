@@ -56,7 +56,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public static class DressUtils
     {
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        private static SceneEditorHack studioHack => SceneEditorHack.instance;
 
         public static readonly List<DressSlotID> ClothingSlotIds = new List<DressSlotID>
         {
@@ -323,7 +323,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (maidCache.IsShifted(slotId) != isVisible)
                 {
                     maidCache.ShiftDeress(slotId, isVisible);
-                    studioHack.UpdateUndress(maidCache.maid, slotId, isVisible);
                 }
             }
             else
@@ -332,7 +331,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (maidCache.GetMask(bodySlotId) != isVisible)
                 {
                     maidCache.SetMask(bodySlotId, isVisible);
-                    studioHack.UpdateUndress(maidCache.maid, slotId, isVisible);
                 }
             }
         }

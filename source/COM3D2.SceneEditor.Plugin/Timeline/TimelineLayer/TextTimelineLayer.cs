@@ -72,7 +72,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 AddFirstBones(allBoneNames);
             }
 
-            if (!studioHackManager.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }

@@ -14,7 +14,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool isCameraLayer => true;
 
         private static Camera camera => PluginUtils.MainCamera;
-        private static Camera subCamera => studioHack.subCamera;
         private static MaidFollowMainCamera mainFollow => MaidFollowMainCamera.instance;
 
         public static string CameraBoneName = "camera";
@@ -55,7 +54,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.Update();
 
-            if (!studioHackManager.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }
@@ -111,7 +110,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             distance = tempScale.x;
             viewAngle = tempScale.y;
 
-            if (config.isFixedFoV && !isCurrent && studioHackManager.isPoseEditing)
+            if (config.isFixedFoV && !isCurrent && SceneEditorHack.isPoseEditing)
             {
                 viewAngle = 35;
             }
@@ -148,12 +147,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
-            if (subCamera != null)
-            {
-                subCamera.fieldOfView = viewAngle;
-            }
-
-            if (config.isFixedFocus && !isCurrent && studioHackManager.isPoseEditing)
+            if (config.isFixedFocus && !isCurrent && SceneEditorHack.isPoseEditing)
             {
                 var currentMaidCache = maidManager.maidCache;
                 if (currentMaidCache != null)

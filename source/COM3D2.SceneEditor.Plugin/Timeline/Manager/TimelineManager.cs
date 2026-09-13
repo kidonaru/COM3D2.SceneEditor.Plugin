@@ -214,12 +214,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             SyncPoseEditing();
 
-            var isPoseEditing = studioHackManager.isPoseEditing;
-            if (isPoseEditing && config.disablePoseHistory)
-            {
-                studioHack.ClearPoseHistory();
-            }
-
             if (initialEditFrame != null && initialEditFrame.frameNo != currentFrameNo)
             {
                 OnPoseEditUpdated();
@@ -351,11 +345,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void CreateNewTimeline()
         {
-            if (!studioHack.IsValid())
-            {
-                MTEUtils.ShowDialog(studioHack.errorMessage);
-                return;
-            }
             if (maid == null)
             {
                 MTEUtils.ShowDialog("メイドが配置されていません");
@@ -384,11 +373,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void LoadTimeline(string anmName, string directoryName)
         {
-            if (!studioHack.IsValid())
-            {
-                MTEUtils.ShowDialog(studioHack.errorMessage);
-                return;
-            }
             if (maid == null)
             {
                 MTEUtils.ShowDialog("メイドが配置されていません");
@@ -970,7 +954,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             this.currentFrameNo = frameNo;
 
-            bool isPoseEditing = studioHackManager.isPoseEditing;
+            bool isPoseEditing = SceneEditorHack.isPoseEditing;
             if (isPoseEditing)
             {
                 OnPoseEditEnd();
@@ -1118,7 +1102,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var frameTime = minFrameTime;
 
             Pause();
-            studioHackManager.isPoseEditing = false;
+            SceneEditorHack.isPoseEditing = false;
 
             isOutputtingImage = true;
             config.isKeyInputEnabled = false;
@@ -1573,7 +1557,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             try
             {
-                if (!studioHackManager.isPoseEditing)
+                if (!SceneEditorHack.isPoseEditing)
                 {
                     MTEUtils.LogWarning("編集モード中のみペーストできます");
                     return;
@@ -1735,7 +1719,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void SetCurrentLayer(ITimelineLayer layer)
         {
             // 選択はレイヤーをまたいで保持するため、ここでは解除しない
-            bool isPoseEditing = studioHackManager.isPoseEditing;
+            bool isPoseEditing = SceneEditorHack.isPoseEditing;
             if (isPoseEditing)
             {
                 OnPoseEditEnd();
@@ -1806,7 +1790,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Play()
         {
-            studioHackManager.isPoseEditing = false;
+            SceneEditorHack.isPoseEditing = false;
 
             if (this.currentFrameNo >= timeline.maxFrameNo)
             {
@@ -2237,7 +2221,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public void SyncPoseEditing()
         {
-            var isPoseEditing = studioHackManager.isPoseEditing;
+            var isPoseEditing = SceneEditorHack.isPoseEditing;
             if (isPrevPoseEditing == isPoseEditing)
             {
                 return;
@@ -2284,7 +2268,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void UpdateMotionEditing()
         {
-            if (studioHackManager.isPoseEditing)
+            if (SceneEditorHack.isPoseEditing)
             {
                 if (currentLayer.layerType == typeof(MotionTimelineLayer))
                 {

@@ -16,8 +16,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 _modelList.Clear();
 
-                _modelList.AddRange(studioHack.modelList);
-
                 foreach (var modelHack in modelHackMap.Values)
                 {
                     if (modelHack.IsValid())
@@ -38,13 +36,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get
             {
                 _pluginNames.Clear();
-
-                if (studioHack == null)
-                {
-                    return _pluginNames;
-                }
-
-                _pluginNames.Add(studioHack.pluginName);
 
                 foreach (var modelHack in modelHackMap.Values)
                 {
@@ -100,19 +91,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
-            // 見つからない場合はアクティブなStudioHackを返す
-            return studioHack;
+            // モデル配置プロバイダ未登録なら null。呼び出し側はすべて null チェック済み
+            return null;
         }
 
         public void DeleteAllModels()
         {
             try
             {
-                if (studioHack != null && studioHack.IsValid())
-                {
-                    studioHack.DeleteAllModels();
-                }
-
                 foreach (var modelHack in modelHackMap.Values)
                 {
                     if (modelHack.IsValid())
@@ -198,6 +184,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 var prevModelHack = GetOrDefault(model.pluginName);
                 var nextModelHack = GetOrDefault(pluginName);
+
+                if (prevModelHack == null || nextModelHack == null)
+                {
+                    MTEUtils.LogWarning(
+                        "モデル配置プロバイダが見つからないためプラグインを変更できません: {0} -> {1}",
+                        model.pluginName, pluginName);
+                    return;
+                }
 
                 if (nextModelHack != prevModelHack)
                 {

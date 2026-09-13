@@ -220,7 +220,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// キー入力で編集モードを切り替える。
-        /// タイムライン側 (StudioHackManager.isPoseEditing) を経由すると
+        /// タイムライン側 (SceneEditorHack.isPoseEditing) を経由すると
         /// 再生停止も一緒に行えるため、そちらを優先する。
         /// テキスト入力中 (keyboardControl 保持中) は誤発動を防ぐため無視する
         /// </summary>
@@ -233,10 +233,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (config.GetKeyDown(KeyBindType.EditModeToggle))
             {
-                var studioHackManager = MTEP.StudioHackManager.instance;
-                if (studioHackManager.studioHack != null)
+                if (MTEP.SceneEditorHack.instance != null)
                 {
-                    studioHackManager.isPoseEditing = !studioHackManager.isPoseEditing;
+                    MTEP.SceneEditorHack.isPoseEditing = !MTEP.SceneEditorHack.isPoseEditing;
                 }
                 else
                 {

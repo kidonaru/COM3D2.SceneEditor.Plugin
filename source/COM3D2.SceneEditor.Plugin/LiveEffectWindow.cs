@@ -26,7 +26,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
 
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
         private static MTEP.StageLightManager stageLightManager => MTEP.StageLightManager.instance;
         private static MTEP.StageLaserManager stageLaserManager => MTEP.StageLaserManager.instance;
         private static MTEP.PsylliumManager psylliumManager => MTEP.PsylliumManager.instance;

@@ -37,9 +37,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static MTEP.Config config => MTEP.ConfigManager.instance.config;
 
-        private static MTEP.StudioHackManager studioHackManager =>
-            MTEP.StudioHackManager.instance;
-
         private Texture2D _eyesPositionTex = null;
         private Texture2D _eyesTex = null;
 
@@ -256,7 +253,7 @@ namespace COM3D2.SceneEditor.Plugin
             // ボタン解放のほか、ドラッグ中に編集モードを抜けた場合も掴みを離す
             // (編集モード外はレイヤーが毎フレーム値を書き戻すため、書き続けても巻き戻るだけ)
             if (_draggingEyesType.HasValue &&
-                (!Input.GetMouseButton(0) || !studioHackManager.isPoseEditing))
+                (!Input.GetMouseButton(0) || !MTEP.SceneEditorHack.isPoseEditing))
             {
                 _draggingEyesType = null;
             }

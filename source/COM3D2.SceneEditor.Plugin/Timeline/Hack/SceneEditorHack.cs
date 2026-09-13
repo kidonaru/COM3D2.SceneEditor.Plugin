@@ -1,37 +1,92 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-// Assembly-UnityScript-firstpass のグローバル名前空間には Unity 5 世代の DepthOfFieldScatter が
-// 残骸として残っており、素の型名ではそちらに束縛されて Unity 2022 で削除された
-// Graphics.DrawProceduralIndirect を呼んでしまう。ゲームが実際に使う PostEffects_Dummy 側へ束縛する
-#if COM3D25
-using DepthOfFieldEffect = PostEffects_Dummy.DepthOfFieldScatter;
-#else
-using DepthOfFieldEffect = global::DepthOfFieldScatter;
-#endif
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     using SE = SceneEditor.Plugin;
 
     /// <summary>
-    /// SceneEditor 環境向けの StudioHack 実装。
     /// タイムライン (MTE 移植コード) からのメイド・編集状態アクセスを
-    /// SceneEditor の各マネージャへ橋渡しする
+    /// SceneEditor の各マネージャへ橋渡しする。
+    /// MTE では StudioHackBase 派生をスタジオ種別ごとに切り替えていたが、
+    /// SceneEditor 以外の実装は持たないので具象クラス 1 つに畳んでいる
     /// </summary>
-    public class SceneEditorHack : StudioHackBase
+    public sealed class SceneEditorHack
     {
-        public override string pluginName => "SceneEditor";
-        public override int priority => 0;
+        /// <summary>TimelineXml がモデルの pluginName を寄せる比較キー。既存 XML 互換のため固定</summary>
+        public const string pluginName = "SceneEditor";
+
+        private static SceneEditorHack _instance;
+        private static bool _isSceneActive;
+
+        /// <summary>
+        /// Initialize 前とタイトル画面では null を返す。
+        /// 呼び出し側の null ガードは「タイムラインが動く場面か」の判定として使われている
+        /// </summary>
+        public static SceneEditorHack instance => _isSceneActive ? _instance : null;
+
+        /// <summary>
+        /// ポーズ編集モード。instance の値をそのまま返す (キャッシュしない)。
+        /// フレーム頭で同期するキャッシュを挟むと、同フレーム中に編集モードへ
+        /// 入った直後の読み手が古い値を見て食い違う。
+        /// instance が null (タイトル画面) のときは false 扱いで、書き込みは無視する
+        /// </summary>
+        public static bool isPoseEditing
+        {
+            get
+            {
+                var hack = instance;
+                return hack != null && hack.isPoseEditingInternal;
+            }
+            set
+            {
+                var hack = instance;
+                if (hack != null)
+                {
+                    hack.isPoseEditingInternal = value;
+                }
+            }
+        }
+
+        public static void Initialize()
+        {
+            if (_instance != null)
+            {
+                return;
+            }
+            _instance = new SceneEditorHack();
+
+            // 登録がシーンロード後になるため、初期状態はアクティブ扱いにする
+            _isSceneActive = true;
+
+            // SceneEdit では photo mode の背景オブジェクト CSV が未ロードのため明示的に読み込む
+            // (StudioModelManager の BGObjectIdMap / モデル生成が PhotoBGObjectData.data に依存する)
+            if (PhotoBGObjectData.data == null)
+            {
+                PhotoBGObjectData.Create();
+            }
+        }
+
+        public static void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
+        {
+            _isSceneActive = scene.name != "SceneTitle";
+        }
+
+        private SceneEditorHack()
+        {
+        }
 
         private static SE.MaidManipulateManager manipulateManager
             => SE.MaidManipulateManager.instance;
 
-        public override Maid selectedMaid => manipulateManager.targetMaid;
+        private static MaidManager maidManager => MaidManager.instance;
+
+        public Maid selectedMaid => manipulateManager.targetMaid;
 
         private readonly List<Maid> _allMaids = new List<Maid>();
-        public override List<Maid> allMaids
+        public List<Maid> allMaids
         {
             get
             {
@@ -52,9 +107,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public override int selectedMaidSlotNo => allMaids.IndexOf(selectedMaid);
+        public int selectedMaidSlotNo => allMaids.IndexOf(selectedMaid);
 
-        public override string outputAnmPath
+        public string outputAnmPath
         {
             get
             {
@@ -67,7 +122,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public override bool isPoseEditing
+        // 旧 StudioHackBase.isPoseEditing。外からは static isPoseEditing 経由で触る
+        private bool isPoseEditingInternal
         {
             get => manipulateManager.isEditMode;
             set
@@ -80,15 +136,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// ボーン/IK の表示。SE の「ボーン表示」トグルの生値がそのまま実体で、
-        /// 実際に出ているか (編集モードとの AND) は isBoneEditing が持つ。
-        /// ポーズ編集モードには追従させない (StudioHackManager.isPoseEditing 参照)
-        /// </summary>
-        public override bool isIKVisible
+        public bool isAnmPlaying
         {
-            get => manipulateManager.isBoneVisible;
-            set => manipulateManager.isBoneVisible = value;
+            get => maidManager.isAnmPlaying;
+            set
+            {
+                if (value && isPoseEditingInternal)
+                {
+                    isPoseEditingInternal = false;
+                }
+                maidManager.isAnmPlaying = value;
+            }
         }
 
         /// <summary>
@@ -98,7 +156,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// (モーション以外のレイヤーがアクティブだと TimelineManager.isMotionEditing 経由で true が来る)。
         /// シーク時のポーズ反映は MaidCache.motionSliderRate が停止中でも担う
         /// </summary>
-        public override bool isAnmEnabled
+        public bool isAnmEnabled
         {
             get
             {
@@ -107,7 +165,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             set
             {
-                if (value && isPoseEditing)
+                if (value && isPoseEditingInternal)
                 {
                     return;
                 }
@@ -129,19 +187,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        // タイムライン側が再生時間を直接制御するため、スライダー同期は不要
-        public override float motionSliderRate
-        {
-            set { }
-        }
-
         // 詳細は ApplyMuneYure を参照
-        public override bool useMuneKeyL
+        public bool useMuneKeyL
         {
             set => ApplyMuneYure(true, value);
         }
 
-        public override bool useMuneKeyR
+        public bool useMuneKeyR
         {
             set => ApplyMuneYure(false, value);
         }
@@ -168,47 +220,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public override Camera subCamera => null;
-
-        // SE のゲーム内メインカメラに DOF コンポーネントが無いケースへの保険として、
-        // 基底の GetComponent (null あり得る) ではなく必要時に追加する
-        public override DepthOfFieldEffect depthOfField
-            => PluginUtils.MainCamera.gameObject.GetOrAddComponent<DepthOfFieldEffect>();
-
-        public override bool isUIVisible
+        private static void DeleteBGObject()
         {
-            get => !SE.WindowManager.instance.isWindowsHidden;
-            set => SE.WindowManager.instance.SetWindowsHidden(!value);
+            BgMgr bgMgr = GameMain.Instance.BgMgr;
+            UnityEngine.Object.Destroy(bgMgr.current_bg_object);
+            bgMgr.DeleteBg();
         }
 
-        public override bool Init()
+        public void ChangeBackground(string bgName)
         {
-            // 登録がシーンロード後になるため、初期状態はアクティブ扱いにする
-            isSceneActive = true;
-
-            // SceneEdit では photo mode の背景オブジェクト CSV が未ロードのため明示的に読み込む
-            // (StudioModelManager の BGObjectIdMap / モデル生成が PhotoBGObjectData.data に依存する)
-            if (PhotoBGObjectData.data == null)
+            if (bgName != GameMain.Instance.BgMgr.GetBGName())
             {
-                PhotoBGObjectData.Create();
+                DeleteBGObject();
+                GameMain.Instance.BgMgr.ChangeBg(bgName);
             }
-            return true;
         }
 
-        public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
+        public void SetBackgroundVisible(bool visible)
         {
-            isSceneActive = scene.name != "SceneTitle";
+            var bgObject = GameMain.Instance.BgMgr.current_bg_object;
+            if (bgObject != null)
+            {
+                bgObject.SetActive(visible);
+            }
         }
-
-        public override bool IsValid()
-        {
-            _errorMessage = "";
-            return true;
-        }
-
-        // モデル配置は ModelPlacerProvider 経由の ExternalModelHack が持つ。
-        // StudioHackBase.modelList が abstract のため、空リストを返す実装だけ残す
-        private static readonly List<StudioModelStat> _emptyModelList = new List<StudioModelStat>();
-        public override List<StudioModelStat> modelList => _emptyModelList;
     }
 }

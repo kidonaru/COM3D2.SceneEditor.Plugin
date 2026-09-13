@@ -178,7 +178,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.LateUpdate();
 
-            if (!studioHackManager.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }

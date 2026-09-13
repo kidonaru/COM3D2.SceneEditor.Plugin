@@ -72,7 +72,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.Update();
 
-            if (studioHackManager.isPoseEditing)
+            if (SceneEditorHack.isPoseEditing)
             {
                 var bgName = bgMgr.GetBGName();
                 if (bgName != _prevBgName)
@@ -86,7 +86,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _prevBgName = null;
             }
 
-            if (!studioHackManager.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }

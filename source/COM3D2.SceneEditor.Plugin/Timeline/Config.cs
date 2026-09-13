@@ -80,6 +80,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // 今は動画メッシュの位置と被写界深度のピント距離だけが参照する
         public float positionRange = 5.0f;
         public float voiceMaxLength = 20.0f;
+        // MTE 設定ファイル互換のため残す。SceneEditor では効果なし
         public bool disablePoseHistory = true;
         public string videoShaderName = "CM3D2/Unlit_Texture_Photo_MyObject";
         public bool psylliumAreaCopyIgnoreTransform = false;

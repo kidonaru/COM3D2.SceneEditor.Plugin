@@ -36,7 +36,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        private static SceneEditorHack studioHack => SceneEditorHack.instance;
 
         private static TimelineData timeline => TimelineManager.instance.timeline;
 

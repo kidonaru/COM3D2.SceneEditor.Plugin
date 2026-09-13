@@ -17,16 +17,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int stFrameInEdit { get; set; }
         public int edFrameInEdit { get; set; }
 
-        private static StudioHackManager studioHackManager => StudioHackManager.instance;
-
         public int stFrameActive
         {
-            get => studioHackManager.isPoseEditing ? stFrameInEdit : stFrame;
+            get => SceneEditorHack.isPoseEditing ? stFrameInEdit : stFrame;
         }
 
         public int edFrameActive
         {
-            get => studioHackManager.isPoseEditing ? edFrameInEdit : edFrame;
+            get => SceneEditorHack.isPoseEditing ? edFrameInEdit : edFrame;
         }
     }
 

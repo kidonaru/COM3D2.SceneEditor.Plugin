@@ -337,8 +337,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             MTEUtils.LogDebug("ChangeMaid: " + maid.name);
 
             var isAnmPlaying = studioHack.isAnmPlaying;
-            studioHackManager.isPoseEditing = false;
-            studioHack.ChangeMaid(maid);
+            SceneEditorHack.isPoseEditing = false;
             studioHack.isAnmPlaying = isAnmPlaying;
         }
 

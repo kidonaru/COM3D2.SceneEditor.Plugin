@@ -369,7 +369,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static TimelineManager timelineManager => TimelineManager.instance;
         private static TimelineData timeline => timelineManager.timeline;
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        private static SceneEditorHack studioHack => SceneEditorHack.instance;
         private static MaidManager maidManager => MaidManager.instance;
         private static StudioModelManager modelManager => StudioModelManager.instance;
 

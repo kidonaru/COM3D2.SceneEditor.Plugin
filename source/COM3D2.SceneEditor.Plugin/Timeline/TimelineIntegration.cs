@@ -18,8 +18,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private class TimelineUpdateManager : IManager
         {
-            private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
-            private static MTEP.StudioHackBase studioHack => studioHackManager.studioHack;
+            private static MTEP.SceneEditorHack studioHack => MTEP.SceneEditorHack.instance;
             private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
             private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
 
@@ -27,7 +26,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEP.ConfigManager.instance,
                 MTEP.BoneMenuManager.Instance,
-                studioHackManager,
                 MTEP.MaidManager.instance,
                 MTEP.TimelineManager.instance,
                 MTEP.StudioLightManager.instance,
@@ -125,9 +123,7 @@ namespace COM3D2.SceneEditor.Plugin
             /// <summary>MTE 本体 Update のガード順 (hack 選択 → メイド解決 → データ検証) を踏襲する</summary>
             private bool UpdateGuards()
             {
-                studioHackManager.PreUpdate();
-
-                if (studioHack == null || !studioHack.IsValid())
+                if (studioHack == null)
                 {
                     return false;
                 }
@@ -176,7 +172,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // MTE 本体の OnLoad と同じガード。タイムライン未生成のままプラグインを
                 // 有効化すると MaidManager.OnLoad が currentLayer (null) を触って NRE する
-                if (studioHack == null || !studioHack.IsValid() ||
+                if (studioHack == null ||
                     timelineManager.timeline == null)
                 {
                     return;
@@ -206,6 +202,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
             {
+                // 旧 StudioHackManager が担っていたシーン有効判定。マネージャより先に確定させる
+                MTEP.SceneEditorHack.OnChangedSceneLevel(scene, sceneMode);
+
                 // SE より後にロードされたモデル配置プラグインをここで拾う。
                 // 登録済みなら何もしないので、シーン切り替えごとの負荷は無視できる
                 TryRegisterModelPlacer();
@@ -280,7 +279,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var timelineManager = MTEP.TimelineManager.instance;
 
-            MTEP.StudioHackManager.instance.Register(new MTEP.SceneEditorHack());
+            MTEP.SceneEditorHack.Initialize();
 
             TryRegisterModelPlacer();
 

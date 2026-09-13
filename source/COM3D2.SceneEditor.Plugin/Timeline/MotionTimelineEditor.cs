@@ -41,7 +41,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isEnable => SceneEditor.Plugin.SceneEditorPlugin.instance != null
             && SceneEditor.Plugin.SceneEditorPlugin.instance.isEnable;
 
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        private static SceneEditorHack studioHack => SceneEditorHack.instance;
         private static TimelineData timeline => TimelineManager.instance.timeline;
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             MTEUtils.LogDebug("MotionTimelineEditor.OnLoad");
 
-            if (studioHack == null || !studioHack.IsValid())
+            if (studioHack == null)
             {
                 return;
             }

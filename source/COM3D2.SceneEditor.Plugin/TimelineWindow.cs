@@ -59,8 +59,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
-        private static MTEP.StudioHackBase studioHack => studioHackManager.studioHack;
+        private static MTEP.SceneEditorHack studioHack => MTEP.SceneEditorHack.instance;
         private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
@@ -512,7 +511,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             bool editEnabled = maidManager.IsValid()
-                            && studioHack.IsValid()
                             && timeline != null
                             && maidManager.maid != null;
 
@@ -1611,7 +1609,7 @@ namespace COM3D2.SceneEditor.Plugin
                     });
 
                 // A/D ボタンはアクティブレイヤーの行のみ (編集はアクティブレイヤーに束縛)
-                if (studioHackManager.isPoseEditing && isActiveLayerRow)
+                if (MTEP.SceneEditorHack.isPoseEditing && isActiveLayerRow)
                 {
                     view.InvokeActionOnMouse(
                         menuWidth - 20,

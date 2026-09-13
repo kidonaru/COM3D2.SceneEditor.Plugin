@@ -238,8 +238,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             setting.maidIndex = data.maidSlotNo >= 0 ? data.maidSlotNo : 0;
             PostEffectsClient.ApplyDepthOfField(setting);
             depthOfFieldMaidSlotId = data.maidSlotNo;
-
-            studioHack.OnUpdateDepthOfField();
         }
 
         public PEData.ParaffinData GetParaffinData(int index)

@@ -33,8 +33,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static MTEP.StudioHackManager studioHackManager => MTEP.StudioHackManager.instance;
-        private static MTEP.StudioHackBase studioHack => studioHackManager.studioHack;
+        private static MTEP.SceneEditorHack studioHack => MTEP.SceneEditorHack.instance;
         private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
@@ -381,16 +380,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawControls(GUIView view)
         {
-            var isStudioHackValid = studioHack.IsValid();
             var isMaidValid = maidManager.IsValid();
 
             var editEnabled = isMaidValid
-                            && isStudioHackValid
                             && timeline != null
                             && maidManager.maid != null;
 
             DrawFileMenu(view, editEnabled);
-            DrawStatusMessage(view, isStudioHackValid, isMaidValid);
+            DrawStatusMessage(view, isMaidValid);
 
             if (!editEnabled)
             {
@@ -430,11 +427,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void OnSaveClicked()
         {
-            if (!studioHack.IsValid())
-            {
-                MTEUtils.ShowDialog(studioHack.errorMessage);
-                return;
-            }
             if (!timelineManager.IsValidData())
             {
                 MTEUtils.ShowDialog(timelineManager.errorMessage);
@@ -448,11 +440,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void OnLoadClicked()
         {
-            if (!studioHack.IsValid())
-            {
-                MTEUtils.ShowDialog(studioHack.errorMessage);
-                return;
-            }
             var loadWindow = TimelineLoadWindow.instance;
             if (!loadWindow.isShowWnd)
             {
@@ -467,18 +454,14 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>状態メッセージ。狭いウィンドウでもはみ出さないよう残り幅に収める</summary>
-        private void DrawStatusMessage(GUIView view, bool isStudioHackValid, bool isMaidValid)
+        private void DrawStatusMessage(GUIView view, bool isMaidValid)
         {
             WrapIfNeeded(view, STATUS_MESSAGE_MIN_WIDTH);
 
             var remainWidth = view.viewRect.width - view.currentPos.x - view.padding.x * 2;
             var width = Mathf.Min(STATUS_MESSAGE_MAX_WIDTH, remainWidth);
 
-            if (!isStudioHackValid)
-            {
-                view.DrawLabel(studioHack.errorMessage, width, ROW_HEIGHT, Color.yellow);
-            }
-            else if (!isMaidValid)
+            if (!isMaidValid)
             {
                 view.DrawLabel(maidManager.errorMessage, width, ROW_HEIGHT, Color.yellow);
             }
@@ -486,7 +469,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel(timelineManager.errorMessage, width, ROW_HEIGHT, Color.yellow);
             }
-            else if (studioHackManager.isPoseEditing)
+            else if (MTEP.SceneEditorHack.isPoseEditing)
             {
                 var keyName = timelineConfig.GetKeyName(MTEP.KeyBindType.AddKeyFrame);
                 view.DrawLabel("[" + keyName + "]キーでキーフレームを登録します", width, ROW_HEIGHT, Color.white);
@@ -631,7 +614,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawKeyFrameControls(GUIView view)
         {
             DrawGroupLabel(view, "キーフレーム", 50);
-            if (view.DrawButton("登録", 50, ROW_HEIGHT, studioHackManager.isPoseEditing))
+            if (view.DrawButton("登録", 50, ROW_HEIGHT, MTEP.SceneEditorHack.isPoseEditing))
             {
                 timelineManager.AddKeyFrameDiff();
             }
@@ -673,7 +656,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             WrapIfNeeded(view, 60);
-            if (view.DrawButton("ポーズP", 60, ROW_HEIGHT, studioHackManager.isPoseEditing))
+            if (view.DrawButton("ポーズP", 60, ROW_HEIGHT, MTEP.SceneEditorHack.isPoseEditing))
             {
                 timelineManager.PastePoseFromClipboard();
             }
@@ -763,9 +746,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawToggles(GUIView view)
         {
-            DrawIconToggle(view, ToolbarIcons.Kind.EditMode, "編集モード", studioHackManager.isPoseEditing, true, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.EditMode, "編集モード", MTEP.SceneEditorHack.isPoseEditing, true, newValue =>
             {
-                studioHackManager.isPoseEditing = newValue;
+                MTEP.SceneEditorHack.isPoseEditing = newValue;
             });
 
             DrawIconToggle(view, ToolbarIcons.Kind.AutoKey, "自動登録", timelineConfig.isAutoKeyFrame, true, newValue =>

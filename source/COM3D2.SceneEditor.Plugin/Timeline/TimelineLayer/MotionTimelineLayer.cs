@@ -269,7 +269,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.LateUpdate();
 
-            if (!studioHackManager.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }
@@ -414,7 +414,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private void ApplyFingerBlendMotion(MotionData motion, float t)
         {
             // 指ブレンドはポーズ編集中のみ反映
-            if (!studioHackManager.isPoseEditing || !timeline.fingerBlendEnabled)
+            if (!SceneEditorHack.isPoseEditing || !timeline.fingerBlendEnabled)
             {
                 return;
             }
@@ -603,7 +603,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             MTEUtils.LogDebug("playingFrameNoFloat={0}", playingFrameNoFloat);
 
             maidCache.PlayAnm(id, anmData);
-            studioHack.OnMotionUpdated(maid);
             maidManager.OnMotionUpdated(maid);
 
             this.isAnmPlaying = isAnmPlaying;
@@ -611,7 +610,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 編集モード中に anm を作り直しても停止状態を保つ。PlayAnm が有効化した anm を
             // speed=0 のまま残すと、Unity が毎フレームキーのポーズをサンプルし、
             // LateUpdate の IK 固定と交互にボーンを書いてポーズがブレるため
-            if (studioHackManager.isPoseEditing && !isAnmPlaying)
+            if (SceneEditorHack.isPoseEditing && !isAnmPlaying)
             {
                 MaidMotionState.StopMotion(maid);
             }
@@ -651,10 +650,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var anmPath = this.anmPath;
                 var anmFileName = this.anmFileName;
 
-                bool isExist = File.Exists(anmPath);
                 File.WriteAllBytes(anmPath, anmData);
-
-                studioHack.OnUpdateMyPose(anmPath, isExist);
             }
             catch (Exception e)
             {

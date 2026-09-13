@@ -434,7 +434,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static MaidManager maidManager => MaidManager.instance;
 
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        private static SceneEditorHack studioHack => SceneEditorHack.instance;
 
         public TrackData activeTrack
         {

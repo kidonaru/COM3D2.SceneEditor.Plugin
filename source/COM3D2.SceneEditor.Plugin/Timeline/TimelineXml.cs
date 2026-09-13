@@ -1365,13 +1365,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void ConvertPlugin()
         {
-            var studioHack = StudioHackManager.instance.studioHack;
-            if (studioHack == null)
-            {
-                return;
-            }
-
-            var currentPluginName = studioHack.pluginName;
+            var currentPluginName = SceneEditorHack.pluginName;
             bool isConvertToStudioMode = currentPluginName == "StudioMode";
             _convertModelNames.Clear();
 

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     public class MaidBoneMenuItem : BoneMenuItem
@@ -8,27 +6,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool isSelectedMenu
         {
-            get
-            {
-                if (!studioHack.HasBoneRotateVisible(boneType))
-                {
-                    return base.isSelectedMenu;
-                }
-                return studioHack.IsBoneRotateVisible(boneType);
-            }
+            get => base.isSelectedMenu;
             set
             {
                 if (partsEditHack != null)
                 {
                     partsEditHack.SetBone(null);
                 }
-
-                if (!studioHack.HasBoneRotateVisible(boneType))
-                {
-                    base.isSelectedMenu = value;
-                    return;
-                }
-                studioHack.SetBoneRotateVisible(boneType, value);
+                base.isSelectedMenu = value;
             }
         }
 

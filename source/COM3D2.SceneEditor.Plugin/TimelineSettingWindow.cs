@@ -493,12 +493,6 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineConfig.isAutoScroll = newValue;
                     timelineConfig.dirty = true;
                 });
-
-                view.DrawToggle("ポーズ履歴無効", timelineConfig.disablePoseHistory, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
-                {
-                    timelineConfig.disablePoseHistory = newValue;
-                    timelineConfig.dirty = true;
-                });
             }
             view.EndLayout();
 

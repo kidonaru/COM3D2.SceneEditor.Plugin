@@ -452,7 +452,6 @@
     <Compile Include="Timeline\Hack\ExternalModelHack.cs" />
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />
     <Compile Include="Timeline\Hack\SceneEditorHack.cs" />
-    <Compile Include="Timeline\Hack\StudioHackBase.cs" />
     <Compile Include="Timeline\Hack\ModelHackBase.cs" />
     <Compile Include="Timeline\IKHoldType.cs" />
     <Compile Include="Timeline\MaidBlendShape.cs" />
@@ -465,7 +464,6 @@
     <Compile Include="Timeline\Manager\CameraManager.cs" />
     <Compile Include="Timeline\Manager\MaidManager.cs" />
     <Compile Include="Timeline\Manager\ManagerBase.cs" />
-    <Compile Include="Timeline\Manager\StudioHackManager.cs" />
     <Compile Include="Timeline\Manager\StudioLightManager.cs" />
     <Compile Include="Timeline\Manager\StudioModelManager.cs" />
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />

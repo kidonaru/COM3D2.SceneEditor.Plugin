@@ -17,23 +17,20 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static void Enter()
         {
-            var studioHackManager = MTEP.StudioHackManager.instance;
-            var studioHack = studioHackManager.studioHack;
-
-            if (studioHack == null)
+            if (MTEP.SceneEditorHack.instance == null)
             {
-                // タイムライン側が未登録 (タイトル画面等) なら SE 本体のフラグだけ立てる
+                // タイムライン側が未初期化 (タイトル画面等) なら SE 本体のフラグだけ立てる
                 MaidManipulateManager.instance.isEditMode = true;
                 return;
             }
 
-            if (studioHackManager.isPoseEditing)
+            if (MTEP.SceneEditorHack.isPoseEditing)
             {
                 return;
             }
 
-            // StudioHackManager 経由で入ると再生停止も一緒に行われる (SceneEditorHack.isPoseEditing)
-            studioHackManager.isPoseEditing = true;
+            // SceneEditorHack 経由で入ると再生停止も一緒に行われる
+            MTEP.SceneEditorHack.isPoseEditing = true;
 
             // スナップショットを同フレームで取る。
             // 翌フレームの TimelineManager.Update に任せると、このあと書く値が

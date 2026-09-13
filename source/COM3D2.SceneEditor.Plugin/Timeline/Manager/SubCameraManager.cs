@@ -47,7 +47,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Maid maid => state.maid;
         public bool isFollow => state.isFollow;
 
-        private static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        private static SceneEditorHack studioHack => SceneEditorHack.instance;
 
         private void LateUpdate()
         {

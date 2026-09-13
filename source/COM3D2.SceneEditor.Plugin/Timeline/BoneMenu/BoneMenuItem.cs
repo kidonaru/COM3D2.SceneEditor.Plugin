@@ -30,7 +30,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public List<IBoneMenuItem> children => null;
 
-        protected static StudioHackBase studioHack => StudioHackManager.instance.studioHack;
+        protected static SceneEditorHack studioHack => SceneEditorHack.instance;
 
         protected static BoneMenuManager boneMenuManager => BoneMenuManager.Instance;
 

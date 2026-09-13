@@ -384,7 +384,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             MTEUtils.LogDebug("SetupModels: count={0}", modelDataList.Count);
 
             // プロバイダが無いとモデルの生成・削除が黙って no-op になる
-            // (ModelHackManager.GetOrDefault が studioHack へフォールバックするため)。
+            // (ModelHackManager.GetOrDefault が null を返し、呼び出し側が読み飛ばすため)。
             // 復元できない旨をここで明示して打ち切る
             var providerId = SE.ModelPlacerProviderRegistry.current?.id;
             if (providerId == null)

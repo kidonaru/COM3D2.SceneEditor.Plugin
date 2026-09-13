@@ -90,7 +90,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.LateUpdate();
 
-            if (!studioHackManager.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }
@@ -232,7 +232,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             // モーション編集終了後は強制反映
-            if (!studioHack.isPoseEditing)
+            if (!SceneEditorHack.isPoseEditing)
             {
                 foreach (var playData in _playDataMap.Values)
                 {
