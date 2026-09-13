@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -66,6 +67,8 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel("ボディの読み込みを待っています", -1, ROW_HEIGHT);
                 return;
             }
+
+            TimelineLayerGate.Begin(view, typeof(MTEP.UndressTimelineLayer), target, ROW_HEIGHT);
 
             DrawAllButtons(view, target);
             DrawCategoryList(view, target);

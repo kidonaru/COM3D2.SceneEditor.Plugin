@@ -181,7 +181,16 @@ namespace COM3D2.SceneEditor.Plugin
 
             var target = showMaidSelector ? DrawMaidSelector(view) : maidManager.targetMaid;
 
-            DrawMaidContent(target);
+            try
+            {
+                DrawMaidContent(target);
+            }
+            finally
+            {
+                // レイヤーゲートで強制無効にした状態を、派生クラスの早期 return や例外に
+                // 関わらずここで必ず解く。解かないと後に描く ComboBoxPopupWindow まで操作不能になる
+                TimelineLayerGate.End(view);
+            }
 
             // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す。
             // 派生クラスの早期 return で呼び忘れないよう、この基底クラスが必ず呼ぶ

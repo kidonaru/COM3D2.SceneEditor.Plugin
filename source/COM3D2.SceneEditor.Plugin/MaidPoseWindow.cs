@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -147,6 +148,9 @@ namespace COM3D2.SceneEditor.Plugin
                     textColor: Color.yellow);
                 return;
             }
+
+            // 未登録なら無効表示＋追加ボタン。項目自体は見せたいので return しない
+            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
 
             DrawPlaybackRows(view, target);
             view.DrawHorizontalLine();

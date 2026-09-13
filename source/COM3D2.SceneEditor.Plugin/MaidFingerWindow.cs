@@ -126,6 +126,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawHeader(view, target);
 
+            // プリセット適用も指ブレンドを直接書くため、タブを問わずモーションレイヤーに記録される
+            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
+
             _tabType = DrawInnerTabs(_tabType, 80);
 
             if (_tabType == DigitTabType.プリセット)
