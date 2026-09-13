@@ -14,10 +14,46 @@ export default defineConfig({
     logo: '/favicon.svg',
     nav: [
       { text: 'ガイド', link: '/' },
+      { text: 'タイムライン', link: '/timeline/' },
       { text: '開発者向け', link: '/dev/' },
       { text: 'ダウンロード', link: 'https://github.com/kidonaru/COM3D2.SceneEditor.Plugin/releases' },
     ],
     sidebar: {
+      '/timeline/': [
+        {
+          text: 'タイムライン',
+          items: [
+            { text: '概要', link: '/timeline/' },
+            { text: 'タイムラインウィンドウ', link: '/timeline/window' },
+            { text: 'タイムライン操作ウィンドウ', link: '/timeline/control' },
+            { text: 'キーフレーム編集', link: '/timeline/editing' },
+            { text: '再生とシーク', link: '/timeline/playback' },
+            { text: '補間とカーブエディタ', link: '/timeline/interpolation' },
+            { text: 'キーフレーム詳細（Inspector）', link: '/timeline/inspector' },
+          ],
+        },
+        {
+          text: 'レイヤー',
+          items: [
+            { text: 'レイヤー一覧', link: '/timeline/layers' },
+            { text: 'メイド系', link: '/timeline/layers-maid' },
+            { text: 'カメラ系', link: '/timeline/layers-camera' },
+            { text: 'モデル系', link: '/timeline/layers-model' },
+            { text: '背景系', link: '/timeline/layers-background' },
+            { text: 'ライト・演出系', link: '/timeline/layers-effect' },
+            { text: 'その他 / BGM / 動画', link: '/timeline/layers-other' },
+          ],
+        },
+        {
+          text: 'リファレンス',
+          items: [
+            { text: 'ファイル管理', link: '/timeline/files' },
+            { text: 'タイムライン設定', link: '/timeline/settings' },
+            { text: 'ショートカット', link: '/timeline/shortcuts' },
+            { text: 'MTE 互換と制限事項', link: '/timeline/compatibility' },
+          ],
+        },
+      ],
       '/dev/': [
         {
           text: '開発者向け',
