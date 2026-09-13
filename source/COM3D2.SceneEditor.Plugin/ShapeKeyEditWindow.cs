@@ -133,12 +133,17 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            TimelineLayerGate.Begin(view, typeof(MTEP.ShapeKeyTimelineLayer), target, ROW_HEIGHT);
+            var gateState = TimelineLayerGate.Begin(
+                view, typeof(MTEP.ShapeKeyTimelineLayer), target, ROW_HEIGHT);
 
             var maidCache = timelineMaidManager.GetMaidCache(target);
             if (maidCache == null)
             {
-                view.DrawLabel("メイド情報を取得できません", -1, ROW_HEIGHT, textColor: Color.yellow);
+                // ゲートが同じ状況を通知済みなら重ねて出さない
+                if (gateState != TimelineLayerGateState.MaidNotFound)
+                {
+                    view.DrawLabel("メイド情報を取得できません", -1, ROW_HEIGHT, textColor: Color.yellow);
+                }
                 return;
             }
 

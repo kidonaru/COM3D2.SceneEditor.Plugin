@@ -14,7 +14,10 @@ namespace COM3D2.SceneEditor.Plugin
     ///
     /// Begin で無効化したら、同じ描画パス内で必ず End を呼ぶこと。
     /// SetEnabled はグローバル GUI.enabled を書き換えるため、戻し忘れると
-    /// 後に描かれる ComboBoxPopupWindow まで操作できなくなる
+    /// 後に描かれる ComboBoxPopupWindow まで操作できなくなる。
+    ///
+    /// タブ切替ボタンはゲートの対象外にする（無効化するとタブから抜けられなくなる）。
+    /// 各ウィンドウはタブを描いた後に Begin を呼ぶこと
     /// </summary>
     public static class TimelineLayerGate
     {
@@ -22,21 +25,29 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
 
-        /// <summary>メイド非依存レイヤー用。呼び出し後もそのまま項目を描き続ける（無効表示にするだけで隠さない）</summary>
-        public static void Begin(GUIView view, Type layerType, float rowHeight)
+        /// <summary>
+        /// メイド非依存レイヤー用。呼び出し後もそのまま項目を描き続ける（無効表示にするだけで隠さない）。
+        /// 同一タブ内で同じレイヤーを区間ごとに複数回ゲートする場合、
+        /// 2 回目以降は drawNotice を false にして注意ラベルと追加ボタンの重複を避ける
+        /// </summary>
+        public static TimelineLayerGateState Begin(
+            GUIView view, Type layerType, float rowHeight, bool drawNotice = true)
         {
             var timelineLoaded = timelineManager.timeline != null;
             var layerExists = timelineLoaded && timelineManager.GetLayer(layerType, 0) != null;
             var state = TimelineLayerGateText.Resolve(timelineLoaded, false, false, layerExists);
-            Apply(view, layerType, 0, state, rowHeight);
+            Apply(view, layerType, 0, state, rowHeight, drawNotice);
+            return state;
         }
 
         /// <summary>
         /// メイド単位レイヤー (hasSlotNo == true) 用。slotNo はタイムライン側の MaidCache から引く。
         /// 対象メイドがタイムライン側に無い場合はレイヤーを作れないので、
-        /// 追加ボタンは出さず案内だけ出して無効化する
+        /// 追加ボタンは出さず案内だけ出して無効化する。
+        /// 戻り値は判定結果。呼び出し側が同じ状況の注意文言を重ねて出さないために使う
         /// </summary>
-        public static void Begin(GUIView view, Type layerType, Maid maid, float rowHeight)
+        public static TimelineLayerGateState Begin(
+            GUIView view, Type layerType, Maid maid, float rowHeight)
         {
             var timelineLoaded = timelineManager.timeline != null;
             var maidCache = maid != null ? MTEP.MaidManager.instance.GetMaidCache(maid) : null;
@@ -45,7 +56,8 @@ namespace COM3D2.SceneEditor.Plugin
                 && timelineManager.GetLayer(layerType, slotNo) != null;
             var state = TimelineLayerGateText.Resolve(
                 timelineLoaded, true, maidCache != null, layerExists);
-            Apply(view, layerType, slotNo, state, rowHeight);
+            Apply(view, layerType, slotNo, state, rowHeight, true);
+            return state;
         }
 
         /// <summary>強制無効を解除して有効へ戻す。冪等</summary>
@@ -56,7 +68,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private static void Apply(
-            GUIView view, Type layerType, int slotNo, TimelineLayerGateState state, float rowHeight)
+            GUIView view, Type layerType, int slotNo, TimelineLayerGateState state,
+            float rowHeight, bool drawNotice)
         {
             switch (state)
             {
@@ -65,14 +78,20 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
 
                 case TimelineLayerGateState.MaidNotFound:
-                    view.DrawLabel(TimelineLayerGateText.MaidNotFoundText, -1, rowHeight,
-                        textColor: Color.yellow);
+                    if (drawNotice)
+                    {
+                        view.DrawLabel(TimelineLayerGateText.MaidNotFoundText, -1, rowHeight,
+                            textColor: Color.yellow);
+                    }
                     Disable(view);
                     return;
 
                 case TimelineLayerGateState.Missing:
                 default:
-                    DrawMissing(view, layerType, slotNo, rowHeight);
+                    if (drawNotice)
+                    {
+                        DrawMissing(view, layerType, slotNo, rowHeight);
+                    }
                     Disable(view);
                     return;
             }

@@ -294,8 +294,8 @@ namespace COM3D2.SceneEditor.Plugin
             var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
             if (maidCache == null)
             {
-                view.DrawLabel("タイムライン側の対象メイドが見つかりません",
-                    -1, ROW_HEIGHT, textColor: Color.yellow);
+                // ここへ来るのはタイムライン読込中に限られ、その場合は
+                // タブ冒頭の TimelineLayerGate が同じ案内を出しているので重ねない
                 return;
             }
 

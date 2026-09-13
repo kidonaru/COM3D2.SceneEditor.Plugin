@@ -149,7 +149,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 未登録なら無効表示＋追加ボタン。項目自体は見せたいので return しない
+            // 直前のガードと違い、レイヤー未登録では return しない（項目は見せたまま無効化する）
             TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
 
             DrawPlaybackRows(view, target);

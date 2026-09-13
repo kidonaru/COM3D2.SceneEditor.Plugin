@@ -265,7 +265,9 @@ namespace COM3D2.SceneEditor.Plugin
             TimelineLayerGate.End(_view);
 
             _view.DrawHorizontalLine();
-            TimelineLayerGate.Begin(_view, typeof(MTEP.BGTimelineLayer), ROW_HEIGHT);
+            // 同じ背景レイヤーの 2 区間目なので注意ラベルと追加ボタンは出さず無効化だけ行う。
+            // この区間の End は DrawContent の finally が行う
+            TimelineLayerGate.Begin(_view, typeof(MTEP.BGTimelineLayer), ROW_HEIGHT, drawNotice: false);
             DrawFilterRows();
             DrawBgList(bgMgr);
         }
@@ -284,6 +286,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // End は DrawContent の finally が行う
             TimelineLayerGate.Begin(_view, typeof(MTEP.BGModelTimelineLayer), ROW_HEIGHT);
 
             _modelTabType = DrawTabHeader(_modelTabType);
