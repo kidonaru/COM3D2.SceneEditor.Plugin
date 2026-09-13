@@ -106,7 +106,9 @@ namespace COM3D2.SceneEditor.Plugin
             = new GUIComboBox<MTEP.TimelineLayerCategory>
         {
             contentSize = new Vector2(200, 300),
-            showArrow = false,
+            // 項目数が少なく前後送りで十分たどれるので < > の矢印を出す
+            // (メニュー幅が狭いときは DrawLayerControls で畳む)
+            showArrow = true,
         };
 
         /// <summary>カテゴリの列挙順 (enum 定義順)</summary>
@@ -1355,14 +1357,21 @@ namespace COM3D2.SceneEditor.Plugin
             view.currentPos.y = 0;
             DrawViewModeButton(view, isCategoryMode);
 
+            // コンボ (矢印込み) に割ける幅
+            var comboAreaWidth = menuWidth - FRAME_LABEL_HEIGHT - LAYER_BUTTON_WIDTH * 2;
+            // カテゴリコンボの前後送り矢印はコンボ本体の幅を食う。
+            // 矢印を出すとコンボ本体が下限幅を割るほど狭いときは、右端からはみ出さないよう矢印を畳む
+            var arrowWidth = GUIComboBoxBase.ARROW_SIZE * 2;
+            var showCategoryArrow = isCategoryMode && comboAreaWidth - arrowWidth >= LAYER_BUTTON_WIDTH;
+            var usedArrowWidth = showCategoryArrow ? arrowWidth : 0f;
             // メニュー幅が極端に狭くてもボタンが負座標へ回り込まないよう下限を設ける
-            var comboWidth = Mathf.Max(
-                LAYER_BUTTON_WIDTH, menuWidth - FRAME_LABEL_HEIGHT - LAYER_BUTTON_WIDTH * 2);
+            var comboWidth = Mathf.Max(LAYER_BUTTON_WIDTH, comboAreaWidth - usedArrowWidth);
 
             view.currentPos.x = FRAME_LABEL_HEIGHT;
             view.currentPos.y = 0;
             if (isCategoryMode)
             {
+                _categoryComboBox.showArrow = showCategoryArrow;
                 _categoryComboBox.buttonSize = new Vector2(comboWidth, FRAME_LABEL_HEIGHT);
                 _categoryComboBox.items = _availableCategories;
                 _categoryComboBox.currentIndex = _availableCategories.IndexOf(GetLayerCategory(currentLayer));
@@ -1376,7 +1385,8 @@ namespace COM3D2.SceneEditor.Plugin
                 _layerComboBox.DrawButton(view);
             }
 
-            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth;
+            // コンボの実描画幅は本体 + 矢印なので、後続のボタンはその分だけ右へ寄せる
+            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth + usedArrowWidth;
             view.currentPos.y = 0;
             if (view.DrawButton("-", LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT,
                     layerType != typeof(MTEP.MotionTimelineLayer)))
@@ -1384,7 +1394,7 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineManager.RemoveLayers(layerType);
             }
 
-            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth + LAYER_BUTTON_WIDTH;
+            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth + usedArrowWidth + LAYER_BUTTON_WIDTH;
             view.currentPos.y = 0;
             _addLayerComboBox.currentIndex = -1;
             // 現在のメイドでまだ使っていない型を列挙する (スロット無しレイヤーは存在チェックのみ)。
