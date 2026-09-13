@@ -24,6 +24,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
         private const float CustomSliderWidth = -1f;
 
+        /// <summary>
+        /// 「サイリウム間の位置」行のラベル幅 (既定幅では収まらないラベル用)。
+        /// 9 文字 x 12px に余白を足した安全側の値。ラベルは折り返さず隣の列へはみ出すため
+        /// </summary>
+        private const float BarOffsetLabelWidth = 130f;
+
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1aFieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color1bFieldCache = new ColorFieldCache("", true);
@@ -224,8 +230,6 @@ namespace COM3D2.SceneEditor.Plugin
             
             var transformCache = view.GetTransformCache(null);
 
-            view.DrawLabel("サイリウム間の位置", 200, 20);
-
             {
                 var initialPosition = defaultConfig.barOffsetPosition;
                 transformCache.position = handConfig.barOffsetPosition;
@@ -234,15 +238,15 @@ namespace COM3D2.SceneEditor.Plugin
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "サイリウム間の位置",
+                    labelWidth: BarOffsetLabelWidth);
 
                 if (updateTransform)
                 {
                     handConfig.barOffsetPosition = transformCache.position;
                 }
             }
-
-            view.DrawLabel("サイリウム間の角度", 200, 20);
 
             {
                 var initialEulerAngles = defaultConfig.barOffsetRotation;
@@ -254,7 +258,9 @@ namespace COM3D2.SceneEditor.Plugin
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     prevEulerAngles,
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "サイリウム間の角度",
+                    labelWidth: BarOffsetLabelWidth);
 
                 if (updateTransform)
                 {

@@ -21,6 +21,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
         private const float CustomSliderWidth = -1f;
 
+        /// <summary>Transform 行のラベル幅 (「最小位置」等が収まる幅)</summary>
+        private const float StageLaserTransformLabelWidth = 60f;
+
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
@@ -47,13 +50,13 @@ namespace COM3D2.SceneEditor.Plugin
                 var transformCache = view.GetTransformCache(null);
                 transformCache.position = controller.position;
 
-                view.DrawLabel("位置", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawPosition(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "位置",
+                    labelWidth: StageLaserTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -66,14 +69,14 @@ namespace COM3D2.SceneEditor.Plugin
                 var transformCache = view.GetTransformCache(null);
                 transformCache.eulerAngles = controller.eulerAngles;
 
-                view.DrawLabel("角度", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawEulerAngles(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     TimelinePrevKeyUtils.GetPrevEulerAngles<StageLaserTimelineLayer>(controller.name, initialEulerAngles),
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "角度",
+                    labelWidth: StageLaserTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -109,14 +112,14 @@ namespace COM3D2.SceneEditor.Plugin
                 var prevTransform = prevBone != null ? prevBone.transform as TransformDataStageLaserController : null;
                 var prevAngles = prevTransform != null ? prevTransform.rotationMin : initialEulerAngles;
 
-                view.DrawLabel("最小角度", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawEulerAngles(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     prevAngles,
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "最小角度",
+                    labelWidth: StageLaserTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -129,14 +132,14 @@ namespace COM3D2.SceneEditor.Plugin
 
                 prevAngles = prevTransform != null ? prevTransform.rotationMax : initialEulerAngles;
 
-                view.DrawLabel("最大角度", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawEulerAngles(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     prevAngles,
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "最大角度",
+                    labelWidth: StageLaserTransformLabelWidth);
 
                 if (updateTransform)
                 {

@@ -21,6 +21,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
         private const float CustomSliderWidth = -1f;
 
+        /// <summary>Transform 行のラベル幅 (「最小位置」等が収まる幅)</summary>
+        private const float StageLightTransformLabelWidth = 60f;
+
         // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
         private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
         private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
@@ -66,13 +69,13 @@ namespace COM3D2.SceneEditor.Plugin
                 var transformCache = view.GetTransformCache(null);
                 transformCache.position = controller.positionMin;
 
-                view.DrawLabel("最小位置", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawPosition(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "最小位置",
+                    labelWidth: StageLightTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -83,13 +86,13 @@ namespace COM3D2.SceneEditor.Plugin
                 transformCache = view.GetTransformCache(null);
                 transformCache.position = controller.positionMax;
 
-                view.DrawLabel("最大位置", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawPosition(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "最大位置",
+                    labelWidth: StageLightTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -108,14 +111,14 @@ namespace COM3D2.SceneEditor.Plugin
                 var transformCache = view.GetTransformCache(null);
                 transformCache.eulerAngles = controller.rotationMin;
 
-                view.DrawLabel("最小角度", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawEulerAngles(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     TimelinePrevKeyUtils.GetPrevEulerAngles<StageLightTimelineLayer>(controller.name, initialEulerAngles),
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "最小角度",
+                    labelWidth: StageLightTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -125,14 +128,14 @@ namespace COM3D2.SceneEditor.Plugin
                 transformCache = view.GetTransformCache(null);
                 transformCache.eulerAngles = controller.rotationMax;
 
-                view.DrawLabel("最大角度", 200, 20);
-
                 updateTransform |= TimelineLayerBase.DrawEulerAngles(
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     TimelinePrevKeyUtils.GetPrevEulerAngles<StageLightTimelineLayer>(controller.name, initialEulerAngles, true),
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "最大角度",
+                    labelWidth: StageLightTransformLabelWidth);
 
                 if (updateTransform)
                 {

@@ -19,6 +19,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>カスタム値のスライダー幅 (-1 でウィンドウ幅いっぱい。KeyFrameInspector と揃える)</summary>
         private const float CustomSliderWidth = -1f;
 
+        /// <summary>
+        /// サイリウムの Transform 行のラベル幅。最長の「ランダム位置」が収まる幅で、
+        /// 移動・回転の行と XYZ の列を揃える
+        /// </summary>
+        private const float PsylliumTransformLabelWidth = 80f;
+
         public static readonly int WINDOW_ID = 8903393;
 
         protected override int windowId => WINDOW_ID;
@@ -952,8 +958,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawPsylliumTransformConfigEdit(view);
 
-            view.DrawLabel("ランダム位置", 200, 20);
-
             {
                 var initialPosition = defaultConfig.randomPositionRange;
                 var transformCache = view.GetTransformCache(null);
@@ -963,15 +967,15 @@ namespace COM3D2.SceneEditor.Plugin
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "ランダム位置",
+                    labelWidth: PsylliumTransformLabelWidth);
 
                 if (updateTransform)
                 {
                     patternConfig.randomPositionRange = transformCache.position;
                 }
             }
-
-            view.DrawLabel("ランダム角度", 200, 20);
 
             {
                 var initialEulerAngles = defaultConfig.randomEulerAnglesRange;
@@ -984,7 +988,9 @@ namespace COM3D2.SceneEditor.Plugin
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     prevEulerAngles,
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "ランダム角度",
+                    labelWidth: PsylliumTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -1073,8 +1079,6 @@ namespace COM3D2.SceneEditor.Plugin
             var defaultTrans = TransformDataPsylliumTransform.defaultTrans;
             var defaultConfig = TransformDataPsylliumTransform.defaultConfig;
 
-            view.DrawLabel("移動", 200, 20);
-
             if (_handTabType == HandTabType.右手)
             {
                 var initialPosition = defaultConfig.positionRight;
@@ -1085,7 +1089,9 @@ namespace COM3D2.SceneEditor.Plugin
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "移動",
+                    labelWidth: PsylliumTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -1102,15 +1108,15 @@ namespace COM3D2.SceneEditor.Plugin
                     view,
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
-                    initialPosition);
+                    initialPosition,
+                    label: "移動",
+                    labelWidth: PsylliumTransformLabelWidth);
 
                 if (updateTransform)
                 {
                     transformConfig.positionLeft = transformCache.position;
                 }
             }
-
-            view.DrawLabel("回転", 200, 20);
 
             if (_handTabType == HandTabType.右手)
             {
@@ -1124,7 +1130,9 @@ namespace COM3D2.SceneEditor.Plugin
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     prevEulerAngles,
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "回転",
+                    labelWidth: PsylliumTransformLabelWidth);
 
                 if (updateTransform)
                 {
@@ -1143,7 +1151,9 @@ namespace COM3D2.SceneEditor.Plugin
                     transformCache,
                     TimelineLayerBase.TransformEditType.全て,
                     prevEulerAngles,
-                    initialEulerAngles);
+                    initialEulerAngles,
+                    label: "回転",
+                    labelWidth: PsylliumTransformLabelWidth);
 
                 if (updateTransform)
                 {

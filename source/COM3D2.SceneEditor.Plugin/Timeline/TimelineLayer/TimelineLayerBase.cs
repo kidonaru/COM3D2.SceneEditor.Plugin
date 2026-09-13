@@ -1580,11 +1580,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             config.dirty = true;
         }
 
+        /// <param name="label">行のラベル。呼び出し側で別途見出しを出さずに済むよう差し替えられる</param>
+        /// <param name="labelWidth">ラベル幅。0f 以下なら既定幅にフォールバックする</param>
         public static bool DrawPosition(
             GUIView view,
             TransformCache transform,
             TransformEditType editType,
-            Vector3 initialPosition)
+            Vector3 initialPosition,
+            string label = "位置",
+            float labelWidth = 0f)
         {
             if (!IsDrawTransformType(TransformDrawType.移動, editType, DrawMaskAll))
             {
@@ -1593,8 +1597,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var position = transform.position;
             var updateTransform = DrawTransformVector3(
-                view, "位置", PositionSensitivity, position, initialPosition,
-                value => position = value);
+                view, label, PositionSensitivity, position, initialPosition,
+                value => position = value,
+                labelWidth: labelWidth);
 
             if (updateTransform)
             {
@@ -1657,12 +1662,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return DrawEulerAngles(view, transform, editType, prevAngles, initialEulerAngles);
         }
 
+        /// <param name="label">行のラベル。呼び出し側で別途見出しを出さずに済むよう差し替えられる</param>
+        /// <param name="labelWidth">ラベル幅。0f 以下なら既定幅にフォールバックする</param>
         public static bool DrawEulerAngles(
             GUIView view,
             TransformCache transform,
             TransformEditType editType,
             Vector3 prevAngles,
-            Vector3 initialEulerAngles)
+            Vector3 initialEulerAngles,
+            string label = "回転",
+            float labelWidth = 0f)
         {
             if (!IsDrawTransformType(TransformDrawType.回転, editType, DrawMaskAll))
             {
@@ -1672,8 +1681,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 直前のキーフレームからの連続性を保った角度で表示・編集する
             var angles = TransformDataBase.GetFixedEulerAngles(transform.eulerAngles, prevAngles);
             var updateTransform = DrawTransformVector3(
-                view, "回転", RotationSensitivity, angles, initialEulerAngles,
-                value => angles = value);
+                view, label, RotationSensitivity, angles, initialEulerAngles,
+                value => angles = value,
+                labelWidth: labelWidth);
 
             if (updateTransform)
             {
