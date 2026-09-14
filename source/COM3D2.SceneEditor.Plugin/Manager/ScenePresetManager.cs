@@ -864,9 +864,11 @@ namespace COM3D2.SceneEditor.Plugin
                 CaptureModelShapeKeys(data, entries);
             }
 
-            // 背景分は背景セクションと同じカテゴリに従う
+            // 背景分は背景セクションと同じカテゴリに従う。
+            // マテリアル差分の owner に複製モデルのパスが入りうるため、複製の記録 (bgModels) も同じカテゴリで持つ
             if (options.saveBackground)
             {
+                data.bgModels = BgModelSnapshot.CaptureState();
                 CaptureBgMaterials(data);
             }
         }
@@ -2567,7 +2569,19 @@ namespace COM3D2.SceneEditor.Plugin
             var entries = ModelProviderHost.GetModels();
             ApplyModelMaterials(data, entries);
             ApplyModelShapeKeys(data, entries);
+            // 複製モデルがマテリアル差分の適用先になりうるため、背景モデルを先に復元する
+            ApplyBgModels(data);
             ApplyBgMaterials(data);
+        }
+
+        /// <summary>保存された背景モデル (表示・transform・複製) を復元する。背景を復元しない設定のときは触らない</summary>
+        private static void ApplyBgModels(ScenePresetData data)
+        {
+            if (data.bgModels == null || !ShouldApplyBackground(data))
+            {
+                return;
+            }
+            BgModelSnapshot.ApplyState(data.bgModels);
         }
 
         /// <summary>保存されたモデルマテリアル差分を適用する</summary>
