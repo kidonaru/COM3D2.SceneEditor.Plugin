@@ -14,8 +14,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override int valueCount => 2;
 
-        // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換と
-        // 集約型レイヤーの補間形状キャリアとして残す)
+        // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換のためだけに残す)
         public override bool hasTangent => true;
         public override ValueData[] tangentValues => values;
 

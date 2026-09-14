@@ -103,14 +103,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         private void ApplyGTToneMap(MotionData motion, float t)
         {
-            var start = motion.start as TransformDataGTToneMap;
-            var end = motion.end as TransformDataGTToneMap;
-
-            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
-            float lerpTime = CalcTangentValue(motion, t);
-            var data = GTToneMapData.Lerp(start.data, end.data, lerpTime);
-
-            postEffectManager.ApplyGTToneMap(data);
+            var scratch = LerpScratch<TransformDataGTToneMap>(motion, t);
+            postEffectManager.ApplyGTToneMap(scratch.data);
         }
     }
 }

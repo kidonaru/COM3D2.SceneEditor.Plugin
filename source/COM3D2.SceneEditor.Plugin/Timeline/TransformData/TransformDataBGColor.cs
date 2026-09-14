@@ -10,6 +10,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override int valueCount => 3;
 
+        // 色は Color.Lerp で線形補間するため、タンジェントの対象からは外す。
+        // (valuesWithoutColors はこの型では空配列になる)
+        public override bool hasTangent => true;
+        public override ValueData[] tangentValues => valuesWithoutColors;
+
         private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
             new Dictionary<string, ColorValueInfo>
             {

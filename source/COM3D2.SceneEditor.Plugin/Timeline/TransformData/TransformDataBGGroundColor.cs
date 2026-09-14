@@ -15,6 +15,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool hasScale => true;
         public override bool hasVisible => true;
 
+        // 位置・広さはタンジェント補間、色は Color.Lerp で線形補間する
+        public override bool hasTangent => true;
+        public override ValueData[] tangentValues => valuesWithoutColors;
+
         public override ValueData[] positionValues
         {
             get => new ValueData[] { values[0], values[1], values[2] };

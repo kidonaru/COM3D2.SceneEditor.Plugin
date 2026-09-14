@@ -170,8 +170,8 @@ namespace COM3D2.SceneEditor.Plugin
         private DragMode _dragMode = DragMode.None;
         /// <summary>ドラッグ対象のキー値。CurveChannel は入力が変わると作り直されるため実体を直接保持する</summary>
         private MTEP.ValueData _dragValue = null;
-        /// <summary>ドラッグ対象のタンジェント</summary>
-        private MTEP.TangentData _dragTangent = null;
+        /// <summary>ドラッグ中のタンジェント。Euler 表示では回転 4 成分がまとめて入る</summary>
+        private MTEP.TangentData[] _dragTangents = null;
         private bool _dragTangentIsOut = false;
         /// <summary>タンジェント正規化の基準となる区間線形勾配 (値/フレーム)</summary>
         private float _dragBaseSlopePerFrame = 0f;
@@ -185,7 +185,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             /// <summary>値そのものを表示・編集する通常チャンネル</summary>
             Normal,
-            /// <summary>クォータニオンから導出した表示専用の Euler 角。値・タンジェントとも編集不可</summary>
+            /// <summary>クォータニオンから導出した Euler 角。
+            /// 表示値から 4 成分への逆変換が無いため値は編集できないが、
+            /// タンジェントは 4 成分へ同じ正規化値を流して編集できる</summary>
             EulerDisplay,
         }
 
@@ -235,6 +237,27 @@ namespace COM3D2.SceneEditor.Plugin
             public float GetKeyValue(int i)
             {
                 return isEulerDisplay ? eulerKeyValues[i] : values[i].value;
+            }
+
+            /// <summary>
+            /// キー i の片側タンジェント。通常チャンネルは代表値の 1 本。
+            /// Euler 表示は表示値から 4 成分への逆変換ができないため、
+            /// 同じ正規化値を回転 4 成分すべてへ反映する (4 本を返す)
+            /// </summary>
+            public MTEP.TangentData[] GetTangents(int i, bool isOut)
+            {
+                if (!isEulerDisplay)
+                {
+                    return new[] { isOut ? values[i].outTangent : values[i].inTangent };
+                }
+
+                var rotation = rotationValues[i];
+                var result = new MTEP.TangentData[rotation.Length];
+                for (var k = 0; k < rotation.Length; k++)
+                {
+                    result[k] = isOut ? rotation[k].outTangent : rotation[k].inTangent;
+                }
+                return result;
             }
         }
 
@@ -480,12 +503,6 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var channel in _channels)
             {
-                // Euler 表示は導出値のためタンジェント編集の対象外
-                if (channel.isEulerDisplay)
-                {
-                    continue;
-                }
-
                 for (var i = 0; i < channel.values.Count; i++)
                 {
                     if (IsTangentInEditRange(channel, i, isOut)
@@ -736,12 +753,6 @@ namespace COM3D2.SceneEditor.Plugin
             // ハンドルはキーの上に描かれるため先にヒットテストする
             foreach (var channel in _channels)
             {
-                // Euler 表示チャンネルは表示専用 (タンジェント編集も不可)
-                if (channel.isEulerDisplay)
-                {
-                    continue;
-                }
-
                 for (var i = 0; i < channel.values.Count; i++)
                 {
                     for (var side = 0; side < 2; side++)
@@ -764,7 +775,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                         _dragMode = DragMode.Tangent;
                         _dragValue = channel.values[i];
-                        _dragTangent = isOut ? _dragValue.outTangent : _dragValue.inTangent;
+                        _dragTangents = channel.GetTangents(i, isOut);
                         _dragTangentIsOut = isOut;
                         _dragBaseSlopePerFrame = baseSlope;
                         _dragKeyFrameNo = channel.frameNos[i];
@@ -778,7 +789,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var channel in _channels)
             {
-                // Euler 表示は導出値のため値ドラッグ不可 (表示値→成分の逆変換ができない)
+                // 値ドラッグだけは不可。Euler 表示値から回転 4 成分への逆変換が無いため
                 if (channel.isEulerDisplay)
                 {
                     continue;
@@ -848,13 +859,21 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            if (normalized == _dragTangent.normalizedValue && !_dragTangent.isSmooth)
+            if (_dragTangents.Length == 0)
+            {
+                return;
+            }
+            var current = _dragTangents[0];
+            if (normalized == current.normalizedValue && !current.isSmooth)
             {
                 return;
             }
 
-            _dragTangent.normalizedValue = normalized;
-            _dragTangent.isSmooth = false;
+            foreach (var tangent in _dragTangents)
+            {
+                tangent.normalizedValue = normalized;
+                tangent.isSmooth = false;
+            }
             _dragChanged = true;
             currentLayer.ApplyCurrentFrame(true);
         }
@@ -870,7 +889,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             _dragMode = DragMode.None;
             _dragValue = null;
-            _dragTangent = null;
+            _dragTangents = null;
             _dragChanged = false;
         }
 
@@ -1035,19 +1054,26 @@ namespace COM3D2.SceneEditor.Plugin
             return baseSlope != 0f;
         }
 
-        /// <summary>ハンドル先端のペイン内座標</summary>
+        /// <summary>ハンドル先端のペイン内座標。
+        /// 勾配は「そのチャンネルの表示値での区間勾配 × 正規化値」で求める。
+        /// TangentData.value は成分の値域で計算されており Euler 表示の角度とは
+        /// スケールが違うため、value ではなく normalizedValue から組み立てる</summary>
         private Vector2 GetHandlePos(
             CurveChannel channel, int keyIndex, bool isOut, float scrollX)
         {
             var keyX = _mapping.FrameToX(channel.frameNos[keyIndex]) - scrollX;
             var keyY = _mapping.ValueToY(channel.GetKeyValue(keyIndex));
 
-            var tangent = isOut
-                ? channel.values[keyIndex].outTangent
-                : channel.values[keyIndex].inTangent;
+            var tangents = channel.GetTangents(keyIndex, isOut);
+            var normalized = tangents.Length > 0 ? tangents[0].normalizedValue : 0f;
 
-            // TangentData.value は値/秒なのでフレームあたり勾配へ換算してから画面勾配にする
-            var slopePerFrame = tangent.value * timeline.frameDuration;
+            float baseSlopePerFrame;
+            if (!TryGetBaseSlopePerFrame(channel, keyIndex, isOut, out baseSlopePerFrame))
+            {
+                baseSlopePerFrame = 0f;
+            }
+
+            var slopePerFrame = normalized * baseSlopePerFrame;
             var pxPerValue = _mapping.paneHeight / (_mapping.valueMax - _mapping.valueMin);
 
             var dx = isOut ? _mapping.frameWidth : -_mapping.frameWidth;
@@ -1277,7 +1303,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>クォータニオン格納ボーンの回転チャンネルを追加する。
         /// 回転/すべて → 表示用 Euler 3 本、X/Y/Z回転 → 該当軸の Euler 表示 1 本。
-        /// Euler 表示は導出値のため表示専用 (値・タンジェントとも編集不可)</summary>
+        /// Euler 表示は導出値のため値は編集できない (タンジェントは編集できる)</summary>
         private void AddQuaternionRotationChannels(
             List<CurveChannel> channels, ref int totalChannelCount,
             List<int> frameNos, List<MTEP.BoneData> bones)
@@ -1718,12 +1744,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>編集区間 (前キー → 選択キー) のタンジェントハンドルを描画する</summary>
         private void DrawChannelHandles(GUIView view, CurveChannel channel, Rect paneRect, float scrollX)
         {
-            // Euler 表示チャンネルは表示専用のためハンドルを出さない
-            if (channel.isEulerDisplay)
-            {
-                return;
-            }
-
             var handleColor = new Color(1f, 1f, 1f, 0.8f);
             var half = HANDLE_MARKER_SIZE * 0.5f;
 

@@ -44,29 +44,11 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             { "TextTimelineLayer", TimelineLayerCategory.Other },
         };
 
-        // プラグイン DLL 内の具象レイヤー型。ゲーム依存の型読み込みに失敗しても
-        // 読めた分だけで検証できるよう ReflectionTypeLoadException は握る
-        private static List<Type> GetConcreteLayerTypes()
-        {
-            var assembly = typeof(ITimelineLayer).Assembly;
-            Type[] types;
-            try
-            {
-                types = assembly.GetTypes();
-            }
-            catch (ReflectionTypeLoadException e)
-            {
-                types = e.Types.Where(t => t != null).ToArray();
-            }
-            return types
-                .Where(t => !t.IsAbstract && typeof(ITimelineLayer).IsAssignableFrom(t))
-                .ToList();
-        }
 
         [Fact]
         public void 全レイヤー型が期待どおりのカテゴリを持つ()
         {
-            var types = GetConcreteLayerTypes();
+            var types = TimelineLayerTestUtils.GetConcreteLayerTypes();
             Assert.NotEmpty(types);
 
             foreach (var type in types)
@@ -84,7 +66,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 期待表の型がすべて存在する()
         {
-            var names = new HashSet<string>(GetConcreteLayerTypes().Select(t => t.Name));
+            var names = new HashSet<string>(TimelineLayerTestUtils.GetConcreteLayerTypes().Select(t => t.Name));
             foreach (var name in EXPECTED.Keys)
             {
                 Assert.Contains(name, names);

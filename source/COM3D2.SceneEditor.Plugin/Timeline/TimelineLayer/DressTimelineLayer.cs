@@ -11,6 +11,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(DressTimelineLayer);
         public override string layerName => nameof(DressTimelineLayer);
 
+        // MTE 原本は hasSlotNo 未指定 (false) でメイド 0 固定だったため、SE ではメイド単位へ変更している
+        public override bool hasSlotNo => true;
+
         private List<string> _allBoneNames = null;
         public override List<string> allBoneNames
         {

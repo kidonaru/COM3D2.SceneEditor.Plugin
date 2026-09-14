@@ -50,14 +50,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool IsValidData()
         {
             errorMessage = "";
-
-            var firstFrame = this.firstFrame;
-            if (firstFrame == null || firstFrame.frameNo != 0)
-            {
-                errorMessage = "0フレーム目にキーフレームが必要です";
-                return false;
-            }
-
             return true;
         }
 

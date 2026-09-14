@@ -366,9 +366,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         public float startOffsetTime = 0.5f;
-        public float endOffsetTime = 0.5f;
-        public float startFadeTime = 0.1f;
-        public float endFadeTime = 0f;
 
         private Maid.EyeMoveType _eyeMoveType = Maid.EyeMoveType.無し;
         public Maid.EyeMoveType eyeMoveType
@@ -626,9 +623,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isBackgroundVisible = DefaultTimeline.isBackgroundVisible;
             isGroundLinkedToBackground = DefaultTimeline.isGroundLinkedToBackground;
             startOffsetTime = DefaultTimeline.startOffsetTime;
-            endOffsetTime = DefaultTimeline.endOffsetTime;
-            startFadeTime = DefaultTimeline.startFadeTime;
-            endFadeTime = DefaultTimeline.endFadeTime;
         }
 
         public void OnPluginDisable()
@@ -791,9 +785,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isBackgroundVisible = xml.isBackgroundVisible;
             isGroundLinkedToBackground = xml.isGroundLinkedToBackground;
             startOffsetTime = xml.startOffsetTime;
-            endOffsetTime = xml.endOffsetTime;
-            startFadeTime = xml.startFadeTime;
-            endFadeTime = xml.endFadeTime;
             singleFrameType = xml.singleFrameType;
             isEasingAppliedToNextKeyframe = xml.isEasingAppliedToNextKeyframe;
             isTangentUnified = xml.isTangentUnified;
@@ -942,9 +933,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.isBackgroundVisible = isBackgroundVisible;
             xml.isGroundLinkedToBackground = isGroundLinkedToBackground;
             xml.startOffsetTime = startOffsetTime;
-            xml.endOffsetTime = endOffsetTime;
-            xml.startFadeTime = startFadeTime;
-            xml.endFadeTime = endFadeTime;
             xml.singleFrameType = singleFrameType;
             xml.isEasingAppliedToNextKeyframe = isEasingAppliedToNextKeyframe;
             xml.isTangentUnified = isTangentUnified;

@@ -50,8 +50,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SubCameraManager.onCameraAdded -= OnCameraAdded;
             SubCameraManager.onCameraRemoved -= OnCameraRemoved;
 
-            // レイヤー削除後もカメラが残らないよう破棄する
-            subCameraManager.DestroyAllCameras();
+            // レイヤー削除はシーン上の実体を変えない (全レイヤー共通)。
+            // サブカメラの削除は Camera ウィンドウの「サブカメラ数」で行う
         }
 
         public void OnCameraAdded(SubCameraData cameraData)
@@ -155,14 +155,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 end.fovValue,
                 t);
 
-            var startViewport = start.viewport;
-            var endViewport = end.viewport;
+            // VP もタンジェントを持つので、他の値と同じ補間にそろえる
+            var viewportValues = PluginUtils.HermiteValues(
+                t0, t1, start.viewportValues, end.viewportValues, t);
             var viewportRect = new Rect(
-                Mathf.Lerp(startViewport.x, endViewport.x, t),
-                Mathf.Lerp(startViewport.y, endViewport.y, t),
-                Mathf.Lerp(startViewport.width, endViewport.width, t),
-                Mathf.Lerp(startViewport.height, endViewport.height, t)
-            );
+                viewportValues[0], viewportValues[1], viewportValues[2], viewportValues[3]);
 
             cameraData.position = position;
             cameraData.rotation = Quaternion.Euler(eulerAngles);

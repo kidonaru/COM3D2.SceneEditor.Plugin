@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
-using PEP = COM3D2.MotionTimelineEditor.PostEffects;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -10,15 +9,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         private void ApplyRimlight(MotionData motion, float t)
         {
+            // index は使い回しのスクラッチではなく区間開始キーから読む
             var start = motion.start as TransformDataRimlight;
-            var end = motion.end as TransformDataRimlight;
-
-            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
-            float lerpTime = CalcTangentValue(motion, t);
-            var rimlight = PEP.PostEffectDataLerp.Lerp(start.rimlight, end.rimlight, lerpTime);
-
-            var index = start.index;
-            postEffectManager.ApplyRimlight(index, rimlight);
+            var scratch = LerpScratch<TransformDataRimlight>(motion, t);
+            postEffectManager.ApplyRimlight(start.index, scratch.rimlight);
         }
 
         private List<string> _rimlightNames = new List<string>();

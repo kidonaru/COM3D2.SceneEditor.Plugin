@@ -16,7 +16,8 @@ namespace COM3D2.SceneEditor.Plugin
     ///   外部側はこのとき従来表示のままにする。
     ///   PostEffectTimelineLayer は PostEffectsBridge 接続後に登録される (TimelineIntegration.TryRegisterPostEffects)
     ///   ため、起動直後の数フレームは登録済みでも 0 になる。一時的なもので不具合ではない
-    /// - メイド単位レイヤー (hasSlotNo) は対象外。slotNo は常に 0
+    /// - メイド単位レイヤー (メイドカテゴリ) は操作対象メイドのスロットで判定する。
+    ///   カテゴリとメイド単位の対応は MaidLayerSlotNoTests で固定している
     /// - AddLayer は ChangeActiveLayer に委譲し、アクティブレイヤー切替と履歴登録もそちらで行う
     /// </summary>
     public static class TimelineLayerGateHost
@@ -32,7 +33,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var timelineLoaded = timelineManager.timeline != null;
-            var layerExists = timelineLoaded && timelineManager.GetLayer(info.layerType, 0) != null;
+            var layerExists = timelineLoaded
+                && timelineManager.GetLayer(info.layerType, GetSlotNo(info)) != null;
             return (int) TimelineLayerGateText.Resolve(timelineLoaded, false, false, layerExists);
         }
 
@@ -53,7 +55,18 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            timelineManager.ChangeActiveLayer(info.layerType, 0);
+            timelineManager.ChangeActiveLayer(info.layerType, GetSlotNo(info));
+        }
+
+        /// <summary>
+        /// メイド単位レイヤーは操作対象メイドのスロットで引く。
+        /// メイド非依存レイヤーは GetLayer がスロットを見ないので 0 のままでよい
+        /// </summary>
+        private static int GetSlotNo(MTEP.TimelineLayerInfo info)
+        {
+            return info.category == MTEP.TimelineLayerCategory.Maid
+                ? MTEP.MaidManager.instance.maidSlotNo
+                : 0;
         }
 
         private static string GetDisplayName(string layerName)

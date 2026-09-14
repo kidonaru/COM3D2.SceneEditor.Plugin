@@ -91,26 +91,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             switch (motion.start.type)
             {
                 case TransformType.BGColor:
-                    if (indexUpdated)
-                    {
-                        ApplyBGColorMotionInit(motion, t);
-                    }
+                    ApplyBGColorMotionUpdate(motion, t);
                     break;
                 case TransformType.BGGroundColor:
                     if (indexUpdated)
                     {
                         ApplyBGGroundColorMotionInit(motion, t);
                     }
+                    ApplyBGGroundColorMotionUpdate(motion, t);
                     break;
             }
         }
 
-        private void ApplyBGColorMotionInit(MotionData motion, float t)
+        /// <summary>背景色。色だけなので区間の開始・終了を線形補間する</summary>
+        private void ApplyBGColorMotionUpdate(MotionData motion, float t)
         {
             try
             {
                 var start = motion.start;
-                camera.backgroundColor = start.color;
+                var end = motion.end;
+                camera.backgroundColor = Color.Lerp(start.color, end.color, t);
             }
             catch (Exception e)
             {
@@ -118,6 +118,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>地面色の補間されない値 (表示)。区間の開始で切り替える</summary>
         private void ApplyBGGroundColorMotionInit(MotionData motion, float t)
         {
             try
@@ -133,10 +134,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
 
                     bgGround.visible = visible;
-                    bgGround.position = start.position;
-                    bgGround.scale = start.scale;
-                    bgGround.color = start.color;
                 }
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+        }
+
+        /// <summary>地面色の補間される値。位置・広さはタンジェント、色は線形</summary>
+        private void ApplyBGGroundColorMotionUpdate(MotionData motion, float t)
+        {
+            try
+            {
+                if (bgGround == null)
+                {
+                    return;
+                }
+
+                var start = motion.start;
+                var end = motion.end;
+                var t0 = motion.stFrame * timeline.frameDuration;
+                var t1 = motion.edFrame * timeline.frameDuration;
+
+                bgGround.position = PluginUtils.HermiteVector3(
+                    t0, t1, start.positionValues, end.positionValues, t);
+                bgGround.scale = PluginUtils.HermiteVector3(
+                    t0, t1, start.scaleValues, end.scaleValues, t);
+                bgGround.color = Color.Lerp(start.color, end.color, t);
             }
             catch (Exception e)
             {

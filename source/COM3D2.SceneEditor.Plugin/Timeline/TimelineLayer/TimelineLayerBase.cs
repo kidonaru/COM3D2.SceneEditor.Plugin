@@ -462,24 +462,40 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return null;
         }
 
-        /// <summary>区間の代表 Tangent から 0→1 の補間率を作る。
-        /// フィールドごとの ValueData を個別に補間できない集約型 (Paraffin / Rimlight 等) 用。
-        /// 形状キャリアには旧 easing スロットの Tangent を使う。全チャンネルが同一形状だった
-        /// 旧 easing の意味論をそのまま引き継ぎ、カーブ編集で個別チャンネルを触っても
-        /// 集約型の補間形状が意図せず変わらないようにする</summary>
-        protected float CalcTangentValue(MotionData motion, float t)
+        // 集約型レイヤー (ポストエフェクト・マテリアル) の補間結果を受ける作業用 TransformData。
+        // 毎フレーム作ると GC 圧になるので TransformType ごとに 1 つ使い回す
+        private readonly Dictionary<TransformType, ITransformData> _lerpScratchMap
+            = new Dictionary<TransformType, ITransformData>();
+
+        /// <summary>
+        /// 区間 motion を時刻 t (0〜1) で値ごとに補間した TransformData を返す。
+        /// 戻り値は型ごとの使い回しインスタンス、または同値区間では区間開始キーそのものなので、
+        /// 呼び出し側は書き換えずにその場で読み切ること。
+        /// 構造体を一度に適用する集約型レイヤー用で、構造体ゲッター (scratch.bloom 等) と併せて使う
+        /// </summary>
+        protected T LerpScratch<T>(MotionData motion, float t) where T : class, ITransformData
         {
             var start = motion.start;
             var end = motion.end;
-            if (start == null || end == null || !start.hasEasingChannel)
+
+            // 同値区間は start の値として扱ってよいので、そのまま返す (MotionData.isConstant)
+            if (motion.isConstant)
             {
-                return t;
+                return start as T;
             }
 
-            return PluginUtils.HermiteSimplified(
-                start.easingValue.outTangent.normalizedValue,
-                end.easingValue.inTangent.normalizedValue,
-                t);
+            ITransformData scratch;
+            if (!_lerpScratchMap.TryGetValue(start.type, out scratch))
+            {
+                scratch = start.Clone();
+                _lerpScratchMap[start.type] = scratch;
+            }
+
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
+            scratch.LerpFrom(start, end, t0, t1, t);
+
+            return scratch as T;
         }
 
         public void AddKeyFrameAll()

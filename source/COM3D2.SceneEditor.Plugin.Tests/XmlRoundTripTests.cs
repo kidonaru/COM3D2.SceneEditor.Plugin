@@ -84,6 +84,12 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 "VideoFrontmostPosition",
                 "VideoFrontmostScale",
                 "VideoFrontmostAlpha",
+
+                // 読み手が無いので保存対象から外した
+                // (開始オフセット時間だけは BGM・動画のシークで使うので残している)
+                "EndOffsetTime",
+                "StartFadeTime",
+                "EndFadeTime",
             };
 
         private static string SerializeToString(TimelineXml xml, XmlSerializer serializer)

@@ -327,6 +327,7 @@
     <Compile Include="TimelinePrevKeyUtils.cs" />
     <Compile Include="TimelineLayerGateText.cs" />
     <Compile Include="TimelineLayerGate.cs" />
+    <Compile Include="TimelineLayerGateHost.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="EyesPosRowDrawer.cs" />
     <Compile Include="GravityRowDrawer.cs" />

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
-using PEP = COM3D2.MotionTimelineEditor.PostEffects;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -10,15 +9,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         private void ApplyParaffin(MotionData motion, float t)
         {
+            // index は使い回しのスクラッチではなく区間開始キーから読む
             var start = motion.start as TransformDataParaffin;
-            var end = motion.end as TransformDataParaffin;
-
-            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
-            float lerpTime = CalcTangentValue(motion, t);
-            var paraffin = PEP.PostEffectDataLerp.Lerp(start.paraffin, end.paraffin, lerpTime);
-
-            var index = start.index;
-            postEffectManager.ApplyParaffin(index, paraffin);
+            var scratch = LerpScratch<TransformDataParaffin>(motion, t);
+            postEffectManager.ApplyParaffin(start.index, scratch.paraffin);
         }
 
         private List<string> _paraffinNames = new List<string>();

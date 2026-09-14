@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
-using PEP = COM3D2.MotionTimelineEditor.PostEffects;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -10,15 +9,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         private void ApplyDistanceFog(MotionData motion, float t)
         {
+            // index は使い回しのスクラッチではなく区間開始キーから読む
             var start = motion.start as TransformDataDistanceFog;
-            var end = motion.end as TransformDataDistanceFog;
-
-            // 集約型のためフィールド個別補間はできない。区間の代表 Tangent で形状を作る
-            float lerpTime = CalcTangentValue(motion, t);
-            var distanceFog = PEP.PostEffectDataLerp.Lerp(start.distanceFog, end.distanceFog, lerpTime);
-
-            var index = start.index;
-            postEffectManager.ApplyDistanceFog(index, distanceFog);
+            var scratch = LerpScratch<TransformDataDistanceFog>(motion, t);
+            postEffectManager.ApplyDistanceFog(start.index, scratch.distanceFog);
         }
 
         private List<string> _distanceFogNames = new List<string>();

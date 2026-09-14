@@ -36,14 +36,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string name => start.name;
         public int frameNo => stFrame;
 
+        /// <summary>
+        /// 区間の始点・終点が同値か。true なら区間中ずっと start の値として扱ってよいため、
+        /// 再生時の補間計算を省略できる。
+        /// 厳密には UpdateTangent の ±0.01 ナッジ (値が変化する隣接区間を持つ境界キー) で
+        /// 微小なタンジェントが残り、補間すると 0.01 スケールでわずかに膨らむことがあるが、
+        /// 視認できない誤差なので定数として扱う。
+        /// タンジェントと同じく再生データ構築時 (BuildPlayData) に一度だけ求める
+        /// </summary>
+        public readonly bool isConstant;
+
         private static TimelineData timeline => TimelineManager.instance.timeline;
 
         public MotionData(BoneData start, BoneData end)
+            : this(start.transform, end.transform, start.frameNo, end.frameNo)
         {
-            this.start = start.transform;
-            this.end = end.transform;
-            this.stFrame = start.frameNo;
-            this.edFrame = end.frameNo;
         }
 
         public MotionData(
@@ -56,6 +63,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this.end = end;
             this.stFrame = stFrame;
             this.edFrame = edFrame;
+            this.isConstant = start.IsSameValues(end);
         }
 
         public MotionData Clone()

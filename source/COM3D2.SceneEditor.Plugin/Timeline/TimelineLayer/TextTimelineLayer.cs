@@ -136,18 +136,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var freeTextSet = textManager.GetFreeTextSet(start.index);
 
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
+
             if (start.position != end.position)
             {
-                freeTextSet.rect.localPosition = Vector3.Lerp(start.position, end.position, t);
+                freeTextSet.rect.localPosition = PluginUtils.HermiteVector3(
+                    t0, t1, start.positionValues, end.positionValues, t);
             }
             if (start.eulerAngles != end.eulerAngles)
             {
-                freeTextSet.rect.eulerAngles = Vector3.Lerp(start.eulerAngles, end.eulerAngles, t);
+                freeTextSet.rect.eulerAngles = PluginUtils.HermiteVector3(
+                    t0, t1, start.eulerAnglesValues, end.eulerAnglesValues, t);
             }
             if (start.scale != end.scale)
             {
-                freeTextSet.rect.localScale = Vector3.Lerp(start.scale, end.scale, t);
+                freeTextSet.rect.localScale = PluginUtils.HermiteVector3(
+                    t0, t1, start.scaleValues, end.scaleValues, t);
             }
+            // 色は他レイヤーと同じく線形補間で統一する
             if (start.color != end.color)
             {
                 freeTextSet.text.color = Color.Lerp(start.color, end.color, t);

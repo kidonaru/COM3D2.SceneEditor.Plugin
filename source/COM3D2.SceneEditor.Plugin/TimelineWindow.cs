@@ -317,7 +317,8 @@ namespace COM3D2.SceneEditor.Plugin
                         {
                             if (currentLayer.hasSlotNo && currentLayer.slotNo != i)
                             {
-                                timelineManager.ChangeActiveLayer(currentLayer.layerType, i);
+                                // 選択に追従するだけなのでレイヤーは作らない
+                                timelineManager.ChangeActiveLayerForSlot(i);
                             }
                             return;
                         }
@@ -331,7 +332,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (currentLayer.layerType != typeof(MTEP.LightTimelineLayer))
                     {
-                        timelineManager.ChangeActiveLayer(typeof(MTEP.LightTimelineLayer), 0);
+                        // 選択に追従するだけなのでレイヤーは作らない
+                        timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.LightTimelineLayer));
                     }
                 }
             }

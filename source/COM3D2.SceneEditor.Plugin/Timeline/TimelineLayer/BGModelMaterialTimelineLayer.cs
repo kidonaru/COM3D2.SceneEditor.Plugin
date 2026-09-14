@@ -93,17 +93,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var start = motion.start as TransformDataModelMaterial;
-            var end = motion.end as TransformDataModelMaterial;
-
-            if (indexUpdated)
-            {
-                material.Apply(start);
-            }
-
-            // 数値は代表タンジェントで補間し、色は区間の進行率で線形補間する。
-            float lerpTime = CalcTangentValue(motion, t);
-            material.Lerp(start, end, lerpTime, t);
+            // 数値はその値自身のタンジェント、色は線形で補間した結果を一度に適用する
+            var scratch = LerpScratch<TransformDataModelMaterial>(motion, t);
+            material.Apply(scratch);
         }
 
         public void OnBGModelSetup()

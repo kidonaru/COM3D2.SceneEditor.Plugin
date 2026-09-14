@@ -104,8 +104,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// GameObject に対応する StudioModelStat を返す。
-        /// group は ModelHackManager.modelList の FixGroup が列挙順で振り直すため、
-        /// ここでは触らない（プロバイダ側の採番と突き合わせると毎回作り直しになる）。
+        /// group は ModelHackManager.FixGroup が未採番のものにだけ一度振り、以後は変えない
+        /// (列挙順が変わっても name が動かないようにするため)。
         /// 作り直しの判定は fileName の変化だけで行う
         /// </summary>
         private StudioModelStat GetOrCreateStat(GameObject obj)
@@ -135,6 +135,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 obj,
                 pluginName,
                 obj.activeSelf);
+
+            // プロバイダの列挙名にはグループ接尾辞が無く、CreateModelStat は接尾辞が無いと 0 を付ける。
+            // 0 のままだと列挙順によっては新規 stat が既存の 0 番を押し出すため、明示的に未採番へ落とす
+            stat.SetGroup(StudioModelStat.UnassignedGroup);
 
             _statMap[obj] = stat;
             return stat;

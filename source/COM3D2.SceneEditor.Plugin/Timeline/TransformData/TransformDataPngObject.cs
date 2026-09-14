@@ -83,6 +83,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     _tangentValues.AddRange(baseValues);
                     _tangentValues.AddRange(new ValueData[] { 
                         values[(int)Index.ScaleX], 
+                        values[(int)Index.ScaleZ], 
                         values[(int)Index.PrimitiveReferenceX] 
                     });
                 }

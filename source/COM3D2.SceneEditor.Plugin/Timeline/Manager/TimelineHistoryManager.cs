@@ -54,6 +54,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             lastCommittedXml = afterXml;
         }
 
+        /// <summary>
+        /// 現在のタイムラインを「変更前」の基準として据える。履歴には積まない。
+        /// 新規作成・読み込みの直後に呼ぶことで、その後の最初の操作から
+        /// AddHistory がエントリを積めるようになる (基準作りに 1 手目を消費しない)
+        /// </summary>
+        public void SetBaseline(TimelineData timeline)
+        {
+            lastCommittedXml = timeline?.ToXml();
+        }
+
         /// <summary>タイムライン破棄時に古い状態を持ち越さない</summary>
         public void ClearHistory()
         {

@@ -557,6 +557,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawTextField(track.name, width - 30 - view.currentPos.x, ROW_HEIGHT, newText =>
                 {
                     track.name = newText;
+                    timelineManager.RequestHistory("トラック変更");
                 });
             }
             view.EndLayout();
@@ -590,9 +591,13 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 再生中のトラックの範囲を変えたときだけ、その場で再生位置へ反映する
-                if (updated && track == timeline.activeTrack)
+                if (updated)
                 {
-                    timelineManager.ApplyCurrentFrame(true);
+                    if (track == timeline.activeTrack)
+                    {
+                        timelineManager.ApplyCurrentFrame(true);
+                    }
+                    timelineManager.RequestHistory("トラック変更");
                 }
             }
             view.EndLayout();

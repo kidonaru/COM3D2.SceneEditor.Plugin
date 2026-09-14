@@ -369,7 +369,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             CreateAndApplyAnmAll();
             Refresh();
 
-            RequestHistory("タイムライン新規作成");
+            // 履歴の基準をここで据える。RequestHistory で積むと基準が無いぶん
+            // 積まれず、直後の最初の操作が基準作りに消費されてしまう
+            historyManager.SetBaseline(_timeline);
         }
 
         public void LoadTimeline(string anmName, string directoryName)
@@ -446,7 +448,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SeekCurrentFrame(0);
             Refresh();
 
-            RequestHistory("「" + anmName + "」読み込み");
+            // 読み込み直後の最初の操作から Undo できるよう、基準をここで据える
+            historyManager.SetBaseline(_timeline);
             // Extensions.ShowDialog("タイムライン「" + anmName + "」を読み込みました");
         }
 
@@ -928,6 +931,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             ApplyCurrentFrame(true);
             Refresh();
+
+            RequestHistory("最終フレーム変更");
         }
 
         public void Refresh()
@@ -1263,6 +1268,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 startFrameNo = 0,
                 endFrameNo = timeline.maxFrameNo,
             });
+
+            RequestHistory("トラック追加");
         }
 
         public int GetTrackIndex(TrackData track)
@@ -1281,6 +1288,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 SetPlayingFrameNoAll(track.startFrameNo);
             }
+
+            RequestHistory("トラック選択");
         }
 
         public void RemoveTrack(TrackData track)
@@ -1306,6 +1315,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             timeline.tracks.Insert(index - 1, track);
 
             SetActiveTrack(activeTrack, true);
+
+            RequestHistory("トラック並べ替え");
         }
 
         public void MoveDownTrack(TrackData track)
@@ -1321,6 +1332,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             timeline.tracks.Insert(index + 1, track);
 
             SetActiveTrack(activeTrack, true);
+
+            RequestHistory("トラック並べ替え");
         }
 
         public class CopyLayerData
@@ -2047,12 +2060,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        // 手動キーフレーム登録のスコープ計算バッファ。毎回 Clear して詰め直す。
-        // TimelineLayerViewFilter.Filter が IList を要求するため、
-        // yield ベースの editTargetLayers を一度 _editTargetLayerBuffer へ移す
-        private readonly List<ITimelineLayer> _editTargetLayerBuffer = new List<ITimelineLayer>(32);
-        private readonly List<ITimelineLayer> _manualKeyFrameLayers = new List<ITimelineLayer>(32);
-
         /// <summary>
         /// レイヤーの所属カテゴリ。未登録の型は「その他」へ寄せる。
         /// カテゴリの解決規則が分散しないよう、GetLayerInfo を持つここを唯一の実装にする
@@ -2061,35 +2068,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             var info = GetLayerInfo(layer.layerType);
             return info != null ? info.category : TimelineLayerCategory.Other;
-        }
-
-        /// <summary>
-        /// 手動キーフレーム登録の対象レイヤー。編集対象レイヤーをタイムラインの表示モードで絞る。
-        /// 画面に出ていないレイヤー (メイド編集中のカメラ等) が裏で登録されるのを防ぐ。
-        /// 戻り値は使い回しバッファなので、呼び出し元で保持せずその場で消費すること
-        /// </summary>
-        private IEnumerable<ITimelineLayer> BuildManualKeyFrameLayers()
-        {
-            // Filter はアクティブレイヤーが無いと表示スコープを決められず空集合を返す。
-            // 手動登録だけが黙って何もしなくなるのを避けるため、絞り込みを諦めて従来どおり全件を返す
-            if (currentLayer == null)
-            {
-                return editTargetLayers;
-            }
-
-            _editTargetLayerBuffer.Clear();
-            foreach (var layer in editTargetLayers)
-            {
-                _editTargetLayerBuffer.Add(layer);
-            }
-
-            SceneEditor.Plugin.TimelineLayerViewFilter.Filter(
-                _editTargetLayerBuffer,
-                currentLayer,
-                config.layerViewMode,
-                GetLayerCategory,
-                _manualKeyFrameLayers);
-            return _manualKeyFrameLayers;
         }
 
         /// <summary>レイヤーの編集開始時スナップショット。編集対象外か編集モード外なら null</summary>
@@ -2106,12 +2084,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// カメラレイヤーへの差分キーフレーム登録を見送るか。
         /// カメラはカメラ同期で常時動いており、他の操作のたびに意図しないキーフレームが
         /// 増えてしまうため自動登録の対象から外す。
-        /// 非アクティブかつカメラ同期 OFF のカメラレイヤーは再生に反映されない
-        /// (CameraTimelineLayer.ApplyPlayData) ため、手動の「登録」でも登録しない
+        /// 手動の「登録」では、そのレイヤーがアクティブなときだけ記録する
+        /// (カメラ同期の ON/OFF は再生への反映だけを決め、登録可否には関わらない)
         /// </summary>
         private bool ShouldSkipCameraKeyFrame(ITimelineLayer layer, bool isAuto)
         {
-            return isAuto || (!layer.isCurrent && !config.isCameraSync);
+            return isAuto || !layer.isCurrent;
         }
 
         /// <param name="isAuto">
@@ -2138,10 +2116,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // 手動登録は画面に出ているレイヤーだけを対象にする。
-            // 自動登録は操作した対象を取りこぼさないよう編集対象レイヤー全てを見る
-            // (表示範囲外のモデル等を動かしたときに登録が漏れると気づけないため)
-            var targetLayers = isAuto ? editTargetLayers : BuildManualKeyFrameLayers();
+            // 手動・自動とも編集対象レイヤー全てを見る。
+            // 差分登録なので値の変わっていないレイヤーにキーは増えず、
+            // 表示範囲外のモデル等を動かしたときの登録漏れだけを防げる
+            var targetLayers = editTargetLayers;
 
             var changedLayers = new List<ITimelineLayer>();
             foreach (var layer in targetLayers)
@@ -2283,12 +2261,86 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isMotionEditing = false;
         }
 
+        /// <summary>
+        /// 操作対象メイドの切替。レイヤーは作らず、既にあるレイヤーからアクティブを選び直す。
+        /// (切替だけでレイヤーが増えると、レイヤーが無いときだけ出るレイヤーゲートと噛み合わなくなる)
+        /// </summary>
         private void OnMaidSlotNoChanged(int maidSlotNo)
         {
-            if (IsValidData())
+            ChangeActiveLayerForSlot(maidSlotNo);
+        }
+
+        /// <summary>
+        /// 既にあるレイヤーへのアクティブ切替。無ければ何もしない。
+        /// Hierarchy の選択追従のように「選んだだけ」の操作から使う
+        /// (ChangeActiveLayer は無ければ作るので、選択追従に使うと空レイヤーが増える)
+        /// </summary>
+        public void ChangeActiveLayerIfExists(Type layerType, int slotNo = 0)
+        {
+            if (!IsValidData())
             {
-                ChangeActiveLayer(currentLayer.layerType, maidSlotNo);
+                return;
             }
+
+            var layer = GetLayer(layerType, slotNo);
+            if (layer != null)
+            {
+                SetCurrentLayer(layer);
+            }
+        }
+
+        /// <summary>
+        /// 操作対象メイドが変わったときのアクティブレイヤー切替。レイヤーは作らない。
+        /// 操作対象コンボと Hierarchy の選択同期の両方から呼ぶ
+        /// (どちらか一方だけを直すと、もう一方から空レイヤーが増え続ける)
+        /// </summary>
+        public void ChangeActiveLayerForSlot(int maidSlotNo)
+        {
+            if (!IsValidData())
+            {
+                return;
+            }
+
+            var layer = FindActiveLayerForSlot(maidSlotNo);
+            if (layer != null)
+            {
+                SetCurrentLayer(layer);
+            }
+        }
+
+        /// <summary>
+        /// 切替先メイドで編集対象にするレイヤー。
+        /// 同種 → 切替先メイドのメイドアニメ → メイド非依存の先頭 の順に探し、
+        /// どれも無ければ null (アクティブレイヤーを変えない) を返す
+        /// </summary>
+        private ITimelineLayer FindActiveLayerForSlot(int maidSlotNo)
+        {
+            var current = currentLayer;
+            if (current != null)
+            {
+                // メイド非依存レイヤーなら GetLayer が自分自身を返し、切替は起きない
+                var sameType = GetLayer(current.layerType, maidSlotNo);
+                if (sameType != null)
+                {
+                    return sameType;
+                }
+            }
+
+            var motionLayer = GetLayer(typeof(MotionTimelineLayer), maidSlotNo);
+            if (motionLayer != null)
+            {
+                return motionLayer;
+            }
+
+            foreach (var layer in layers)
+            {
+                if (!layer.hasSlotNo)
+                {
+                    return layer;
+                }
+            }
+
+            return null;
         }
 
         private void OnMaidChanged(int maidSlotNo, Maid maid)

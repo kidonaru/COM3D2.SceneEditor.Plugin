@@ -227,6 +227,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         void FromTransformData(ITransformData transform);
 
+        bool IsSameValues(ITransformData other);
+
+        void LerpFrom(
+            ITransformData start,
+            ITransformData end,
+            float t0,
+            float t1,
+            float t);
+
         void InitTangent();
 
         void FromXml(TransformXml xml);

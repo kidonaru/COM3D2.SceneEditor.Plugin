@@ -40,6 +40,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _inTangentListCache = null;
             _outTangentListCache = null;
             _valuesWithoutColors = null;
+            _lerpKinds = null;
         }
 
         /// <summary>値種別添字のキャッシュから取り出し、未生成なら builder で作って格納する</summary>
@@ -191,14 +192,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual bool hasSubEulerAngles => false;
         public virtual bool hasScale => false;
         public virtual bool hasVisible => false;
-        /// <summary>easing 値のスロットを values 内に持つ型か
-        /// (旧 easing 型の判定と、集約型レイヤーの補間形状キャリア取得に使う)</summary>
+        /// <summary>easing 値のスロットを values 内に持つ型か (旧 easing 型の判定に使う)</summary>
         private bool? _hasEasingChannel = null;
         public bool hasEasingChannel
         {
             get
             {
-                // 型ごとに不変。再生中の CalcTangentValue から毎フレーム呼ばれるためキャッシュする
+                // 型ごとに不変。タンジェント統一の判定から繰り返し呼ばれるためキャッシュする
                 if (_hasEasingChannel == null)
                 {
                     var slot = easingValue;
@@ -552,8 +552,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 float v1 = dx1 * dt1_inv;
 
                 // 値が変化しないチャンネル (v0 / v1 が 0) は自動補間の基準勾配を作れない。
-                // ここで normalizedValue を 0 で潰すと、集約型レイヤーの補間形状キャリアとして
-                // 使っている easing スロットまでフラットになるため、既存値を維持する
+                // ここで normalizedValue を 0 で潰すと、XML 互換のために残している easing
+                // スロットの値まで失われるため、既存値を維持する
                 if ((inTangent.isSmooth || outTangent.isSmooth) && v0 != 0f && v1 != 0f)
                 {
                     var tan = (x2 - x0) * dt_inv;
@@ -583,6 +583,166 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             for (int i = 0; i < strValueCount; i++)
             {
                 strValues[i] = transform.strValues[i];
+            }
+        }
+
+        /// <summary>
+        /// 値と文字列値がすべて一致するか。区間の始点・終点が同値なら補間結果が定数になるため、
+        /// 再生時に補間計算をスキップしてよいかの判定に使う。
+        /// タンジェントは比較しない (ValueData.Equals は数値本体だけを見る)
+        /// </summary>
+        public bool IsSameValues(ITransformData other)
+        {
+            if (other == null || other.type != type)
+            {
+                return false;
+            }
+
+            var otherValues = other.values;
+            if (otherValues.Length != _values.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _values.Length; i++)
+            {
+                if (!_values[i].Equals(otherValues[i]))
+                {
+                    return false;
+                }
+            }
+
+            var otherStrValues = other.strValues;
+            if (otherStrValues.Length != _strValues.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _strValues.Length; i++)
+            {
+                if (_strValues[i] != otherStrValues[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>値 1 個の補間種別。型ごとに不変なので初回に作って使い回す</summary>
+        private enum LerpKind
+        {
+            /// <summary>区間開始値をコピー (Bool / Int / easing / 表示フラグなど)</summary>
+            Hold,
+            /// <summary>線形補間 (色成分)</summary>
+            Linear,
+            /// <summary>その値自身の out / in タンジェントでエルミート補間</summary>
+            Tangent,
+        }
+
+        private LerpKind[] _lerpKinds = null;
+
+        private LerpKind[] lerpKinds
+        {
+            get
+            {
+                if (_lerpKinds != null)
+                {
+                    return _lerpKinds;
+                }
+
+                var kinds = new LerpKind[values.Length];
+
+                foreach (var info in GetColorValueInfoMap().Values)
+                {
+                    kinds[info.indexR] = LerpKind.Linear;
+                    kinds[info.indexG] = LerpKind.Linear;
+                    kinds[info.indexB] = LerpKind.Linear;
+                    if (info.hasAlpha)
+                    {
+                        kinds[info.indexA] = LerpKind.Linear;
+                    }
+                }
+
+                // タンジェント補間の対象は「タンジェントを保存している値」かつ「連続値」だけ。
+                // Bool / Int は中間値に意味が無いので区間開始値のまま保つ。
+                // ValueData は Equals を数値本体だけで上書きしているため Array.IndexOf は使えない
+                // (既定値 0 同士が一致して常に添字 0 を返す)。必ず参照で突き合わせること
+                var tangentIndices = new HashSet<int>();
+                var tangents = tangentValues;
+                for (var i = 0; i < values.Length; i++)
+                {
+                    foreach (var tangentValue in tangents)
+                    {
+                        if (ReferenceEquals(values[i], tangentValue))
+                        {
+                            tangentIndices.Add(i);
+                            break;
+                        }
+                    }
+                }
+
+                foreach (var info in GetCustomValueInfoMap().Values)
+                {
+                    if (info.index < 0 || info.index >= kinds.Length)
+                    {
+                        continue;
+                    }
+                    if (kinds[info.index] != LerpKind.Hold || !tangentIndices.Contains(info.index))
+                    {
+                        continue;
+                    }
+                    if (info.type == CustomValueType.FloatValue || info.type == CustomValueType.FloatSlider)
+                    {
+                        kinds[info.index] = LerpKind.Tangent;
+                    }
+                }
+
+                _lerpKinds = kinds;
+                return _lerpKinds;
+            }
+        }
+
+        /// <summary>
+        /// start〜end の区間を時刻 t (秒。t0〜t1 の範囲) で補間した値を自身へ書き込む。
+        /// 集約型レイヤー (ポストエフェクト・マテリアル) の再生用で、毎フレーム同じ
+        /// インスタンスへ書き込む前提。色は線形、数値はその値自身のタンジェント、
+        /// Bool / Int と文字列は区間開始値になる
+        /// </summary>
+        public void LerpFrom(
+            ITransformData start,
+            ITransformData end,
+            float t0,
+            float t1,
+            float t)
+        {
+            var startValues = start.values;
+            var endValues = end.values;
+            var kinds = lerpKinds;
+
+            var count = Mathf.Min(values.Length, Mathf.Min(startValues.Length, endValues.Length));
+            for (var i = 0; i < count; i++)
+            {
+                switch (kinds[i])
+                {
+                    case LerpKind.Linear:
+                        values[i].value = Mathf.Lerp(startValues[i].value, endValues[i].value, t);
+                        break;
+                    case LerpKind.Tangent:
+                        values[i].value = PluginUtils.HermiteValue(
+                            t0, t1, startValues[i], endValues[i], t);
+                        break;
+                    default:
+                        // float プロパティを介すと double が丸まる。開始値はそのまま保つ
+                        values[i]._value = startValues[i]._value;
+                        break;
+                }
+            }
+
+            var strCount = Mathf.Min(strValues.Length, start.strValues.Length);
+            for (var i = 0; i < strCount; i++)
+            {
+                strValues[i] = start.strValues[i];
             }
         }
 

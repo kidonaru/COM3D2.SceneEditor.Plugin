@@ -219,15 +219,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("StartOffsetTime")]
         public float startOffsetTime = 0.5f;
 
-        [XmlElement("EndOffsetTime")]
-        public float endOffsetTime = 0.5f;
-
-        [XmlElement("StartFadeTime")]
-        public float startFadeTime = 0.1f;
-
-        [XmlElement("EndFadeTime")]
-        public float endFadeTime = 0f;
-
         [XmlElement("SingleFrameType")]
         public SingleFrameType singleFrameType = SingleFrameType.Delay;
 

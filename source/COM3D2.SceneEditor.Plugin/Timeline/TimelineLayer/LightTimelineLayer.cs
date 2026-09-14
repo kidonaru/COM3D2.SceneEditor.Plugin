@@ -101,7 +101,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 ApplyMotionInit(motion, t, stat);
             }
 
-            ApplyMotionUpdateTangent(motion, t, stat);
+            // 同値区間は ApplyMotionInit が入れた start の値のままでよい (MotionData.isConstant)
+            if (!motion.isConstant)
+            {
+                ApplyMotionUpdateTangent(motion, t, stat);
+            }
         }
 
         private void ApplyMotionInit(MotionData motion, float t, StudioLightStat stat)

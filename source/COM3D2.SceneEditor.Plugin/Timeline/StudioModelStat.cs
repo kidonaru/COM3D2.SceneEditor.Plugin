@@ -23,6 +23,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class StudioModelStat : IModelStat
     {
+        /// <summary>未採番。ModelHackManager.FixGroup が一度だけ番号を振る</summary>
+        public const int UnassignedGroup = -1;
+
         public OfficialObjectInfo info { get; private set; }
         public int group { get; private set; }
         public string name { get; private set; }
