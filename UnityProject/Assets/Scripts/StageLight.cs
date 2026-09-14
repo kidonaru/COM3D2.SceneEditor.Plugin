@@ -468,11 +468,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
 #if COM3D2
-                var material = bundleManager.LoadMaterial("StageLight");
+                var material = bundleManager.LoadSEMaterial("SEStageLight");
 #else
-                var material = new Material(Shader.Find("MTE/StageLight"));
+                var material = new Material(Shader.Find("SE/StageLight"));
                 material.SetTexture("_MainTex", Resources.Load<Texture2D>("noise_texture"));
 #endif
+                if (material == null)
+                {
+                    // se_bundle の埋め込み漏れやアセット名の不一致。無言で無地になるのを避ける
+                    Debug.LogError("ステージライトのマテリアルを読み込めませんでした");
+                }
                 _meshRenderer.material = material;
             }
 

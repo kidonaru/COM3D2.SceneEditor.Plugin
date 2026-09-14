@@ -58,21 +58,27 @@ Release 構成ではビルド前に Debug / Release 両方の Clean が実行さ
 ゲーム起動中は DLL がロックされているためデプロイに失敗しますが、警告を出すだけで
 ビルド自体は成功扱いになります。
 
-## アセットバンドル（mte_bundle）
+## アセットバンドル
 
-ステージライト等のマテリアルは `UnityProject/`（Unity 2022.3.62f2）から
-ビルドしたアセットバンドルを DLL に埋め込んでいます。
+ペンライト・レーザー・ポストエフェクト等のマテリアルはアセットバンドルとして
+DLL に埋め込んでいます。バンドルは 2 つに分かれています。
 
-| 対象 | 埋め込むファイル | ビルド元 |
-|---|---|---|
-| COM3D2 (2.0) | `Timeline\mte_bundle` | Unity 5.6（MTE 由来、再ビルド手段なし） |
-| COM3D2.5 | `Timeline\mte_bundle_2022` | `build-bundle.bat` |
+| バンドル | 埋め込むファイル | 対象 | ビルド元 |
+|---|---|---|---|
+| `mte_bundle` | `Timeline\mte_bundle` | 両構成 | MTE 純正のビルド済みバイナリ（Unity 5.6、再ビルドしない） |
+| `se_bundle` | `Timeline\se_bundle` | COM3D2.5 のみ | `build-bundle.bat`（Unity 2022.3.62f2） |
 
-シェーダやテクスチャを変更したら、Unity エディタで UnityProject を閉じた状態で
-`build-bundle.bat` を実行し、生成された `mte_bundle_2022` をコミットします。
+`mte_bundle` は MTE 由来の資産をそのまま使うため、`UnityProject/Assets/Shaders/` と
+`Assets/Resources/` は**再ビルドの対象外**です（内容確認用に置いてあるだけ）。
+SE 独自のアセットは `UnityProject/Assets/SceneEditor/` に置き、`se_bundle` としてビルドします。
+現在ここにあるのは体積円錐版のステージライト（シェーダ名 `SE/StageLight`）だけです。
+
+SE 独自のシェーダやテクスチャを変更したら、Unity エディタで UnityProject を閉じた状態で
+`build-bundle.bat` を実行し、生成された `se_bundle` をコミットします。
 Unity のパスは `.env` の `UNITY_2022_EXE` で変更できます。
 
 `UnityProject/Assets/Scripts/` の C# はエディタ上の見た目確認用のコピーで、
 正本は `source/COM3D2.SceneEditor.Plugin/Timeline/UnityScripts/` です。
 
-COM3D2 (2.0) 向けバンドルは更新できないため、ステージライトの描画は COM3D2.5 のみ対応です。
+`se_bundle` は Unity 2022 製で COM3D2 (2.0) には埋め込まないため、
+ステージライトの描画は COM3D2.5 のみ対応です。

@@ -4,7 +4,7 @@ setlocal
 
 cd /d %~dp0
 
-rem mte_bundle を Unity 2022 でビルドして source 側へコピーする (COM3D2.5 用)
+rem se_bundle (SE 独自アセット) を Unity 2022 でビルドして source 側へコピーする (COM3D2.5 用)
 rem 注意: Unity エディタで UnityProject を開いていると batchmode がロックで失敗する
 
 set ENV_FILE=%~dp0.env
@@ -29,8 +29,8 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-set SRC=%PROJECT_DIR%\Assets\Bundles\mte_bundle
-set DST=%~dp0source\COM3D2.SceneEditor.Plugin\Timeline\mte_bundle_2022
+set SRC=%PROJECT_DIR%\Assets\Bundles\se_bundle
+set DST=%~dp0source\COM3D2.SceneEditor.Plugin\Timeline\se_bundle
 if not exist "%SRC%" (
     echo 生成物が見つかりません: %SRC%
     exit /b 1

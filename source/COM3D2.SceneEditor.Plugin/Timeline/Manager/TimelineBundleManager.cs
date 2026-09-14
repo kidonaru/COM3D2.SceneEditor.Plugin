@@ -11,6 +11,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static readonly string ShaderBasePath = "Assets/Shaders/";
         private static readonly string ResoucesBasePath = "Assets/Resources/";
 
+        // SE 独自アセットのバンドル。mte_bundle は MTE 純正 (Unity 5.6 製) をそのまま埋め込むため、
+        // COM3D2.5 用に作り直したシェーダはこちらへ分離している。COM3D2 (2.0) 構成には同梱されない
+        private static readonly string SEAssetBundleName = "se_bundle";
+        private static readonly string SEBasePath = "Assets/SceneEditor/";
+
         public static TimelineBundleManager _instance = null;
         public static TimelineBundleManager instance
         {
@@ -65,10 +70,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private AssetBundle _assetBundle = null;
+        private AssetBundle _seAssetBundle = null;
 
         public TimelineBundleManager()
         {
-            LoadAssetBundle();
+            _assetBundle = LoadAssetBundle(AssetBundleName, required: true);
+            // COM3D2 (2.0) 構成には同梱されないため、見つからなくてもエラーにしない
+            _seAssetBundle = LoadAssetBundle(SEAssetBundleName, required: false);
         }
 
         public bool IsValid()
@@ -78,28 +86,37 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private Dictionary<string, Material> _materialCache = new Dictionary<string, Material>();
 
-        public Material LoadMaterial(string shaderName)
+        public Material LoadMaterial(string materialName)
         {
-            if (!IsValid())
+            return LoadMaterial(_assetBundle, ShaderBasePath + materialName + ".mat");
+        }
+
+        public Material LoadSEMaterial(string materialName)
+        {
+            return LoadMaterial(_seAssetBundle, SEBasePath + materialName + ".mat");
+        }
+
+        private Material LoadMaterial(AssetBundle assetBundle, string path)
+        {
+            if (assetBundle == null)
             {
                 return null;
             }
 
             Material material;
-            if (_materialCache.TryGetValue(shaderName, out material))
+            if (_materialCache.TryGetValue(path, out material))
             {
                 return new Material(material);
             }
 
-            var path = ShaderBasePath + shaderName + ".mat";
-            material = _assetBundle.LoadAsset<Material>(path);
+            material = assetBundle.LoadAsset<Material>(path);
             if (material == null)
             {
                 MTEUtils.LogError("マテリアルが見つかりません: {0}", path);
                 return null;
             }
 
-            _materialCache.Add(shaderName, material);
+            _materialCache.Add(path, material);
 
             return new Material(material);
         }
@@ -140,31 +157,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return bytes;
         }
 
-        private void LoadAssetBundle()
+        private AssetBundle LoadAssetBundle(string assetBundleName, bool required)
         {
-            if (_assetBundle != null)
-            {
-                return;
-            }
-
             var assembly = Assembly.GetExecutingAssembly();
-            using (var stream = assembly.GetManifestResourceStream(AssetBundleName))
+            using (var stream = assembly.GetManifestResourceStream(assetBundleName))
             {
                 if (stream == null)
                 {
-                    MTEUtils.LogError("アセットバンドルが見つかりません: {0}", AssetBundleName);
-                    return;
+                    if (required)
+                    {
+                        MTEUtils.LogError("アセットバンドルが見つかりません: {0}", assetBundleName);
+                    }
+                    return null;
                 }
 
                 byte[] binary = new byte[stream.Length];
                 stream.Read(binary, 0, binary.Length);
-                _assetBundle = AssetBundle.LoadFromMemory(binary);
-            }
 
-            if (_assetBundle == null)
-            {
-                MTEUtils.LogError("アセットバンドルのロードに失敗しました: {0}", AssetBundleName);
-                return;
+                var assetBundle = AssetBundle.LoadFromMemory(binary);
+                if (assetBundle == null)
+                {
+                    MTEUtils.LogError("アセットバンドルのロードに失敗しました: {0}", assetBundleName);
+                }
+                return assetBundle;
             }
         }
     }
