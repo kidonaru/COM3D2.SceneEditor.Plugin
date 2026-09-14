@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 using Xunit;
@@ -57,20 +57,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             xml.ConvertPostEffectMaskValues();
 
+            // 添字は version 32 当時のレイアウトをベタ書きする。
+            // 実行時の Index / valueCount を参照すると、後で型のレイアウトを変えた瞬間に
+            // 「移行が正しい」と誤って主張し続けるテストになる
             var trans = MTEP.TransformDataRimlight.defaultTrans;
             var values = GetValues(xml);
-            Assert.Equal(trans.valueCount, values.Length);
-            Assert.Equal(trans.maskModeInfo.defaultValue,
-                values[(int)MTEP.TransformDataRimlight.Index.MaskMode]);
-            Assert.Equal(trans.excludeFaceInfo.defaultValue,
-                values[(int)MTEP.TransformDataRimlight.Index.ExcludeFace]);
-            Assert.Equal(trans.applyHairInfo.defaultValue,
-                values[(int)MTEP.TransformDataRimlight.Index.ApplyHair]);
+            Assert.Equal(25, values.Length);
+            Assert.Equal(trans.maskModeInfo.defaultValue, values[16]);
+            Assert.Equal(trans.excludeFaceInfo.defaultValue, values[17]);
+            Assert.Equal(trans.applyHairInfo.defaultValue, values[18]);
 
-            // マスク設定以外は旧データの値がそのまま残る
-            Assert.Equal(15f, values[(int)MTEP.TransformDataRimlight.Index.FadeExp]);
-            Assert.Equal(19f, values[(int)MTEP.TransformDataRimlight.Index.UseNormal]);
-            Assert.Equal(24f, values[(int)MTEP.TransformDataRimlight.Index.IsWorldSpace]);
+            // マスク設定以外は旧データの値がそのまま残る (FadeExp / UseNormal / IsWorldSpace)
+            Assert.Equal(15f, values[15]);
+            Assert.Equal(19f, values[19]);
+            Assert.Equal(24f, values[24]);
         }
 
         [Fact]

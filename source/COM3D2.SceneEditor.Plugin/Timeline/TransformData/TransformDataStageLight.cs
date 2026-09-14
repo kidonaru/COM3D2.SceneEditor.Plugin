@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -10,35 +11,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             PositionX = 0,
             PositionY = 1,
             PositionZ = 2,
-            EulerX = 3,
-            EulerY = 4,
-            EulerZ = 5,
-            ColorR = 7,
-            ColorG = 8,
-            ColorB = 9,
-            ColorA = 10,
-            Visible = 11,
-            SpotAngle = 12,
-            SpotRange = 13,
-            RangeMultiplier = 14,
-            FalloffExp = 15,
-            NoiseStrength = 16,
-            NoiseScale = 17,
-            CoreRadius = 18,
-            OffsetRange = 19,
-            SegmentAngle = 20,
-            SegmentRange = 21,
-            ZTest = 22
+            RotationX = 3,
+            RotationY = 4,
+            RotationZ = 5,
+            RotationW = 6,
+            ColorR = 8,
+            ColorG = 9,
+            ColorB = 10,
+            ColorA = 11,
+            Visible = 12,
+            SpotAngle = 13,
+            SpotRange = 14,
+            RangeMultiplier = 15,
+            FalloffExp = 16,
+            NoiseStrength = 17,
+            NoiseScale = 18,
+            CoreRadius = 19,
+            OffsetRange = 20,
+            SegmentAngle = 21,
+            SegmentRange = 22,
+            ZTest = 23
         }
 
         public static TransformDataStageLight defaultTrans = new TransformDataStageLight();
 
         public override TransformType type => TransformType.StageLight;
 
-        public override int valueCount => 23;
+        public override int valueCount => 24;
 
         public override bool hasPosition => true;
-        public override bool hasEulerAngles => true;
+        public override bool hasRotation => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
@@ -51,12 +53,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public override ValueData[] eulerAnglesValues
+        public override ValueData[] rotationValues
         {
-            get => new ValueData[] { 
-                values[(int)Index.EulerX], 
-                values[(int)Index.EulerY], 
-                values[(int)Index.EulerZ] 
+            get => new ValueData[] {
+                values[(int)Index.RotationX],
+                values[(int)Index.RotationY],
+                values[(int)Index.RotationZ],
+                values[(int)Index.RotationW]
             };
         }
 
@@ -71,7 +74,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     _tangentValues = new List<ValueData>();
                     _tangentValues.AddRange(positionValues);
-                    _tangentValues.AddRange(eulerAnglesValues);
+                    _tangentValues.AddRange(rotationValues);
                     _tangentValues.AddRange(new ValueData[] { 
                         values[(int)Index.SpotAngle], 
                         values[(int)Index.SpotRange] 
@@ -83,6 +86,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Vector3 initialPosition => new Vector3(0f, 10f, 0f);
         public override Vector3 initialEulerAngles => new Vector3(90f, 0f, 0f);
+        public override Quaternion initialRotation
+            => QuaternionUtils.EulerToQuaternion(initialEulerAngles);
         public override Quaternion initialSubRotation => Quaternion.Euler(90f, 0f, 0f);
 
         public TransformDataStageLight()

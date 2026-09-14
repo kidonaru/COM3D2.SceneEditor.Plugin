@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
@@ -135,10 +135,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     t0, t1, start.positionValues, end.positionValues, t);
             }
 
-            if (start.eulerAngles != end.eulerAngles)
+            if (start.rotation != end.rotation)
             {
-                transform.localEulerAngles = PluginUtils.HermiteVector3(
-                    t0, t1, start.eulerAnglesValues, end.eulerAnglesValues, t);
+                transform.localRotation = PluginUtils.HermiteQuaternion(
+                    t0, t1, start.rotationValues, end.rotationValues, t);
             }
 
             if (start.scalex != end.scalex || start.scalez != end.scalez)

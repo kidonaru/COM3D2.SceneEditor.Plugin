@@ -9,12 +9,15 @@
 > - 5-4 の対応過程で `baseValues` のキャッシュ不整合を追加で発見・修正（`7a78282`。本書の調査時点では未検出だった）
 > - 5-1: 挙動は正しいと判明。意図をコードコメントに残すだけに留めた（挙動不変）
 > - 優先度 中 / 低: 3 章の補正ロジック重複、5-2 の反転規則抽出、6 章の非正規化 nlerp を対応済み
-> - 未対応: 「保留」の 1〜2 章のみ
+> - 1〜2 章のオイラー保持: **7 型 8 スロットを version 35 でクォータニオン化して対応済み**（PNG 配置 / テキスト / リムライト光源方向 / ステージライト本体 / レーザー本体と一括制御の本体姿勢 / サイリウムの手の姿勢）
+> - 据え置いたのは 2 種類:
+>   - **範囲の値**（クォータニオン化すると表現できなくなるもの）: ステージライト / レーザー一括制御の `rotationMin` / `rotationMax` と、サイリウムのパターンの `randomEulerAnglesRange`。いずれも軸ごとに独立した振れ幅で、クォータニオンにすると「X 軸だけ振る」が表現できない。ステージライト一括制御はオイラー 2 組がそのまま `rotationMin` / `rotationMax` なので型ごと据え置き
+>   - **姿勢だが今回スコープ外の型**: カメラ / サブカメラ / 背景 / サイリウムの配置エリア・一括制御
 
 ## 結論
 
-- **保持方式**: 回転をクォータニオンで保持しているのは `Move` / `Root` / `Rotation` / `Model` / `ModelBone` / `BGModel` / `Light` / `ExtendBone` の 8 系統のみ。カメラ・ステージライト・レーザー・サイリウム・テキスト・PNG 配置・リムライト・背景はオイラー角のまま保持している。
-- **制約**: オイラー保持は XML 形式（`TimelineData.CurrentVersion` = 34）に直結するため、単純な置き換えはできない。
+- **保持方式**（調査時点）: 回転をクォータニオンで保持しているのは `Move` / `Root` / `Rotation` / `Model` / `ModelBone` / `BGModel` / `Light` / `ExtendBone` の 8 系統のみ。カメラ・ステージライト・レーザー・サイリウム・テキスト・PNG 配置・リムライト・背景はオイラー角のまま保持している。→ version 35 でこのうち 7 型がクォータニオン側へ移った（1 章の表を参照）。
+- **制約**: オイラー保持は XML 形式（`TimelineData.CurrentVersion`）に直結するため、単純な置き換えはできない。→ version 35 でマイグレーションとセットで対応した。
 - **単独で直せるもの**: 5 章の 4 件は XML 形式の互換性に影響しないため独立して修正できる。うち 5-1 は調査の結果「挙動は正しく可読性の問題だけ」と判明したので、実害があるのは 5-2 / 5-3 / 5-4 の 3 件。
 
 ## 1. 回転をオイラー角で保持している TransformData
@@ -24,26 +27,26 @@
 - `hasRotation` = true: `rotationValues` に Quaternion の 4 値（x, y, z, w）を保持
 - `hasEulerAngles` = true: `eulerAnglesValues` に オイラー角の 3 値（X, Y, Z）を保持
 
-`hasEulerAngles` 側（クォータニオン未使用）の型は以下。
+調査時点で `hasEulerAngles` 側（クォータニオン未使用）だった型は以下。**状態**は version 35 での対応結果。
 
-| 型 | 用途 | sub 回転 |
-|---|---|---|
-| `TransformDataCamera` | メインカメラ | - |
-| `TransformDataSubCamera` | サブカメラ | - |
-| `TransformDataBG` | 背景 | - |
-| `TransformDataPngObject` | PNG 配置 | - |
-| `TransformDataText` | テキスト | - |
-| `TransformDataRimlight` | リムライト光源方向 | - |
-| `TransformDataStageLight` | ステージライト本体 | - |
-| `TransformDataStageLightController` | ステージライト一括制御 | あり（`rotationMax` 相当） |
-| `TransformDataStageLaser` | ステージレーザー本体 | - |
-| `TransformDataStageLaserController` | ステージレーザー一括制御 | - |
-| `TransformDataPsylliumArea` | サイリウム配置エリア | - |
-| `TransformDataPsylliumController` | サイリウム一括制御 | - |
-| `TransformDataPsylliumPattern` | サイリウムのパターン | - |
-| `TransformDataPsylliumTransform` | サイリウムの手の姿勢 | あり（右手） |
+| 型 | 用途 | sub 回転 | 状態 |
+|---|---|---|---|
+| `TransformDataPngObject` | PNG 配置 | - | クォータニオン化済 |
+| `TransformDataText` | テキスト | - | クォータニオン化済 |
+| `TransformDataRimlight` | リムライト光源方向 | - | クォータニオン化済 |
+| `TransformDataStageLight` | ステージライト本体 | - | クォータニオン化済 |
+| `TransformDataStageLaser` | ステージレーザー本体 | - | クォータニオン化済 |
+| `TransformDataStageLaserController` | ステージレーザー一括制御（本体姿勢） | - | クォータニオン化済（`rotationMin` / `rotationMax` は別スロットで据え置き） |
+| `TransformDataPsylliumTransform` | サイリウムの手の姿勢 | あり（右手） | クォータニオン化済（左右 2 スロット。sub 側も `hasSubRotation`） |
+| `TransformDataStageLightController` | ステージライト一括制御 | あり（`rotationMax` 相当） | 据え置き（このオイラー 2 組は姿勢ではなく `rotationMin` / `rotationMax` そのもの） |
+| `TransformDataCamera` | メインカメラ | - | 据え置き（今回スコープ外） |
+| `TransformDataSubCamera` | サブカメラ | - | 据え置き（今回スコープ外） |
+| `TransformDataBG` | 背景 | - | 据え置き（今回スコープ外） |
+| `TransformDataPsylliumArea` | サイリウム配置エリア | - | 据え置き（今回スコープ外） |
+| `TransformDataPsylliumController` | サイリウム一括制御 | - | 据え置き（今回スコープ外） |
+| `TransformDataPsylliumPattern` | サイリウムのパターン | - | 据え置き（このオイラーは `randomEulerAnglesRange`＝振れ幅） |
 
-クォータニオン側は `TransformDataMove` / `TransformDataRoot` / `TransformDataRotation` / `TransformDataModel` / `TransformDataModelBone` / `TransformDataBGModel` / `TransformDataLight` / `TransformDataExtendBone` の 8 型。
+調査時点でクォータニオン側だったのは `TransformDataMove` / `TransformDataRoot` / `TransformDataRotation` / `TransformDataModel` / `TransformDataModelBone` / `TransformDataBGModel` / `TransformDataLight` / `TransformDataExtendBone` の 8 型。version 35 で上記 7 型が加わった。
 
 ## 2. 成分ごとのオイラー補間をしている箇所
 
@@ -210,6 +213,8 @@ _meshFilter.transform.localRotation = localRotation;
 | 中 | 3 章の補正ロジック重複（`MTEUtils.cs:442` と `TransformDataBase.cs:445`、および `MaidIKHoldController.cs:596`） | 同じ式が 3 箇所にある | 共通化のみ。挙動不変 | 対応済（`AngleUtils` へ集約。`MTEUtils` は共有サブモジュールのため残置）。あわせて 3 章末尾の不感帯も解消 |
 | 低 | 5-1 `StageLaser` の twist 抽出の明示化 | 挙動は正しいが、暗黙の正規化と swing-twist 分解に依存していて読み解けない | `StageLaser.cs` のみ。挙動不変 | 対応済（コメントのみ。挙動不変） |
 | 低 | 6 章の非正規化 nlerp | 現状 Unity 側の正規化で救われており、体感差は小さい | `PluginUtils.cs` | 対応済 |
-| 保留 | 1〜2 章のオイラー保持そのもの | XML 形式（version 34）と識別子に直結する。直すなら version 35 とマイグレーションのセットになる | 全レイヤー。要 `docs/timeline-release-debt-review.md` との突き合わせ | 保留 |
+| 保留 → 対応 | 1〜2 章のオイラー保持そのもの | XML 形式と識別子に直結する。直すなら version 35 とマイグレーションのセットになる | 全レイヤー | 対応済（version 35。姿勢 7 型 8 スロットをクォータニオン化。範囲の値と今回スコープ外の型は据え置き） |
 
-1〜2 章はリリース後に形式が固定される性質のため、扱いを決める場合は `docs/timeline-release-debt-review.md` の「優先度 高: XML 形式・識別子に関わるもの」と同じ枠で判断すること。
+1〜2 章は version 35 で対応した。据え置いた 2 種類（範囲の値 / 今回スコープ外の姿勢型）は上記のとおり。
+
+なお移行の実装で「**バージョン移行処理は実行時の型定義（`valueCount` / `Index`）を参照してはならない**」という原則を確立した。参照していると型のレイアウトを変えた瞬間に旧データの書き込み先が静かにずれる。詳細は `docs/timeline-release-debt-review.md` を参照。

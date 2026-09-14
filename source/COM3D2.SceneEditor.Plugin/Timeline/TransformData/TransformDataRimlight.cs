@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using PEP = COM3D2.MotionTimelineEditor.PostEffects;
 
@@ -8,51 +8,58 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         public enum Index
         {
-            EulerX = 0,
-            EulerY = 1,
-            EulerZ = 2,
-            ColorR = 3,
-            ColorG = 4,
-            ColorB = 5,
-            ColorA = 6,
-            SubColorR = 7,
-            SubColorG = 8,
-            SubColorB = 9,
-            SubColorA = 10,
-            Visible = 11,
-            Easing = 12,
-            LightArea = 13,
-            FadeRange = 14,
-            FadeExp = 15,
-            MaskMode = 16,
-            ExcludeFace = 17,
-            ApplyHair = 18,
-            UseNormal = 19,
-            UseAdd = 20,
-            UseMultiply = 21,
-            UseOverlay = 22,
-            UseSubstruct = 23,
-            IsWorldSpace = 24
+            RotationX = 0,
+            RotationY = 1,
+            RotationZ = 2,
+            RotationW = 3,
+            ColorR = 4,
+            ColorG = 5,
+            ColorB = 6,
+            ColorA = 7,
+            SubColorR = 8,
+            SubColorG = 9,
+            SubColorB = 10,
+            SubColorA = 11,
+            Visible = 12,
+            Easing = 13,
+            LightArea = 14,
+            FadeRange = 15,
+            FadeExp = 16,
+            MaskMode = 17,
+            ExcludeFace = 18,
+            ApplyHair = 19,
+            UseNormal = 20,
+            UseAdd = 21,
+            UseMultiply = 22,
+            UseOverlay = 23,
+            UseSubstruct = 24,
+            IsWorldSpace = 25
         }
 
         public static TransformDataRimlight defaultTrans = new TransformDataRimlight();
 
         public override TransformType type => TransformType.Rimlight;
 
-        public override int valueCount => 25;
+        public override int valueCount => 26;
 
-        public override bool hasEulerAngles => true;
+        public override bool hasRotation => true;
         public override bool hasVisible => true;
         // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換のためだけに残す)
         public override bool hasTangent => true;
         public override ValueData[] tangentValues => valuesWithoutColors;
 
-        public override ValueData[] eulerAnglesValues
+        // 符号補正 (最短経路への寄せ) は 2 段構え。
+        // キー確定時は TimelineLayerBase.FixRotation が隣接キーの内積を見て符号をそろえる。
+        // これは GetAnmBinary 経由だが、GetAnmBinary は CreateAndApplyAnm からロード時に
+        // 全レイヤーで呼ばれるので、.anm 書き出し時だけでなく再生データにも効く。
+        // 再生時は LerpFrom が通る QuaternionUtils.Slerp が重ねて内積を見る
+        public override ValueData[] rotationValues
         {
-            get => new ValueData[] { 
-                values[(int)Index.EulerX], 
-                values[(int)Index.EulerY], 
-                values[(int)Index.EulerZ] 
+            get => new ValueData[] {
+                values[(int)Index.RotationX],
+                values[(int)Index.RotationY],
+                values[(int)Index.RotationZ],
+                values[(int)Index.RotationW]
             };
         }
         public override ValueData visibleValue => values[(int)Index.Visible];

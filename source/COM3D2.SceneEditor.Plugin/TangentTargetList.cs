@@ -193,9 +193,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return new[] { isOut ? value.outTangent : value.inTangent };
             }
 
+            var valueType = ResolveValueType(transform, target.valueType);
             return isOut
-                ? transform.GetOutTangentDataList(target.valueType)
-                : transform.GetInTangentDataList(target.valueType);
+                ? transform.GetOutTangentDataList(valueType)
+                : transform.GetInTangentDataList(valueType);
         }
 
         /// <summary>編集対象に対応する値を取り出す。対象を持たない transform では空。
@@ -211,7 +212,34 @@ namespace COM3D2.SceneEditor.Plugin
                     : EmptyValues;
             }
 
-            return transform.GetValueDataList(target.valueType);
+            return transform.GetValueDataList(ResolveValueType(transform, target.valueType));
+        }
+
+        /// <summary>
+        /// タンジェント編集で実際に触る値種別へ読み替える。
+        /// クォータニオン格納の回転は軸別の成分に意味のある勾配が無く
+        /// (例: X 軸まわりの回転では y / z 成分が 0 のまま動かない)、
+        /// 表示も 4 成分から導いた Euler カーブなので、軸別指定でも 4 成分まとめて扱う。
+        /// カーブのハンドルドラッグ (TimelineCurveEditor.CurveChannel.GetTangents) と同じ単位
+        /// </summary>
+        private static MTEP.TangentValueType ResolveValueType(
+            MTEP.ITransformData transform, MTEP.TangentValueType valueType)
+        {
+            if (!transform.hasRotation)
+            {
+                return valueType;
+            }
+
+            switch (valueType)
+            {
+                case MTEP.TangentValueType.X回転:
+                case MTEP.TangentValueType.Y回転:
+                case MTEP.TangentValueType.Z回転:
+                case MTEP.TangentValueType.W回転:
+                    return MTEP.TangentValueType.回転;
+                default:
+                    return valueType;
+            }
         }
 
         /// <summary>軸ごとの値種別を表す候補</summary>

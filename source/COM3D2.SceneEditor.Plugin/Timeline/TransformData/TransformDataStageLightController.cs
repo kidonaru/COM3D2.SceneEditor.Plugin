@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -77,6 +77,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
+        /// <summary>
+        /// この型のオイラー 2 組は姿勢ではなく自動回転の振れ幅 (rotationMin / rotationMax) そのもの。
+        /// 軸ごとに独立した値なので version 35 のクォータニオン化の対象から外している
+        /// (クォータニオンにすると「X 軸だけ振る」が表現できなくなるため)
+        /// </summary>
         public override ValueData[] eulerAnglesValues
         {
             get => new ValueData[] { 
@@ -86,6 +91,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
+        /// <inheritdoc cref="eulerAnglesValues"/>
         public override ValueData[] subEulerAnglesValues
         {
             get => new ValueData[] { 

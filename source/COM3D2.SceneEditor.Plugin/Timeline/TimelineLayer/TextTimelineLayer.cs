@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
@@ -151,10 +151,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 freeTextSet.rect.localPosition = PluginUtils.HermiteVector3(
                     t0, t1, start.positionValues, end.positionValues, t);
             }
-            if (start.eulerAngles != end.eulerAngles)
+            if (start.rotation != end.rotation)
             {
-                freeTextSet.rect.eulerAngles = PluginUtils.HermiteVector3(
-                    t0, t1, start.eulerAnglesValues, end.eulerAnglesValues, t);
+                // 変更前は rect.eulerAngles (ワールド) へ代入していたので localRotation ではなく rotation
+                freeTextSet.rect.rotation = PluginUtils.HermiteQuaternion(
+                    t0, t1, start.rotationValues, end.rotationValues, t);
             }
             if (start.scale != end.scale)
             {

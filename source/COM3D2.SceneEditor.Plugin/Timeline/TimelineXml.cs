@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -1064,7 +1065,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                                 {
                                     MTEUtils.LogDebug("Convert eulerAngles to rotation in ModelTimelineLayer name={0}", transform.name);
                                     var eulerAngles = new Vector3(values[3], values[4], values[5]);
-                                    var rotation = Quaternion.Euler(eulerAngles);
+                                    // 移行は単体テストから通せる必要があるので managed 実装を使う
+                                    var rotation = QuaternionUtils.EulerToQuaternion(eulerAngles);
                                     values[3] = rotation.x;
                                     values[4] = rotation.y;
                                     values[5] = rotation.z;
@@ -1130,7 +1132,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                                 {
                                     MTEUtils.LogDebug("Convert eulerAngles to rotation in {0} name={1}", layer.className, transform.name);
                                     var eulerAngles = new Vector3(values[3], values[4], values[5]);
-                                    var rotation = Quaternion.Euler(eulerAngles);
+                                    // 移行は単体テストから通せる必要があるので managed 実装を使う
+                                    var rotation = QuaternionUtils.EulerToQuaternion(eulerAngles);
                                     values[3] = rotation.x;
                                     values[4] = rotation.y;
                                     values[5] = rotation.z;
@@ -1260,12 +1263,59 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            if (version < 35)
+            {
+                // 姿勢を表す回転をオイラー角保持からクォータニオン保持へ移行する。
+                // レイヤーの className ではなく TransformXml.Type で拾う
+                // (ToXml が常に type を書き出すので、レイヤー構成に依存せず特定できる)
+                foreach (var layer in layers)
+                {
+                    foreach (var keyFrame in layer.keyFrames)
+                    {
+                        if (keyFrame.bones == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (var bone in keyFrame.bones)
+                        {
+                            var transform = bone.transform;
+                            if (transform == null)
+                            {
+                                continue;
+                            }
+
+                            int[] eulerIndices;
+                            if (!_eulerToRotationIndices.TryGetValue(transform.type, out eulerIndices))
+                            {
+                                continue;
+                            }
+
+                            foreach (var eulerIndex in eulerIndices)
+                            {
+                                ConvertEulerToRotation(transform, eulerIndex);
+                            }
+                        }
+                    }
+                }
+            }
+
             ConvertPlugin();
         }
 
         /// <summary>旧 (COM3D2 版) リムライト/パラフィンの値数。テストからも参照する</summary>
         public const int OldRimlightValueCount = 28;
         public const int OldParaffinValueCount = 24;
+
+        // version 32 当時の値レイアウト。移行処理は「そのバージョン当時の形」を前提に動くため、
+        // 実行時の型定義 (valueCount / Index) を参照してはいけない。
+        // 参照すると、後で型のレイアウトを変えた瞬間に旧データの書き込み先がずれる
+        private const int RimlightValueCountAtV32 = 25;
+        private const int RimlightMaskModeIndexAtV32 = 16;
+        private const int RimlightExcludeFaceIndexAtV32 = 17;
+        private const int RimlightApplyHairIndexAtV32 = 18;
+        private const int ParaffinValueCountAtV32 = 22;
+        private const int ParaffinMaskModeIndexAtV32 = 21;
 
         /// <summary>旧リムライト/パラフィンの Depth 系 3 値 (DepthMin/DepthMax/DepthFade) は
         /// COM3D2.5 版で廃止され、リムライトは同じ位置がマスク設定 3 値
@@ -1302,10 +1352,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                             transform.values.Length == OldRimlightValueCount)
                         {
                             var values = new List<float>(transform.values);
-                            values.RemoveRange(rimlightTrans.valueCount, OldRimlightValueCount - rimlightTrans.valueCount);
-                            values[(int)TransformDataRimlight.Index.MaskMode] = rimlightTrans.maskModeInfo.defaultValue;
-                            values[(int)TransformDataRimlight.Index.ExcludeFace] = rimlightTrans.excludeFaceInfo.defaultValue;
-                            values[(int)TransformDataRimlight.Index.ApplyHair] = rimlightTrans.applyHairInfo.defaultValue;
+                            values.RemoveRange(
+                                RimlightValueCountAtV32,
+                                OldRimlightValueCount - RimlightValueCountAtV32);
+                            values[RimlightMaskModeIndexAtV32] = rimlightTrans.maskModeInfo.defaultValue;
+                            values[RimlightExcludeFaceIndexAtV32] = rimlightTrans.excludeFaceInfo.defaultValue;
+                            values[RimlightApplyHairIndexAtV32] = rimlightTrans.applyHairInfo.defaultValue;
                             transform.values = values.ToArray();
                             convertedCount++;
                         }
@@ -1313,8 +1365,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                             transform.values.Length == OldParaffinValueCount)
                         {
                             var values = new List<float>(transform.values);
-                            values.RemoveRange(paraffinTrans.valueCount, OldParaffinValueCount - paraffinTrans.valueCount);
-                            values[(int)TransformDataParaffin.Index.MaskMode] = paraffinTrans.maskModeInfo.defaultValue;
+                            values.RemoveRange(
+                                ParaffinValueCountAtV32,
+                                OldParaffinValueCount - ParaffinValueCountAtV32);
+                            values[ParaffinMaskModeIndexAtV32] = paraffinTrans.maskModeInfo.defaultValue;
                             transform.values = values.ToArray();
                             convertedCount++;
                         }
@@ -1337,6 +1391,108 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             long insertBit = value ? (1L << index) : 0;
             return upperBits | insertBit | lowerBits;
         }
+
+        /// <summary>
+        /// オイラー角 3 値をクォータニオン 4 値へ変換し、値・タンジェント・スムーズビットを
+        /// まとめて 1 スロットぶんずらす。version 35 の移行専用。
+        /// 4 つのうち 1 つでも更新し漏れると添字が食い違うため、必ずここで一括して行う
+        /// </summary>
+        /// <param name="transform">変換対象のレコード</param>
+        /// <param name="eulerIndex">オイラー角 X の添字</param>
+        public static void ConvertEulerToRotation(TransformXml transform, int eulerIndex)
+        {
+            var insertIndex = eulerIndex + 3;
+
+            var values = transform.values != null
+                ? new List<float>(transform.values)
+                : new List<float>();
+            if (values.Count < insertIndex)
+            {
+                // 値数の足りない壊れたレコード。触ると余計に壊れるので素通しする
+                MTEUtils.LogWarning(
+                    "回転の移行をスキップしました name={0} type={1} count={2}",
+                    transform.name, transform.type, values.Count);
+                return;
+            }
+
+            var eulerAngles = new Vector3(
+                values[eulerIndex], values[eulerIndex + 1], values[eulerIndex + 2]);
+            // Quaternion.Euler は Unity のネイティブ ECall で単体テストから呼べないため、
+            // 移行のような「静かに壊れると困る」経路では managed 実装を使う
+            var rotation = QuaternionUtils.EulerToQuaternion(eulerAngles);
+            values[eulerIndex] = rotation.x;
+            values[eulerIndex + 1] = rotation.y;
+            values[eulerIndex + 2] = rotation.z;
+            values.Insert(insertIndex, rotation.w);
+            transform.values = values.ToArray();
+
+            // タンジェントはオイラー角空間の値なので持ち越さず、自動補間へ倒す。
+            // 保存されているのは normalizedValue (そのキーの傾き ÷ 近傍の割線の傾き) という比で、
+            // これはオイラー角の近傍差分から求めたものだからクォータニオン空間では意味を持たない。
+            // さらに値が変化しないチャンネルでは UpdateTangent が勾配の代わりに絶対値 0.01 を使うため、
+            // 比がそのまま「値の単位での寄与」になる。度 (±360) からクォータニオン成分 (±1) へ
+            // 約 1/100 に縮んだ値へ同じ比を当てると寄与が約 100 倍に効き、
+            // 両端が同じ姿勢の区間でも途中が大きく振れる (実データで約 67 度の暴れを観測)
+            transform.inTangents = ClearRotationTangents(
+                transform.inTangents, eulerIndex, insertIndex);
+            transform.outTangents = ClearRotationTangents(
+                transform.outTangents, eulerIndex, insertIndex);
+
+            transform.inSmoothBit = SetRotationSmoothBits(transform.inSmoothBit, eulerIndex, insertIndex);
+            transform.outSmoothBit = SetRotationSmoothBits(transform.outSmoothBit, eulerIndex, insertIndex);
+        }
+
+        /// <summary>
+        /// insertIndex へ 1 枠挿入したうえで、回転 4 成分ぶんのタンジェントを 0 で潰す。
+        /// 値配列より短いタンジェント配列はそのまま返す (FromXml 側が不足分を 0 で埋める)
+        /// </summary>
+        private static float[] ClearRotationTangents(float[] source, int eulerIndex, int insertIndex)
+        {
+            if (source == null || source.Length < insertIndex)
+            {
+                return source;
+            }
+
+            var list = new List<float>(source);
+            list.Insert(insertIndex, 0f);
+            for (var i = eulerIndex; i <= insertIndex; i++)
+            {
+                list[i] = 0f;
+            }
+            return list.ToArray();
+        }
+
+        /// <summary>
+        /// insertIndex へ 1 ビット挿入したうえで、回転 4 成分ぶんのスムーズビットを立てる。
+        /// 自動補間にしておけば、クォータニオン空間の近傍から比が計算し直される
+        /// </summary>
+        private static long SetRotationSmoothBits(long bitValues, int eulerIndex, int insertIndex)
+        {
+            var result = InsertBit(bitValues, insertIndex, true);
+            for (var i = eulerIndex; i <= insertIndex; i++)
+            {
+                result |= 1L << i;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// version 35 でクォータニオン化する型と、そのオイラー角 X の添字。
+        /// 複数スロットを持つ型は「後ろのスロットから先に」挿入する順で並べる
+        /// (先に前を挿入すると後ろの添字がずれるため)
+        /// </summary>
+        private static readonly Dictionary<TransformType, int[]> _eulerToRotationIndices
+            = new Dictionary<TransformType, int[]>
+        {
+            { TransformType.Rimlight, new[] { 0 } },
+            { TransformType.PngObject, new[] { 3 } },
+            { TransformType.Text, new[] { 3 } },
+            { TransformType.StageLight, new[] { 3 } },
+            { TransformType.StageLaser, new[] { 1 } },
+            { TransformType.StageLaserController, new[] { 3 } },
+            // 左手 6-8 / 右手 9-11。後ろから挿入しないと左手の挿入で右手の添字がずれる
+            { TransformType.PsylliumTransform, new[] { 9, 6 } },
+        };
 
         private static readonly HashSet<string> _replacePluginNameSet = new HashSet<string>
         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
@@ -458,24 +458,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     t);
             }
 
-            if (start.eulerAngles != end.eulerAngles)
+            // PsylliumTransformConfig の保持形式はオイラーのまま据え置くので境界で落とす。
+            // 補間自体はクォータニオン空間で完結する
+            if (start.rotation != end.rotation)
             {
-                transformConfig.eulerAnglesLeft = PluginUtils.HermiteVector3(
+                transformConfig.eulerAnglesLeft = PluginUtils.HermiteQuaternion(
                     t0,
                     t1,
-                    start.eulerAnglesValues,
-                    end.eulerAnglesValues,
-                    t);
+                    start.rotationValues,
+                    end.rotationValues,
+                    t).eulerAngles;
             }
 
-            if (start.subEulerAngles != end.subEulerAngles)
+            if (start.subRotation != end.subRotation)
             {
-                transformConfig.eulerAnglesRight = PluginUtils.HermiteVector3(
+                transformConfig.eulerAnglesRight = PluginUtils.HermiteQuaternion(
                     t0,
                     t1,
-                    start.subEulerAnglesValues,
-                    end.subEulerAnglesValues,
-                    t);
+                    start.subRotationValues,
+                    end.subRotationValues,
+                    t).eulerAngles;
             }
         }
 
@@ -605,24 +607,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     t);
             }
 
-            if (start.eulerAngles != end.eulerAngles)
+            // 境界でオイラーへ落とす理由は ApplyTransformMotionUpdate 側のコメントを参照
+            if (start.rotation != end.rotation)
             {
-                transformConfig.eulerAnglesLeft = PluginUtils.HermiteVector3(
+                transformConfig.eulerAnglesLeft = PluginUtils.HermiteQuaternion(
                     t0,
                     t1,
-                    start.eulerAnglesValues,
-                    end.eulerAnglesValues,
-                    t);
+                    start.rotationValues,
+                    end.rotationValues,
+                    t).eulerAngles;
             }
 
-            if (start.subEulerAngles != end.subEulerAngles)
+            if (start.subRotation != end.subRotation)
             {
-                transformConfig.eulerAnglesRight = PluginUtils.HermiteVector3(
+                transformConfig.eulerAnglesRight = PluginUtils.HermiteQuaternion(
                     t0,
                     t1,
-                    start.subEulerAnglesValues,
-                    end.subEulerAnglesValues,
-                    t);
+                    start.subRotationValues,
+                    end.subRotationValues,
+                    t).eulerAngles;
             }
 
             pattern.ApplyTransformData(transformConfig);

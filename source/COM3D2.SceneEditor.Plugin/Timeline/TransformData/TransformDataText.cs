@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -10,23 +10,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             PositionX = 0,
             PositionY = 1,
             PositionZ = 2,
-            EulerX = 3,
-            EulerY = 4,
-            EulerZ = 5,
-            ScaleX = 6,
-            ScaleY = 7,
-            ScaleZ = 8,
-            ColorR = 9,
-            ColorG = 10,
-            ColorB = 11,
-            ColorA = 12,
-            Easing = 13,
-            TextIndex = 14,
-            FontSize = 15,
-            LineSpacing = 16,
-            Alignment = 17,
-            SizeDeltaX = 18,
-            SizeDeltaY = 19
+            RotationX = 3,
+            RotationY = 4,
+            RotationZ = 5,
+            RotationW = 6,
+            ScaleX = 7,
+            ScaleY = 8,
+            ScaleZ = 9,
+            ColorR = 10,
+            ColorG = 11,
+            ColorB = 12,
+            ColorA = 13,
+            Easing = 14,
+            TextIndex = 15,
+            FontSize = 16,
+            LineSpacing = 17,
+            Alignment = 18,
+            SizeDeltaX = 19,
+            SizeDeltaY = 20
         }
 
         public enum StrIndex
@@ -37,11 +38,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override TransformType type => TransformType.Text;
 
-        public override int valueCount => 20;
+        public override int valueCount => 21;
         public override int strValueCount => 2;
 
         public override bool hasPosition => true;
-        public override bool hasEulerAngles => true;
+        public override bool hasRotation => true;
         public override bool hasScale => true;
         // Tangent 統一により easing 補間は廃止 (easingValue は XML 互換のためだけに残す)
         public override bool hasTangent => true;
@@ -56,12 +57,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public override ValueData[] eulerAnglesValues
+        public override ValueData[] rotationValues
         {
             get => new ValueData[] {
-                values[(int)Index.EulerX],
-                values[(int)Index.EulerY],
-                values[(int)Index.EulerZ]
+                values[(int)Index.RotationX],
+                values[(int)Index.RotationY],
+                values[(int)Index.RotationZ],
+                values[(int)Index.RotationW]
             };
         }
 

@@ -317,6 +317,7 @@
     <Compile Include="LightTarget.cs" />
     <Compile Include="LightClipboard.cs" />
     <Compile Include="AngleUtils.cs" />
+    <Compile Include="QuaternionUtils.cs" />
     <Compile Include="BackgroundRowDrawer.cs" />
     <Compile Include="VoiceRowDrawer.cs" />
     <Compile Include="SeRowDrawer.cs" />

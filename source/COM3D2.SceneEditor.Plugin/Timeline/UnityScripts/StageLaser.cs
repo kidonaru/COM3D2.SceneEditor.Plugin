@@ -59,6 +59,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 姿勢。保持はオイラー角のままだが、タイムラインの補間はクォータニオン空間で
+        /// 行うため境界で相互変換する
+        /// </summary>
+        public Quaternion rotation
+        {
+            get => Quaternion.Euler(eulerAngles);
+            set => eulerAngles = value.eulerAngles;
+        }
+
         [SerializeField]
         private Color _color1 = DefaultColor1;
         public Color color1

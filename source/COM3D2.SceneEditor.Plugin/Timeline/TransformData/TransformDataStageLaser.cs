@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -8,47 +9,49 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public enum Index
         {
             PositionX = 0,
-            EulerX = 1,
-            EulerY = 2,
-            EulerZ = 3,
-            ColorR = 4,
-            ColorG = 5,
-            ColorB = 6,
-            ColorA = 7,
-            SubColorR = 8,
-            SubColorG = 9,
-            SubColorB = 10,
-            SubColorA = 11,
-            Visible = 12,
-            Intensity = 13,
-            LaserRange = 14,
-            LaserWidth = 15,
-            FalloffExp = 16,
-            NoiseStrength = 17,
-            NoiseScale = 18,
-            CoreRadius = 19,
-            OffsetRange = 20,
-            GlowWidth = 21,
-            SegmentRange = 22,
-            ZTest = 23
+            RotationX = 1,
+            RotationY = 2,
+            RotationZ = 3,
+            RotationW = 4,
+            ColorR = 5,
+            ColorG = 6,
+            ColorB = 7,
+            ColorA = 8,
+            SubColorR = 9,
+            SubColorG = 10,
+            SubColorB = 11,
+            SubColorA = 12,
+            Visible = 13,
+            Intensity = 14,
+            LaserRange = 15,
+            LaserWidth = 16,
+            FalloffExp = 17,
+            NoiseStrength = 18,
+            NoiseScale = 19,
+            CoreRadius = 20,
+            OffsetRange = 21,
+            GlowWidth = 22,
+            SegmentRange = 23,
+            ZTest = 24
         }
 
         public static TransformDataStageLaser defaultTrans = new TransformDataStageLaser();
 
         public override TransformType type => TransformType.StageLaser;
 
-        public override int valueCount => 24;
+        public override int valueCount => 25;
 
-        public override bool hasEulerAngles => true;
+        public override bool hasRotation => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
-        public override ValueData[] eulerAnglesValues
+        public override ValueData[] rotationValues
         {
-            get => new ValueData[] { 
-                values[(int)Index.EulerX], 
-                values[(int)Index.EulerY], 
-                values[(int)Index.EulerZ] 
+            get => new ValueData[] {
+                values[(int)Index.RotationX],
+                values[(int)Index.RotationY],
+                values[(int)Index.RotationZ],
+                values[(int)Index.RotationW]
             };
         }
 
@@ -62,7 +65,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_tangentValues == null)
                 {
                     _tangentValues = new List<ValueData>();
-                    _tangentValues.AddRange(eulerAnglesValues);
+                    _tangentValues.AddRange(rotationValues);
                     _tangentValues.AddRange(new ValueData[] { 
                         values[(int)Index.Intensity], 
                         values[(int)Index.LaserRange], 
@@ -75,6 +78,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Vector3 initialPosition => StageLaser.DefaultPosition;
         public override Vector3 initialEulerAngles => StageLaser.DefaultEulerAngles;
+        public override Quaternion initialRotation
+            => QuaternionUtils.EulerToQuaternion(initialEulerAngles);
 
         public TransformDataStageLaser()
         {

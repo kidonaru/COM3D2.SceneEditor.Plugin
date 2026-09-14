@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -10,12 +11,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override TransformType type => TransformType.PsylliumTransform;
 
-        public override int valueCount => 12;
+        public override int valueCount => 14;
 
         public override bool hasPosition => true;
         public override bool hasSubPosition => true;
-        public override bool hasEulerAngles => true;
-        public override bool hasSubEulerAngles => true;
+        public override bool hasRotation => true;
+        public override bool hasSubRotation => true;
         public override bool hasTangent => true;
 
         public override ValueData[] positionValues
@@ -28,14 +29,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => new ValueData[] { values[3], values[4], values[5] };
         }
 
-        public override ValueData[] eulerAnglesValues
+        public override ValueData[] rotationValues
         {
-            get => new ValueData[] { values[6], values[7], values[8] };
+            get => new ValueData[] { values[6], values[7], values[8], values[9] };
         }
 
-        public override ValueData[] subEulerAnglesValues
+        public override ValueData[] subRotationValues
         {
-            get => new ValueData[] { values[9], values[10], values[11] };
+            get => new ValueData[] { values[10], values[11], values[12], values[13] };
         }
 
         public override ValueData[] tangentValues => values;
@@ -44,6 +45,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Vector3 initialSubPosition => defaultConfig.positionRight;
         public override Vector3 initialEulerAngles => defaultConfig.eulerAnglesLeft;
         public override Vector3 initialSubEulerAngles => defaultConfig.eulerAnglesRight;
+        public override Quaternion initialRotation
+            => QuaternionUtils.EulerToQuaternion(initialEulerAngles);
+        public override Quaternion initialSubRotation
+            => QuaternionUtils.EulerToQuaternion(initialSubEulerAngles);
 
         public TransformDataPsylliumTransform()
         {

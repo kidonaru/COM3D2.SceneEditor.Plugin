@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 // MTE_PngPlacement からの逐語移植。namespace のみ SE の Timeline 共通名前空間へ変更
@@ -11,44 +11,45 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             PositionX = 0,
             PositionY = 1,
             PositionZ = 2,
-            EulerX = 3,
-            EulerY = 4,
-            EulerZ = 5,
-            ColorR = 6,
-            ColorG = 7,
-            ColorB = 8,
-            ColorA = 9,
-            Visible = 10,
-            Inversion = 11,
-            StopRotation = 12,
-            ScaleX = 13,
-            ScaleMag = 14,
-            FixCamera = 15,
-            Attach = 16,
-            AttachRotation = 17,
-            Brightness = 18,
-            ScaleZ = 19,
-            PrimitiveReferenceX = 20,
-            SquareUV = 21,
-            Maid = 22,
-            APngSpeed = 23,
-            APngIsFixedSpeed = 24,
-            StopRotationVX = 25,
-            StopRotationVY = 26,
-            StopRotationVZ = 27,
-            FixedPosX = 28,
-            FixedPosY = 29,
-            FixedPosZ = 30
+            RotationX = 3,
+            RotationY = 4,
+            RotationZ = 5,
+            RotationW = 6,
+            ColorR = 7,
+            ColorG = 8,
+            ColorB = 9,
+            ColorA = 10,
+            Visible = 11,
+            Inversion = 12,
+            StopRotation = 13,
+            ScaleX = 14,
+            ScaleMag = 15,
+            FixCamera = 16,
+            Attach = 17,
+            AttachRotation = 18,
+            Brightness = 19,
+            ScaleZ = 20,
+            PrimitiveReferenceX = 21,
+            SquareUV = 22,
+            Maid = 23,
+            APngSpeed = 24,
+            APngIsFixedSpeed = 25,
+            StopRotationVX = 26,
+            StopRotationVY = 27,
+            StopRotationVZ = 28,
+            FixedPosX = 29,
+            FixedPosY = 30,
+            FixedPosZ = 31
         }
 
         public static TransformDataPngObject defaultTrans = new TransformDataPngObject();
 
         public override TransformType type => TransformType.PngObject;
 
-        public override int valueCount => 31;
+        public override int valueCount => 32;
 
         public override bool hasPosition => true;
-        public override bool hasEulerAngles => true;
+        public override bool hasRotation => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
@@ -61,12 +62,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public override ValueData[] eulerAnglesValues
+        public override ValueData[] rotationValues
         {
-            get => new ValueData[] { 
-                values[(int)Index.EulerX], 
-                values[(int)Index.EulerY], 
-                values[(int)Index.EulerZ] 
+            get => new ValueData[] {
+                values[(int)Index.RotationX],
+                values[(int)Index.RotationY],
+                values[(int)Index.RotationZ],
+                values[(int)Index.RotationW]
             };
         }
 

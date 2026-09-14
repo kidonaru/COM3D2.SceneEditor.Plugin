@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
@@ -224,13 +224,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (!controller.autoRotation)
             {
-                laser.eulerAngles = PluginUtils.HermiteValues(
+                laser.rotation = PluginUtils.HermiteQuaternion(
                     t0,
                     t1,
-                    start.eulerAnglesValues,
-                    end.eulerAnglesValues,
+                    start.rotationValues,
+                    end.rotationValues,
                     t
-                ).ToVector3();
+                );
             }
 
             if (!controller.autoColor)
@@ -326,14 +326,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 t
             ).ToVector3();
 
-            controller.eulerAngles = PluginUtils.HermiteValues(
+            controller.rotation = PluginUtils.HermiteQuaternion(
                 t0,
                 t1,
-                start.eulerAnglesValues,
-                end.eulerAnglesValues,
+                start.rotationValues,
+                end.rotationValues,
                 t
-            ).ToVector3();
+            );
 
+            // rotationMin / rotationMax は振れ幅なので成分別補間のまま
+            // (理由は TransformDataStageLaserController.rotationMinValues)
             if (controller.autoRotation)
             {
                 controller.rotationMin = PluginUtils.HermiteValues(

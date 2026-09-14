@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 #if UNITY_EDITOR
@@ -143,13 +143,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             for (int j = 0; j < count; j++)
             {
                 var barPosition = (j - (count - 1) * 0.5f) * handConfig.barOffsetPosition * barConfig.baseScale;
-                var barEulerAngles = (j - (count - 1) * 0.5f) * handConfig.barOffsetRotation;
+                var barRotation = Quaternion.Euler(
+                    (j - (count - 1) * 0.5f) * handConfig.barOffsetRotation);
 
                 if (!isLeftHand)
                 {
                     barPosition.x = -barPosition.x;
-                    barEulerAngles.y = -barEulerAngles.y;
-                    barEulerAngles.z = -barEulerAngles.z;
+                    // YZ 平面の鏡像。オイラー角で y / z の符号を反転したものと同値だが、
+                    // 角度が大きいときも表現が壊れない
+                    barRotation = new Quaternion(
+                        barRotation.x, -barRotation.y, -barRotation.z, barRotation.w);
                 }
 
                 var psyllium = psylliums[j];
@@ -158,7 +161,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 psyllium.Setup(controller, colorIndexes[j]);
 
                 psyllium.transform.localPosition = barPosition;
-                psyllium.transform.localEulerAngles = barEulerAngles;
+                psyllium.transform.localRotation = barRotation;
             }
         }
 

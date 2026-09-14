@@ -177,6 +177,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     );
                 }
 
+                // rotationMin / rotationMax は振れ幅なので成分別補間のまま
+                // (理由は TransformDataStageLightController.eulerAnglesValues)
                 if (autoRotation)
                 {
                     Vector3 rotation = new Vector3(

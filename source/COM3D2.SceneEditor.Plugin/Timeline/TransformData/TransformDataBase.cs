@@ -335,8 +335,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public virtual Vector3 initialSubPosition => Vector3.zero;
 
+        /// <summary>
+        /// 初期姿勢。<see cref="Reset"/> は hasRotation の型でこちらを読む。
+        /// 一方 UI (キーのリセット・前キーとの比較) は <see cref="initialEulerAngles"/> を読み続けるため、
+        /// hasRotation へ移した型は両方を override すること。片方だけだと、もう片方が
+        /// 既定値へ静かに化ける (RotationInitialValueTests が一致を固定している)
+        /// </summary>
         public virtual Quaternion initialRotation => Quaternion.identity;
 
+        /// <inheritdoc cref="initialRotation"/>
         public virtual Quaternion initialSubRotation => Quaternion.identity;
 
         public virtual Vector3 initialEulerAngles => Vector3.zero;
@@ -614,6 +621,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Linear,
             /// <summary>その値自身の out / in タンジェントでエルミート補間</summary>
             Tangent,
+            /// <summary>クォータニオン 4 成分の先頭。ここで 4 成分まとめて slerp して書き込む</summary>
+            Rotation,
+            /// <summary>クォータニオン 4 成分の 2 つ目以降。Rotation 側が書くので何もしない</summary>
+            RotationMember,
         }
 
         private LerpKind[] _lerpKinds = null;
@@ -637,6 +648,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     if (info.hasAlpha)
                     {
                         kinds[info.indexA] = LerpKind.Linear;
+                    }
+                }
+
+                // クォータニオン保持の回転は 4 成分を独立に補間すると単位長も符号も崩れる。
+                // 先頭に Rotation、残りに RotationMember を立てて 4 成分をひとかたまりとして扱う。
+                // ここで Hold のまま残すと、後段の Tangent 昇格ループが成分別補間へ戻してしまう
+                if (hasRotation)
+                {
+                    var rotations = rotationValues;
+                    for (var i = 0; i < values.Length; i++)
+                    {
+                        for (var k = 0; k < rotations.Length; k++)
+                        {
+                            if (ReferenceEquals(values[i], rotations[k]))
+                            {
+                                kinds[i] = k == 0 ? LerpKind.Rotation : LerpKind.RotationMember;
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -728,6 +758,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     case LerpKind.Tangent:
                         values[i].value = PluginUtils.HermiteValue(
                             t0, t1, startValues[i], endValues[i], t);
+                        break;
+                    case LerpKind.Rotation:
+                    {
+                        // rotationValues の定義上、自身の 4 成分は必ず連続してそろっている。
+                        // 一方 start / end は値数の足りない壊れたデータでも渡りうるので範囲を見る
+                        if (i + 3 >= count)
+                        {
+                            // 4 成分そろっていないので回転として扱えない。
+                            // 前フレームの値が残ると姿勢が固まってしまうため、
+                            // 他の種別と同じく区間開始値へフォールバックする
+                            // (この時点で i 以降は必ず回転 4 成分の切れ端)
+                            for (var k = i; k < count; k++)
+                            {
+                                values[k]._value = startValues[k]._value;
+                            }
+                            break;
+                        }
+
+                        var startRotation = new Quaternion(
+                            startValues[i].value, startValues[i + 1].value,
+                            startValues[i + 2].value, startValues[i + 3].value);
+                        var endRotation = new Quaternion(
+                            endValues[i].value, endValues[i + 1].value,
+                            endValues[i + 2].value, endValues[i + 3].value);
+
+                        // Quaternion.Slerp は Unity のネイティブ ECall で単体テストから呼べないため
+                        // managed 実装を使う。最短経路への符号反転は Slerp 内で行われる
+                        var lerped = QuaternionUtils.Slerp(startRotation, endRotation, t);
+                        values[i].value = lerped.x;
+                        values[i + 1].value = lerped.y;
+                        values[i + 2].value = lerped.z;
+                        values[i + 3].value = lerped.w;
+                        break;
+                    }
+                    case LerpKind.RotationMember:
+                        // Rotation 側が 4 成分まとめて書き込むので、ここでは何もしない
                         break;
                     default:
                         // float プロパティを介すと double が丸まる。開始値はそのまま保つ

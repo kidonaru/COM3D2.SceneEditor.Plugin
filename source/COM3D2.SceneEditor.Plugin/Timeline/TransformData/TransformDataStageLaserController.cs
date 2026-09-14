@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -10,50 +11,51 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             PositionX = 0,
             PositionY = 1,
             PositionZ = 2,
-            EulerX = 3,
-            EulerY = 4,
-            EulerZ = 5,
-            ColorR = 6,
-            ColorG = 7,
-            ColorB = 8,
-            ColorA = 9,
-            SubColorR = 10,
-            SubColorG = 11,
-            SubColorB = 12,
-            SubColorA = 13,
-            Visible = 14,
-            Intensity = 15,
-            LaserRange = 16,
-            LaserWidth = 17,
-            FalloffExp = 18,
-            NoiseStrength = 19,
-            NoiseScale = 20,
-            CoreRadius = 21,
-            OffsetRange = 22,
-            GlowWidth = 23,
-            SegmentRange = 24,
-            AutoPosition = 25,
-            AutoRotation = 26,
-            AutoColor = 27,
-            AutoLaserInfo = 28,
-            AutoVisible = 29,
-            ZTest = 30,
-            RotationMinX = 31,
-            RotationMinY = 32,
-            RotationMinZ = 33,
-            RotationMaxX = 34,
-            RotationMaxY = 35,
-            RotationMaxZ = 36
+            RotationX = 3,
+            RotationY = 4,
+            RotationZ = 5,
+            RotationW = 6,
+            ColorR = 7,
+            ColorG = 8,
+            ColorB = 9,
+            ColorA = 10,
+            SubColorR = 11,
+            SubColorG = 12,
+            SubColorB = 13,
+            SubColorA = 14,
+            Visible = 15,
+            Intensity = 16,
+            LaserRange = 17,
+            LaserWidth = 18,
+            FalloffExp = 19,
+            NoiseStrength = 20,
+            NoiseScale = 21,
+            CoreRadius = 22,
+            OffsetRange = 23,
+            GlowWidth = 24,
+            SegmentRange = 25,
+            AutoPosition = 26,
+            AutoRotation = 27,
+            AutoColor = 28,
+            AutoLaserInfo = 29,
+            AutoVisible = 30,
+            ZTest = 31,
+            RotationMinX = 32,
+            RotationMinY = 33,
+            RotationMinZ = 34,
+            RotationMaxX = 35,
+            RotationMaxY = 36,
+            RotationMaxZ = 37
         }
 
         public static TransformDataStageLaserController defaultTrans = new TransformDataStageLaserController();
 
         public override TransformType type => TransformType.StageLaserController;
 
-        public override int valueCount => 37;
+        public override int valueCount => 38;
 
         public override bool hasPosition => true;
-        public override bool hasEulerAngles => true;
+        public override bool hasRotation => true;
         public override bool hasVisible => true;
         public override bool hasTangent => true;
 
@@ -66,12 +68,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public override ValueData[] eulerAnglesValues
+        public override ValueData[] rotationValues
         {
-            get => new ValueData[] { 
-                values[(int)Index.EulerX], 
-                values[(int)Index.EulerY], 
-                values[(int)Index.EulerZ] 
+            get => new ValueData[] {
+                values[(int)Index.RotationX],
+                values[(int)Index.RotationY],
+                values[(int)Index.RotationZ],
+                values[(int)Index.RotationW]
             };
         }
 
@@ -86,7 +89,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     _tangentValues = new List<ValueData>();
                     _tangentValues.AddRange(positionValues);
-                    _tangentValues.AddRange(eulerAnglesValues);
+                    _tangentValues.AddRange(rotationValues);
                     _tangentValues.AddRange(rotationMinValues);
                     _tangentValues.AddRange(rotationMaxValues);
                     _tangentValues.AddRange(new ValueData[] { 
@@ -101,6 +104,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Vector3 initialPosition => StageLaserController.DefaultPosition;
         public override Vector3 initialEulerAngles => StageLaserController.DefaultEulerAngles;
+        public override Quaternion initialRotation
+            => QuaternionUtils.EulerToQuaternion(initialEulerAngles);
         public Vector3 initialRotationMin => new Vector3(0f, 40f, 0f);
         public Vector3 initialRotationMax => new Vector3(0f, -40f, 0f);
 
@@ -384,11 +389,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData autoLaserInfoValue => values[(int)Index.AutoLaserInfo];
         public ValueData autoVisibleValue => values[(int)Index.AutoVisible];
         public ValueData zTestValue => values[(int)Index.ZTest];
+        /// <summary>
+        /// 自動回転の振れ幅。姿勢ではなく軸ごとに独立した値なので、version 35 の
+        /// クォータニオン化の対象から外してオイラー角のまま残している
+        /// (クォータニオンにすると「X 軸だけ振る」が表現できなくなるため)
+        /// </summary>
         public ValueData[] rotationMinValues => new ValueData[] { 
             values[(int)Index.RotationMinX], 
             values[(int)Index.RotationMinY], 
             values[(int)Index.RotationMinZ] 
         };
+        /// <inheritdoc cref="rotationMinValues"/>
         public ValueData[] rotationMaxValues => new ValueData[] { 
             values[(int)Index.RotationMaxX], 
             values[(int)Index.RotationMaxY], 

@@ -74,6 +74,39 @@
 
 `TimelineData.CurrentVersion` は 34 のままで、XML の要素は増減していない。項目 5 で書き出しを止めた `endOffsetTime` / `startFadeTime` / `endFadeTime` は読み飛ばし扱い（`docs-site/timeline/compatibility.md` に記載済み）。
 
+## 回転のクォータニオン化（2026-09-14 追記）
+
+`docs/timeline-rotation-quaternion-survey.md` で「保留」としていた回転保持の一本化を、**version 35 で部分的に完了した**（計画: `docs/superpowers/plans/2026-09-14-timeline-rotation-quaternion.md`）。`TimelineData.CurrentVersion` は 34 → 35。
+
+- 対象は「姿勢」7 型 8 スロット: PNG 配置 / テキスト / リムライト光源方向 / ステージライト本体 / レーザー本体 / レーザー一括制御の本体姿勢 / サイリウムの手の姿勢（左右）
+- 据え置いたのは 2 種類:
+  - **範囲の値**: ステージライト・レーザー一括制御の `rotationMin` / `rotationMax`。軸ごとに独立した振れ幅なので、クォータニオン化すると「X 軸だけ振る」が表現できなくなる
+  - **今回スコープ外の姿勢型**: カメラ / サブカメラ / 背景 / サイリウムの配置エリア・一括制御・パターン
+- 読み込み時に自動移行される。version 35 で保存した XML は version 34 以前では正しく読めない
+
+### 移行処理の原則（本対応で確立）
+
+**バージョン移行処理は実行時の型定義（`valueCount` / `Index`）を参照してはならない。**
+
+- 理由: 移行は「そのバージョン当時のレイアウト」を前提に動く必要がある。実行時の型から添字を読むと、後で型のレイアウトを変えた瞬間に旧データの書き込み先が静かにずれる
+- 実例: `ConvertPostEffectMaskValues` がこの形になっており、リムライトのレイアウト変更で旧 28 値データの `MaskMode` / `ExcludeFace` / `ApplyHair` の書き込み先が 1 つずれるところだった
+- 解消: version 32 当時の添字を定数へ凍結した（テスト側も同様に凍結）
+
+### 移行コードは Unity のネイティブ API を踏んではならない
+
+`UnityEngine.Quaternion` のメンバーは、単体テストのプロセスから呼べるものと呼べないものが混在している。
+
+| 区分 | メンバー | テストから |
+|---|---|---|
+| ネイティブ ECall | `Euler` / `Slerp` / `Lerp` / `eulerAngles` / `Inverse` | 不可（`SecurityException`） |
+| managed | `Dot` / `Angle` / `operator *` / `Normalize` / `identity` | 可 |
+
+この区分は Unity エンジン内部の実装特性なのでソースからは読み取れない。テストプロセスで各メンバーを実際に呼んで確かめた結果を記録している。
+
+移行と補間はテストで固定したい経路なので、`source/COM3D2.SceneEditor.Plugin/QuaternionUtils.cs` の managed 実装を使う。Unity 実装との一致は実機で採った実測値を `QuaternionUtilsTests` に固定して担保している。
+
+残件: `TimelineXml.cs` の StageLight 回転 → オイラー角の移行（`version < 17` ブロック）だけはネイティブの `rotation.eulerAngles` を踏んだままで、テストから通せない。managed 化には Unity と一致する quaternion → euler が要るため別件とした。なおこのブロックは `#if DEBUG` の中にあり、Release ビルドには含まれない。
+
 ## 進め方
 
 - 高 1〜8・中 9〜18・低 19〜25 とも決定と実装が完了している。残りは計画ファイルのチェックボックス更新のみ

@@ -1,4 +1,4 @@
-using COM3D2.MotionTimelineEditor.Plugin;
+﻿using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using Xunit;
 // 囲みの名前空間 COM3D2.SceneEditor.Plugin にも PluginUtils があるため明示的に別名を張る
@@ -134,7 +134,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var clone = (TransformDataRimlight)start.Clone();
 
-            // Rimlight の baseValues は eulerAnglesValues = values[0..2]
+            // Rimlight の baseValues は rotationValues = values[0..3]
             Assert.Same(clone.values[0], clone.baseValues[0]);
             Assert.NotSame(start.values[0], clone.baseValues[0]);
         }
@@ -148,26 +148,24 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void リムライトの光源方向はタンジェント補間される()
+        public void リムライトの光源方向はクォータニオンで補間される()
         {
+            var startRotation = QuaternionUtils.EulerToQuaternion(Vector3.zero);
+            var endRotation = QuaternionUtils.EulerToQuaternion(new Vector3(90f, 40f, 20f));
+
             var start = CreateRimlight();
             var end = CreateRimlight();
-            start.eulerAngles = new Vector3(0f, 0f, 0f);
-            end.eulerAngles = new Vector3(90f, 40f, 20f);
+            start.rotation = startRotation;
+            end.rotation = endRotation;
 
             var mid = LerpRimlight(start, end, 0.25f);
 
-            var startValues = start.eulerAnglesValues;
-            var endValues = end.eulerAnglesValues;
-            for (var i = 0; i < 3; i++)
-            {
-                var expected = MTEP.PluginUtils.HermiteValue(
-                    0f, 1f, startValues[i], endValues[i], 0.25f);
-                Assert.Equal(expected, mid.eulerAngles[i], 4);
-            }
+            // 4 成分を独立に補間すると slerp とはずれる。まとめて slerp されることを固定する
+            var expected = QuaternionUtils.Slerp(startRotation, endRotation, 0.25f);
+            Assert.Equal(0f, Quaternion.Angle(expected, mid.rotation), 2);
 
-            // Hold に誤分類されると区間開始値 0 のままになる (移植時の退行の再発検出)
-            Assert.NotEqual(0f, mid.eulerAngles.x, 4);
+            // Hold に誤分類されると区間開始値のままになる (移植時の退行の再発検出)
+            Assert.NotEqual(0f, Quaternion.Angle(startRotation, mid.rotation), 2);
         }
 
         [Fact]
