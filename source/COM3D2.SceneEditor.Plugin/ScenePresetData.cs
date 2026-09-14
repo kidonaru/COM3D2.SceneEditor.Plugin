@@ -811,6 +811,40 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
+    /// 背景モデル 1 件 (v34)。BGModelManager の制御対象 (表示切替・transform 編集・複製したもの) だけを記録する。
+    /// sourceName は背景ルートからの相対パス、group は複製番号 (0 = 元)。transform はローカル値
+    /// </summary>
+    public class ScenePresetBgModel
+    {
+        [XmlAttribute]
+        public string sourceName;
+
+        [XmlAttribute]
+        public int group;
+
+        [XmlAttribute]
+        public bool visible = true;
+
+        public Vector3 position;
+
+        /// <summary>ローカル回転 (オイラー角・度)</summary>
+        public Vector3 rotation;
+
+        public Vector3 scale = Vector3.one;
+    }
+
+    /// <summary>
+    /// 背景モデルの一覧 (v34)。生の List に [XmlElement] を付けると 0 件のとき XML に何も残らず
+    /// null で読み戻るため、「制御対象なし」(この要素あり・0 件) と「未記録」(要素なし) を
+    /// 区別する目的で要素に包む
+    /// </summary>
+    public class ScenePresetBgModels
+    {
+        [XmlElement("model")]
+        public List<ScenePresetBgModel> models = new List<ScenePresetBgModel>();
+    }
+
+    /// <summary>
     /// MTE 由来の演出状態 (v29)。テキスト / サブカメラ / サウンド (v30) / 動画 (v30)。
     /// 旧プリセット (要素なし) は null になり、適用時に触らない。
     /// リスト項目は「空リスト = 保存時に実体なし」を未記録と同義として触らない。
@@ -1002,6 +1036,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlElement("bgMaterial")]
         public List<ScenePresetMaterial> bgMaterials;
+
+        /// <summary>
+        /// 背景モデルの表示・transform・複製 (v34)。「背景」カテゴリ保存時のみ入る。
+        /// 0 件は「制御対象なし」として既存の制御対象を全て外す。
+        /// 旧プリセット（要素なし）は null になり、適用時に触らない
+        /// </summary>
+        public ScenePresetBgModels bgModels;
 
         /// <summary>
         /// MTE 由来の演出 (v29)。旧プリセット（要素なし）は null になり、適用時に演出へ触らない
