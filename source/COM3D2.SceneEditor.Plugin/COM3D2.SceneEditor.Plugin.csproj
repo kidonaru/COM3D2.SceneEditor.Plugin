@@ -192,6 +192,7 @@
     <Compile Include="MaidManipulation\MaidGravityController.cs" />
     <Compile Include="MaidManipulation\MaidPlacementPreset.cs" />
     <Compile Include="MaidManipulation\MaidPoseFileManager.cs" />
+    <Compile Include="MaidManipulation\MaidPoseFlipper.cs" />
     <Compile Include="MaidManipulation\PhotoMotionUtils.cs" />
     <Compile Include="MaidManipulation\MaidVisibilityController.cs" />
     <Compile Include="MaidManipulation\MaidUndressController.cs" />

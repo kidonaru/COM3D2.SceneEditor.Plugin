@@ -267,7 +267,18 @@ namespace COM3D2.SceneEditor.Plugin
                     MTEUtils.OpenDirectory(folder);
                 }
 
-                view.AddRightAlignSpace(60, ROW_HEIGHT);
+                view.AddRightAlignSpace(60 + 60 + view.margin, ROW_HEIGHT);
+
+                // 現在のポーズを左右反転する。再生中は書き戻しが翌フレームに
+                // 上書きされるため、他の編集操作と同じく先に停止させる
+                // (停止操作を内包するので、リセットと違い再生中でも押せる)
+                if (view.DrawButton("反転", 60, ROW_HEIGHT))
+                {
+                    MaidMotionState.StopMotion(maid);
+                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                        "ポーズ反転", PoseSnapshot.GetAllBodyBones(maid));
+                    MaidPoseFlipper.Flip(maid);
+                }
 
                 // 崩したポーズを復帰先 (停止前のモーション / 読み込んだポーズ) で元に戻すリセット
                 if (view.DrawButton("リセット", 60, ROW_HEIGHT,
