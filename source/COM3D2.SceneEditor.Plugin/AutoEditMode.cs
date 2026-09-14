@@ -17,6 +17,10 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static void Enter()
         {
+            // 値を書く直前に必ず通る場所なので、どのレイヤーのゲート内で
+            // 触ったかをここで控える (編集モードへ既に入っていても控えは要る)
+            TimelineLayerGate.RecordEditedLayerFromOpenGate();
+
             if (MTEP.SceneEditorHack.instance == null)
             {
                 // タイムライン側が未初期化 (タイトル画面等) なら SE 本体のフラグだけ立てる

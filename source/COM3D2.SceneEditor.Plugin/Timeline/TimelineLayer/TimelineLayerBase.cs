@@ -755,6 +755,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public byte[] GetAnmBinary(bool forOutput)
         {
+            // Init 前のレイヤーは _dummyLastFrame を持たないので anm を組めない。
+            // OnLoad が途中で失敗して LayerInit まで到達しなかったときに通る
+            if (!isInitialized)
+            {
+                return null;
+            }
+
             if (!IsValidData())
             {
                 return null;

@@ -17,13 +17,62 @@ namespace COM3D2.SceneEditor.Plugin
     /// 後に描かれる ComboBoxPopupWindow まで操作できなくなる。
     ///
     /// タブ切替ボタンはゲートの対象外にする（無効化するとタブから抜けられなくなる）。
-    /// 各ウィンドウはタブを描いた後に Begin を呼ぶこと
+    /// 各ウィンドウはタブを描いた後に Begin を呼ぶこと。
+    ///
+    /// あわせて「どのレイヤーの値を触ったか」の控えも持つ。ゲートは
+    /// 「この範囲の項目はこのレイヤーのもの」を既に知っている唯一の場所なので、
+    /// 編集確定時のレイヤー自動追従はこの控えを頼りにする
+    /// (RecordEditedLayerFromOpenGate / TakeEditedLayer)
     /// </summary>
     public static class TimelineLayerGate
     {
         private const float BUTTON_WIDTH = 220f;
 
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
+
+        // 描画中に開いているゲート。Begin で設定し End で解除する
+        private static Type _openLayerType;
+        private static int _openSlotNo;
+
+        // 値が書かれた瞬間に開いていたゲート。編集の確定時に取り出して消す
+        private static Type _editedLayerType;
+        private static int _editedSlotNo;
+
+        /// <summary>
+        /// 今開いているゲートを「触ったレイヤー」として控える。
+        /// 値を書く直前に必ず通る AutoEditMode.Enter から呼ぶ。
+        /// ゲートの外で触ったときは控えを消す (前の値を引きずらない)。
+        ///
+        /// 既知の穴: コンボボックスのポップアップは所有ウィンドウの描画パスが
+        /// 終わった後 (End 済み) に選択を確定するため、ここでは拾えない
+        /// </summary>
+        public static void RecordEditedLayerFromOpenGate()
+        {
+            _editedLayerType = _openLayerType;
+            _editedSlotNo = _openSlotNo;
+        }
+
+        /// <summary>
+        /// ゲートを経由しない操作 (ビューポートでのボーンドラッグ等) 向けに、
+        /// 触ったレイヤーを明示的に控える
+        /// </summary>
+        public static void RecordEditedLayer(Type layerType, int slotNo)
+        {
+            _editedLayerType = layerType;
+            _editedSlotNo = slotNo;
+        }
+
+        /// <summary>控えていた「触ったレイヤー」を取り出して消す。無ければ null</summary>
+        public static Type TakeEditedLayer(out int slotNo)
+        {
+            var layerType = _editedLayerType;
+            slotNo = _editedSlotNo;
+
+            _editedLayerType = null;
+            _editedSlotNo = 0;
+
+            return layerType;
+        }
 
         /// <summary>
         /// メイド非依存レイヤー用。呼び出し後もそのまま項目を描き続ける（無効表示にするだけで隠さない）。
@@ -36,6 +85,8 @@ namespace COM3D2.SceneEditor.Plugin
             var timelineLoaded = timelineManager.timeline != null;
             var layerExists = timelineLoaded && timelineManager.GetLayer(layerType, 0) != null;
             var state = TimelineLayerGateText.Resolve(timelineLoaded, false, false, layerExists);
+            _openLayerType = layerType;
+            _openSlotNo = 0;
             Apply(view, layerType, 0, state, rowHeight, drawNotice);
             return state;
         }
@@ -56,6 +107,8 @@ namespace COM3D2.SceneEditor.Plugin
                 && timelineManager.GetLayer(layerType, slotNo) != null;
             var state = TimelineLayerGateText.Resolve(
                 timelineLoaded, true, maidCache != null, layerExists);
+            _openLayerType = layerType;
+            _openSlotNo = slotNo;
             Apply(view, layerType, slotNo, state, rowHeight, true);
             return state;
         }
@@ -63,6 +116,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>強制無効を解除して有効へ戻す。冪等</summary>
         public static void End(GUIView view)
         {
+            _openLayerType = null;
+            _openSlotNo = 0;
+
             view.forceDisabled = false;
             view.SetEnabled(true);
         }

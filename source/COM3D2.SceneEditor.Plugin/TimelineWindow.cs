@@ -241,26 +241,33 @@ namespace COM3D2.SceneEditor.Plugin
             };
         }
 
-        // ドラッグ編集完了時の自動キーフレーム登録 (SE 独自機能)
+        // ドラッグ編集完了時 (SE 独自機能)
         private void OnDragCompleted(Maid maid)
         {
-            TryAutoKeyFrame(maid);
+            // ビューポートでのボーン操作はレイヤーゲートの外で起きるため、
+            // 触ったレイヤー (そのメイドのメイドアニメ) を明示的に控える
+            var maidCache = maid != null ? MTEP.MaidManager.instance.GetMaidCache(maid) : null;
+            if (maidCache != null)
+            {
+                TimelineLayerGate.RecordEditedLayer(
+                    typeof(MTEP.MotionTimelineLayer), maidCache.slotNo);
+            }
+
+            HandleEditFinished(maid);
         }
 
-        // 各ウィンドウでの値変更が操作履歴として確定したときの自動キーフレーム登録。
+        // 各ウィンドウでの値変更が操作履歴として確定したとき。
         // ドラッグ編集は onDragCompleted と両方から届くが、2 回目は登録済みボーンが除かれて no-op になる
         private void OnEditCommitted(HistoryEntry entry)
         {
-            TryAutoKeyFrame(entry.maid);
+            HandleEditFinished(entry.maid);
         }
 
         /// <summary>
-        /// 自動登録が有効で編集モード中なら、現在フレームへ差分をキーフレーム登録する。
-        /// 指ドラッグ等は選択同期を経ずアクティブメイドが別メイドのままになり得るため、
-        /// 操作対象メイドが登録対象 (アクティブメイド) と一致する場合のみ登録する。
-        /// メイドに紐づかない操作 (ライト・カメラ等) は editedMaid が null で常に対象
+        /// 編集の確定を受けて、値を変えたレイヤーへアクティブを移し、自動登録を試みる。
+        /// メイドに紐づかない操作 (ライト・カメラ等) は editedMaid が null で届く
         /// </summary>
-        private void TryAutoKeyFrame(Maid editedMaid)
+        private void HandleEditFinished(Maid editedMaid)
         {
             // 破棄済みメイドは Unity の == では null 扱いだが object の参照比較では null にならず、
             // メイドに紐づかない操作と取り違えられる。純粋ロジックへ渡す前にここで弾く
@@ -269,10 +276,23 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var timelineManager = MTEP.TimelineManager.instance;
             var isEditing = timelineManager.currentLayer != null
                 && timelineManager.initialEditFrame != null;
 
+            // レイヤーの自動追従は「自動登録」トグルに依らず働かせる。
+            // 控えは毎回必ず消したいので、条件を付けずに呼ぶ
+            FocusEditedLayer();
+
+            TryAutoKeyFrame(editedMaid, isEditing);
+        }
+
+        /// <summary>
+        /// 自動登録が有効で編集モード中なら、現在フレームへ差分をキーフレーム登録する。
+        /// 指ドラッグ等は選択同期を経ずアクティブメイドが別メイドのままになり得るため、
+        /// 操作対象メイドが登録対象 (アクティブメイド) と一致する場合のみ登録する
+        /// </summary>
+        private void TryAutoKeyFrame(Maid editedMaid, bool isEditing)
+        {
             if (!AutoKeyFrameGate.ShouldRegister(
                 isAutoKeyFrame: MTEP.ConfigManager.instance.config.isAutoKeyFrame,
                 isEditing: isEditing,
@@ -282,7 +302,40 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            timelineManager.AddKeyFrameDiff(isAuto: true);
+            MTEP.TimelineManager.instance.AddKeyFrameDiff(isAuto: true);
+        }
+
+        /// <summary>
+        /// 値を変えたレイヤーをアクティブにする。
+        /// 登録は表示中のレイヤーだけが対象なので、先に切り替えておくことで
+        /// 「触ったものにキーが入る」が成り立つ。
+        /// カメラ系は対象外 (アクティブな間はカメラ同期などの操作が塞がるため)
+        /// </summary>
+        private static void FocusEditedLayer()
+        {
+            int slotNo;
+            var layerType = TimelineLayerGate.TakeEditedLayer(out slotNo);
+            if (layerType == null)
+            {
+                return;
+            }
+
+            var layer = timelineManager.GetLayer(layerType, slotNo);
+            if (layer == null || layer == timelineManager.currentLayer || layer.isCameraLayer)
+            {
+                return;
+            }
+
+            // 編集開始時スナップショットが無いレイヤー (操作対象メイド以外のもの等) へ移ると、
+            // currentLayer と initialEditFrame が食い違ったまま残る
+            if (timelineManager.GetInitialEditFrame(layer) == null)
+            {
+                return;
+            }
+
+            // SetCurrentLayer だと編集セッションが張り直され、
+            // まだ登録していない編集値が保存済みキー値で上書きされる
+            timelineManager.SetCurrentLayerKeepingEdit(layer);
         }
 
         private bool _syncingSelection = false;

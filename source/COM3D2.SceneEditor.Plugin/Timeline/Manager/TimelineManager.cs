@@ -1755,6 +1755,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 編集セッションを保ったままアクティブレイヤーを移す。
+        /// SetCurrentLayer は編集中だと OnPoseEditEnd / OnPoseEditStart を通り、
+        /// ApplyCurrentFrame が保存済みキー値を再適用して「まだ登録していない編集値」を
+        /// 巻き戻してしまうため、値を変えた直後の自動追従ではこちらを使う。
+        /// _initialEditFrames は editTargetLayers 全件を持つので取り直しは要らない
+        /// </summary>
+        public void SetCurrentLayerKeepingEdit(ITimelineLayer layer)
+        {
+            var index = layers.IndexOf(layer);
+            if (index < 0 || index == currentLayerIndex)
+            {
+                return;
+            }
+
+            currentLayerIndex = index;
+
+            if (currentLayer.isInitialized)
+            {
+                currentLayer.OnCurrentLayer();
+            }
+
+            // initialEditFrame はアクティブレイヤー分のエイリアス。
+            // 編集中のときだけ、移った先のスナップショットへ差し替える
+            if (initialEditFrame != null)
+            {
+                var frame = GetInitialEditFrame(currentLayer);
+                if (frame != null)
+                {
+                    initialEditFrame = frame;
+                }
+            }
+
+            UpdateMotionEditing();
+        }
+
         public void SetPlayingFrameNoAll(int frameNo)
         {
             prevPlayingFrameNo = frameNo;
@@ -2060,6 +2096,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        // キーフレーム登録のスコープ計算バッファ。毎回 Clear して詰め直す。
+        // TimelineLayerViewFilter.Filter が IList を要求するため、
+        // yield ベースの editTargetLayers を一度 _editTargetLayerBuffer へ移す
+        private readonly List<ITimelineLayer> _editTargetLayerBuffer = new List<ITimelineLayer>(32);
+        private readonly List<ITimelineLayer> _keyFrameTargetLayers = new List<ITimelineLayer>(32);
+
         /// <summary>
         /// レイヤーの所属カテゴリ。未登録の型は「その他」へ寄せる。
         /// カテゴリの解決規則が分散しないよう、GetLayerInfo を持つここを唯一の実装にする
@@ -2070,6 +2112,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return info != null ? info.category : TimelineLayerCategory.Other;
         }
 
+        /// <summary>
+        /// キーフレーム登録の対象レイヤー。編集対象レイヤーをタイムラインの表示モードで絞る。
+        /// 画面に出ていないレイヤー (メイド編集中のカメラ等) が裏で登録されるのを防ぐ。
+        /// 自動登録・「登録」ボタン・Enter のいずれも同じ対象にそろえる。
+        /// 戻り値は使い回しバッファなので、呼び出し元で保持せずその場で消費すること
+        /// </summary>
+        private IEnumerable<ITimelineLayer> BuildKeyFrameTargetLayers()
+        {
+            // Filter はアクティブレイヤーが無いと表示スコープを決められず空集合を返す。
+            // 登録だけが黙って何もしなくなるのを避けるため、絞り込みを諦めて全件を返す
+            if (currentLayer == null)
+            {
+                return editTargetLayers;
+            }
+
+            _editTargetLayerBuffer.Clear();
+            foreach (var layer in editTargetLayers)
+            {
+                _editTargetLayerBuffer.Add(layer);
+            }
+
+            SceneEditor.Plugin.TimelineLayerViewFilter.Filter(
+                _editTargetLayerBuffer,
+                currentLayer,
+                config.layerViewMode,
+                GetLayerCategory,
+                _keyFrameTargetLayers);
+            return _keyFrameTargetLayers;
+        }
+
         /// <summary>レイヤーの編集開始時スナップショット。編集対象外か編集モード外なら null</summary>
         public FrameData GetInitialEditFrame(ITimelineLayer layer)
         {
@@ -2077,9 +2149,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return _initialEditFrames.TryGetValue(layer, out frame) ? frame : null;
         }
 
-        /// <summary>
-        /// 編集開始時のスナップショットから変化したパラメータを、編集対象レイヤー全てにキーフレーム登録する
-        /// </summary>
         /// <summary>
         /// カメラレイヤーへの差分キーフレーム登録を見送るか。
         /// カメラはカメラ同期で常時動いており、他の操作のたびに意図しないキーフレームが
@@ -2092,6 +2161,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return isAuto || !layer.isCurrent;
         }
 
+        /// <summary>
+        /// 編集開始時のスナップショットから変化したパラメータを、
+        /// 画面に出ている編集対象レイヤーへキーフレーム登録する
+        /// </summary>
         /// <param name="isAuto">
         /// 操作確定を契機とした自動登録か。true なら登録しなかった理由の情報ログを出さず、
         /// カメラレイヤーを対象から外す
@@ -2116,10 +2189,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // 手動・自動とも編集対象レイヤー全てを見る。
-            // 差分登録なので値の変わっていないレイヤーにキーは増えず、
-            // 表示範囲外のモデル等を動かしたときの登録漏れだけを防げる
-            var targetLayers = editTargetLayers;
+            // 自動・手動とも画面に出ているレイヤーだけを対象にする。
+            // 表示していない対象に裏でキーが増えないことを優先する
+            var targetLayers = BuildKeyFrameTargetLayers();
 
             var changedLayers = new List<ITimelineLayer>();
             foreach (var layer in targetLayers)

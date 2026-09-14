@@ -314,8 +314,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             model.Destroy();
 
+            // 背景オブジェクトが見つからないモデルは info を持たない
+            // (AddModel が info = null のまま生成する)。
+            // ここで落ちると OnLoad ごと巻き添えになり、タイムラインが
+            // LayerInit 前の半端な状態で残るため必ず防ぐ
             var info = model.info;
-            if (info.group > 0)
+            if (info != null && info.group > 0)
             {
                 DeleteModelInfo(info.name);
             }
