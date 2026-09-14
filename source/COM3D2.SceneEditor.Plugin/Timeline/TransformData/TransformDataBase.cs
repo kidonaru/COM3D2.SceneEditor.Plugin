@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -41,6 +42,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _outTangentListCache = null;
             _valuesWithoutColors = null;
             _lerpKinds = null;
+            // baseValues も values の ValueData を直接参照するキャッシュなので一緒に捨てる。
+            // 捨て忘れると Clone 後に複製元の ValueData を指したまま残り、
+            // tangentValues => baseValues としている型が複製元へ書き込んでしまう
+            _baseValues = null;
         }
 
         /// <summary>値種別添字のキャッシュから取り出し、未生成なら builder で作って格納する</summary>
@@ -219,7 +224,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public virtual bool isHidden => false;
         public virtual bool isGlobal => false;
-        public virtual bool isFixRotation => true;
 
         public virtual ValueData[] positionValues => new ValueData[0];
         public virtual ValueData[] subPositionValues => new ValueData[0];
@@ -435,40 +439,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static Vector3 GetFixedEulerAngles(Vector3 angles, Vector3 prevAngles)
         {
-            var diff = angles - prevAngles;
-
-            for (int i = 0; i < 3; i++)
-            {
-                int iDiff = (int) diff[i];
-                if (iDiff > 180)
-                {
-                    angles[i] -= (iDiff + 180) / 360 * 360;
-                }
-                else if (iDiff < -180)
-                {
-                    angles[i] -= (iDiff - 180) / 360 * 360;
-                }
-            }
-
-            return angles;
+            return AngleUtils.GetFixedAngles(angles, prevAngles);
         }
 
         public static Vector3 GetNormalizedEulerAngles(Vector3 angles)
         {
-            for (int i = 0; i < 3; i++)
-            {
-                int value = (int) angles[i];
-                if (value > 180)
-                {
-                    angles[i] -= (value + 180) / 360 * 360;
-                }
-                else if (value < -180)
-                {
-                    angles[i] -= (value - 180) / 360 * 360;
-                }
-            }
-
-            return angles;
+            return AngleUtils.NormalizeAngles(angles);
         }
 
         public void FixEulerAngles(ITransformData _prevTrans)
@@ -670,13 +646,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 // (既定値 0 同士が一致して常に添字 0 を返す)。必ず参照で突き合わせること
                 var tangentIndices = new HashSet<int>();
                 var tangents = tangentValues;
+                var bases = baseValues;
                 for (var i = 0; i < values.Length; i++)
                 {
+                    var isTangent = false;
                     foreach (var tangentValue in tangents)
                     {
                         if (ReferenceEquals(values[i], tangentValue))
                         {
+                            isTangent = true;
                             tangentIndices.Add(i);
+                            break;
+                        }
+                    }
+                    if (!isTangent || kinds[i] != LerpKind.Hold)
+                    {
+                        continue;
+                    }
+
+                    // 位置・回転・拡縮は CustomValueInfoMap に載らないが、いずれも連続値なので
+                    // タンジェント補間の対象にする。ここで拾わないと Hold に落ちて補間が効かない
+                    // (リムライトの光源方向が MTE からの移植時にこれで無補間になっていた)。
+                    // baseValues は sub 系 (subPosition / subEulerAngles) を含まない。
+                    // sub 系を持つ型を LerpFrom 経路へ乗せる際は要確認
+                    foreach (var baseValue in bases)
+                    {
+                        if (ReferenceEquals(values[i], baseValue))
+                        {
+                            kinds[i] = LerpKind.Tangent;
                             break;
                         }
                     }

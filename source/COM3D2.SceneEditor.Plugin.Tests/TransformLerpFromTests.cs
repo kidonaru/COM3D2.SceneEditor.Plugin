@@ -117,5 +117,70 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 Assert.Equal(start.strValues[i], scratch.strValues[i]);
             }
         }
+
+        private static TransformDataRimlight CreateRimlight()
+        {
+            var trans = new TransformDataRimlight();
+            trans.Initialize("Rimlight");
+            return trans;
+        }
+
+        [Fact]
+        public void Clone後のbaseValuesは複製先のValueDataを指す()
+        {
+            var start = CreateRimlight();
+            // 複製前にキャッシュを作らせる (これが無いと不具合が再現しない)
+            var _ = start.baseValues;
+
+            var clone = (TransformDataRimlight)start.Clone();
+
+            // Rimlight の baseValues は eulerAnglesValues = values[0..2]
+            Assert.Same(clone.values[0], clone.baseValues[0]);
+            Assert.NotSame(start.values[0], clone.baseValues[0]);
+        }
+
+        private static TransformDataRimlight LerpRimlight(
+            TransformDataRimlight start, TransformDataRimlight end, float t)
+        {
+            var scratch = (TransformDataRimlight)start.Clone();
+            scratch.LerpFrom(start, end, 0f, 1f, t);
+            return scratch;
+        }
+
+        [Fact]
+        public void リムライトの光源方向はタンジェント補間される()
+        {
+            var start = CreateRimlight();
+            var end = CreateRimlight();
+            start.eulerAngles = new Vector3(0f, 0f, 0f);
+            end.eulerAngles = new Vector3(90f, 40f, 20f);
+
+            var mid = LerpRimlight(start, end, 0.25f);
+
+            var startValues = start.eulerAnglesValues;
+            var endValues = end.eulerAnglesValues;
+            for (var i = 0; i < 3; i++)
+            {
+                var expected = MTEP.PluginUtils.HermiteValue(
+                    0f, 1f, startValues[i], endValues[i], 0.25f);
+                Assert.Equal(expected, mid.eulerAngles[i], 4);
+            }
+
+            // Hold に誤分類されると区間開始値 0 のままになる (移植時の退行の再発検出)
+            Assert.NotEqual(0f, mid.eulerAngles.x, 4);
+        }
+
+        [Fact]
+        public void リムライトの表示トグルは構造値の昇格に巻き込まれない()
+        {
+            var start = CreateRimlight();
+            var end = CreateRimlight();
+            start.visible = false;
+            end.visible = true;
+
+            var mid = LerpRimlight(start, end, 0.9f);
+
+            Assert.False(mid.visible);
+        }
     }
 }

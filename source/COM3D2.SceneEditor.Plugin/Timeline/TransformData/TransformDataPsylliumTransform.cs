@@ -18,8 +18,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override bool hasSubEulerAngles => true;
         public override bool hasTangent => true;
 
-        public override bool isFixRotation => false;
-
         public override ValueData[] positionValues
         {
             get => new ValueData[] { values[0], values[1], values[2] };

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
@@ -594,15 +594,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (heightDifference > 0f)
             {
                 // 360 度差を除いて近い方の角度を採用する
-                var diffAngle = (int)(footStretchAngle - targetAngle);
-                if (diffAngle > 180)
-                {
-                    footStretchAngle -= (diffAngle + 180) / 360 * 360;
-                }
-                else if (diffAngle < -180)
-                {
-                    footStretchAngle -= (diffAngle - 180) / 360 * 360;
-                }
+                footStretchAngle = AngleUtils.GetFixedAngle(footStretchAngle, targetAngle);
 
                 var heightRate = Mathf.Clamp01(heightDifference / p.footStretchHeight);
                 targetAngle = Mathf.Lerp(targetAngle, footStretchAngle, heightRate);

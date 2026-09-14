@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -223,166 +223,47 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return diffBones;
         }
 
-        private static bool initializedBoneTypes = false;
-        private static HashSet<IKManager.BoneType> notFlipTypes = null;
-        private static Dictionary<IKManager.BoneType, IKManager.BoneType> swapFlipDic = null;
-
-        private static List<IKManager.BoneType> leftFingerTypes = null;
-        private static List<IKManager.BoneType> rightFingerTypes = null;
-        private static List<IKManager.BoneType> leftToeTypes = null;
-        private static List<IKManager.BoneType> rightToeTypes = null;
-
-        private void InitBoneTypes()
-        {
-            if (initializedBoneTypes)
-            {
-                return;
-            }
-            initializedBoneTypes = true;
-
-            MTEUtils.LogDebug("ボーンタイプの初期化");
-
-            notFlipTypes = new HashSet<IKManager.BoneType>
-            {
-                IKManager.BoneType.TopFixed,
-            };
-            for (int i = (int) IKManager.BoneType.Mouth; i <= (int) IKManager.BoneType.Nipple_R; i++)
-            {
-                notFlipTypes.Add((IKManager.BoneType)i);
-            }
-
-            leftFingerTypes = new List<IKManager.BoneType>(16);
-            rightFingerTypes = new List<IKManager.BoneType>(16);
-            leftToeTypes = new List<IKManager.BoneType>(6);
-            rightToeTypes = new List<IKManager.BoneType>(6);
-
-            for (int i = (int) IKManager.BoneType.Finger0_Root_L; i <= (int) IKManager.BoneType.Finger4_1_L; i++)
-            {
-                leftFingerTypes.Add((IKManager.BoneType)i);
-            }
-
-            for (int i = (int) IKManager.BoneType.Finger0_Root_R; i <= (int) IKManager.BoneType.Finger4_1_R; i++)
-            {
-                rightFingerTypes.Add((IKManager.BoneType)i);
-            }
-            
-            for (int i = (int) IKManager.BoneType.Toe0_Root_L; i <= (int) IKManager.BoneType.Toe2_0_L; i++)
-            {
-                leftToeTypes.Add((IKManager.BoneType)i);
-            }
-
-            for (int i = (int) IKManager.BoneType.Toe0_Root_R; i <= (int) IKManager.BoneType.Toe2_0_R; i++)
-            {
-                rightToeTypes.Add((IKManager.BoneType)i);
-            }
-
-            swapFlipDic = new Dictionary<IKManager.BoneType, IKManager.BoneType>
-            {
-                { IKManager.BoneType.Clavicle_R, IKManager.BoneType.Clavicle_L },
-                { IKManager.BoneType.UpperArm_R, IKManager.BoneType.UpperArm_L },
-                { IKManager.BoneType.Forearm_R, IKManager.BoneType.Forearm_L },
-                { IKManager.BoneType.Thigh_R, IKManager.BoneType.Thigh_L },
-                { IKManager.BoneType.Calf_R, IKManager.BoneType.Calf_L },
-                { IKManager.BoneType.Hand_R, IKManager.BoneType.Hand_L },
-                { IKManager.BoneType.Foot_R, IKManager.BoneType.Foot_L },
-                { IKManager.BoneType.Bust_L, IKManager.BoneType.Bust_R },
-            };
-
-            var swapList = swapFlipDic.ToList();
-            foreach (var pair in swapList)
-            {
-                swapFlipDic.Add(pair.Value, pair.Key);
-            }
-
-            for (int i = 0; i < leftFingerTypes.Count; i++)
-            {
-                swapFlipDic.Add(leftFingerTypes[i], rightFingerTypes[i]);
-                swapFlipDic.Add(rightFingerTypes[i], leftFingerTypes[i]);
-            }
-
-            for (int i = 0; i < leftToeTypes.Count; i++)
-            {
-                swapFlipDic.Add(leftToeTypes[i], rightToeTypes[i]);
-                swapFlipDic.Add(rightToeTypes[i], leftToeTypes[i]);
-            }
-        }
-
         public void Flip()
         {
-            InitBoneTypes();
+            var newBones = new List<BoneData>(_boneMap.Count);
 
-            var bones = this.bones;
-            var transformMap = new Dictionary<IKManager.BoneType, ITransformData>(bones.Count);
             foreach (var bone in bones)
             {
                 var boneType = bone.boneType;
-                if (!notFlipTypes.Contains(boneType))
-                {
-                    var transform = bone.transform;
-                    transformMap.Add(boneType, transform);
-                }
-            }
-
-            var newBones = new List<BoneData>(bones.Count);
-            foreach (var bone in bones)
-            {
-                var boneType = bone.boneType;
-                if (notFlipTypes.Contains(boneType))
+                if (PoseFlipUtils.IsNotFlipType(boneType))
                 {
                     newBones.Add(bone);
+                    continue;
+                }
+
+                var transform = bone.transform;
+                boneType = PoseFlipUtils.GetFlippedBoneType(boneType);
+
+                var newTransform = timelineManager.CreateTransform(
+                    transform.type, BoneUtils.GetBoneName(boneType));
+
+                // 例外規則を持たないボーンは、オイラー角を経由せずクォータニオンの鏡像で反転する
+                // （オイラー規則との等価性と、そうする理由は PoseFlipUtils.FlipRotation を参照）
+                if (transform.hasRotation && !PoseFlipUtils.HasEulerFlipRule(boneType))
+                {
+                    newTransform.rotation = PoseFlipUtils.FlipRotation(transform.rotation);
                 }
                 else
                 {
-                    var transform = bone.transform;
                     var eulerAngles = transform.eulerAngles;
-                    var newEulerAngles = eulerAngles;
-
-                    if (swapFlipDic.ContainsKey(boneType))
-                    {
-                        boneType = swapFlipDic[boneType];
-                    }
-
-                    if (boneType == IKManager.BoneType.Root)
-                    {
-                        newEulerAngles.y = 180f - (eulerAngles.y - 180f);
-                        newEulerAngles.z = 270f - (eulerAngles.z - 270f);
-                    }
-                    else if (boneType == IKManager.BoneType.Pelvis)
-                    {
-                        newEulerAngles.y = eulerAngles.y + 180f;
-                        newEulerAngles.z = eulerAngles.z + 180f;
-                    }
-                    else if (boneType == IKManager.BoneType.Spine0)
-                    {
-                        newEulerAngles.x = 270f - (eulerAngles.x - 270f);
-                        //newEulerAngles.z = 90f - (eulerAngles.z - 90f);
-                    }
-                    else if (boneType == IKManager.BoneType.Bust_L || boneType == IKManager.BoneType.Bust_R)
-                    {
-                        newEulerAngles.y = 360f - (eulerAngles.y - 180f);
-                        newEulerAngles.z = 270f - (eulerAngles.z - 270f);
-                    }
-                    else
-                    {
-                        newEulerAngles.x = -eulerAngles.x;
-                        newEulerAngles.y = -eulerAngles.y;
-                    }
-
+                    var newEulerAngles = PoseFlipUtils.FlipEulerAngles(boneType, eulerAngles);
                     MTEUtils.LogDebug("Flip Bone：" + boneType + " " + eulerAngles + " -> " + newEulerAngles);
-
-                    var newTransform = timelineManager.CreateTransform(transform.type, BoneUtils.GetBoneName(boneType));
                     newTransform.eulerAngles = newEulerAngles;
-
-                    if (boneType == IKManager.BoneType.Root)
-                    {
-                        var localPosition = transform.position;
-                        localPosition.x = -localPosition.x;
-                        newTransform.position = localPosition;
-                    }
-
-                    var newBone = CreateBone(newTransform);
-                    newBones.Add(newBone);
                 }
+
+                if (boneType == IKManager.BoneType.Root)
+                {
+                    var localPosition = transform.position;
+                    localPosition.x = -localPosition.x;
+                    newTransform.position = localPosition;
+                }
+
+                newBones.Add(CreateBone(newTransform));
             }
 
             ClearBones();

@@ -452,6 +452,7 @@
     <Compile Include="Timeline\Extensions.cs" />
     <Compile Include="Timeline\FaceMorphUtils.cs" />
     <Compile Include="Timeline\FrameData.cs" />
+    <Compile Include="Timeline\PoseFlipUtils.cs" />
     <Compile Include="Timeline\FrameXml.cs" />
     <Compile Include="Timeline\Hack\ExternalModelHack.cs" />
     <Compile Include="Timeline\Hack\PartsEditHackBase.cs" />

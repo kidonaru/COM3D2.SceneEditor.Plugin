@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Linq;
 using COM3D2.MotionTimelineEditor.Plugin;
 using MTEPluginUtils = COM3D2.MotionTimelineEditor.Plugin.PluginUtils;
+using UnityEngine;
 using Xunit;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
@@ -72,6 +73,46 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             // outTangent = inTangent = 1 (傾き 1) のエルミートは線形補間と一致する
             for (var t = 0f; t <= 1f; t += 0.25f)
                 Assert.Equal(t, MTEPluginUtils.HermiteSimplified(1f, 1f, t), 5);
+        }
+
+        private static ValueData[] CreateValues(params float[] values)
+        {
+            var result = new ValueData[values.Length];
+            for (int i = 0; i < values.Length; i++)
+            {
+                result[i] = new ValueData { value = values[i] };
+            }
+            return result;
+        }
+
+        [Fact]
+        public void HermiteQuaternionは単位長のクォータニオンを返す()
+        {
+            // identity と Y 軸 90 度。中点の素の大きさは約 0.924 で単位長ではない
+            var start = CreateValues(0f, 0f, 0f, 1f);
+            var end = CreateValues(0f, 0.70710678f, 0f, 0.70710678f);
+
+            var q = MTEPluginUtils.HermiteQuaternion(0f, 1f, start, end, 0.5f);
+            var magnitude = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+
+            Assert.Equal(1f, magnitude, 4);
+            // 向きは変わらない（x / z はゼロのまま、y と w の比が中点のまま）
+            Assert.Equal(0f, q.x, 5);
+            Assert.Equal(0f, q.z, 5);
+            Assert.Equal(0.41421356f, q.y / q.w, 4);
+        }
+
+        [Fact]
+        public void HermiteQuaternionは退化した入力でidentityを返す()
+        {
+            var zero = CreateValues(0f, 0f, 0f, 0f);
+
+            var q = MTEPluginUtils.HermiteQuaternion(0f, 1f, zero, zero, 0.5f);
+
+            Assert.Equal(0f, q.x, 5);
+            Assert.Equal(0f, q.y, 5);
+            Assert.Equal(0f, q.z, 5);
+            Assert.Equal(1f, q.w, 5);
         }
     }
 }

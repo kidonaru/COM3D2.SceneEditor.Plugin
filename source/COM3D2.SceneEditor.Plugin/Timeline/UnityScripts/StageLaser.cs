@@ -596,7 +596,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_meshFilter != null && camera != null)
             {
                 _meshFilter.transform.LookAt(camera.transform, transform.forward);
-                
+
+                // メッシュは局所 XZ 平面のリボン (幅が X、ビーム長が Z、法線が ±Y) なので、
+                // ビーム軸を保ったままリボンだけをカメラへ向けたい。
+                // localRotation は親 (StageLaser) 基準なので、x / y を 0 にすると
+                // 親の Z 軸 = ビーム軸まわりの回転成分だけが残る (swing-twist 分解の twist)。
+                // 非正規化のまま代入しているが localRotation の setter が正規化する。
+                // z も w も 0 になる退化ケースでは identity に落ちてロール 0 になる
                 var localRotation = _meshFilter.transform.localRotation;
                 localRotation.x = 0;
                 localRotation.y = 0;

@@ -297,6 +297,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         // Quaternionの補間
+        // 4 成分を独立に補間したままでは単位長にならないため、正規化して nlerp として扱う。
+        // Transform への代入時には Unity 側でも正規化されるが、
+        // LightHoldKeyConversion のように結果を XML へ保存する経路があるためここで揃える
         public static Quaternion HermiteQuaternion(
             float t0,
             float t1,
@@ -304,13 +307,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ValueData[] end,
             float t)
         {
-            return HermiteValues(
+            var q = HermiteValues(
                 t0,
                 t1,
                 start,
                 end,
                 t
             ).ToQuaternion();
+
+            var magnitude = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+            if (magnitude < 1e-6f)
+            {
+                // 全成分がゼロへ潰れた退化ケース。回転なしへフォールバックする
+                return Quaternion.identity;
+            }
+
+            return new Quaternion(
+                q.x / magnitude,
+                q.y / magnitude,
+                q.z / magnitude,
+                q.w / magnitude);
         }
     }
 }
