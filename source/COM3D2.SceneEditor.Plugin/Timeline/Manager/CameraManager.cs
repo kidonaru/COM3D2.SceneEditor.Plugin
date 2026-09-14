@@ -54,6 +54,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             CreateCamera();
         }
 
+        /// <summary>
+        /// 再有効化で MTEFrontCamera を作り直す。動画の最前面表示と
+        /// レターボックスが使う実体で、タイムラインの有無とは無関係に要るため
+        /// timeline 必須の OnLoad 任せにはできない
+        /// </summary>
+        public override void OnPluginEnable()
+        {
+            CreateCamera();
+        }
+
         public override void OnPluginDisable()
         {
             DestroyCamera();

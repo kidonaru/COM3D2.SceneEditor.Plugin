@@ -279,9 +279,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 再有効化でライト一覧を作り直す。メインライトはタイムラインが無くても
+        /// 一覧へ載るので、timeline 必須の OnLoad 任せにはできない
+        /// </summary>
+        public override void OnPluginEnable()
+        {
+            LateUpdate(true);
+        }
+
         public override void OnPluginDisable()
         {
             Reset();
+
+            // タイムラインが書いたメインライトの値を、プラグインが触る前へ戻す。
+            // TimelineUpdateManager の並びで TimelineManager の直後に呼ばれるので、
+            // アンロードの断面復元が書いた値をここで上書きできる
+            seLightManager.RestoreMainLightSnapshot();
         }
 
         public void Reset()

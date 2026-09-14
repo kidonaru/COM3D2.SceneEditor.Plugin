@@ -2256,12 +2256,40 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             modelManager.CreateModel(newModel);
         }
 
-        public override void OnPluginDisable()
+        /// <summary>
+        /// プラグイン無効化に伴うタイムラインの後始末。
+        /// マネージャ一括通知のループより前に呼ぶこと。
+        /// レイヤーの断面復元は ApplyPlayData を通り、その冒頭で maid を見るため、
+        /// MaidManager.OnPluginDisable がメイドキャッシュを捨てた後では空振りする
+        /// </summary>
+        public void UnloadTimelineOnPluginDisable()
         {
             if (timeline != null)
             {
                 timeline.OnPluginDisable();
             }
+
+            // タイトルへ戻るときも isEnable = false 経由でここへ来るが、
+            // その時点でシーンのオブジェクトは破棄済みで後始末が空振りするだけなので抜ける。
+            // シーン遷移でのタイムライン破棄は OnChangedSceneLevel の ClearTimeline が担う。
+            // 直前の timeline.OnPluginDisable() はこの経路でも元から通っており、
+            // 中身 (レイヤーへの配信と studioHack?.SetBackgroundVisible) は
+            // null 条件演算子で守られているのでガードの外に置いたままにする
+            if (SceneEditorHack.isTitleScene)
+            {
+                return;
+            }
+
+            // isTitleScene の判定は「isEnable の切り替えが _isSceneActive の更新より先」という
+            // 呼び出し順序に依存する。UnloadTimeline の Stop() は studioHack を null ガードなしで
+            // 触るため、順序が変わっても NRE にならないようここでも見る
+            if (studioHack == null)
+            {
+                return;
+            }
+
+            // プラグインを閉じたらタイムラインが増やした実体もシーンへ残さない
+            UnloadTimeline();
         }
 
         /// <summary>

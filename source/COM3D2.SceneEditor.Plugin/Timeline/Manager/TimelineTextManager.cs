@@ -121,6 +121,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateRenderTarget();
         }
 
+        /// <summary>
+        /// 再有効化でテキスト実体を作り直す。textCount はタイムライン未読込でも
+        /// _standaloneTextCount で決まるので OnLoad 任せにはできない
+        /// </summary>
+        public override void OnPluginEnable()
+        {
+            InitTexts();
+        }
+
         public override void OnPluginDisable()
         {
             ReleaseTexts();

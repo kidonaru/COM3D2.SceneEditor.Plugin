@@ -18,6 +18,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>TimelineXml がモデルの pluginName を寄せる比較キー。既存 XML 互換のため固定</summary>
         public const string pluginName = "SceneEditor";
 
+        /// <summary>タイトル画面のシーン名。タイムラインが動かない唯一の場面</summary>
+        public const string titleSceneName = "SceneTitle";
+
+        /// <summary>
+        /// 今がタイトル画面か。_isSceneActive はシーン遷移の途中ではまだ前シーンの値なので、
+        /// 遷移中に判定したい呼び出し元は現在のシーン名を直接見る
+        /// </summary>
+        public static bool isTitleScene
+            => SceneManager.GetActiveScene().name == titleSceneName;
+
         private static SceneEditorHack _instance;
         private static bool _isSceneActive;
 
@@ -71,7 +81,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
-            _isSceneActive = scene.name != "SceneTitle";
+            _isSceneActive = scene.name != titleSceneName;
         }
 
         private SceneEditorHack()

@@ -316,7 +316,7 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                if (scene.name == "SceneTitle")
+                if (scene.name == MTEP.SceneEditorHack.titleSceneName)
                 {
                     this.isEnable = false;
                 }

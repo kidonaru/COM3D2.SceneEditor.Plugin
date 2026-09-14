@@ -27,6 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.ConfigManager.instance,
                 MTEP.BoneMenuManager.Instance,
                 MTEP.MaidManager.instance,
+                // OnPluginDisable だけはループの前に済ませる (UnloadTimelineOnPluginDisable)
                 MTEP.TimelineManager.instance,
                 MTEP.StudioLightManager.instance,
                 MTEP.ModelHackManager.instance,
@@ -194,6 +195,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             public void OnPluginDisable()
             {
+                // メイドキャッシュの破棄 (MaidManager.OnPluginDisable) より先に呼ぶ必要がある。
+                // 理由は UnloadTimelineOnPluginDisable を参照
+                timelineManager.UnloadTimelineOnPluginDisable();
+
                 foreach (var manager in _managers)
                 {
                     manager.OnPluginDisable();

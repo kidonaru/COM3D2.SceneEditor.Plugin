@@ -227,11 +227,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             DestroyAllCameras();
         }
 
-        public override void OnLoad()
+        /// <summary>
+        /// 再有効化でカメラを無効化前と同数まで戻す。
+        /// _restoreCameraCount は無効化時に控えた台数なので、復元先は OnLoad ではなくここ
+        /// (タイムラインをアンロードすると OnLoad は timeline == null で呼ばれない)
+        /// </summary>
+        public override void OnPluginEnable()
         {
-            base.OnLoad();
+            base.OnPluginEnable();
 
-            // プラグイン再有効化時はカメラ破棄済みのため、無効化前と同数を復元する
             EnsureCameraCount(_restoreCameraCount);
         }
 
