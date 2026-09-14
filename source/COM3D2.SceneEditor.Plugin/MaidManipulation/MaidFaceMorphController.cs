@@ -253,7 +253,10 @@ namespace COM3D2.SceneEditor.Plugin
             return GetMorphValueByName(GetFaceMorph(maid), def.name);
         }
 
-        /// <summary>スライダーが扱う UI 値 (0〜1) で書き、その場で顔へ反映する</summary>
+        /// <summary>
+        /// スライダーが扱う UI 値 (0〜1) で書き、その場で顔へ反映する。
+        /// 目閉じ系は合計 1 を超えないよう補正するため、他の目閉じ系モーフも連動して変わる
+        /// </summary>
         public static void SetMorphValue(Maid maid, FaceMorphDef def, float value)
         {
             var morph = GetFaceMorph(maid);
@@ -263,6 +266,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             SetMorphValueByName(morph, def.name, value);
+            AdjustClosedEye(morph);
             morph.FixBlendValues_Face();
         }
 
@@ -278,18 +282,183 @@ namespace COM3D2.SceneEditor.Plugin
             return index < 0 ? 0f : morph.GetBlendValues(index);
         }
 
-        /// <summary>保存された生の値を書き戻す。GetStoredMorphValue の対</summary>
-        public static void SetStoredMorphValue(Maid maid, FaceMorphDef def, float value)
+        /// <summary>
+        /// 保存された生の値をまとめて書き戻す。GetStoredMorphValue の対。
+        /// 1 モーフずつ補正すると他のモーフを縮めた値が戻らず二重に縮むため、
+        /// 全モーフを書き終えてから 1 回だけ補正する (単発版は公開しない)
+        /// </summary>
+        public static void SetStoredMorphValues(
+            Maid maid, IEnumerable<KeyValuePair<FaceMorphDef, float>> values)
         {
             var morph = GetFaceMorph(maid);
-            var index = ResolveMorphIndex(morph, def.name);
-            if (index < 0)
+            if (morph == null)
             {
                 return;
             }
 
-            morph.SetBlendValues(index, value);
+            foreach (var pair in values)
+            {
+                var index = ResolveMorphIndex(morph, pair.Key.name);
+                if (index >= 0)
+                {
+                    morph.SetBlendValues(index, pair.Value);
+                }
+            }
+
+            AdjustClosedEye(morph);
             morph.FixBlendValues_Face();
+        }
+
+        /// <summary>
+        /// 保存された名前ベースの値から、復元用の値一式を組み立てる。
+        /// 対象メイドに存在するモーフを全カテゴリ分並べ、未記録のものは 0 に戻して
+        /// 保存時の表情をそのまま再現する (SetStoredMorphValues へ渡す想定)
+        /// </summary>
+        public static Dictionary<FaceMorphDef, float> BuildRestoreValues(
+            Maid maid, IDictionary<string, float> savedValues)
+        {
+            var restoreValues = new Dictionary<FaceMorphDef, float>();
+            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
+            {
+                foreach (var def in GetAvailableMorphs(maid, category))
+                {
+                    float value;
+                    if (!savedValues.TryGetValue(def.name, out value))
+                    {
+                        value = 0f;
+                    }
+                    restoreValues[def] = value;
+                }
+            }
+            return restoreValues;
+        }
+
+        /// <summary>
+        /// 目閉じ系モーフの合計が 1 を超えないよう配分し直す。
+        /// 超過したまま適用すると瞼が破綻するためゲーム側と同じ補正を行う。
+        /// 呼び出し側はこの後に FixBlendValues_Face を実行すること
+        /// </summary>
+        public static void AdjustClosedEye(TMorph morph)
+        {
+            if (morph == null)
+            {
+                return;
+            }
+
+            var values = new ClosedEyeMorphValues
+            {
+                close = GetAdjustValue(morph, "eyeclose"),
+                close2 = GetAdjustValue(morph, "eyeclose2"),
+                winkL1 = GetAdjustValue(morph, "eyeclose5"),
+                winkL2 = GetAdjustValue(morph, "eyeclose6"),
+                winkR1 = GetAdjustValue(morph, "eyeclose7"),
+                winkR2 = GetAdjustValue(morph, "eyeclose8"),
+            };
+
+            ClosedEyeMorphValues adjusted;
+            if (!TryAdjustClosedEyeValues(values, out adjusted))
+            {
+                return;
+            }
+
+            SetMorphValueByName(morph, "eyeclose", adjusted.close);
+            SetMorphValueByName(morph, "eyeclose2", adjusted.close2);
+            SetMorphValueByName(morph, "eyeclose5", adjusted.winkL1);
+            SetMorphValueByName(morph, "eyeclose6", adjusted.winkL2);
+            SetMorphValueByName(morph, "eyeclose7", adjusted.winkR1);
+            SetMorphValueByName(morph, "eyeclose8", adjusted.winkR2);
+        }
+
+        /// <summary>目閉じ補正が扱うモーフ値一式 (TMorph の生の値)</summary>
+        public struct ClosedEyeMorphValues
+        {
+            /// <summary>目閉じ (eyeclose)</summary>
+            public float close;
+            /// <summary>笑顔 (eyeclose2)</summary>
+            public float close2;
+            /// <summary>ウィンク左 (eyeclose5) と その笑顔版 (eyeclose6)</summary>
+            public float winkL1;
+            public float winkL2;
+            /// <summary>ウィンク右 (eyeclose7) と その笑顔版 (eyeclose8)</summary>
+            public float winkR1;
+            public float winkR2;
+        }
+
+        /// <summary>
+        /// 目閉じ系の値を合計 1 以内へ配分し直す。補正が要らなければ false。
+        /// 片目ずつウィンク 2 種を 1 に収めたうえで、目閉じ 2 種を残り幅へ比例配分する
+        /// (移植元 DCM の MaidFaceManager.AdjustClosedEye と同じ手順)
+        /// </summary>
+        public static bool TryAdjustClosedEyeValues(
+            ClosedEyeMorphValues values, out ClosedEyeMorphValues result)
+        {
+            result = values;
+            var adjusted = false;
+
+            if (1f < result.winkL1 + result.winkL2)
+            {
+                if (result.winkL1 < result.winkL2)
+                {
+                    result.winkL1 = GetLimitValue(result.winkL2);
+                }
+                else
+                {
+                    result.winkL2 = GetLimitValue(result.winkL1);
+                }
+                adjusted = true;
+            }
+
+            if (1f < result.winkR1 + result.winkR2)
+            {
+                if (result.winkR1 < result.winkR2)
+                {
+                    result.winkR1 = GetLimitValue(result.winkR2);
+                }
+                else
+                {
+                    result.winkR2 = GetLimitValue(result.winkR1);
+                }
+                adjusted = true;
+            }
+
+            var winkTotal = Mathf.Max(
+                result.winkL1 + result.winkL2, result.winkR1 + result.winkR2);
+
+            if (1f < result.close + result.close2 + winkTotal)
+            {
+                var closeTotal = result.close + result.close2;
+                // ウィンク単体が 1 を超える XML では winkTotal が 1 を超えたまま残り、
+                // 目閉じが両方 0 だと 0 除算で NaN が TMorph へ流れる (移植元にある穴)
+                if (closeTotal > 0f)
+                {
+                    var rest = 1f - winkTotal;
+                    result.close = rest * result.close / closeTotal;
+                    result.close2 = rest * result.close2 / closeTotal;
+                    adjusted = true;
+                }
+            }
+
+            return adjusted;
+        }
+
+        /// <summary>
+        /// 目閉じ補正に使う現在値 (TMorph の生の値)。
+        /// ウィンク系モーフを持たない顔では補正しないよう 0 を返す
+        /// </summary>
+        private static float GetAdjustValue(TMorph morph, string morphName)
+        {
+            if (ResolveMorphIndex(morph, "eyeclose5") < 0)
+            {
+                return 0f;
+            }
+
+            var index = ResolveMorphIndex(morph, morphName);
+            return index < 0 ? 0f : morph.GetBlendValues(index);
+        }
+
+        private static float GetLimitValue(float value)
+        {
+            return Mathf.Max(1f - value, 0f);
         }
 
         /// <summary>カテゴリ内の全モーフを 0 に戻す</summary>

@@ -2777,19 +2777,8 @@ namespace COM3D2.SceneEditor.Plugin
                 savedValues[morph.name] = morph.value;
             }
 
-            // 未記録のモーフは 0 に戻し、プリセット保存時の表情をそのまま再現する
-            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
-            {
-                foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
-                {
-                    float value;
-                    if (!savedValues.TryGetValue(def.name, out value))
-                    {
-                        value = 0f;
-                    }
-                    MaidFaceMorphController.SetStoredMorphValue(maid, def, value);
-                }
-            }
+            MaidFaceMorphController.SetStoredMorphValues(
+                maid, MaidFaceMorphController.BuildRestoreValues(maid, savedValues));
 
             // 保存されているモーフ=保存時のチェック済み集合。ロード後すぐ編集を継続できるよう復元する
             FaceEditManager.instance.GetStore(maid).SetNames(savedValues.Keys);

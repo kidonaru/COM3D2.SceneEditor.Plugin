@@ -43,10 +43,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             // まばたき有効のまま書き戻すと毎フレーム上書きされるため先に反映する
             MaidFaceMorphController.SetMabataki(maid, _mabataki);
-            foreach (var pair in _morphs)
-            {
-                MaidFaceMorphController.SetStoredMorphValue(maid, pair.Key, pair.Value);
-            }
+            MaidFaceMorphController.SetStoredMorphValues(maid, _morphs);
             FaceEditManager.instance.GetStore(maid).SetNames(_modifiedNames);
         }
 

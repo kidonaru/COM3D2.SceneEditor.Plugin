@@ -190,18 +190,8 @@ namespace COM3D2.SceneEditor.Plugin
                 savedValues[morph.name] = morph.value;
             }
 
-            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
-            {
-                foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
-                {
-                    float value;
-                    if (!savedValues.TryGetValue(def.name, out value))
-                    {
-                        value = 0f;
-                    }
-                    MaidFaceMorphController.SetStoredMorphValue(maid, def, value);
-                }
-            }
+            MaidFaceMorphController.SetStoredMorphValues(
+                maid, MaidFaceMorphController.BuildRestoreValues(maid, savedValues));
 
             // 保存されているモーフ=保存時のチェック済み集合として復元する
             FaceEditManager.instance.GetStore(maid).SetNames(savedValues.Keys);

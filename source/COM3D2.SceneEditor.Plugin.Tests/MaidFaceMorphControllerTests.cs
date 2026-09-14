@@ -56,5 +56,70 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             Assert.Equal(expected, MaidFaceMorphController.IsTripleRangeMorph(name));
         }
+
+        [Fact]
+        public void TryAdjustClosedEyeValues_合計1以内なら補正しない()
+        {
+            var values = new MaidFaceMorphController.ClosedEyeMorphValues
+            {
+                close = 0.5f,
+                close2 = 0.5f,
+            };
+
+            MaidFaceMorphController.ClosedEyeMorphValues result;
+            Assert.False(
+                MaidFaceMorphController.TryAdjustClosedEyeValues(values, out result));
+        }
+
+        [Fact]
+        public void TryAdjustClosedEyeValues_片目のウィンク2種を合計1へ収める()
+        {
+            // 小さい方 (winkL1) が残り幅へ切り詰められる
+            var values = new MaidFaceMorphController.ClosedEyeMorphValues
+            {
+                winkL1 = 0.5f,
+                winkL2 = 0.8f,
+            };
+
+            MaidFaceMorphController.ClosedEyeMorphValues result;
+            Assert.True(
+                MaidFaceMorphController.TryAdjustClosedEyeValues(values, out result));
+            Assert.Equal(0.2f, result.winkL1, 3);
+            Assert.Equal(0.8f, result.winkL2, 3);
+        }
+
+        [Fact]
+        public void TryAdjustClosedEyeValues_目閉じ2種をウィンクの残り幅へ比例配分する()
+        {
+            // ウィンク合計 0.6 に対し、目閉じ 2 種 (比 1:3) を残り 0.4 で配分する
+            var values = new MaidFaceMorphController.ClosedEyeMorphValues
+            {
+                close = 0.25f,
+                close2 = 0.75f,
+                winkR1 = 0.6f,
+            };
+
+            MaidFaceMorphController.ClosedEyeMorphValues result;
+            Assert.True(
+                MaidFaceMorphController.TryAdjustClosedEyeValues(values, out result));
+            Assert.Equal(0.1f, result.close, 3);
+            Assert.Equal(0.3f, result.close2, 3);
+            Assert.Equal(0.6f, result.winkR1, 3);
+        }
+
+        [Fact]
+        public void TryAdjustClosedEyeValues_目閉じが両方0でもNaNにならない()
+        {
+            // ウィンク単体が 1 を超える壊れたデータ。0 除算を避けて配分を見送る
+            var values = new MaidFaceMorphController.ClosedEyeMorphValues
+            {
+                winkL1 = 1.5f,
+            };
+
+            MaidFaceMorphController.ClosedEyeMorphValues result;
+            MaidFaceMorphController.TryAdjustClosedEyeValues(values, out result);
+            Assert.False(float.IsNaN(result.close));
+            Assert.False(float.IsNaN(result.close2));
+        }
     }
 }
