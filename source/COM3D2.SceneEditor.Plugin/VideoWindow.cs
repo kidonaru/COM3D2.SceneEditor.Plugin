@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -26,6 +25,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>スライダー・座標行のラベル幅</summary>
         private static readonly int LABEL_WIDTH = 60;
+
+        /// <summary>操作対象タブのラベル幅 (「動画」が収まる幅)</summary>
+        private const float TargetLabelWidth = 50f;
 
         // 1px ドラッグあたりの増減量 (InspectorWindow と揃える)
         private const float PositionSensitivity = 0.01f;
@@ -58,18 +60,6 @@ namespace COM3D2.SceneEditor.Plugin
                 "動画" + (_videoIndex + 1) + ": " + label, null, () => VideoSnapshot.Capture());
         }
 
-        private readonly GUIComboBox<int> _videoComboBox = new GUIComboBox<int>
-        {
-            // 表示は 1 始まり、内部添字は 0 始まり (VideoPreviewWindow のタイトルも同じ規約)
-            getName = (index, _) => "動画" + (index + 1),
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 120),
-        };
-
-        /// <summary>コンボ選択肢 (0〜videoCount-1)。本数変更時だけ作り直す</summary>
-        private readonly List<int> _videoIndexItems = new List<int>();
-
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
         private readonly GUIView _rootView = new GUIView();
         private readonly GUIView _view = new GUIView();
@@ -96,7 +86,6 @@ namespace COM3D2.SceneEditor.Plugin
         private VideoWindow()
         {
             // インスタンスメンバー (settings) を参照するため、フィールド初期化子ではなくここで設定する
-            _videoComboBox.onSelected = (index, _) => _videoIndex = index;
             _videoDisplayTypeComboBox.onSelected = (type, index) =>
             {
                 RecordEdit("表示形式");
@@ -154,33 +143,28 @@ namespace COM3D2.SceneEditor.Plugin
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
-        /// <summary>動画数の増減行と操作対象コンボ</summary>
+        /// <summary>
+        /// 操作対象の番号タブ行。「追加」「削除」は動画数の増減で、
+        /// 削除は選択中ではなく末尾の動画を減らす
+        /// </summary>
         private void DrawVideoSelector(GUIView view)
         {
-            CountRowDrawer.Draw(view, "動画数", ROW_HEIGHT, movieManager.videoCount,
-                MTEP.MovieManager.MinVideoCount,
-                MTEP.MovieManager.MaxVideoCount,
-                count =>
-                {
-                    RecordEdit("動画数");
-                    movieManager.videoCount = count;
-                });
-
             var videoCount = movieManager.videoCount;
-            _videoIndex = Mathf.Clamp(_videoIndex, 0, videoCount - 1);
 
-            if (_videoIndexItems.Count != videoCount)
-            {
-                _videoIndexItems.Clear();
-                for (var i = 0; i < videoCount; i++)
-                {
-                    _videoIndexItems.Add(i);
-                }
-            }
+            TargetTabsDrawer.Draw(
+                view, "動画", videoCount, ref _videoIndex, ROW_HEIGHT,
+                onAdd: () => SetVideoCount(videoCount + 1),
+                onRemove: () => SetVideoCount(videoCount - 1),
+                canAdd: videoCount < MTEP.MovieManager.MaxVideoCount,
+                canRemove: videoCount > MTEP.MovieManager.MinVideoCount,
+                labelWidth: TargetLabelWidth);
+        }
 
-            _videoComboBox.items = _videoIndexItems;
-            _videoComboBox.currentIndex = _videoIndex;
-            _videoComboBox.DrawButton("操作対象", view);
+        /// <summary>動画数を変更する。実体の増減は MovieManager 側が追随する</summary>
+        private void SetVideoCount(int count)
+        {
+            RecordEdit("動画数");
+            movieManager.videoCount = count;
         }
 
         private void DrawVideoSetting(GUIView view)

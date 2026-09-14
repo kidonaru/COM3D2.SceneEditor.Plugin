@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using COM3D2.MotionTimelineEditor;
+﻿using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -7,12 +6,16 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// フリーテキストの管理ウィンドウ。
-    /// 表示数の増減と選択したテキストの内容・スタイル・枠 Transform の編集を行う。
+    /// 表示数の増減 (番号タブの追加・削除) と、
+    /// 選択したテキストの内容・スタイル・枠 Transform の編集を行う。
     /// 編集 UI の実体は TextRowDrawer (書き込み先は TimelineTextManager の FreeTextSet)。
     /// タイムライン未読込時も使用できる (実体はウィンドウ表示中に生成される)
     /// </summary>
     public class TextWindow : EditorSubWindow
     {
+        /// <summary>操作対象タブのラベル幅 (「テキスト」が収まる幅)</summary>
+        private const float TargetLabelWidth = 70f;
+
         public static readonly int WINDOW_ID = 8903394;
 
         protected override int windowId => WINDOW_ID;
@@ -30,17 +33,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>操作対象のテキスト添字</summary>
         private int _textIndex = 0;
-
-        private readonly GUIComboBox<int> _textComboBox = new GUIComboBox<int>
-        {
-            getName = (index, _) => "テキスト" + index,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        /// <summary>コンボ選択肢 (0〜textCount-1)。表示数変更時だけ作り直す</summary>
-        private readonly List<int> _textIndexItems = new List<int>();
 
         // コンボ開閉状態をテキストごとに分けるため添字ベースの項目名で引く
         // (表示数上限 16 なので減った分の掃除はしない)
@@ -62,7 +54,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private TextWindow()
         {
-            _textComboBox.onSelected = (index, _) => _textIndex = index;
         }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
@@ -113,31 +104,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.SetEnabled(_view.focusedComboBox == null);
 
-            DrawTextCountRow();
-
-            var textCount = textManager.textCount;
+            DrawTextTargetRow();
 
             // タイムライン未読込時は実体を作る経路がレイヤーに無いため、ウィンドウ表示中に直接補う
             // (テキストの初期値は空文字列なので、作られても画面には何も出ない)
-            if (timeline == null && textManager.TextData.Length != textCount)
+            if (timeline == null && textManager.TextData.Length != textManager.textCount)
             {
                 textManager.InitTexts();
             }
-
-            _textIndex = Mathf.Clamp(_textIndex, 0, textCount - 1);
-
-            if (_textIndexItems.Count != textCount)
-            {
-                _textIndexItems.Clear();
-                for (var i = 0; i < textCount; i++)
-                {
-                    _textIndexItems.Add(i);
-                }
-            }
-
-            _textComboBox.items = _textIndexItems;
-            _textComboBox.currentIndex = _textIndex;
-            _textComboBox.DrawButton("操作対象", _view);
 
             if (!textManager.IsValidIndex(_textIndex))
             {
@@ -165,12 +139,21 @@ namespace COM3D2.SceneEditor.Plugin
             _view.EndScrollView();
         }
 
-        /// <summary>テキスト表示数の増減行</summary>
-        private void DrawTextCountRow()
+        /// <summary>
+        /// 操作対象の番号タブ行。「追加」「削除」は表示数の増減で、
+        /// 削除は選択中ではなく末尾のテキストを減らす
+        /// </summary>
+        private void DrawTextTargetRow()
         {
-            CountRowDrawer.Draw(_view, "テキスト表示数", ROW_HEIGHT, textManager.textCount,
-                MTEP.TimelineTextManager.MinTextCount,
-                MTEP.TimelineTextManager.MaxTextCount, SetTextCount);
+            var textCount = textManager.textCount;
+
+            TargetTabsDrawer.Draw(
+                _view, "テキスト", textCount, ref _textIndex, ROW_HEIGHT,
+                onAdd: () => SetTextCount(textCount + 1),
+                onRemove: () => SetTextCount(textCount - 1),
+                canAdd: textCount < MTEP.TimelineTextManager.MaxTextCount,
+                canRemove: textCount > MTEP.TimelineTextManager.MinTextCount,
+                labelWidth: TargetLabelWidth);
         }
 
         /// <summary>

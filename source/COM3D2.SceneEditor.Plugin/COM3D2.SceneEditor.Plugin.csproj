@@ -371,6 +371,7 @@
     <Compile Include="LiveEffectWindow.cs" />
     <Compile Include="TextWindow.cs" />
     <Compile Include="CountRowDrawer.cs" />
+    <Compile Include="TargetTabsDrawer.cs" />
     <Compile Include="ProviderModelStat.cs" />
     <Compile Include="MaterialEditWindow.cs" />
     <Compile Include="TimelineLoadWindow.cs" />
