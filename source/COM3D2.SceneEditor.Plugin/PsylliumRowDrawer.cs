@@ -110,53 +110,47 @@ namespace COM3D2.SceneEditor.Plugin
             var updateTransform = false;
             var defaultTrans = TransformDataPsylliumBar.defaultTrans;
 
-            view.DrawLabel("中心色1", 200, 20);
-
             updateTransform |= view.DrawColor(
                 _color1aFieldCache,
                 barConfig.color1a,
                 Color.white,
-                c => barConfig.color1a = c);
-
-            view.DrawLabel("縁色1", 200, 20);
+                c => barConfig.color1a = c,
+                displayLabel: "中心色1");
 
             updateTransform |= view.DrawColor(
                 _color1bFieldCache,
                 barConfig.color1b,
                 Color.white,
-                c => barConfig.color1b = c);
-
-            view.DrawLabel("散乱色1", 200, 20);
+                c => barConfig.color1b = c,
+                displayLabel: "縁色1");
 
             updateTransform |= view.DrawColor(
                 _color1cFieldCache,
                 barConfig.color1c,
                 Color.white,
-                c => barConfig.color1c = c);
-            
-            view.DrawLabel("中心色2", 200, 20);
+                c => barConfig.color1c = c,
+                displayLabel: "散乱色1");
 
             updateTransform |= view.DrawColor(
                 _color2aFieldCache,
                 barConfig.color2a,
                 Color.white,
-                c => barConfig.color2a = c);
+                c => barConfig.color2a = c,
+                displayLabel: "中心色2");
 
-            view.DrawLabel("縁色2", 200, 20);
-            
             updateTransform |= view.DrawColor(
                 _color2bFieldCache,
                 barConfig.color2b,
                 Color.white,
-                c => barConfig.color2b = c);
-
-            view.DrawLabel("散乱色2", 200, 20);
+                c => barConfig.color2b = c,
+                displayLabel: "縁色2");
 
             updateTransform |= view.DrawColor(
                 _color2cFieldCache,
                 barConfig.color2c,
                 Color.white,
-                c => barConfig.color2c = c);
+                c => barConfig.color2c = c,
+                displayLabel: "散乱色2");
 
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.baseScaleInfo,
@@ -171,35 +165,35 @@ namespace COM3D2.SceneEditor.Plugin
                 y => barConfig.width = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.heightInfo,
                 barConfig.height,
                 y => barConfig.height = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.positionYInfo,
                 barConfig.positionY,
                 y => barConfig.positionY = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.radiusInfo,
                 barConfig.radius,
                 y => barConfig.radius = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.topThresholdInfo,
                 barConfig.topThreshold,
                 y => barConfig.topThreshold = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.cutoffAlphaInfo,
                 barConfig.cutoffAlpha,
@@ -227,7 +221,7 @@ namespace COM3D2.SceneEditor.Plugin
                 y => handConfig.handSpacing = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             var transformCache = view.GetTransformCache(null);
 
             {
@@ -364,21 +358,21 @@ namespace COM3D2.SceneEditor.Plugin
                 y => areaConfig.barCountWeight0 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight1Info,
                 areaConfig.barCountWeight1,
                 y => areaConfig.barCountWeight1 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight2Info,
                 areaConfig.barCountWeight2,
                 y => areaConfig.barCountWeight2 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.barCountWeight3Info,
                 areaConfig.barCountWeight3,
@@ -394,7 +388,7 @@ namespace COM3D2.SceneEditor.Plugin
                 y => areaConfig.colorWeight1 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.colorWeight2Info,
                 areaConfig.colorWeight2,
@@ -410,63 +404,63 @@ namespace COM3D2.SceneEditor.Plugin
                 y => areaConfig.patternWeight0 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight1Info,
                 areaConfig.patternWeight1,
                 y => areaConfig.patternWeight1 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight2Info,
                 areaConfig.patternWeight2,
                 y => areaConfig.patternWeight2 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight3Info,
                 areaConfig.patternWeight3,
                 y => areaConfig.patternWeight3 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight4Info,
                 areaConfig.patternWeight4,
                 y => areaConfig.patternWeight4 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight5Info,
                 areaConfig.patternWeight5,
                 y => areaConfig.patternWeight5 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight6Info,
                 areaConfig.patternWeight6,
                 y => areaConfig.patternWeight6 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight7Info,
                 areaConfig.patternWeight7,
                 y => areaConfig.patternWeight7 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight8Info,
                 areaConfig.patternWeight8,
                 y => areaConfig.patternWeight8 = y,
                 labelWidth: CustomLabelWidth,
                 sliderWidth: CustomSliderWidth);
-            
+
             updateTransform |= view.DrawCustomValueFloat(
                 defaultTrans.patternWeight9Info,
                 areaConfig.patternWeight9,

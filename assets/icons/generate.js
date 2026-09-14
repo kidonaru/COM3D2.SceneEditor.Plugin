@@ -21,7 +21,7 @@ const ICONS = [
     'Bg', 'Maid', 'Gizmo', 'Ortho', 'Change', 'Link', 'Home', 'Focus', 'Global',
     'EditMode', 'AutoKey', 'Model', 'Camera', 'FovLock', 'FocusLock', 'PostEffect',
     'SkipStart', 'PrevKey', 'PrevFrame', 'Play', 'Pause', 'NextFrame', 'NextKey', 'SkipEnd',
-    'CategoryMode', 'LayerMode',
+    'CategoryMode', 'LayerMode', 'Undo', 'Redo',
 ];
 
 // ギアメニュー用アイコン。ドキュメントサイトの favicon を唯一の原本として共用する

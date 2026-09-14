@@ -150,21 +150,19 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (controller.autoColor)
             {
-                view.DrawLabel("最小色", 200, 20);
-
                 updateTransform |= view.DrawColor(
                     _color1FieldCache,
                     controller.colorMin,
                     defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main),
-                    c => controller.colorMin = c);
-
-                view.DrawLabel("最大色", 200, 20);
+                    c => controller.colorMin = c,
+                    displayLabel: "最小色");
 
                 updateTransform |= view.DrawColor(
                     _color2FieldCache,
                     controller.colorMax,
                     defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
-                    c => controller.colorMax = c);
+                    c => controller.colorMax = c,
+                    displayLabel: "最大色");
             }
 
             updateTransform |= view.DrawToggle("一括ライト情報設定", controller.autoLightInfo, 200, 20, newValue =>
@@ -308,7 +306,8 @@ namespace COM3D2.SceneEditor.Plugin
                     _color1FieldCache,
                     light.color,
                     Color.white,
-                    c => light.color = c);
+                    c => light.color = c,
+                    displayLabel: "色");
             }
 
             if (!controller.autoLightInfo)

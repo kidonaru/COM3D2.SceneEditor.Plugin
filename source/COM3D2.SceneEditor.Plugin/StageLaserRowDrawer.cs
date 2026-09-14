@@ -154,21 +154,19 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (controller.autoColor)
             {
-                view.DrawLabel("中心色", 200, 20);
-
                 updateTransform |= view.DrawColor(
                     _color1FieldCache,
                     controller.color1,
                     defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main),
-                    c => controller.color1 = c);
-
-                view.DrawLabel("錯乱色", 200, 20);
+                    c => controller.color1 = c,
+                    displayLabel: "中心色");
 
                 updateTransform |= view.DrawColor(
                     _color2FieldCache,
                     controller.color2,
                     defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
-                    c => controller.color2 = c);
+                    c => controller.color2 = c,
+                    displayLabel: "錯乱色");
             }
 
             updateTransform |= view.DrawToggle("一括レーザー情報設定", controller.autoLaserInfo, 200, 20, newValue =>
@@ -301,21 +299,19 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (!controller.autoColor)
             {
-                view.DrawLabel("中心色", 200, 20);
-
                 updateTransform |= view.DrawColor(
                     _color1FieldCache,
                     laser.color1,
                     Color.white,
-                    c => laser.color1 = c);
-
-                view.DrawLabel("錯乱色", 200, 20);
+                    c => laser.color1 = c,
+                    displayLabel: "中心色");
 
                 updateTransform |= view.DrawColor(
                     _color2FieldCache,
                     laser.color2,
                     Color.white,
-                    c => laser.color2 = c);
+                    c => laser.color2 = c,
+                    displayLabel: "錯乱色");
             }
 
             if (!controller.autoLaserInfo)

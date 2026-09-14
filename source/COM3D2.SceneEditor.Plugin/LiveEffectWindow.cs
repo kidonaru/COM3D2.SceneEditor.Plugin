@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
@@ -24,6 +26,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// 移動・回転の行と XYZ の列を揃える
         /// </summary>
         private const float PsylliumTransformLabelWidth = 80f;
+
+        /// <summary>操作対象タブ 1 つぶんの幅 (2 桁の番号が収まる幅)</summary>
+        private const float TargetTabWidth = 30f;
+
+        /// <summary>番号が 3 桁以上になったときに 1 桁あたり広げる幅</summary>
+        private const float TargetTabDigitWidth = 10f;
+
+        /// <summary>操作対象の増減ボタンの幅 (「追加」「削除」が収まる幅)</summary>
+        private const float TargetEditButtonWidth = 50f;
+
+        /// <summary>
+        /// 操作対象タブのラベル幅。「コントローラー」が収まり、
+        /// 同じタブ内の「コントローラー数」等の行と左端が揃う幅
+        /// </summary>
+        private const float TargetLabelWidth = 100f;
 
         public static readonly int WINDOW_ID = 8903393;
 
@@ -110,7 +127,10 @@ namespace COM3D2.SceneEditor.Plugin
                 TimelineLayerGate.End(_view);
             }
 
-            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
+            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す。
+            // 操作対象を番号タブにした現在このウィンドウにコンボは無く実質 no-op だが、
+            // コンボを足したときに取りこぼさないよう定型として残す
+            // (同じ理由で各描画の view.SetEnabled(view.focusedComboBox == null) も残している)
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
@@ -163,6 +183,122 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 番号見出しの配列。OnGUI は 1 フレームに複数回走るため、
+        /// 要素数ごとに 1 度だけ作って使い回す
+        /// </summary>
+        private static readonly Dictionary<int, string[]> _numberLabelsCache
+            = new Dictionary<int, string[]>();
+
+        private static string[] GetNumberLabels(int count)
+        {
+            string[] labels;
+            if (!_numberLabelsCache.TryGetValue(count, out labels))
+            {
+                labels = new string[count];
+                for (int i = 0; i < count; i++)
+                {
+                    labels[i] = (i + 1).ToString();
+                }
+                _numberLabelsCache[count] = labels;
+            }
+            return labels;
+        }
+
+        /// <summary>
+        /// 一覧から操作対象を選ぶ番号タブ列を描く。label には何を選んでいるか
+        /// (コントローラー・ライト等) が分かる名前を渡す。
+        /// 対象の増減で添字がはみ出しても選択が外れないよう範囲内へ丸める。
+        /// onAdd / onRemove を渡すと番号の右へ「追加」「削除」ボタンを置く。
+        /// 一覧が空なら番号の代わりに「<label>が存在しません」を描いて null を返す。
+        /// 増減ボタンは空でも描くので、対象が 0 個になっても追加できる
+        /// </summary>
+        private static T DrawTargetTabs<T>(
+            GUIView view, string label, IList<T> items, ref int index,
+            Action onAdd = null, Action onRemove = null) where T : class
+        {
+            // 前フレームから対象が減っていることがあるため、描く前に丸めておく
+            index = Mathf.Clamp(index, 0, Mathf.Max(0, items.Count - 1));
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel(label, TargetLabelWidth, ROW_HEIGHT);
+
+                // 番号タブの右へ回すぶんの幅。タブとボタンの間の margin も含める
+                var buttonCount = (onAdd != null ? 1 : 0) + (onRemove != null ? 1 : 0);
+                var buttonsWidth = buttonCount > 0
+                    ? buttonCount * (TargetEditButtonWidth + view.margin) + view.margin
+                    : 0f;
+
+                if (items.Count > 0)
+                {
+                    DrawNumberTabs(view, items.Count, ref index, buttonsWidth);
+                }
+
+                if (onAdd != null && view.DrawButton("追加", TargetEditButtonWidth, ROW_HEIGHT))
+                {
+                    onAdd();
+                }
+                if (onRemove != null &&
+                    view.DrawButton("削除", TargetEditButtonWidth, ROW_HEIGHT, items.Count > 0))
+                {
+                    onRemove();
+                }
+
+                if (items.Count == 0)
+                {
+                    view.DrawLabel(label + "が存在しません", 200, ROW_HEIGHT);
+                }
+            }
+            view.EndLayout();
+
+            // 増減ボタンは items を即座に変える。末尾を選んだまま減らすと
+            // 添字が範囲外に残るため、参照する前に丸め直す
+            index = Mathf.Clamp(index, 0, Mathf.Max(0, items.Count - 1));
+
+            return items.Count > 0 ? items[index] : null;
+        }
+
+        /// <summary>
+        /// 番号タブを、行末のボタンぶん (reservedWidth) を空けた幅に収めて描く。
+        /// DrawTabs は与えられたビューの幅いっぱいまで折り返すため、
+        /// 幅を詰めたサブビューに閉じ込めないとボタンが行から押し出される。
+        /// 幅と行数は GUIView.DrawTabs 内部の折り返し計算を先読みしているので、
+        /// あちらの式を変えたらここも合わせること
+        /// </summary>
+        private static void DrawNumberTabs(
+            GUIView view, int count, ref int index, float reservedWidth)
+        {
+            var tabWidth = GetTargetTabWidth(count);
+            var maxWidth = view.viewRect.width - view.currentPos.x - view.padding.x - reservedWidth;
+            // 幅が足りなくても 1 タブぶんは確保する (0 幅で行数計算が壊れないように)
+            var subViewWidth = Mathf.Clamp(tabWidth * count, tabWidth, Mathf.Max(maxWidth, tabWidth));
+            var rows = Mathf.CeilToInt(tabWidth * count / subViewWidth);
+
+            var subView = view.BeginSubView(
+                view.GetDrawRect(subViewWidth, ROW_HEIGHT * rows), GUIView.LayoutDirection.Vertical);
+            {
+                // string[] のまま渡すと enum 版 DrawTabs<T> に解決されるため、
+                // 見出し列は IList<string> として渡す
+                IList<string> labels = GetNumberLabels(count);
+                index = subView.DrawTabs(labels, index, tabWidth, ROW_HEIGHT);
+            }
+            view.EndSubView();
+        }
+
+        /// <summary>対象数の桁数に合わせたタブ幅。3 桁以上でも番号が欠けないようにする</summary>
+        private static float GetTargetTabWidth(int count)
+        {
+            var digits = count.ToString().Length;
+            return TargetTabWidth + Mathf.Max(0, digits - 2) * TargetTabDigitWidth;
+        }
+
+        /// <summary>タブを描かずに選択中の対象だけを取り出す。範囲外なら null</summary>
+        private static T GetTarget<T>(IList<T> items, int index) where T : class
+        {
+            return index >= 0 && index < items.Count ? items[index] : null;
+        }
+
+        /// <summary>
         /// サイリウムの手動更新へ渡す再生時刻。レイヤー未追加時は 0 (静止) とする
         /// </summary>
         private static float psylliumPlayingTime
@@ -175,29 +311,13 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
 
-        private readonly GUIComboBox<StageLightController> _lightControllerComboBox = new GUIComboBox<StageLightController>
-        {
-            getName = (light, index) => light.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<StageLight> _lightComboBox = new GUIComboBox<StageLight>
-        {
-            getName = (light, index) => light.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<StageLight> _copyToLightComboBox = new GUIComboBox<StageLight>
-        {
-            getName = (light, index) => light.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
+        /// <summary>
+        /// ライトの操作対象・コピー先の選択添字 (番号タブで切り替える)。
+        /// 一括・個別のサブタブをまたいで選択を保つため、添字はここに 1 つだけ持つ
+        /// </summary>
+        private int _lightControllerIndex = 0;
+        private int _lightIndex = 0;
+        private int _copyToLightIndex = 0;
 
         // ライトタブは常に 1 対象ぶんしか描かないので、行ドロワーも 1 つで足りる
         private readonly StageLightRowDrawer _lightRowDrawer = new StageLightRowDrawer();
@@ -230,74 +350,17 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
+            var controller = DrawTargetTabs(
+                view, "コントローラー", stageLightManager.controllers, ref _lightControllerIndex,
+                () => stageLightManager.AddController(true),
+                () => stageLightManager.RemoveController(true));
+            if (controller == null) return;
 
-                view.DrawLabel("コントローラー数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = stageLightManager.controllers.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    stageLightManager.RemoveController(true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    stageLightManager.AddController(true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
-
-            var controllers = stageLightManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _lightControllerComboBox.items = controllers;
-            _lightControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _lightControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
-            
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
-
-                view.DrawLabel("ライト数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = controller.lights.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    stageLightManager.RemoveLight(controller.groupIndex, true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    stageLightManager.AddLight(controller.groupIndex, true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
+            // 一括タブではライトを選ばないが、増減ボタンと番号 (本数の目安) はここに出す
+            DrawTargetTabs(
+                view, "ライト", controller.lights, ref _lightIndex,
+                () => stageLightManager.AddLight(controller.groupIndex, true),
+                () => stageLightManager.RemoveLight(controller.groupIndex, true));
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -316,38 +379,22 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            var controllers = stageLightManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _lightControllerComboBox.items = controllers;
-            _lightControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _lightControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
+            var controller = DrawTargetTabs(
+                view, "コントローラー", stageLightManager.controllers, ref _lightControllerIndex,
+                () => stageLightManager.AddController(true),
+                () => stageLightManager.RemoveController(true));
+            if (controller == null) return;
 
             var lights = controller.lights;
-            if (lights.Count == 0)
+            var light = DrawTargetTabs(
+                view, "ライト", lights, ref _lightIndex,
+                () => stageLightManager.AddLight(controller.groupIndex, true),
+                () => stageLightManager.RemoveLight(controller.groupIndex, true));
+
+            if (light == null) return;
+            if (light.transform == null)
             {
-                view.DrawLabel("ライトが存在しません", 200, 20);
-                return;
-            }
-
-            _lightComboBox.items = lights;
-            _lightComboBox.DrawButton("操作対象", view);
-
-            var light = _lightComboBox.currentItem;
-
-            if (light == null || light.transform == null)
-            {
-                view.DrawLabel("ライトを選択してください", 200, 20);
+                view.DrawLabel("ライトが生成されていません", 200, ROW_HEIGHT);
                 return;
             }
 
@@ -364,10 +411,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             {
-                _copyToLightComboBox.items = lights;
-                _copyToLightComboBox.DrawButton("コピー先", view);
-
-                var copyToLight = _copyToLightComboBox.currentItem;
+                var copyToLight = DrawTargetTabs(view, "コピー先", lights, ref _copyToLightIndex);
 
                 if (view.DrawButton("コピー", 60, 20))
                 {
@@ -386,37 +430,14 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndScrollView();
         }
 
-        private readonly GUIComboBox<StageLaserController> _laserControllerComboBox = new GUIComboBox<StageLaserController>
-        {
-            getName = (laser, index) => laser.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<StageLaser> _laserComboBox = new GUIComboBox<StageLaser>
-        {
-            getName = (laser, index) => laser.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<StageLaserController> _copyToLaserControllerComboBox = new GUIComboBox<StageLaserController>
-        {
-            getName = (laser, index) => laser.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<StageLaser> _copyToLaserComboBox = new GUIComboBox<StageLaser>
-        {
-            getName = (laser, index) => laser.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
+        /// <summary>
+        /// レーザーの操作対象・コピー先の選択添字 (番号タブで切り替える)。
+        /// 一括・個別のサブタブをまたいで選択を保つため、添字はここに 1 つだけ持つ
+        /// </summary>
+        private int _laserControllerIndex = 0;
+        private int _laserIndex = 0;
+        private int _copyToLaserControllerIndex = 0;
+        private int _copyToLaserIndex = 0;
 
         // レーザータブは常に 1 対象ぶんしか描かないので、行ドロワーも 1 つで足りる
         private readonly StageLaserRowDrawer _laserRowDrawer = new StageLaserRowDrawer();
@@ -449,74 +470,17 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
+            var controller = DrawTargetTabs(
+                view, "コントローラー", stageLaserManager.controllers, ref _laserControllerIndex,
+                () => stageLaserManager.AddController(true),
+                () => stageLaserManager.RemoveController(true));
+            if (controller == null) return;
 
-                view.DrawLabel("コントローラー数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = stageLaserManager.controllers.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    stageLaserManager.RemoveController(true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    stageLaserManager.AddController(true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
-
-            var controllers = stageLaserManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _laserControllerComboBox.items = controllers;
-            _laserControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _laserControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
-            
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
-
-                view.DrawLabel("レーザー数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = controller.lasers.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    stageLaserManager.RemoveLaser(controller.groupIndex, true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    stageLaserManager.AddLaser(controller.groupIndex, true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
+            // 一括タブではレーザーを選ばないが、増減ボタンと番号 (本数の目安) はここに出す
+            DrawTargetTabs(
+                view, "レーザー", controller.lasers, ref _laserIndex,
+                () => stageLaserManager.AddLaser(controller.groupIndex, true),
+                () => stageLaserManager.RemoveLaser(controller.groupIndex, true));
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -530,10 +494,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             {
-                _copyToLaserControllerComboBox.items = controllers;
-                _copyToLaserControllerComboBox.DrawButton("コピー先", view);
-
-                var copyToController = _copyToLaserControllerComboBox.currentItem;
+                var copyToController = DrawTargetTabs(view, "コピー先", stageLaserManager.controllers, ref _copyToLaserControllerIndex);
 
                 if (view.DrawButton("コピー", 60, 20))
                 {
@@ -557,38 +518,22 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            var controllers = stageLaserManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _laserControllerComboBox.items = controllers;
-            _laserControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _laserControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
+            var controller = DrawTargetTabs(
+                view, "コントローラー", stageLaserManager.controllers, ref _laserControllerIndex,
+                () => stageLaserManager.AddController(true),
+                () => stageLaserManager.RemoveController(true));
+            if (controller == null) return;
 
             var lasers = controller.lasers;
-            if (lasers.Count == 0)
+            var laser = DrawTargetTabs(
+                view, "レーザー", lasers, ref _laserIndex,
+                () => stageLaserManager.AddLaser(controller.groupIndex, true),
+                () => stageLaserManager.RemoveLaser(controller.groupIndex, true));
+
+            if (laser == null) return;
+            if (laser.transform == null)
             {
-                view.DrawLabel("レーザーが存在しません", 200, 20);
-                return;
-            }
-
-            _laserComboBox.items = lasers;
-            _laserComboBox.DrawButton("操作対象", view);
-
-            var laser = _laserComboBox.currentItem;
-
-            if (laser == null || laser.transform == null)
-            {
-                view.DrawLabel("レーザーを選択してください", 200, 20);
+                view.DrawLabel("レーザーが生成されていません", 200, ROW_HEIGHT);
                 return;
             }
 
@@ -605,10 +550,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             {
-                _copyToLaserComboBox.items = lasers;
-                _copyToLaserComboBox.DrawButton("コピー先", view);
-
-                var copyToLaser = _copyToLaserComboBox.currentItem;
+                var copyToLaser = DrawTargetTabs(view, "コピー先", lasers, ref _copyToLaserIndex);
 
                 if (view.DrawButton("コピー", 60, 20))
                 {
@@ -627,61 +569,18 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndScrollView();
         }
 
-        private readonly GUIComboBox<PsylliumController> _psylliumControllerComboBox = new GUIComboBox<PsylliumController>
-        {
-            getName = (psyllium, index) => psyllium.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<PsylliumArea> _areaComboBox = new GUIComboBox<PsylliumArea>
-        {
-            getName = (area, index) => area.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<PsylliumPattern> _patternComboBox = new GUIComboBox<PsylliumPattern>
-        {
-            getName = (pattern, index) => pattern.patternConfig.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<PsylliumController> _copyToPsylliumControllerComboBox = new GUIComboBox<PsylliumController>
-        {
-            getName = (psyllium, index) => psyllium.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<PsylliumPattern> _copyToPatternComboBox = new GUIComboBox<PsylliumPattern>
-        {
-            getName = (pattern, index) => pattern.patternConfig.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<PsylliumPattern> _copyToTransformComboBox = new GUIComboBox<PsylliumPattern>
-        {
-            getName = (pattern, index) => pattern.transformConfig.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
-
-        private readonly GUIComboBox<PsylliumArea> _copyToAreaComboBox = new GUIComboBox<PsylliumArea>
-        {
-            getName = (area, index) => area.displayName,
-            labelWidth = 70,
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 300),
-        };
+        /// <summary>
+        /// サイリウムの操作対象・コピー先の選択添字 (番号タブで切り替える)。
+        /// 基本・バー・持ち手・アニメ・エリアのサブタブをまたいで選択を保つため、
+        /// コントローラーの添字はここに 1 つだけ持つ
+        /// </summary>
+        private int _psylliumControllerIndex = 0;
+        private int _areaIndex = 0;
+        private int _patternIndex = 0;
+        private int _copyToPsylliumControllerIndex = 0;
+        private int _copyToPatternIndex = 0;
+        private int _copyToTransformIndex = 0;
+        private int _copyToAreaIndex = 0;
 
         // サイリウムタブは常に 1 対象ぶんしか描かないので、行ドロワーも 1 つで足りる
         private readonly PsylliumRowDrawer _psylliumRowDrawer = new PsylliumRowDrawer();
@@ -734,48 +633,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
-
-                view.DrawLabel("コントローラー数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = psylliumManager.controllers.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    psylliumManager.RemoveController(true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    psylliumManager.AddController(true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
-
-            var controllers = psylliumManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _psylliumControllerComboBox.items = controllers;
-            _psylliumControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _psylliumControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
+            var controller = DrawTargetTabs(
+                view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
+                () => psylliumManager.AddController(true),
+                () => psylliumManager.RemoveController(true));
+            if (controller == null) return;
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -789,10 +651,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             {
-                _copyToPsylliumControllerComboBox.items = controllers;
-                _copyToPsylliumControllerComboBox.DrawButton("コピー先", view);
-
-                var copyToController = _copyToPsylliumControllerComboBox.currentItem;
+                var copyToController = DrawTargetTabs(view, "コピー先", psylliumManager.controllers, ref _copyToPsylliumControllerIndex);
 
                 if (view.DrawButton("コピー", 60, 20))
                 {
@@ -813,22 +672,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            var controllers = psylliumManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _psylliumControllerComboBox.items = controllers;
-            _psylliumControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _psylliumControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
+            var controller = DrawTargetTabs(
+                view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
+                () => psylliumManager.AddController(true),
+                () => psylliumManager.RemoveController(true));
+            if (controller == null) return;
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -847,22 +695,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            var controllers = psylliumManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _psylliumControllerComboBox.items = controllers;
-            _psylliumControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _psylliumControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
+            var controller = DrawTargetTabs(
+                view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
+                () => psylliumManager.AddController(true),
+                () => psylliumManager.RemoveController(true));
+            if (controller == null) return;
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -881,66 +718,18 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            var controllers = psylliumManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
+            var controller = DrawTargetTabs(
+                view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
+                () => psylliumManager.AddController(true),
+                () => psylliumManager.RemoveController(true));
+            if (controller == null) return;
 
-            _psylliumControllerComboBox.items = controllers;
-            _psylliumControllerComboBox.DrawButton("操作対象", view);
+            var pattern = DrawTargetTabs(
+                view, "パターン", controller.patterns, ref _patternIndex,
+                () => psylliumManager.AddPattern(controller.groupIndex, true),
+                () => psylliumManager.RemovePattern(controller.groupIndex, true));
 
-            var controller = _psylliumControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
-
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
-
-                view.DrawLabel("パターン数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = controller.patterns.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    psylliumManager.RemovePattern(controller.groupIndex, true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    psylliumManager.AddPattern(controller.groupIndex, true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
-
-            var patterns = controller.patterns;
-            if (patterns.Count == 0)
-            {
-                view.DrawLabel("パターンが存在しません", 200, 20);
-                return;
-            }
-
-            _patternComboBox.items = patterns;
-            _patternComboBox.DrawButton("操作対象", view);
-
-            var pattern = _patternComboBox.currentItem;
-
-            if (pattern == null)
-            {
-                view.DrawLabel("パターンを選択してください", 200, 20);
-                return;
-            }
+            if (pattern == null) return;
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -997,7 +786,7 @@ namespace COM3D2.SceneEditor.Plugin
                     patternConfig.randomEulerAnglesRange = transformCache.eulerAngles;
                 }
             }
-            
+
             updateTransform |= view.DrawCustomValueInt(
                 defaultTrans.timeCountInfo,
                 patternConfig.timeCount,
@@ -1037,10 +826,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             {
-                _copyToPatternComboBox.items = controller.patterns;
-                _copyToPatternComboBox.DrawButton("コピー先", view);
-
-                var copyToPattern = _copyToPatternComboBox.currentItem;
+                var copyToPattern = DrawTargetTabs(view, "コピー先", controller.patterns, ref _copyToPatternIndex);
 
                 if (view.DrawButton("コピー", 60, 20))
                 {
@@ -1060,14 +846,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawPsylliumTransformConfigEdit(GUIView view)
         {
-            var controller = _psylliumControllerComboBox.currentItem;
+            var controller = GetTarget(psylliumManager.controllers, _psylliumControllerIndex);
             if (controller == null)
             {
                 view.DrawLabel("コントローラーを選択してください", 200, 20);
                 return;
             }
 
-            var pattern = _patternComboBox.currentItem;
+            var pattern = GetTarget(controller.patterns, _patternIndex);
             if (pattern == null)
             {
                 view.DrawLabel("パターンを選択してください", 200, 20);
@@ -1175,10 +961,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             {
-                _copyToTransformComboBox.items = controller.patterns;
-                _copyToTransformComboBox.DrawButton("コピー先", view);
-
-                var copyToPattern = _copyToTransformComboBox.currentItem;
+                var copyToPattern = DrawTargetTabs(view, "コピー先", controller.patterns, ref _copyToTransformIndex);
 
                 if (view.DrawButton("コピー", 60, 20))
                 {
@@ -1200,64 +983,22 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
 
-            var controllers = psylliumManager.controllers;
-            if (controllers.Count == 0)
-            {
-                view.DrawLabel("コントローラーが存在しません", 200, 20);
-                return;
-            }
-
-            _psylliumControllerComboBox.items = controllers;
-            _psylliumControllerComboBox.DrawButton("操作対象", view);
-
-            var controller = _psylliumControllerComboBox.currentItem;
-            if (controller == null)
-            {
-                view.DrawLabel("コントローラーを選択してください", 200, 20);
-                return;
-            }
-
-            view.BeginHorizontal();
-            {
-                view.margin = 0;
-
-                view.DrawLabel("エリア数", view.labelWidth, 20);
-
-                view.DrawIntField(new GUIView.IntFieldOption
-                {
-                    value = controller.areas.Count,
-                    width = view.viewRect.width - (view.labelWidth + 40 + view.padding.x * 2),
-                    height = 20,
-                });
-
-                if (view.DrawButton("-", 20, 20))
-                {
-                    psylliumManager.RemoveArea(controller.groupIndex, true);
-                }
-                if (view.DrawButton("+", 20, 20))
-                {
-                    psylliumManager.AddArea(controller.groupIndex, true);
-                }
-
-                view.margin = GUIView.defaultMargin;
-            }
-            view.EndLayout();
+            var controller = DrawTargetTabs(
+                view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
+                () => psylliumManager.AddController(true),
+                () => psylliumManager.RemoveController(true));
+            if (controller == null) return;
 
             var areas = controller.areas;
-            if (areas.Count == 0)
+            var area = DrawTargetTabs(
+                view, "エリア", areas, ref _areaIndex,
+                () => psylliumManager.AddArea(controller.groupIndex, true),
+                () => psylliumManager.RemoveArea(controller.groupIndex, true));
+
+            if (area == null) return;
+            if (area.transform == null)
             {
-                view.DrawLabel("エリアが存在しません", 200, 20);
-                return;
-            }
-
-            _areaComboBox.items = areas;
-            _areaComboBox.DrawButton("操作対象", view);
-
-            var area = _areaComboBox.currentItem;
-
-            if (area == null || area.transform == null)
-            {
-                view.DrawLabel("エリアを選択してください", 200, 20);
+                view.DrawLabel("エリアが生成されていません", 200, ROW_HEIGHT);
                 return;
             }
 
@@ -1274,13 +1015,10 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
 
             {
-                _copyToAreaComboBox.items = areas;
-                _copyToAreaComboBox.DrawButton("コピー先", view);
+                var copyToArea = DrawTargetTabs(view, "コピー先", areas, ref _copyToAreaIndex);
 
                 view.BeginHorizontal();
                 {
-                    var copyToArea = _copyToAreaComboBox.currentItem;
-
                     if (view.DrawButton("コピー", 60, 20))
                     {
                         if (copyToArea != null && copyToArea != area)

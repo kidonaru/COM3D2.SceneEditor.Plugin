@@ -72,16 +72,7 @@ namespace COM3D2.SceneEditor.Plugin
                 contentSize = PresetMenuContentSize,
             };
 
-        // メイドの部位へ注視点を移すフォーカス行のコンボ
-        private readonly GUIComboBox<MTEP.MaidCache> _focusMaidComboBox =
-            new GUIComboBox<MTEP.MaidCache>
-            {
-                getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
-                buttonSize = new Vector2(120, ROW_HEIGHT),
-                contentSize = new Vector2(150, 300),
-                showArrow = false,
-            };
-
+        // 「メイドに合わせる」で注視点を移す部位を選ぶコンボ
         private readonly GUIComboBox<MTEP.MaidPointType> _focusPointComboBox =
             new GUIComboBox<MTEP.MaidPointType>
             {
@@ -444,8 +435,6 @@ namespace COM3D2.SceneEditor.Plugin
             MainCameraRowDrawer.DrawDistanceFovSliders(_view, mainCamera, camera, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
             DrawResetAndMatchSceneViewRow(mainCamera, camera);
-            _view.DrawHorizontalLine();
-            DrawFocusRow(mainCamera);
 
             _view.EndScrollView();
         }
@@ -582,7 +571,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawResetAndMatchSceneViewRow(CameraMain mainCamera, Camera camera)
         {
-            _view.BeginHorizontal();
+            // ボタンが多くウィンドウ幅に収まらないことがあるため折り返す
+            _view.BeginHorizontal(wrap: true);
             {
                 if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
                 {
@@ -618,33 +608,43 @@ namespace COM3D2.SceneEditor.Plugin
 
                     camera.fieldOfView = sceneCamera.fieldOfView;
                 }
+
+                // 選択中メイドのフォーカス部位へ注視点だけを移す (距離・角度は保つ)
+                var focusPos = GetFocusPointPos();
+                if (_view.DrawButton("メイドに合わせる", 120, ROW_HEIGHT,
+                    enabled: focusPos.HasValue))
+                {
+                    MainCameraRowDrawer.RecordCameraEdit("メイドに合わせる");
+                    mainCamera.SetTargetPos(focusPos.Value);
+                }
+
+                // 合わせる部位はボタンの隣で選ぶ
+                _focusPointComboBox.DrawButton(_view);
             }
             _view.EndLayout();
         }
 
-        /// <summary>選んだメイドの部位へ注視点を移すフォーカス行</summary>
-        private void DrawFocusRow(CameraMain mainCamera)
+        /// <summary>
+        /// 選択中メイドのフォーカス部位の位置を返す。
+        /// メイド未選択・退避中 (非表示)・ボーン未生成 (呼出直後など) なら null
+        /// </summary>
+        private Vector3? GetFocusPointPos()
         {
-            _view.BeginHorizontal();
+            var maid = MaidManipulateManager.instance.targetMaid;
+            // 退避中のメイドは画面外へ移動しているため、合わせると構図が飛ぶ
+            if (maid == null || !MaidManipulateManager.instance.IsVisible(maid))
             {
-                _view.DrawLabel("フォーカス", LABEL_WIDTH, ROW_HEIGHT);
-
-                _focusMaidComboBox.items = MTEP.MaidManager.instance.maidCaches;
-                _focusMaidComboBox.DrawButton(_view);
-                _focusPointComboBox.DrawButton(_view);
-
-                var maidCache = _focusMaidComboBox.currentItem;
-                if (_view.DrawButton("移動", 60, ROW_HEIGHT, enabled: maidCache != null))
-                {
-                    var point = maidCache.GetPointTransform(_focusPointComboBox.currentItem);
-                    if (point != null)
-                    {
-                        MainCameraRowDrawer.RecordCameraEdit("フォーカス");
-                        mainCamera.SetTargetPos(point.position);
-                    }
-                }
+                return null;
             }
-            _view.EndLayout();
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(maid);
+            if (maidCache == null)
+            {
+                return null;
+            }
+
+            var point = maidCache.GetPointTransform(_focusPointComboBox.currentItem);
+            return point != null ? (Vector3?) point.position : null;
         }
 
         /// <summary>

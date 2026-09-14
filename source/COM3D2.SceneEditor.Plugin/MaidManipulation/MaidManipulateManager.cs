@@ -237,7 +237,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ボーン表示トグル。メニューバーのトグルと連動する。
+        /// ボーン表示トグル。メニューバーのトグルと連動する (メニューバー側は編集モード中のみ操作可)。
         /// ボーンを実際に出すかは編集モードとの AND (isBoneEditing) で決まる。
         /// オブジェクト用ギズモ (GizmoRenderer) の表示もこのトグルに従う
         /// </summary>
@@ -263,7 +263,7 @@ namespace COM3D2.SceneEditor.Plugin
         private bool _isBoneVisible = true;
 
         /// <summary>
-        /// ボーン表示を切り替える。ボーンは編集モード中しか出ないため、
+        /// ボーン表示を切り替える (BoneEditWindow 用)。ボーンは編集モード中しか出ないため、
         /// ON にするときは編集モードへも入る (トグルを押しても何も出ない状態を作らない)
         /// </summary>
         public void SetBoneVisible(bool value)

@@ -380,6 +380,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void DrawControls(GUIView view)
         {
+            // 履歴の適用でタイムラインやメイドが変わるため、有効状態の判定より先に処理する
+            DrawHistoryControls(view);
+
             var isMaidValid = maidManager.IsValid();
 
             var editEnabled = isMaidValid
@@ -399,6 +402,22 @@ namespace COM3D2.SceneEditor.Plugin
             DrawRangeControls(view);
             DrawTargetMaidControls(view);
             DrawToggles(view);
+        }
+
+        private void DrawHistoryControls(GUIView view)
+        {
+            var history = HistoryManager.instance;
+            WrapIfNeeded(view, (FRAME_BUTTON_WIDTH + view.margin) * 2);
+            if (DrawFrameButton(view, ToolbarIcons.Kind.Undo, "戻る",
+                "戻る (" + config.GetKeyName(KeyBindType.Undo) + ")", history.canUndo))
+            {
+                history.Undo();
+            }
+            if (DrawFrameButton(view, ToolbarIcons.Kind.Redo, "進む",
+                "進む (" + config.GetKeyName(KeyBindType.Redo) + ")", history.canRedo))
+            {
+                history.Redo();
+            }
         }
 
         private void DrawFileMenu(GUIView view, bool editEnabled)
@@ -590,14 +609,14 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>フレーム操作のアイコンボタン。アイコンを読み込めなければ文字ボタンで代替する</summary>
-        private static bool DrawFrameButton(GUIView view, ToolbarIcons.Kind kind, string fallbackText, string tooltip)
+        private static bool DrawFrameButton(GUIView view, ToolbarIcons.Kind kind, string fallbackText, string tooltip, bool enabled = true)
         {
             var icon = ToolbarIcons.GetTexture(kind);
             if (icon == null)
             {
-                return view.DrawButton(fallbackText, FRAME_BUTTON_WIDTH, ROW_HEIGHT);
+                return view.DrawButton(fallbackText, FRAME_BUTTON_WIDTH, ROW_HEIGHT, enabled);
             }
-            return view.DrawTextureButton(icon, FRAME_BUTTON_WIDTH, ROW_HEIGHT, FRAME_ICON_OFFSET, tooltip: tooltip);
+            return view.DrawTextureButton(icon, FRAME_BUTTON_WIDTH, ROW_HEIGHT, FRAME_ICON_OFFSET, enabled: enabled, tooltip: tooltip);
         }
 
         /// <summary>フレーム操作のアイコンリピートボタン (押し続けで連続移動)</summary>
