@@ -6,7 +6,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// MTE 由来の演出状態 (テキスト / サブカメラ / サウンド / 動画) のプリセット断面。
+    /// MTE 由来の演出状態 (テキスト / サブカメラ / サウンド / 動画 / ライブ演出) のプリセット断面。
     /// 実体は Unity コンポーネント側にしか無いため、値をここで DTO へ吸い出す。
     /// 要素数はマネージャ側プロパティが所有しており、タイムライン未読込でも保存・復元できる
     /// </summary>
@@ -26,6 +26,7 @@ namespace COM3D2.SceneEditor.Plugin
             data.subCameras = CaptureSubCameras();
             data.sound = CaptureSound();
             data.videos = CaptureVideos();
+            data.liveEffect = LiveEffectSnapshot.CaptureLiveEffect();
             return data;
         }
 
@@ -40,6 +41,8 @@ namespace COM3D2.SceneEditor.Plugin
             ApplySubCameras(data.subCameras);
             ApplySound(data.sound);
             ApplyVideos(data.videos, reloadAll: true);
+            // ライブ演出は個数も状態に含むため、非 null なら空でも「全削除」として復元する
+            LiveEffectSnapshot.ApplyLiveEffect(data.liveEffect);
         }
 
         /// <summary>フリーテキスト全件を DTO へ吸い出す。履歴とプリセットで共用</summary>

@@ -14,7 +14,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool saveMaids = true;
         /// <summary>背景・ライト・PNG 配置をまとめた「背景」カテゴリ</summary>
         public bool saveBackground = true;
-        /// <summary>テキスト・サブカメラ・ポストエフェクトをまとめた「演出」カテゴリ (v29)</summary>
+        /// <summary>テキスト・サブカメラ・サウンド・動画・ライブ演出をまとめた「演出」カテゴリ (v29, v34 でライブ演出追加)</summary>
         public bool saveEffects = true;
         /// <summary>保存対象の外部プロバイダ id</summary>
         public List<string> enabledProviderIds = new List<string>();
@@ -218,7 +218,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value => _saveMaids = value);
             _view.DrawToggle("背景 (背景・ライト・PNG 配置)", _saveBackground, contentWidth, ROW_HEIGHT,
                 value => _saveBackground = value);
-            _view.DrawToggle("演出 (テキスト・サブカメラ・サウンド・動画)", _saveEffects,
+            _view.DrawToggle("演出 (テキスト・サブカメラ・サウンド・動画・ライブ演出)", _saveEffects,
                 contentWidth, ROW_HEIGHT, value => _saveEffects = value);
 
             foreach (var provider in ScenePresetProviderRegistry.providers)

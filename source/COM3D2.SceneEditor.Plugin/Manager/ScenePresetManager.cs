@@ -177,7 +177,7 @@ namespace COM3D2.SceneEditor.Plugin
             return data.savedBackground && loadBackground;
         }
 
-        /// <summary>演出カテゴリ (テキスト・サブカメラ・ポストエフェクト) を適用するか</summary>
+        /// <summary>演出カテゴリ (テキスト・サブカメラ・サウンド・動画・ライブ演出) を適用するか</summary>
         private static bool ShouldApplyEffects(ScenePresetData data)
         {
             // 旧プリセット (v28 以前) は effects が null のため、この条件で自然に読み飛ばされる

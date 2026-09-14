@@ -833,6 +833,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlElement("video")]
         public List<ScenePresetVideo> videos = new List<ScenePresetVideo>();
+
+        /// <summary>
+        /// ライブ演出 (ステージライト / ステージレーザー / サイリウム) (v34)。
+        /// Undo 用の LiveEffectState をそのまま載せる。
+        /// null = 未記録 (旧プリセット) で適用時に触らない。非 null で全リスト空 = 全削除として復元する
+        /// </summary>
+        public LiveEffectState liveEffect;
     }
 
     /// <summary>
@@ -928,7 +935,10 @@ namespace COM3D2.SceneEditor.Plugin
         // v32: effects.video を複数化。要素名 video を繰り返す形式で、旧形式の単体 video は 1 件として読める
         // v33: look に eyeMoveType（メイド目線）を追加し、headToCam / eyeToCam は新規保存では書かない。
         //      旧形式は eyeMoveType が null で読め、従来どおり headToCam / eyeToCam を TBody へ戻す
-        public static readonly int CurrentVersion = 33;
+        // v34: effects に liveEffect (ステージライト / レーザー / サイリウム) と、
+        //      ルートに bgModels (背景モデルの表示・transform・複製) を追加。
+        //      旧形式はどちらも null で読め、適用時に触らない
+        public static readonly int CurrentVersion = 34;
 
         [XmlAttribute]
         public int version = CurrentVersion;

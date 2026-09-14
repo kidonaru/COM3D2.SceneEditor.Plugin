@@ -1,5 +1,6 @@
-using System.IO;
+﻿using System.IO;
 using System.Xml.Serialization;
+using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using Xunit;
 
@@ -145,7 +146,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var restored = RoundTrip(data);
 
-            Assert.Equal(33, ScenePresetData.CurrentVersion);
+            Assert.Equal(34, ScenePresetData.CurrentVersion);
             Assert.NotNull(restored.effects.sound);
             Assert.Equal("BGM020.ogg", restored.effects.sound.gameBgmFile);
             Assert.Equal(@"C:\music\dance.ogg", restored.effects.sound.bgmPath);
@@ -194,6 +195,72 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 Assert.NotNull(restored.effects);
                 Assert.Null(restored.effects.sound);
                 Assert.Empty(restored.effects.videos);
+            }
+        }
+
+        [Fact]
+        public void LiveEffect_RoundTrip_PreservesValues()
+        {
+            var data = new ScenePresetData { effects = new ScenePresetEffects() };
+            data.effects.liveEffect = new LiveEffectState();
+            var lightController = new LiveEffectStageLightControllerState
+            {
+                autoColor = true,
+                colorMin = Color.red,
+                patternType = StageLightController.PatternType.None,
+            };
+            lightController.lights.Add(new LiveEffectStageLightState
+            {
+                position = new Vector3(1f, 2f, 3f),
+                color = Color.green,
+            });
+            data.effects.liveEffect.stageLightControllers.Add(lightController);
+            var laserController = new LiveEffectStageLaserControllerState();
+            laserController.lasers.Add(new LiveEffectStageLaserState { intensity = 0.5f });
+            data.effects.liveEffect.stageLaserControllers.Add(laserController);
+            var psyllium = new LiveEffectPsylliumControllerState { position = new Vector3(0f, 0f, 11f) };
+            psyllium.areas.Add(new PsylliumAreaConfig());
+            var placement = new PsylliumPlacement { areaIndex = 0 };
+            placement.points.Add(new PsylliumPlacementPoint { x = 1f, z = 2f, yaw = 90f });
+            psyllium.placements.Add(placement);
+            data.effects.liveEffect.psylliumControllers.Add(psyllium);
+
+            var restored = RoundTrip(data);
+
+            var live = restored.effects.liveEffect;
+            Assert.NotNull(live);
+            var light = Assert.Single(live.stageLightControllers);
+            Assert.True(light.autoColor);
+            Assert.Equal(Color.red, light.colorMin);
+            Assert.Equal(new Vector3(1f, 2f, 3f), Assert.Single(light.lights).position);
+            Assert.Equal(0.5f, Assert.Single(Assert.Single(live.stageLaserControllers).lasers).intensity);
+            var restoredPsyllium = Assert.Single(live.psylliumControllers);
+            Assert.Equal(new Vector3(0f, 0f, 11f), restoredPsyllium.position);
+            Assert.Equal(90f, Assert.Single(Assert.Single(restoredPsyllium.placements).points).yaw);
+        }
+
+        [Fact]
+        public void LiveEffect_EmptyState_RoundTripsAsNonNull()
+        {
+            // 「全削除した状態」(非 null・空) と「未記録」(null) を XML 上で区別できること
+            var data = new ScenePresetData { effects = new ScenePresetEffects { liveEffect = new LiveEffectState() } };
+
+            var restored = RoundTrip(data);
+
+            Assert.NotNull(restored.effects.liveEffect);
+            Assert.Empty(restored.effects.liveEffect.stageLightControllers);
+        }
+
+        [Fact]
+        public void V33Preset_WithoutLiveEffect_ReadsLiveEffectAsNull()
+        {
+            var serializer = new XmlSerializer(typeof(ScenePresetData));
+            using (var reader = new StringReader(
+                "<ScenePresetData version=\"33\"><effects><text text=\"a\" /></effects></ScenePresetData>"))
+            {
+                var restored = (ScenePresetData)serializer.Deserialize(reader);
+                Assert.NotNull(restored.effects);
+                Assert.Null(restored.effects.liveEffect);
             }
         }
     }

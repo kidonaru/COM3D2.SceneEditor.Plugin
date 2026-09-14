@@ -133,6 +133,12 @@ namespace COM3D2.SceneEditor.Plugin
             return snapshot;
         }
 
+        /// <summary>現在のライブ演出を DTO へ吸い出す。履歴とシーンプリセットで共用</summary>
+        public static LiveEffectState CaptureLiveEffect() => CaptureStateCore();
+
+        /// <summary>ライブ演出を書き戻す。null (旧プリセット / 未記録) なら何もしない</summary>
+        public static void ApplyLiveEffect(LiveEffectState state) => ApplyStateCore(state);
+
         /// <summary>
         /// ライブ演出の変更を履歴へ記録する。値を書く「前」に呼ぶこと。
         /// 3 マネージャをまとめて 1 スナップショットにするので対象キーは固定で、
@@ -148,7 +154,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override PresetDtoSnapshot<LiveEffectState> CreateEmpty() => new LiveEffectSnapshot();
 
-        protected override LiveEffectState CaptureState()
+        protected override LiveEffectState CaptureState() => CaptureStateCore();
+
+        protected override void ApplyState(LiveEffectState state) => ApplyStateCore(state);
+
+        private static LiveEffectState CaptureStateCore()
         {
             var state = new LiveEffectState();
 
@@ -293,7 +303,7 @@ namespace COM3D2.SceneEditor.Plugin
             return state;
         }
 
-        protected override void ApplyState(LiveEffectState state)
+        private static void ApplyStateCore(LiveEffectState state)
         {
             if (state == null) return;
 
