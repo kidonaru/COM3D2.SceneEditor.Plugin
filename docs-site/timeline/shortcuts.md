@@ -1,6 +1,6 @@
 # ショートカット
 
-タイムライン用のキーは `タイムライン操作` ウィンドウが表示されている間だけ有効です。テキスト入力中は無効になります。
+タイムライン用のキーは、プラグインを表示している間はウィンドウの表示状態に関わらず有効です。テキスト入力中と、連番画像出力の実行中は無効になります。
 
 | キー | 内容 | 設定名 |
 |---|---|---|
@@ -28,5 +28,4 @@
 
 ## キーの変更
 
-タイムライン用のキーは `Sybaris\UnityInjector\Config\SceneEditor\Timeline.xml` の `keyBind` 要素で変更します。GUI はありません。
-`Timeline.xml` には `EditMode`（`F1`）や `Undo` / `Redo` などの項目も残っていますが、これらは MTE 互換のためのもので SceneEditor では使われません。編集モードや Undo のキーは本体側の設定で変更してください（[設定リファレンス](/guide/configuration#キー設定)）。
+タイムライン用のキーは `Sybaris\UnityInjector\Config\SceneEditor\SceneEditor.xml` の `keyBind` 要素で変更します。GUI はありません。本体側のキー（編集モード、Undo など）と同じファイルです（[設定リファレンス](/guide/configuration#キー設定)）。

@@ -142,3 +142,14 @@
 | `GizmoScale` | `C` | ギズモを拡縮モードにする |
 | `Undo` | `Ctrl+Z` | 操作を戻す |
 | `Redo` | `Ctrl+X` | 操作を進める |
+| `AddKeyFrame` | `Enter` | キーフレームを登録 |
+| `AddKeyFrameAll` | `Shift+Enter` | 全ボーンのキーフレームを登録 |
+| `RemoveKeyFrame` | `Backspace` | 選択中のキーフレームを削除 |
+| `Play` | `Space` | 再生 / 停止 |
+| `PrevFrame` / `NextFrame` | `A` / `D` | 1 フレーム前後へ移動 |
+| `PrevKeyFrame` / `NextKeyFrame` | `Ctrl+A` / `Ctrl+D` | 前後のキーフレームへ移動 |
+| `Copy` / `Paste` / `FlipPaste` | `Ctrl+C` / `Ctrl+V` / `Ctrl+Shift+V` | キーフレームのコピー / 貼り付け / 反転貼り付け |
+| `PoseCopy` / `PosePaste` | `Ctrl+Alt+C` / `Ctrl+Alt+V` | ポーズのコピー / 貼り付け |
+| `MultiSelect` | `Shift` | グリッドの複数選択 |
+
+`AddKeyFrame` 以降はタイムライン操作のキーです（[ショートカット](/timeline/shortcuts)）。

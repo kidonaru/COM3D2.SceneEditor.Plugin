@@ -373,6 +373,7 @@
     <Compile Include="MaterialEditWindow.cs" />
     <Compile Include="TimelineLoadWindow.cs" />
     <Compile Include="TimelineControlWindow.cs" />
+    <Compile Include="TimelineKeyInput.cs" />
     <Compile Include="TimelineSettingWindow.cs" />
     <Compile Include="TimelineCurveEditor.cs" />
     <Compile Include="GUIMultiSelectComboBox.cs" />

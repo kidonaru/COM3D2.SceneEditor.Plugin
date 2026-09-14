@@ -39,6 +39,53 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 指定レイヤーが選択状態か (BoneSetMenuItem と同じく、全項目が選択済みなら選択扱い)。
+        /// 項目を持たないレイヤーは非選択とする
+        /// </summary>
+        public bool IsLayerMenuSelected(ITimelineLayer layer)
+        {
+            var menuItems = layer.allMenuItems;
+            if (menuItems.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var menuItem in menuItems)
+            {
+                if (!menuItem.isSelectedMenu)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 指定レイヤーの全メニュー項目の選択を切り替える (レイヤー名クリック用)。
+        /// 単体項目のクリックと同じく、全選択済みなら解除、そうでなければ全選択する
+        /// </summary>
+        public void SelectLayerMenuItems(ITimelineLayer layer, bool isMultiSelect)
+        {
+            var menuItems = layer.allMenuItems;
+            if (menuItems.Count == 0)
+            {
+                return;
+            }
+
+            var prevSelected = IsLayerMenuSelected(layer);
+
+            if (!isMultiSelect)
+            {
+                UnselectAll();
+            }
+
+            foreach (var menuItem in menuItems)
+            {
+                menuItem.isSelectedMenu = !prevSelected;
+            }
+        }
+
         private List<IBoneMenuItem> _visibleItems = new List<IBoneMenuItem>(128);
 
         public List<IBoneMenuItem> GetVisibleItems()

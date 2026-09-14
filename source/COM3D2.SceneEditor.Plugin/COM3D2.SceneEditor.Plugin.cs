@@ -163,6 +163,7 @@ namespace COM3D2.SceneEditor.Plugin
                     UpdateHistoryKey();
                     UpdateEditModeKey();
                     UpdateWindowsHiddenKey();
+                    TimelineKeyInput.Update();
                     managerRegistry.Update();
                 }
             }

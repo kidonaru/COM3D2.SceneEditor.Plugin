@@ -6,30 +6,6 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    public enum KeyBindType
-    {
-        PluginToggle,
-        Visible,
-        AddKeyFrame,
-        AddKeyFrameAll,
-        RemoveKeyFrame,
-        Play,
-        EditMode,
-        Copy,
-        Paste,
-        FlipPaste,
-        PoseCopy,
-        PosePaste,
-        PrevFrame,
-        NextFrame,
-        PrevKeyFrame,
-        NextKeyFrame,
-        MultiSelect,
-        Undo,
-        Redo,
-        GC,
-    }
-
     /// <summary>タイムラインの表示モード。表示/編集対象レイヤーの絞り方を決める</summary>
     public enum TimelineLayerViewMode
     {
@@ -80,8 +56,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // 今は動画メッシュの位置と被写界深度のピント距離だけが参照する
         public float positionRange = 5.0f;
         public float voiceMaxLength = 20.0f;
-        // MTE 設定ファイル互換のため残す。SceneEditor では効果なし
-        public bool disablePoseHistory = true;
         public string videoShaderName = "CM3D2/Unlit_Texture_Photo_MyObject";
         public bool psylliumAreaCopyIgnoreTransform = false;
         public float videoPrebufferTime = 0.5f;
@@ -131,65 +105,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int curveEditorHeight = 150;
         public Color gridColorInVideo = new Color(1, 1, 1);
         public Color bpmLineColor = new Color(1f, 47f / 51f, 0.015686275f, 0.5f);
-
-        [XmlIgnore]
-        public Dictionary<KeyBindType, KeyBind> keyBinds = new Dictionary<KeyBindType, KeyBind>
-        {
-            { KeyBindType.PluginToggle, new KeyBind("Ctrl+M") },
-            { KeyBindType.Visible, new KeyBind("Tab") },
-            { KeyBindType.AddKeyFrame, new KeyBind("Return") },
-            { KeyBindType.AddKeyFrameAll, new KeyBind("Shift+Return") },
-            { KeyBindType.RemoveKeyFrame, new KeyBind("Backspace") },
-            { KeyBindType.Play, new KeyBind("Space") },
-            // 編集モード切替は SE 本体の KeyBindType.EditModeToggle に統合済みで、ここでは未使用
-            { KeyBindType.EditMode, new KeyBind("F1") },
-            { KeyBindType.Copy, new KeyBind("Ctrl+C") },
-            { KeyBindType.Paste, new KeyBind("Ctrl+V") },
-            { KeyBindType.FlipPaste, new KeyBind("Ctrl+Shift+V") },
-            { KeyBindType.PoseCopy, new KeyBind("Ctrl+Alt+C") },
-            { KeyBindType.PosePaste, new KeyBind("Ctrl+Alt+V") },
-            { KeyBindType.PrevFrame, new KeyBind("A") },
-            { KeyBindType.NextFrame, new KeyBind("D") },
-            { KeyBindType.PrevKeyFrame, new KeyBind("Ctrl+A") },
-            { KeyBindType.NextKeyFrame, new KeyBind("Ctrl+D") },
-            { KeyBindType.MultiSelect, new KeyBind("Shift") },
-            { KeyBindType.Undo, new KeyBind("Ctrl+Z") },
-            { KeyBindType.Redo, new KeyBind("Ctrl+X") },
-            { KeyBindType.GC, new KeyBind("Shift+F12") },
-        };
-
-        public struct KeyBindPair
-        {
-            public KeyBindType key;
-            public string value;
-        }
-
-        [XmlElement("keyBind")]
-        public KeyBindPair[] keyBindsXml
-        {
-            get
-            {
-                var result = new List<KeyBindPair>(keyBinds.Count);
-                foreach (var pair in keyBinds)
-                {
-                    result.Add(new KeyBindPair { key = pair.Key, value = pair.Value.ToString() });
-                }
-                return result.ToArray();
-            }
-            set
-            {
-                if (value == null)
-                {
-                    return;
-                }
-
-                foreach (var pair in value)
-                {
-                    //PluginUtils.LogDebug("keyBind: " + pair.key + " = " + pair.value);
-                    keyBinds[pair.key] = new KeyBind(pair.value);
-                }
-            }
-        }
 
         [XmlIgnore]
         public Dictionary<EasySettingType, bool> _easySettingVisibleMap = new Dictionary<EasySettingType, bool>();
@@ -312,41 +227,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void ConvertVersion()
         {
             version = CurrentVersion;
-        }
-
-        [XmlIgnore]
-        public bool isKeyInputEnabled = true;
-
-        public bool GetKey(KeyBindType keyBindType)
-        {
-            if (!isKeyInputEnabled) return false;
-            return keyBinds[keyBindType].GetKey();
-        }
-
-        public bool GetKeyDown(KeyBindType keyBindType)
-        {
-            if (!isKeyInputEnabled) return false;
-            return keyBinds[keyBindType].GetKeyDown();
-        }
-
-        public bool GetKeyDownRepeat(KeyBindType keyBindType)
-        {
-            if (!isKeyInputEnabled) return false;
-            // キーリピートの間隔は SE の設定 (SceneEditor.xml) が唯一の持ち主
-            var seConfig = SceneEditor.Plugin.ConfigManager.instance.config;
-            return keyBinds[keyBindType].GetKeyDownRepeat(
-                seConfig.keyRepeatTimeFirst, seConfig.keyRepeatTime);
-        }
-
-        public bool GetKeyUp(KeyBindType keyBindType)
-        {
-            if (!isKeyInputEnabled) return false;
-            return keyBinds[keyBindType].GetKeyUp();
-        }
-
-        public string GetKeyName(KeyBindType keyBindType)
-        {
-            return keyBinds[keyBindType].ToString();
         }
 
         public bool IsEasySettingVisible(EasySettingType type)

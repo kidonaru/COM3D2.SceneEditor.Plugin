@@ -16,6 +16,21 @@ namespace COM3D2.SceneEditor.Plugin
         Redo,
         EditModeToggle,
         WindowsHiddenToggle,
+        // ここから下はタイムライン操作 (旧 Timeline.xml から統合)
+        AddKeyFrame,
+        AddKeyFrameAll,
+        RemoveKeyFrame,
+        Play,
+        Copy,
+        Paste,
+        FlipPaste,
+        PoseCopy,
+        PosePaste,
+        PrevFrame,
+        NextFrame,
+        PrevKeyFrame,
+        NextKeyFrame,
+        MultiSelect,
     }
 
     public class Config
@@ -525,6 +540,20 @@ namespace COM3D2.SceneEditor.Plugin
             { KeyBindType.Redo, new KeyBind("Ctrl+X") },
             { KeyBindType.EditModeToggle, new KeyBind("F1") },
             { KeyBindType.WindowsHiddenToggle, new KeyBind("Tab") },
+            { KeyBindType.AddKeyFrame, new KeyBind("Return") },
+            { KeyBindType.AddKeyFrameAll, new KeyBind("Shift+Return") },
+            { KeyBindType.RemoveKeyFrame, new KeyBind("Backspace") },
+            { KeyBindType.Play, new KeyBind("Space") },
+            { KeyBindType.Copy, new KeyBind("Ctrl+C") },
+            { KeyBindType.Paste, new KeyBind("Ctrl+V") },
+            { KeyBindType.FlipPaste, new KeyBind("Ctrl+Shift+V") },
+            { KeyBindType.PoseCopy, new KeyBind("Ctrl+Alt+C") },
+            { KeyBindType.PosePaste, new KeyBind("Ctrl+Alt+V") },
+            { KeyBindType.PrevFrame, new KeyBind("A") },
+            { KeyBindType.NextFrame, new KeyBind("D") },
+            { KeyBindType.PrevKeyFrame, new KeyBind("Ctrl+A") },
+            { KeyBindType.NextKeyFrame, new KeyBind("Ctrl+D") },
+            { KeyBindType.MultiSelect, new KeyBind("Shift") },
         };
 
         public struct KeyBindPair
@@ -562,6 +591,10 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlIgnore]
         public bool dirty = false;
 
+        /// <summary>連番画像出力中など、タイムライン操作のキーだけ止めたいときに false にする</summary>
+        [XmlIgnore]
+        public bool isTimelineKeyInputEnabled = true;
+
         public void ConvertVersion()
         {
             // v2: 編集モード切替を Tab から F1 へ移し、Tab はウィンドウ非表示に充てた。
@@ -583,6 +616,11 @@ namespace COM3D2.SceneEditor.Plugin
         public bool GetKeyDown(KeyBindType keyBindType)
         {
             return keyBinds[keyBindType].GetKeyDown();
+        }
+
+        public bool GetKeyDownRepeat(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].GetKeyDownRepeat(keyRepeatTimeFirst, keyRepeatTime);
         }
 
         public bool GetKeyUp(KeyBindType keyBindType)

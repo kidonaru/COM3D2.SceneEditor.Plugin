@@ -60,6 +60,5 @@
 | `isCurveEditorOpen` / `curveEditorHeight` | `false` / 150 | カーブエディタの開閉と高さ |
 | `scaleLinked` | `false` | 拡縮行の XYZ 連動 |
 | `timelineBgColor1` などの色 | — | グリッド・メニュー・選択範囲・カーブの各色 |
-| `keyBind` | — | キー割り当て（[ショートカット](/timeline/shortcuts)） |
 
-キー割り当てを変える GUI はありません。`Timeline.xml` の `keyBind` 要素を直接編集してください。
+キー割り当ては `Timeline.xml` ではなく `SceneEditor.xml` が持ちます（[ショートカット](/timeline/shortcuts)）。

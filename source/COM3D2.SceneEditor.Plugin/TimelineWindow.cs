@@ -169,10 +169,11 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         /// <summary>
-        /// キー入力処理をタイムライン操作ウィンドウ側に移したため、キャッシュせず都度参照する。
+        /// キー入力処理を TimelineKeyInput 側に移したため、キャッシュせず都度参照する。
         /// 旧実装と異なりテキスト入力中も実キー状態を反映する
         /// </summary>
-        private bool isMultiSelect => timelineConfig.GetKey(MTEP.KeyBindType.MultiSelect);
+        private bool isMultiSelect =>
+            config.isTimelineKeyInputEnabled && config.GetKey(KeyBindType.MultiSelect);
 
         private Texture2D texWhite => GUIView.texWhite;
         private Texture2D texTimelineBG = null;
@@ -801,7 +802,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var row = _rows[i];
 
-                // カテゴリ行はキーを持たないので塗りつぶさず、レイヤーの境目だけ区切り線で示す
+                // カテゴリ行はキーを持たないので、レイヤーの境目の区切り線と選択ハイライトのみ
                 if (row.isHeader)
                 {
                     if (i > 0)
@@ -811,6 +812,16 @@ namespace COM3D2.SceneEditor.Plugin
                             viewWidth,
                             LAYER_SEPARATOR_HEIGHT,
                             tc.timelineLineColor1);
+                    }
+
+                    if (boneMenuManager.IsLayerMenuSelected(row.layer))
+                    {
+                        view.currentPos.y = i * frameHeight;
+                        view.DrawTexture(
+                            texWhite,
+                            viewWidth,
+                            frameHeight,
+                            tc.timelineMenuSelectBgColor);
                     }
                     continue;
                 }
@@ -1564,10 +1575,14 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var isActiveLayerRow = row.layer == timelineManager.currentLayer;
 
-                // レイヤーカテゴリ行: 折りたたみトグル + レイヤー名 (クリックでアクティブ化)
+                // レイヤーカテゴリ行: 折りたたみトグル + レイヤー名 (クリックでアクティブ化 + 全項目選択)
                 if (row.isHeader)
                 {
-                    var headerColor = isActiveLayerRow ? tc.timelineMenuSelectTextColor : Color.white;
+                    // アクティブレイヤーと全項目選択済みのレイヤーを同じ強調色で示す
+                    var headerColor =
+                        isActiveLayerRow || boneMenuManager.IsLayerMenuSelected(row.layer)
+                            ? tc.timelineMenuSelectTextColor
+                            : Color.white;
                     var headerLayer = row.layer;
 
                     // ドープシート側と同じ位置にレイヤーの区切り線を引く
@@ -1612,10 +1627,12 @@ namespace COM3D2.SceneEditor.Plugin
                                 _rowState.ToggleCollapsed(headerLayer);
                                 return;
                             }
+                            // クリックしたレイヤーを編集基準 (アクティブ) にしてから全項目を選択する
                             if (headerLayer != timelineManager.currentLayer)
                             {
                                 timelineManager.SetCurrentLayer(headerLayer);
                             }
+                            boneMenuManager.SelectLayerMenuItems(headerLayer, isMultiSelect);
                         });
 
                     continue;

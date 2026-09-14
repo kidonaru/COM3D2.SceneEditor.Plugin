@@ -1035,7 +1035,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OutputImage()
         {
-            MTEUtils.ShowConfirmDialog("連番画像出力を開始しますか？\n出力中は[Esc]キーで停止できます", () =>
+            var message = "連番画像出力を開始しますか？\n出力中は[Esc]キーで停止できます";
+
+            // 出力先は OutputImageInternal が中身ごと削除して作り直すため、事前に知らせる
+            if (timeline != null)
+            {
+                var outputDir = PluginUtils.GetImageOutputDirPath(timeline.anmName);
+                if (Directory.Exists(outputDir))
+                {
+                    message += "\n\n既存の出力先を中身ごと削除します\n" + outputDir;
+                }
+            }
+
+            MTEUtils.ShowConfirmDialog(message, () =>
             {
                 MTEUtils.Log("連番画像出力を開始しました");
                 GameMain.Instance.StartCoroutine(OutputImageInternal());
@@ -1129,7 +1141,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SceneEditorHack.isPoseEditing = false;
 
             isOutputtingImage = true;
-            config.isKeyInputEnabled = false;
+            SceneEditor.Plugin.ConfigManager.instance.config.isTimelineKeyInputEnabled = false;
 
             RenderTexture renderTexture = null;
             Texture2D outputTexture = null;
@@ -1195,7 +1207,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     RenderTexture.ReleaseTemporary(renderTexture);
                 }
 
-                config.isKeyInputEnabled = true;
+                SceneEditor.Plugin.ConfigManager.instance.config.isTimelineKeyInputEnabled = true;
                 isOutputtingImage = false;
             }
 
