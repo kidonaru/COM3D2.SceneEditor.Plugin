@@ -637,14 +637,8 @@
     <Compile Include="Timeline\ValueData.cs" />
     <Compile Include="Timeline\VideoDisplayType.cs" />
   </ItemGroup>
-  <!-- mte_bundle: MTE 純正 (Unity 5.6 製) をそのまま埋め込む。両構成で共通 -->
+  <!-- se_bundle: シェーダ・テクスチャ一式。Unity 5.6 製 (build-bundle.bat で生成) で両構成共通 -->
   <ItemGroup>
-    <EmbeddedResource Include="Timeline\mte_bundle">
-      <LogicalName>mte_bundle</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
-  <!-- se_bundle: SE 独自アセット。Unity 2022 製 (build-bundle.bat で生成) のため COM3D2.5 のみ -->
-  <ItemGroup Condition=" '$(GameVersion)' == 'COM3D25' ">
     <EmbeddedResource Include="Timeline\se_bundle">
       <LogicalName>se_bundle</LogicalName>
     </EmbeddedResource>

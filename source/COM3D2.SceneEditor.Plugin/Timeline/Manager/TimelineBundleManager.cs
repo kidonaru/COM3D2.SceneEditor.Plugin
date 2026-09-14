@@ -7,14 +7,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     public class TimelineBundleManager : ManagerBase
     {
-        private static readonly string AssetBundleName = "mte_bundle";
+        // MTE 由来のシェーダ・テクスチャと SE 独自のステージライトをまとめて UnityProject (Unity 5.6) でビルドした
+        // バンドル。5.6 製なので COM3D2 (2.0) / COM3D2.5 の両方で読める
+        private static readonly string AssetBundleName = "se_bundle";
         private static readonly string ShaderBasePath = "Assets/Shaders/";
         private static readonly string ResoucesBasePath = "Assets/Resources/";
-
-        // SE 独自アセットのバンドル。mte_bundle は MTE 純正 (Unity 5.6 製) をそのまま埋め込むため、
-        // COM3D2.5 用に作り直したシェーダはこちらへ分離している。COM3D2 (2.0) 構成には同梱されない
-        private static readonly string SEAssetBundleName = "se_bundle";
-        private static readonly string SEBasePath = "Assets/SceneEditor/";
 
         public static TimelineBundleManager _instance = null;
         public static TimelineBundleManager instance
@@ -70,13 +67,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private AssetBundle _assetBundle = null;
-        private AssetBundle _seAssetBundle = null;
 
         public TimelineBundleManager()
         {
-            _assetBundle = LoadAssetBundle(AssetBundleName, required: true);
-            // COM3D2 (2.0) 構成には同梱されないため、見つからなくてもエラーにしない
-            _seAssetBundle = LoadAssetBundle(SEAssetBundleName, required: false);
+            _assetBundle = LoadAssetBundle(AssetBundleName);
         }
 
         public bool IsValid()
@@ -88,28 +82,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public Material LoadMaterial(string materialName)
         {
-            return LoadMaterial(_assetBundle, ShaderBasePath + materialName + ".mat");
-        }
-
-        public Material LoadSEMaterial(string materialName)
-        {
-            return LoadMaterial(_seAssetBundle, SEBasePath + materialName + ".mat");
-        }
-
-        private Material LoadMaterial(AssetBundle assetBundle, string path)
-        {
-            if (assetBundle == null)
+            if (!IsValid())
             {
                 return null;
             }
 
+            var path = ShaderBasePath + materialName + ".mat";
             Material material;
             if (_materialCache.TryGetValue(path, out material))
             {
                 return new Material(material);
             }
 
-            material = assetBundle.LoadAsset<Material>(path);
+            material = _assetBundle.LoadAsset<Material>(path);
             if (material == null)
             {
                 MTEUtils.LogError("マテリアルが見つかりません: {0}", path);
@@ -147,27 +132,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             var path = ResoucesBasePath + bytesName + ".bytes";
-            var bytes = _assetBundle.LoadAsset<TextAsset>(path).bytes;
-            if (bytes == null)
+            var asset = _assetBundle.LoadAsset<TextAsset>(path);
+            if (asset == null)
             {
                 MTEUtils.LogError("バイナリが見つかりません: {0}", path);
                 return null;
             }
 
-            return bytes;
+            return asset.bytes;
         }
 
-        private AssetBundle LoadAssetBundle(string assetBundleName, bool required)
+        private AssetBundle LoadAssetBundle(string assetBundleName)
         {
             var assembly = Assembly.GetExecutingAssembly();
             using (var stream = assembly.GetManifestResourceStream(assetBundleName))
             {
                 if (stream == null)
                 {
-                    if (required)
-                    {
-                        MTEUtils.LogError("アセットバンドルが見つかりません: {0}", assetBundleName);
-                    }
+                    MTEUtils.LogError("アセットバンドルが見つかりません: {0}", assetBundleName);
                     return null;
                 }
 

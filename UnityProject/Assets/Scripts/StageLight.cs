@@ -76,6 +76,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 姿勢。保持はオイラー角のままだが、タイムラインの補間はクォータニオン空間で
+        /// 行うため境界で相互変換する
+        /// </summary>
+        public Quaternion rotation
+        {
+            // Unity 5.6 (C# 4) でもコンパイルできるよう式形式アクセサは使わない
+            get { return Quaternion.Euler(eulerAngles); }
+            set { eulerAngles = value.eulerAngles; }
+        }
+
         [SerializeField]
         private Color _color = Color.white;
         public Color color
@@ -280,8 +291,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        // 描画非対応の COM3D2 (2.0) では _meshObject が生成されないため、
-        // 表示状態はメッシュの活性ではなくフィールドで保持する (キーフレームの記録値がずれないように)
+        // Initialize 前に設定された値を失わないよう、表示状態はメッシュの活性ではなくフィールドで保持する
         [SerializeField]
         private bool _visible = true;
         public bool visible
@@ -318,13 +328,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private bool _requestedMeshUpdate = false;
         private bool _requestedMaterialUpdate = false;
 
-        // COM3D2 (2.0) ビルドでは Initialize が生成しないため null のまま
         private GameObject _meshObject = null;
         private MeshFilter _meshFilter = null;
         private MeshRenderer _meshRenderer = null;
 
 #if COM3D2
-        private static TimelineBundleManager bundleManager => TimelineBundleManager.instance;
+        private static TimelineBundleManager bundleManager
+        {
+            get { return TimelineBundleManager.instance; }
+        }
 #endif
 
         void OnEnable()
@@ -366,7 +378,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         void LateUpdate()
         {
-            // _meshFilter が null なのは描画非対応ビルド。更新するものが無い
+            // Initialize 前は _meshFilter が無く更新するものが無い
             if (!visible || _meshFilter == null)
             {
                 return;
@@ -421,11 +433,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             segmentRange = other.segmentRange;
         }
 
-#if COM3D2 && !COM3D25
-        // COM3D2 (2.0) ビルドは 5.6 製バンドルのままで新シェーダを持たないため描画非対応
-        private static bool _unsupportedWarned = false;
-#endif
-
         public void Initialize()
         {
             if (spotLight != null && spotLight.type != LightType.Spot)
@@ -433,17 +440,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 Debug.LogError("このコンポーネントはスポットライトにのみ使用できます");
             }
 
-#if COM3D2 && !COM3D25
-            if (!_unsupportedWarned)
-            {
-                _unsupportedWarned = true;
-                Debug.LogWarning("COM3D2 ではステージライトの描画は未対応です");
-            }
-            transform.localPosition = _position;
-            transform.localEulerAngles = _eulerAngles;
-            UpdateName();
-            return;
-#else
             var meshTransform = transform.Find("Mesh");
             _meshObject = meshTransform != null ? meshTransform.gameObject : null;
             if (_meshObject == null)
@@ -468,7 +464,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
 #if COM3D2
-                var material = bundleManager.LoadSEMaterial("SEStageLight");
+                var material = bundleManager.LoadMaterial("StageLight");
 #else
                 var material = new Material(Shader.Find("SE/StageLight"));
                 material.SetTexture("_MainTex", Resources.Load<Texture2D>("noise_texture"));
@@ -488,7 +484,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateMesh();
             UpdateMaterial();
             UpdateTransform();
-#endif
         }
 
         private const int MinConeSegments = 3;
