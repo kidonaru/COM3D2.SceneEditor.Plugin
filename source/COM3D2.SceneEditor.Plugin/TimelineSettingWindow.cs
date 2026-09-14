@@ -498,6 +498,20 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
+                // タイムラインのレイヤー表示モード。ON でカテゴリ内の全レイヤー、OFF でアクティブレイヤーのみを出す
+                var isCategoryMode = timelineConfig.layerViewMode == MTEP.TimelineLayerViewMode.Category;
+                view.DrawToggle("カテゴリ表示", isCategoryMode, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.layerViewMode = newValue
+                        ? MTEP.TimelineLayerViewMode.Category
+                        : MTEP.TimelineLayerViewMode.Layer;
+                    timelineConfig.dirty = true;
+                });
+            }
+            view.EndLayout();
+
+            view.BeginHorizontal();
+            {
                 view.DrawToggle("処理時間出力", timelineConfig.outputElapsedTime, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
                 {
                     timelineConfig.outputElapsedTime = newValue;

@@ -93,9 +93,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         public float paneHeight => config.curveEditorHeight;
 
-        /// <summary>ペイン高さのドラッグリサイズ状態 (menuWidth リサイザと同じ流儀)</summary>
-        private readonly GUIView.DragInfo _resizeDragInfo = new GUIView.DragInfo();
-
         private static bool IsAxisRotationType(MTEP.TangentValueType valueType)
         {
             return valueType == MTEP.TangentValueType.X回転
@@ -311,7 +308,7 @@ namespace COM3D2.SceneEditor.Plugin
             new Color(0.8f, 0.5f, 0.95f),   // 紫
         };
 
-        /// <summary>開閉トグルと高さリサイズを持つバーの描画</summary>
+        /// <summary>開閉トグルを持つバーの描画。高さ変更はバー上辺のドラッグ (TimelineWindow 側) で行う</summary>
         public void DrawToggleBar(GUIView view, Rect barRect)
         {
             view.currentPos = new Vector2(barRect.x, barRect.y);
@@ -324,30 +321,19 @@ namespace COM3D2.SceneEditor.Plugin
                 isOpen = !isOpen;
             }
 
-            if (!isOpen)
+            if (isOpen)
             {
-                return;
+                _targets.Update(selectedBones);
             }
+        }
 
-            _targets.Update(selectedBones);
-
-            // 開いている間はトグルボタン右のバー領域を上下ドラッグして高さを変更する
-            var resizeX = barRect.x + 5 + TOGGLE_BUTTON_WIDTH + 5;
-            var resizeWidth = Mathf.Max(0f, barRect.xMax - resizeX);
-            view.currentPos = new Vector2(resizeX, barRect.y);
-            view.InvokeActionOnDragging(
-                resizeWidth,
-                barRect.height,
-                _resizeDragInfo,
-                new Vector2(0f, config.curveEditorHeight),
-                null,
-                value =>
-                {
-                    // DragInfo は上方向ドラッグで y が増える。上へ引くほどペインを高くする
-                    config.curveEditorHeight = Mathf.Clamp(
-                        (int)value.y, MIN_PANE_HEIGHT, MAX_PANE_HEIGHT);
-                    config.dirty = true;
-                });
+        /// <summary>ペイン高さを範囲内へ丸めて設定する</summary>
+        public void SetPaneHeight(float height)
+        {
+            var clamped = Mathf.Clamp((int)height, MIN_PANE_HEIGHT, MAX_PANE_HEIGHT);
+            if (config.curveEditorHeight == clamped) return;
+            config.curveEditorHeight = clamped;
+            config.dirty = true;
         }
 
         /// <summary>ボーンメニュー下部に置く縦並びツールバー。

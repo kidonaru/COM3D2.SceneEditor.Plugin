@@ -27,8 +27,6 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int FRAME_LABEL_HEIGHT = 20;
         /// <summary>レイヤー操作ボタン (削除 / 追加コンボ) の幅</summary>
         private static readonly int LAYER_BUTTON_WIDTH = 20;
-        /// <summary>表示モード切替ボタンのアイコン余白 (TimelineControlWindow.ICON_TOGGLE_OFFSET と同じ値)</summary>
-        private static readonly float MODE_ICON_OFFSET = 4f;
         /// <summary>レイヤーカテゴリ行に対するボーンメニュー行の字下げ幅</summary>
         private static readonly int MENU_INDENT_WIDTH = 10;
         /// <summary>折りたたみトグルの列幅。記号と後ろの文字が離れないよう記号幅に詰めている</summary>
@@ -36,12 +34,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>折りたたみ一括操作ボタンのサイズ (文字ラベルが収まる幅)</summary>
         private static readonly int FOLD_ALL_BUTTON_WIDTH = 70;
         private static readonly int FOLD_ALL_BUTTON_HEIGHT = 20;
-        /// <summary>メニュー幅が狭いときでもボタンが潰れないための下限幅</summary>
-        private static readonly int FOLD_ALL_BUTTON_MIN_WIDTH = 20;
         /// <summary>レイヤーの区切り線の太さ</summary>
         private static readonly int LAYER_SEPARATOR_HEIGHT = 1;
-        /// <summary>ボーンメニュー右下のメニュー幅変更ボタンのサイズ</summary>
-        private static readonly int RESIZE_BUTTON_SIZE = 20;
+        /// <summary>内部境界 (ボーンメニュー右辺 / カーブペイン上辺) のつかみ幅。ウィンドウ辺と同じ太さにする</summary>
+        private static readonly float SPLITTER_GRAB_WIDTH = WindowResizeController.RESIZE_BORDER;
         // 折りたたみトグルの記号。開いた状態の ▼ を右へ回した ▶ で閉じた状態を示す
         private static readonly string FOLD_OPEN = "▼";
         private static readonly string FOLD_CLOSED = "▶";
@@ -91,7 +87,22 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>フレーム番号バー (シークバー) のドラッグ状態</summary>
         private readonly GUIView.DragInfo _seekDragInfo = new GUIView.DragInfo();
         private Rect areaDragRect = new Rect();
-        private readonly GUIView.DragInfo _menuWidthDraggableInfo = new GUIView.DragInfo();
+
+        /// <summary>
+        /// ウィンドウ内部の境界線ドラッグ。ウィンドウ辺のリサイズと同じく生座標の差分で値を決めるので、
+        /// 帯のどこを掴んでも境界が飛ばない
+        /// </summary>
+        private class SplitterDrag
+        {
+            public bool isDragging;
+            public float startValue;
+            public float startMousePos;
+        }
+
+        private readonly SplitterDrag _menuWidthSplitter = new SplitterDrag();
+        private readonly SplitterDrag _curveHeightSplitter = new SplitterDrag();
+        /// <summary>直近の描画で境界線ドラッグが可能だったか。カーソル表示と操作可否を揃えるために控える</summary>
+        private bool _isSplitterEnabled;
 
         /// <summary>レイヤーモードの選択コンボ。操作対象レイヤーから 1 つ選んでアクティブ化する</summary>
         private readonly GUIComboBox<MTEP.ITimelineLayer> _layerComboBox = new GUIComboBox<MTEP.ITimelineLayer>
@@ -574,6 +585,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             bool guiEnabled = contentView.focusedComboBox == null;
 
+            // 境界線の帯は内容の描画領域と重なるため、内容より先に押下を拾って消費する
+            HandleSplitters(local, editEnabled && guiEnabled);
+            _isSplitterEnabled = editEnabled && guiEnabled;
+
             // タイムラインを切り替えたら表示状態を初期化 (全表示・全折りたたみ)。
             // Undo/Redo もタイムラインを作り直すが、そこで初期化すると巻き戻すたびに
             // 展開状態が失われるため、インスタンスではなくセッション番号で判定する
@@ -606,6 +621,132 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTimeline(local, editEnabled, guiEnabled);
             DrawBoneMenu(local, editEnabled, guiEnabled);
+        }
+
+        /// <summary>ボーンメニュー右辺のつかみ帯 (ウィンドウローカル座標)</summary>
+        private Rect GetMenuSplitterRect(Rect local)
+        {
+            var half = SPLITTER_GRAB_WIDTH * 0.5f;
+            return new Rect(local.x + timelineConfig.menuWidth - half, local.y, SPLITTER_GRAB_WIDTH, local.height);
+        }
+
+        /// <summary>
+        /// カーブペイン上辺のつかみ帯 (ウィンドウローカル座標)。
+        /// ペインを閉じている間はトグルバーの高さが固定なので帯を出さない
+        /// </summary>
+        private Rect GetCurveSplitterRect(Rect local)
+        {
+            if (!TimelineCurveEditor.instance.isOpen)
+            {
+                return Rect.zero;
+            }
+            var half = SPLITTER_GRAB_WIDTH * 0.5f;
+            return new Rect(local.x, local.y + curvePaneTop - half, local.width, SPLITTER_GRAB_WIDTH);
+        }
+
+        /// <summary>
+        /// 境界線ドラッグの開始・更新・終了。
+        /// 開始は GUI イベントの押下を消費して内容側へ通さない。
+        /// 更新は生座標の差分で行うため、帯の外へ出ても掴んだ境界を追従させられる
+        /// </summary>
+        private void HandleSplitters(Rect local, bool enabled)
+        {
+            var tc = timelineConfig;
+            var curveEditor = TimelineCurveEditor.instance;
+
+            if (!enabled)
+            {
+                _menuWidthSplitter.isDragging = false;
+                _curveHeightSplitter.isDragging = false;
+                return;
+            }
+
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 &&
+                !_menuWidthSplitter.isDragging && !_curveHeightSplitter.isDragging)
+            {
+                var rawPos = MTEUtils.rawGuiPosition;
+                if (GetMenuSplitterRect(local).Contains(e.mousePosition))
+                {
+                    _menuWidthSplitter.isDragging = true;
+                    _menuWidthSplitter.startValue = tc.menuWidth;
+                    _menuWidthSplitter.startMousePos = rawPos.x;
+                    e.Use();
+                }
+                else if (GetCurveSplitterRect(local).Contains(e.mousePosition))
+                {
+                    _curveHeightSplitter.isDragging = true;
+                    _curveHeightSplitter.startValue = curveEditor.paneHeight;
+                    _curveHeightSplitter.startMousePos = rawPos.y;
+                    e.Use();
+                }
+            }
+
+            if (_menuWidthSplitter.isDragging)
+            {
+                var width = _menuWidthSplitter.startValue
+                    + (MTEUtils.rawGuiPosition.x - _menuWidthSplitter.startMousePos);
+                var newWidth = Mathf.Clamp((int)width, MIN_MENU_WIDTH, MAX_MENU_WIDTH);
+                if (tc.menuWidth != newWidth)
+                {
+                    tc.menuWidth = newWidth;
+                    tc.dirty = true;
+                    requestUpdateTexture = true;
+                }
+                _menuWidthSplitter.isDragging = Input.GetMouseButton(0);
+            }
+
+            if (_curveHeightSplitter.isDragging)
+            {
+                // ドラッグ中にペインが閉じられたら追従を止める
+                if (!curveEditor.isOpen)
+                {
+                    _curveHeightSplitter.isDragging = false;
+                    return;
+                }
+                // 上へ引くほどペインを高くする
+                var height = _curveHeightSplitter.startValue
+                    - (MTEUtils.rawGuiPosition.y - _curveHeightSplitter.startMousePos);
+                curveEditor.SetPaneHeight(height);
+                _curveHeightSplitter.isDragging = Input.GetMouseButton(0);
+            }
+        }
+
+        /// <summary>
+        /// ウィンドウ辺のカーソルを優先し、辺に乗っていなければ内部境界の帯のカーソルを出す。
+        /// ドラッグ中は帯の外へ出ても掴んでいる境界の向きを維持する。
+        /// 帯の判定条件は HandleSplitters と同じ (_isSplitterEnabled) にして、カーソルだけ出て掴めない状態を作らない。
+        /// ロック中でも内部境界は動かせるため、基底と違い isLocked は見ない
+        /// </summary>
+        public override ResizeCursor.Kind desiredCursorKind
+        {
+            get
+            {
+                var kind = base.desiredCursorKind;
+                if (kind != ResizeCursor.Kind.None)
+                {
+                    return kind;
+                }
+                if (_menuWidthSplitter.isDragging) return ResizeCursor.Kind.Horizontal;
+                if (_curveHeightSplitter.isDragging) return ResizeCursor.Kind.Vertical;
+
+                if (!isWndVisible || isResizing || !_isSplitterEnabled)
+                {
+                    return ResizeCursor.Kind.None;
+                }
+
+                var guiPos = MTEUtils.rawGuiPosition;
+                if (MTEUtils.isOverOtherWindowChecker(windowId, guiPos))
+                {
+                    return ResizeCursor.Kind.None;
+                }
+
+                var local = ToLocalRect(contentRect);
+                var localPos = new Vector2(guiPos.x - windowRect.x, guiPos.y - windowRect.y);
+                if (GetMenuSplitterRect(local).Contains(localPos)) return ResizeCursor.Kind.Horizontal;
+                if (GetCurveSplitterRect(local).Contains(localPos)) return ResizeCursor.Kind.Vertical;
+                return ResizeCursor.Kind.None;
+            }
         }
 
         /// <summary>
@@ -1338,22 +1479,18 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 全レイヤーの折りたたみを一括で切り替えるボタン。
         /// アイコンでは意味が伝わりにくいため、押したときに起きることを文字で示す。
-        /// スクロールビュー下端の空き帯 (右端の幅変更ボタンの左側) に置く
+        /// スクロールビュー下端の空き帯に置く
         /// </summary>
-        private void DrawRowStateControls(GUIView view, MTEP.Config tc)
+        private void DrawRowStateControls(GUIView view)
         {
             var layers = _displayLayers;
             var allCollapsed = _rowState.AreAllCollapsed(layers);
 
             view.currentPos.x = 0;
             view.currentPos.y = curvePaneTop - FOLD_ALL_BUTTON_HEIGHT;
-            // メニュー幅が狭いときは右端の幅変更ボタンに重ならないよう詰める (潰れない下限も設ける)
-            var buttonWidth = Mathf.Max(
-                FOLD_ALL_BUTTON_MIN_WIDTH,
-                Mathf.Min(FOLD_ALL_BUTTON_WIDTH, tc.menuWidth - RESIZE_BUTTON_SIZE));
             if (view.DrawButton(
                     allCollapsed ? "全て展開" : "全て畳む",
-                    buttonWidth,
+                    FOLD_ALL_BUTTON_WIDTH,
                     FOLD_ALL_BUTTON_HEIGHT))
             {
                 _rowState.SetAllCollapsed(layers, !allCollapsed);
@@ -1412,19 +1549,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
-        /// モード切替 + 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる
+        /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる。
+        /// 表示モード (カテゴリ/レイヤー) の切替はタイムライン設定ウィンドウで行う
         /// </summary>
         private void DrawLayerControls(GUIView view, int menuWidth)
         {
             var layerType = currentLayer.layerType;
             var isCategoryMode = timelineConfig.layerViewMode == MTEP.TimelineLayerViewMode.Category;
 
-            view.currentPos.x = 0;
-            view.currentPos.y = 0;
-            DrawViewModeButton(view, isCategoryMode);
-
             // コンボ (矢印込み) に割ける幅
-            var comboAreaWidth = menuWidth - FRAME_LABEL_HEIGHT - LAYER_BUTTON_WIDTH * 2;
+            var comboAreaWidth = menuWidth - LAYER_BUTTON_WIDTH * 2;
             // カテゴリコンボの前後送り矢印はコンボ本体の幅を食う。
             // 矢印を出すとコンボ本体が下限幅を割るほど狭いときは、右端からはみ出さないよう矢印を畳む
             var arrowWidth = GUIComboBoxBase.ARROW_SIZE * 2;
@@ -1433,7 +1567,7 @@ namespace COM3D2.SceneEditor.Plugin
             // メニュー幅が極端に狭くてもボタンが負座標へ回り込まないよう下限を設ける
             var comboWidth = Mathf.Max(LAYER_BUTTON_WIDTH, comboAreaWidth - usedArrowWidth);
 
-            view.currentPos.x = FRAME_LABEL_HEIGHT;
+            view.currentPos.x = 0;
             view.currentPos.y = 0;
             if (isCategoryMode)
             {
@@ -1452,7 +1586,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // コンボの実描画幅は本体 + 矢印なので、後続のボタンはその分だけ右へ寄せる
-            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth + usedArrowWidth;
+            view.currentPos.x = comboWidth + usedArrowWidth;
             view.currentPos.y = 0;
             if (view.DrawButton("-", LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT,
                     layerType != typeof(MTEP.MotionTimelineLayer)))
@@ -1460,7 +1594,7 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineManager.RemoveLayers(layerType);
             }
 
-            view.currentPos.x = FRAME_LABEL_HEIGHT + comboWidth + usedArrowWidth + LAYER_BUTTON_WIDTH;
+            view.currentPos.x = comboWidth + usedArrowWidth + LAYER_BUTTON_WIDTH;
             view.currentPos.y = 0;
             _addLayerComboBox.currentIndex = -1;
             // 現在のメイドでまだ使っていない型を列挙する (スロット無しレイヤーは存在チェックのみ)。
@@ -1475,30 +1609,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             _addLayerComboBox.items = _addableLayerInfoList;
             _addLayerComboBox.DrawButton(view);
-        }
-
-        /// <summary>
-        /// 表示モードの切替ボタン。現在のモードのアイコンを出し、押すともう一方へ切り替える。
-        /// アイコンテクスチャの生成に失敗した場合は 1 文字のテキストボタンにフォールバックする
-        /// </summary>
-        private void DrawViewModeButton(GUIView view, bool isCategoryMode)
-        {
-            var kind = isCategoryMode ? ToolbarIcons.Kind.CategoryMode : ToolbarIcons.Kind.LayerMode;
-            var tooltip = isCategoryMode ? "カテゴリモード" : "レイヤーモード";
-            var icon = ToolbarIcons.GetTexture(kind);
-
-            var clicked = icon != null
-                ? view.DrawTextureButton(icon, FRAME_LABEL_HEIGHT, FRAME_LABEL_HEIGHT, MODE_ICON_OFFSET, tooltip: tooltip)
-                : view.DrawButton(isCategoryMode ? "カ" : "レ", FRAME_LABEL_HEIGHT, FRAME_LABEL_HEIGHT);
-            if (!clicked)
-            {
-                return;
-            }
-
-            timelineConfig.layerViewMode = isCategoryMode
-                ? MTEP.TimelineLayerViewMode.Layer
-                : MTEP.TimelineLayerViewMode.Category;
-            timelineConfig.dirty = true;
         }
 
         /// <summary>現在の MouseDown がダブルクリックの 2 回目か</summary>
@@ -1738,29 +1848,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndScrollView();
 
-            DrawRowStateControls(view, tc);
-
-            // メニュー幅の変更ボタン (下のカーブツールバーと重ならないようボーンメニュー下端に置く)
-            view.currentPos.x = view.viewRect.width - RESIZE_BUTTON_SIZE;
-            view.currentPos.y = curvePaneTop - RESIZE_BUTTON_SIZE;
-
-            var buttonRect = view.GetDrawRect(RESIZE_BUTTON_SIZE, RESIZE_BUTTON_SIZE);
-            if (buttonRect.Contains(Event.current.mousePosition) ||
-                _menuWidthDraggableInfo.isDragging)
-            {
-                view.DrawDraggableButton("□", RESIZE_BUTTON_SIZE, RESIZE_BUTTON_SIZE,
-                    _menuWidthDraggableInfo,
-                    new Vector2(tc.menuWidth, 0f),
-                    null,
-                    value =>
-                {
-                    tc.menuWidth = (int)value.x;
-                    tc.menuWidth = Mathf.Clamp(tc.menuWidth, MIN_MENU_WIDTH, MAX_MENU_WIDTH);
-
-                    requestUpdateTexture = true;
-                    tc.dirty = true;
-                });
-            }
+            DrawRowStateControls(view);
 
             // カーブエディタのツールバー (ボーンメニュー下の左カラム)
             var curveEditor = TimelineCurveEditor.instance;

@@ -14,7 +14,7 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int WINDOW_ID = 8903386;
 
         protected override int windowId => WINDOW_ID;
-        protected override string windowTitle => "タイムラインロード";
+        protected override string windowTitle => "TLロード";
 
         private static readonly int ROW_HEIGHT = 20;
         /// <summary>タイルの幅。高さはサムネの縦横比から決める。

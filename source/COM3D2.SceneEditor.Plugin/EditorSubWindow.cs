@@ -468,7 +468,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool isResizing => _resize.isResizing;
 
-        public ResizeCursor.Kind desiredCursorKind =>
+        public virtual ResizeCursor.Kind desiredCursorKind =>
             _resize.GetCursorKind(
                 _windowRect, isWndVisible && gameViewManager.isWindowMode && !isLocked, windowId);
 
