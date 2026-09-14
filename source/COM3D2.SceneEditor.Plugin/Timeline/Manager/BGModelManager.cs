@@ -134,14 +134,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void LateUpdate()
         {
-            var bgObject = this.bgObject;
-
-            if (bgObject != _prevBgObject)
+            if (SyncToCurrentBg())
             {
-                Reset();
-                SetupModelInfo();
                 SetupModels(timeline.bgModels);
             }
+        }
+
+        /// <summary>
+        /// 現在の背景オブジェクトへ列挙を同期する。背景が切り替わっていれば
+        /// 旧背景の子を掴んだままにならないよう列挙し直し、true を返す。
+        /// 個数合わせ (SetupModels) は行わないので、呼び出し側が目的の一覧で 1 回だけ呼ぶこと
+        /// (ここで timeline.bgModels を使うと、プリセット適用時に無関係な複製の生成・破棄が一瞬走る)。
+        /// LateUpdate はタイムライン有効時しか回らないため、シーンプリセットの適用は
+        /// 背景適用の後にこれを直接呼ぶ
+        /// </summary>
+        public bool SyncToCurrentBg()
+        {
+            var bgObject = this.bgObject;
+            if (bgObject == _prevBgObject)
+            {
+                // タイムライン未読込で一度も列挙していない場合の初回列挙 (列挙済みなら no-op)
+                SetupModelInfo();
+                return false;
+            }
+
+            Reset();
+            SetupModelInfo();
+            // Reset が _prevBgObject を null にするため、ここで立て直さないと
+            // 次の LateUpdate が再度 Reset して適用済みの transform を初期値へ戻してしまう
+            _prevBgObject = bgObject;
+            return true;
         }
 
         public void SetupModels(List<TimelineBGModelData> modelDataList)
