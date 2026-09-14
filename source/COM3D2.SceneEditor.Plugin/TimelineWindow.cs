@@ -1635,6 +1635,24 @@ namespace COM3D2.SceneEditor.Plugin
                             boneMenuManager.SelectLayerMenuItems(headerLayer, isMultiSelect);
                         });
 
+                    // [A] ボタンはアクティブレイヤーの行のみ (編集はアクティブレイヤーに束縛)
+                    if (MTEP.SceneEditorHack.isPoseEditing && isActiveLayerRow)
+                    {
+                        view.InvokeActionOnMouse(
+                            menuWidth - 20,
+                            20,
+                            _ =>
+                            {
+                                view.currentPos.x = menuWidth - 20;
+
+                                // レイヤー内の全ボーンをまとめてキーフレーム登録する
+                                if (view.DrawButton("A", 20, 20))
+                                {
+                                    currentLayer.AddKeyFrameAll();
+                                }
+                            });
+                    }
+
                     continue;
                 }
 
