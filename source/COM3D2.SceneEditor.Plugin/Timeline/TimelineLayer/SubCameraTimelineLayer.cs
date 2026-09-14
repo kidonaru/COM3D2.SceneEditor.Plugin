@@ -156,10 +156,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 t);
 
             // VP もタンジェントを持つので、他の値と同じ補間にそろえる
-            var viewportValues = PluginUtils.HermiteValues(
+            var viewportRect = PluginUtils.HermiteRect(
                 t0, t1, start.viewportValues, end.viewportValues, t);
-            var viewportRect = new Rect(
-                viewportValues[0], viewportValues[1], viewportValues[2], viewportValues[3]);
 
             cameraData.position = position;
             cameraData.rotation = Quaternion.Euler(eulerAngles);

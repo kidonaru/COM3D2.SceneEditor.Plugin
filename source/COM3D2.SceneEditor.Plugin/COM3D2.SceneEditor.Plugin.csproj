@@ -256,6 +256,7 @@
     <Compile Include="Manager\History\CameraSnapshot.cs" />
     <Compile Include="Manager\History\PlacementSnapshot.cs" />
     <Compile Include="Manager\History\PngPlacementSnapshot.cs" />
+    <Compile Include="Manager\History\LiveEffectSnapshot.cs" />
     <Compile Include="Manager\History\SnapshotFactory.cs" />
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />

@@ -104,6 +104,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return new Rect(values[0].value, values[1].value, values[2].value, values[3].value);
         }
 
+        public static Rect ToRect(this float[] values)
+        {
+            if (values.Length != 4)
+            {
+                MTEUtils.LogError("ToRect: 不正なfloat配列です length={0}", values.Length);
+                return Rect.zero;
+            }
+            return new Rect(values[0], values[1], values[2], values[3]);
+        }
+
         public static void FromRect(this ValueData[] values, Rect rect)
         {
             if (values.Length != 4)

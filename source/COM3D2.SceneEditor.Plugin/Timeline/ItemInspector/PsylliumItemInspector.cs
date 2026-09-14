@@ -25,7 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
         {
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("サイリウム"));
 
             foreach (var item in items)
             {

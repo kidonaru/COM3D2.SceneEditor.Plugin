@@ -262,6 +262,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ).ToVector4();
         }
 
+        // Rectの補間 (x, y, width, height の順)
+        public static Rect HermiteRect(
+            float t0,
+            float t1,
+            ValueData[] start,
+            ValueData[] end,
+            float t)
+        {
+            return HermiteValues(
+                t0,
+                t1,
+                start,
+                end,
+                t
+            ).ToRect();
+        }
+
         // Colorの補間
         public static Color HermiteColor(
             float t0,

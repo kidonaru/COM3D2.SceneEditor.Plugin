@@ -212,6 +212,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// 一覧が空なら番号の代わりに「<label>が存在しません」を描いて null を返す。
         /// 増減ボタンは空でも描くので、対象が 0 個になっても追加できる
         /// </summary>
+        /// <summary>
+        /// ボタン操作を「履歴へ記録してから実行する」形に包む。
+        /// GUIView.DrawButton は onBeforeValueChanged を通さないため、
+        /// 増減ボタンのコールバックはこれを通して記録する
+        /// </summary>
+        private static Action Recorded(string label, Action action)
+        {
+            return () =>
+            {
+                LiveEffectSnapshot.RecordEdit(label);
+                action();
+            };
+        }
+
         private static T DrawTargetTabs<T>(
             GUIView view, string label, IList<T> items, ref int index,
             Action onAdd = null, Action onRemove = null) where T : class
@@ -352,22 +366,22 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", stageLightManager.controllers, ref _lightControllerIndex,
-                () => stageLightManager.AddController(true),
-                () => stageLightManager.RemoveController(true));
+                Recorded("ライトコントローラー追加", () => stageLightManager.AddController(true)),
+                Recorded("ライトコントローラー削除", () => stageLightManager.RemoveController(true)));
             if (controller == null) return;
 
             // 一括タブではライトを選ばないが、増減ボタンと番号 (本数の目安) はここに出す
             DrawTargetTabs(
                 view, "ライト", controller.lights, ref _lightIndex,
-                () => stageLightManager.AddLight(controller.groupIndex, true),
-                () => stageLightManager.RemoveLight(controller.groupIndex, true));
+                Recorded("ライト追加", () => stageLightManager.AddLight(controller.groupIndex, true)),
+                Recorded("ライト削除", () => stageLightManager.RemoveLight(controller.groupIndex, true)));
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("ライト一括"));
 
             _lightRowDrawer.DrawControllerRows(view, controller, controller.name);
 
@@ -381,15 +395,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", stageLightManager.controllers, ref _lightControllerIndex,
-                () => stageLightManager.AddController(true),
-                () => stageLightManager.RemoveController(true));
+                Recorded("ライトコントローラー追加", () => stageLightManager.AddController(true)),
+                Recorded("ライトコントローラー削除", () => stageLightManager.RemoveController(true)));
             if (controller == null) return;
 
             var lights = controller.lights;
             var light = DrawTargetTabs(
                 view, "ライト", lights, ref _lightIndex,
-                () => stageLightManager.AddLight(controller.groupIndex, true),
-                () => stageLightManager.RemoveLight(controller.groupIndex, true));
+                Recorded("ライト追加", () => stageLightManager.AddLight(controller.groupIndex, true)),
+                Recorded("ライト削除", () => stageLightManager.RemoveLight(controller.groupIndex, true)));
 
             if (light == null) return;
             if (light.transform == null)
@@ -404,7 +418,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("ライト"));
 
             _lightRowDrawer.DrawLightRows(view, controller, light, light.name);
 
@@ -417,7 +431,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToLight != null && copyToLight != light)
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("ライトのコピー");
                         copyToLight.CopyFrom(light);
                     }
                 }
@@ -472,22 +486,22 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", stageLaserManager.controllers, ref _laserControllerIndex,
-                () => stageLaserManager.AddController(true),
-                () => stageLaserManager.RemoveController(true));
+                Recorded("レーザーコントローラー追加", () => stageLaserManager.AddController(true)),
+                Recorded("レーザーコントローラー削除", () => stageLaserManager.RemoveController(true)));
             if (controller == null) return;
 
             // 一括タブではレーザーを選ばないが、増減ボタンと番号 (本数の目安) はここに出す
             DrawTargetTabs(
                 view, "レーザー", controller.lasers, ref _laserIndex,
-                () => stageLaserManager.AddLaser(controller.groupIndex, true),
-                () => stageLaserManager.RemoveLaser(controller.groupIndex, true));
+                Recorded("レーザー追加", () => stageLaserManager.AddLaser(controller.groupIndex, true)),
+                Recorded("レーザー削除", () => stageLaserManager.RemoveLaser(controller.groupIndex, true)));
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("レーザー一括"));
 
             _laserRowDrawer.DrawControllerRows(view, controller, controller.name);
 
@@ -500,7 +514,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToController != null && copyToController != controller)
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("レーザーコントローラーのコピー");
                         copyToController.CopyFrom(controller);
                         copyToController.UpdateLasers();
                     }
@@ -520,15 +534,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", stageLaserManager.controllers, ref _laserControllerIndex,
-                () => stageLaserManager.AddController(true),
-                () => stageLaserManager.RemoveController(true));
+                Recorded("レーザーコントローラー追加", () => stageLaserManager.AddController(true)),
+                Recorded("レーザーコントローラー削除", () => stageLaserManager.RemoveController(true)));
             if (controller == null) return;
 
             var lasers = controller.lasers;
             var laser = DrawTargetTabs(
                 view, "レーザー", lasers, ref _laserIndex,
-                () => stageLaserManager.AddLaser(controller.groupIndex, true),
-                () => stageLaserManager.RemoveLaser(controller.groupIndex, true));
+                Recorded("レーザー追加", () => stageLaserManager.AddLaser(controller.groupIndex, true)),
+                Recorded("レーザー削除", () => stageLaserManager.RemoveLaser(controller.groupIndex, true)));
 
             if (laser == null) return;
             if (laser.transform == null)
@@ -543,7 +557,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("レーザー"));
 
             _laserRowDrawer.DrawLaserRows(view, controller, laser, laser.name);
 
@@ -556,7 +570,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToLaser != null && copyToLaser != laser)
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("レーザーのコピー");
                         copyToLaser.CopyFrom(laser);
                     }
                 }
@@ -635,8 +649,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
-                () => psylliumManager.AddController(true),
-                () => psylliumManager.RemoveController(true));
+                Recorded("サイリウムコントローラー追加", () => psylliumManager.AddController(true)),
+                Recorded("サイリウムコントローラー削除", () => psylliumManager.RemoveController(true)));
             if (controller == null) return;
 
             view.DrawHorizontalLine(Color.gray);
@@ -644,7 +658,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("サイリウム"));
 
             _psylliumRowDrawer.DrawControllerRows(view, controller);
 
@@ -657,7 +671,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToController != null && copyToController != controller)
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("サイリウムコントローラーのコピー");
                         copyToController.CopyFrom(controller);
                         copyToController.Refresh();
                     }
@@ -674,8 +688,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
-                () => psylliumManager.AddController(true),
-                () => psylliumManager.RemoveController(true));
+                Recorded("サイリウムコントローラー追加", () => psylliumManager.AddController(true)),
+                Recorded("サイリウムコントローラー削除", () => psylliumManager.RemoveController(true)));
             if (controller == null) return;
 
             view.DrawHorizontalLine(Color.gray);
@@ -683,7 +697,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("サイリウム バー設定"));
 
             _psylliumRowDrawer.DrawBarConfigRows(view, controller, controller.barConfig.name);
 
@@ -697,8 +711,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
-                () => psylliumManager.AddController(true),
-                () => psylliumManager.RemoveController(true));
+                Recorded("サイリウムコントローラー追加", () => psylliumManager.AddController(true)),
+                Recorded("サイリウムコントローラー削除", () => psylliumManager.RemoveController(true)));
             if (controller == null) return;
 
             view.DrawHorizontalLine(Color.gray);
@@ -706,7 +720,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("サイリウム 持ち手設定"));
 
             _psylliumRowDrawer.DrawHandConfigRows(view, controller);
 
@@ -720,14 +734,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
-                () => psylliumManager.AddController(true),
-                () => psylliumManager.RemoveController(true));
+                Recorded("サイリウムコントローラー追加", () => psylliumManager.AddController(true)),
+                Recorded("サイリウムコントローラー削除", () => psylliumManager.RemoveController(true)));
             if (controller == null) return;
 
             var pattern = DrawTargetTabs(
                 view, "パターン", controller.patterns, ref _patternIndex,
-                () => psylliumManager.AddPattern(controller.groupIndex, true),
-                () => psylliumManager.RemovePattern(controller.groupIndex, true));
+                Recorded("サイリウムパターン追加", () => psylliumManager.AddPattern(controller.groupIndex, true)),
+                Recorded("サイリウムパターン削除", () => psylliumManager.RemovePattern(controller.groupIndex, true)));
 
             if (pattern == null) return;
 
@@ -736,7 +750,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("サイリウム パターン"));
 
             var patternConfig = pattern.patternConfig;
             var updateTransform = false;
@@ -832,7 +846,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToPattern != null && copyToPattern != pattern)
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("サイリウムパターンのコピー");
                         copyToPattern.patternConfig.CopyFrom(patternConfig);
                         controller.ManualUpdate(psylliumPlayingTime);
                     }
@@ -967,7 +981,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (copyToPattern != null && copyToPattern != pattern)
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("サイリウム移動回転のコピー");
                         copyToPattern.transformConfig.CopyFrom(transformConfig);
                         copyToPattern.ClearTransformData();
                         copyToPattern.ApplyTransformData(transformConfig);
@@ -985,15 +999,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             var controller = DrawTargetTabs(
                 view, "コントローラー", psylliumManager.controllers, ref _psylliumControllerIndex,
-                () => psylliumManager.AddController(true),
-                () => psylliumManager.RemoveController(true));
+                Recorded("サイリウムコントローラー追加", () => psylliumManager.AddController(true)),
+                Recorded("サイリウムコントローラー削除", () => psylliumManager.RemoveController(true)));
             if (controller == null) return;
 
             var areas = controller.areas;
             var area = DrawTargetTabs(
                 view, "エリア", areas, ref _areaIndex,
-                () => psylliumManager.AddArea(controller.groupIndex, true),
-                () => psylliumManager.RemoveArea(controller.groupIndex, true));
+                Recorded("サイリウムエリア追加", () => psylliumManager.AddArea(controller.groupIndex, true)),
+                Recorded("サイリウムエリア削除", () => psylliumManager.RemoveArea(controller.groupIndex, true)));
 
             if (area == null) return;
             if (area.transform == null)
@@ -1008,7 +1022,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginScrollView();
 
-            view.BeginAutoEditMode();
+            view.BeginAutoEditMode(() => LiveEffectSnapshot.RecordEdit("サイリウム エリア"));
 
             _psylliumRowDrawer.DrawAreaRows(view, area);
 
@@ -1023,14 +1037,14 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         if (copyToArea != null && copyToArea != area)
                         {
-                                AutoEditMode.Enter();
+                            LiveEffectSnapshot.RecordEdit("サイリウムエリアのコピー");
                             copyToArea.CopyFrom(area, timelineConfig.psylliumAreaCopyIgnoreTransform);
                         }
                     }
 
                     if (view.DrawButton("全エリアにコピー", 120, 20))
                     {
-                        AutoEditMode.Enter();
+                        LiveEffectSnapshot.RecordEdit("サイリウムエリアの全コピー");
 
                         foreach (var a in areas)
                         {

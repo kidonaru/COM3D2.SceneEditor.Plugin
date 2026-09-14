@@ -37,6 +37,8 @@
         Sound,
         /// <summary>動画全本 (本数含む)</summary>
         Video,
+        /// <summary>ライブ演出 (ステージライト・レーザー・サイリウムの全体状態)</summary>
+        LiveEffect,
     }
 
     public static class HistoryScopeUtils
@@ -71,6 +73,7 @@
                 case HistoryScope.SubCamera:
                 case HistoryScope.Sound:
                 case HistoryScope.Video:
+                case HistoryScope.LiveEffect:
                     return false;
                 default:
                     return true;

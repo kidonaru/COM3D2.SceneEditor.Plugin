@@ -1067,11 +1067,8 @@ namespace COM3D2.SceneEditor.Plugin
             var tangents = channel.GetTangents(keyIndex, isOut);
             var normalized = tangents.Length > 0 ? tangents[0].normalizedValue : 0f;
 
-            float baseSlopePerFrame;
-            if (!TryGetBaseSlopePerFrame(channel, keyIndex, isOut, out baseSlopePerFrame))
-            {
-                baseSlopePerFrame = 0f;
-            }
+            // 失敗時は 0 が入る (隣接キー無し・単一フレーム区間・勾配 0)
+            TryGetBaseSlopePerFrame(channel, keyIndex, isOut, out var baseSlopePerFrame);
 
             var slopePerFrame = normalized * baseSlopePerFrame;
             var pxPerValue = _mapping.paneHeight / (_mapping.valueMax - _mapping.valueMin);

@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;   // GUIView の名前空間 (GUIView.cs:6)
 
 namespace COM3D2.SceneEditor.Plugin
@@ -13,6 +14,18 @@ namespace COM3D2.SceneEditor.Plugin
         {
             view.SetEnabled(view.focusedComboBox == null);
             view.onBeforeValueChanged = AutoEditMode.Enter;
+        }
+
+        /// <summary>
+        /// 値変更の直前フックを差し替えるオーバーロード。
+        /// 履歴を記録してから編集モードへ入りたい区間で使う
+        /// (HistoryManager.BeforeEdit は内部で AutoEditMode.Enter を呼ぶため、
+        /// onBeforeEdit が記録を行うなら Enter を重ねて呼ぶ必要はない)
+        /// </summary>
+        public static void BeginAutoEditMode(this GUIView view, Action onBeforeEdit)
+        {
+            view.SetEnabled(view.focusedComboBox == null);
+            view.onBeforeValueChanged = onBeforeEdit;
         }
 
         public static void EndAutoEditMode(this GUIView view)
