@@ -386,6 +386,53 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>左右で対になる固定タイプ。ポーズ反転に合わせて状態を入れ替える</summary>
+        private static readonly MaidIKHoldType[,] FlipPairs =
+        {
+            { MaidIKHoldType.Arm_L_Joint, MaidIKHoldType.Arm_R_Joint },
+            { MaidIKHoldType.Arm_L_Tip, MaidIKHoldType.Arm_R_Tip },
+            { MaidIKHoldType.Foot_L_Joint, MaidIKHoldType.Foot_R_Joint },
+            { MaidIKHoldType.Foot_L_Tip, MaidIKHoldType.Foot_R_Tip },
+        };
+
+        /// <summary>
+        /// 固定状態を左右反転する (ポーズ反転に追随させる)。
+        /// 固定 ON / アニメ指定と足の接地フラグを L↔R で入れ替え、目標位置は反転後の
+        /// ボーン位置から取り直させる (古い位置のままだと反転前のポーズへ引き戻される)。
+        /// 固定を一度も使っていないメイドはエントリが無いため何もしない。
+        /// フラグを直接入れ替えるため SetHold のモーション停止は通らない。
+        /// 呼び出し側で停止させておくこと (停止していないと固定が効かない)
+        /// </summary>
+        public void FlipHolds(Maid maid)
+        {
+            MaidEntry entry;
+            if (maid == null || !_entries.TryGetValue(maid, out entry))
+            {
+                return;
+            }
+
+            for (var i = 0; i < FlipPairs.GetLength(0); i++)
+            {
+                var left = entry.entities[(int)FlipPairs[i, 0]];
+                var right = entry.entities[(int)FlipPairs[i, 1]];
+
+                var isHold = left.isHold;
+                left.isHold = right.isHold;
+                right.isHold = isHold;
+
+                var isAnime = left.isAnime;
+                left.isAnime = right.isAnime;
+                right.isAnime = isAnime;
+            }
+
+            var holdParams = entry.holdParams;
+            var isGroundingFootL = holdParams.isGroundingFootL;
+            holdParams.isGroundingFootL = holdParams.isGroundingFootR;
+            holdParams.isGroundingFootR = isGroundingFootL;
+
+            ResetAllTargetPositions(maid);
+        }
+
         public void ResetTargetPosition(Maid maid, MaidIKHoldType type)
         {
             MaidEntry entry;

@@ -278,6 +278,12 @@ namespace COM3D2.SceneEditor.Plugin
                     HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                         "ポーズ反転", PoseSnapshot.GetAllBodyBones(maid));
                     MaidPoseFlipper.Flip(maid);
+
+                    // IK 固定も左右を入れ替える。ポーズの書き戻し後に記録するのは、
+                    // 先に別スコープの BeforeEdit を挟むとポーズ側が変更前のまま確定してしまうため
+                    // (IK 固定を使っていなければ変化なしとして履歴には積まれない)
+                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.IK, "IK固定反転");
+                    maidManager.ikHoldController.FlipHolds(maid);
                 }
 
                 // 崩したポーズを復帰先 (停止前のモーション / 読み込んだポーズ) で元に戻すリセット
