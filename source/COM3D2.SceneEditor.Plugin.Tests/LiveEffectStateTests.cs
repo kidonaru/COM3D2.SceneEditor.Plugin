@@ -41,6 +41,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             psylliumController.barConfig.baseScale = 2f;
             psylliumController.areas.Add(new PsylliumAreaConfig());
             psylliumController.patterns.Add(new LiveEffectPsylliumPatternState());
+            var placement = new PsylliumPlacement { areaIndex = 0, name = "arena" };
+            placement.points.Add(new PsylliumPlacementPoint { x = 1f, y = 0f, z = 2f, yaw = 90f });
+            psylliumController.placements.Add(placement);
             state.psylliumControllers.Add(psylliumController);
 
             return state;
@@ -68,6 +71,16 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var a = BuildSample();
             var b = BuildSample();
             b.psylliumControllers[0].barConfig.baseScale = 3f;
+
+            Assert.False(PresetDtoUtils.AreEqual(a, b));
+        }
+
+        [Fact]
+        public void サイリウム配置の違いも検出できる()
+        {
+            var a = BuildSample();
+            var b = BuildSample();
+            b.psylliumControllers[0].placements[0].points[0].yaw = 45f;
 
             Assert.False(PresetDtoUtils.AreEqual(a, b));
         }

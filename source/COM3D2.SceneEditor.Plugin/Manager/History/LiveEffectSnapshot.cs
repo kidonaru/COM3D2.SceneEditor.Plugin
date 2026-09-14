@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
@@ -92,6 +93,9 @@ namespace COM3D2.SceneEditor.Plugin
         public PsylliumHandConfig handConfig = new PsylliumHandConfig();
         public List<PsylliumAreaConfig> areas = new List<PsylliumAreaConfig>();
         public List<LiveEffectPsylliumPatternState> patterns = new List<LiveEffectPsylliumPatternState>();
+
+        /// <summary>メッシュ配置。areaIndex で対象エリアを指す。無いエリアは矩形配置</summary>
+        public List<PsylliumPlacement> placements = new List<PsylliumPlacement>();
     }
 
     /// <summary>
@@ -264,6 +268,13 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (area == null) continue;
                     dto.areas.Add(area.areaConfig.Clone());
+
+                    if (area.placement != null)
+                    {
+                        var placement = area.placement.Clone();
+                        placement.areaIndex = area.index;
+                        dto.placements.Add(placement);
+                    }
                 }
 
                 foreach (var pattern in controller.patterns)
@@ -416,6 +427,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     areaCount = dto.areas.Count,
                     patternCount = dto.patterns.Count,
+                    placements = dto.placements.Select(p => p.Clone()).ToList(),
                 });
             }
             psylliumManager.Setup(datas);
