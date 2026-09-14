@@ -7,7 +7,7 @@ using UnityEngine;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     // MTE 原本の priority 21 は ModelTimelineLayer と重複するため SE では 25 に変更
-    [TimelineLayerDesc("サブカメラ", 25, TimelineLayerCategory.Camera)]
+    [TimelineLayerDesc("サブカメラ", 25, TimelineLayerCategory.Camera, CanRestoreOnRemove = false)]
     public class SubCameraTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(SubCameraTimelineLayer);
@@ -43,15 +43,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SubCameraManager.onCameraRemoved += OnCameraRemoved;
         }
 
+        /// <summary>SubCameraManager は MinSubCameraCount を下回れないので、残る 1 台は消せない</summary>
+        public override void ResetOnRemove()
+        {
+            subCameraManager.SetCameraCount(SubCameraManager.MinSubCameraCount);
+        }
+
         public override void Dispose()
         {
             base.Dispose();
 
             SubCameraManager.onCameraAdded -= OnCameraAdded;
             SubCameraManager.onCameraRemoved -= OnCameraRemoved;
-
-            // レイヤー削除はシーン上の実体を変えない (全レイヤー共通)。
-            // サブカメラの削除は Camera ウィンドウの「サブカメラ数」で行う
         }
 
         public void OnCameraAdded(SubCameraData cameraData)

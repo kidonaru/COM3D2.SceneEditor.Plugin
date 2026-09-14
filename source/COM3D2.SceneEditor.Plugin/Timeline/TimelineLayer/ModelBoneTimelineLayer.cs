@@ -9,7 +9,7 @@ using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("モデルボーン", 22, TimelineLayerCategory.Model)]
+    [TimelineLayerDesc("モデルボーン", 22, TimelineLayerCategory.Model, CanRestoreOnRemove = false)]
     public partial class ModelBoneTimelineLayer : ModelTimelineLayerBase
     {
         public override Type layerType => typeof(ModelBoneTimelineLayer);
@@ -75,6 +75,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
 
                     setMenuItem.AddChild(new ModelBoneMenuItem(bone.name, bone.transform.name));
+                }
+            }
+        }
+
+        /// <summary>モデル自体は消さない (実体はモデルレイヤーが持つ)</summary>
+        public override void ResetOnRemove()
+        {
+            foreach (var model in modelManager.models)
+            {
+                foreach (var bone in model.bones)
+                {
+                    if (bone == null || bone.transform == null)
+                    {
+                        continue;
+                    }
+
+                    bone.transform.localPosition = bone.initialPosition;
+                    bone.transform.localRotation = bone.initialRotation;
+                    bone.transform.localScale = bone.initialScale;
                 }
             }
         }

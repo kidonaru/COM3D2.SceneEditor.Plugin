@@ -327,6 +327,7 @@
     <Compile Include="PostEffectRowDrawer.cs" />
     <Compile Include="TimelinePrevKeyUtils.cs" />
     <Compile Include="TimelineLayerGateText.cs" />
+    <Compile Include="TimelineLayerBaselineStore.cs" />
     <Compile Include="TimelineLayerGate.cs" />
     <Compile Include="TimelineLayerGateHost.cs" />
     <Compile Include="TimelineLookRowDrawer.cs" />
@@ -573,6 +574,7 @@
     <Compile Include="Timeline\TimelineLayer\UndressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\VoiceTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayerInfo.cs" />
+    <Compile Include="Timeline\TimelineLayerRestorePolicy.cs" />
     <Compile Include="Timeline\TimelineLayerRowState.cs" />
     <Compile Include="Timeline\TimelineLayerViewFilter.cs" />
     <Compile Include="Timeline\TimelineLayerXml.cs" />

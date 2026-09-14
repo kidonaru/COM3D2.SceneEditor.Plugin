@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("モデルマテリアル", 24, TimelineLayerCategory.Model)]
+    [TimelineLayerDesc("モデルマテリアル", 24, TimelineLayerCategory.Model, CanRestoreOnRemove = false)]
     public partial class ModelMaterialTimelineLayer : ModelTimelineLayerBase
     {
         public override Type layerType => typeof(ModelMaterialTimelineLayer);
@@ -78,6 +78,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                     var menuItem = new BoneMenuItem(material.name, material.displayName);
                     setMenuItem.AddChild(menuItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// マテリアルを読み込んだ時点の色・値へ戻す
+        /// </summary>
+        public override void ResetOnRemove()
+        {
+            foreach (var model in modelManager.models)
+            {
+                foreach (var material in model.materials)
+                {
+                    material.Reset();
                 }
             }
         }

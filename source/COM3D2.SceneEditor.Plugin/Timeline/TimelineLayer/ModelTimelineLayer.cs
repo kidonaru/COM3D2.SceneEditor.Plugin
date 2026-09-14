@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("モデル", 21, TimelineLayerCategory.Model)]
+    [TimelineLayerDesc("モデル", 21, TimelineLayerCategory.Model, CanRestoreOnRemove = false)]
     public class ModelTimelineLayer : ModelTimelineLayerBase
     {
         public override Type layerType => typeof(ModelTimelineLayer);
@@ -42,6 +42,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var menuItem = new BoneMenuItem(model.name, model.displayName);
                 allMenuItems.Add(menuItem);
             }
+        }
+
+        public override void ResetOnRemove()
+        {
+            timeline.models.Clear();
+            modelManager.SetupModels(timeline.models);
         }
 
         public override void Dispose()

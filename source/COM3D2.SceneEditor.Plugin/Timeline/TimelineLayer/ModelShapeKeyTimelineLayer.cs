@@ -9,7 +9,7 @@ using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("モデルシェイプ", 23, TimelineLayerCategory.Model)]
+    [TimelineLayerDesc("モデルシェイプ", 23, TimelineLayerCategory.Model, CanRestoreOnRemove = false)]
     public partial class ModelShapeKeyTimelineLayer : ModelTimelineLayerBase
     {
         public override Type layerType => typeof(ModelShapeKeyTimelineLayer);
@@ -76,6 +76,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                     setMenuItem.AddChild(new BoneMenuItem(blendShape.name, blendShape.shapeKeyName));
                 }
+            }
+        }
+
+        /// <summary>重みの初期値は 0 (読込直後の値)</summary>
+        public override void ResetOnRemove()
+        {
+            foreach (var model in modelManager.models)
+            {
+                foreach (var blendShape in model.blendShapes)
+                {
+                    blendShape.weight = 0f;
+                }
+                model.FixBlendValues();
             }
         }
 

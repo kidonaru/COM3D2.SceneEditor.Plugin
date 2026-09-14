@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("ステージライト", 42, TimelineLayerCategory.Effect)]
+    [TimelineLayerDesc("ステージライト", 42, TimelineLayerCategory.Effect, CanRestoreOnRemove = false)]
     public class StageLightTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(StageLightTimelineLayer);
@@ -76,6 +76,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     setMenuItem.AddChild(menuItem);
                 }
             }
+        }
+
+        /// <summary>
+        /// 本数の定義はタイムライン側にあるので、空にしてから作り直させると実体が消える
+        /// </summary>
+        public override void ResetOnRemove()
+        {
+            timeline.stageLightCountList.Clear();
+            stageLightManager.SetupLights(timeline.stageLightCountList);
         }
 
         public override void Dispose()

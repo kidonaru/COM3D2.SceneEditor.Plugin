@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("サイリウム", 44, TimelineLayerCategory.Effect)]
+    [TimelineLayerDesc("サイリウム", 44, TimelineLayerCategory.Effect, CanRestoreOnRemove = false)]
     public class PsylliumTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(PsylliumTimelineLayer);
@@ -117,6 +117,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var menuItem2 = new BoneMenuItem(pattern.transformConfig.name, pattern.transformConfig.displayName);
                 transformSetMenuItem.AddChild(menuItem2);
             }
+        }
+
+        public override void ResetOnRemove()
+        {
+            timeline.psylliums.Clear();
+            psylliumManager.Setup(timeline.psylliums);
         }
 
         public override void Dispose()

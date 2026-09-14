@@ -35,6 +35,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// ビュー側の表示状態を初期化してよい切替かどうかの判定に使う
         /// </summary>
         public int timelineSessionId { get; private set; }
+
+        /// <summary>
+        /// レイヤーが生まれた時点のシーン断面。レイヤー削除時にここへ戻す。
+        /// タイムラインのセッション単位で捨てる (ResetTimelineState)
+        /// </summary>
+        private readonly SE.TimelineLayerBaselineStore _layerBaselineStore
+            = new SE.TimelineLayerBaselineStore();
         public HashSet<BoneData> selectedBones = new HashSet<BoneData>();
         private int prevPlayingFrameNo = -1;
         public string errorMessage = "";
@@ -205,6 +212,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 try
                 {
                     layer.Update();
+                    MergeGrownLayerBaseline(layer);
                 }
                 catch (Exception e)
                 {
@@ -323,8 +331,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private void ResetTimelineState()
         {
+            // 破棄するレイヤーを後始末してから捨てる。
+            // ここを通らない ClearTimeline (undo/redo の UpdateTimeline、
+            // シーン切替の OnChangedSceneLevel) では後始末しない
+            CleanupAllLayersOnRemove();
+
             ClearTimeline();
             historyManager.ClearHistory();
+            _layerBaselineStore.Clear();
             timelineSessionId++;
             currentLayerIndex = 0;
         }
@@ -365,6 +379,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             mte.OnLoad();
             PostEffectsClient.ShowTimelineMode();
             _timeline.LayerInit();
+            CaptureAllLayerBaselines();
 
             CreateAndApplyAnmAll();
             Refresh();
@@ -424,6 +439,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 // undo/redo の UpdateTimeline では呼ばない。ユーザーが選んだタブを奪わないため
                 PostEffectsClient.ShowTimelineMode();
                 _timeline.LayerInit();
+                CaptureAllLayerBaselines();
 
                 _usingLayerInfoList = null;
                 _unusingLayerInfoList = null;
@@ -1678,6 +1694,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             SetCurrentLayer(newLayer);
             newLayer.Init();
+            CaptureLayerBaseline(newLayer);
             newLayer.CreateAndApplyAnm();
 
             if (partsEditHack != null)
@@ -1696,6 +1713,173 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 RemoveLayer(layer);
             }
+        }
+
+        /// <summary>
+        /// レイヤーが今見ているシーンの値を 1 キー分の断面として控える。
+        /// 呼ぶのは Init 済み・まだ適用前の一点だけ。適用後に呼ぶと
+        /// 「タイムラインが書いた値」を基準にしてしまい復元の意味が無くなる
+        /// </summary>
+        private void CaptureLayerBaseline(ITimelineLayer layer)
+        {
+            if (layer == null || !TimelineLayerRestorePolicy.CanRestoreOnRemove(layer.layerType))
+            {
+                return;
+            }
+
+            var frame = layer.CreateFrame(0);
+            layer.UpdateFrame(frame);
+            _layerBaselineStore.Set(layer.layerType, layer.slotNo, frame.ToXml());
+
+            var boneNames = layer.allBoneNames;
+            _layerBaselineStore.SetCoverage(
+                layer.layerType, layer.slotNo, boneNames != null ? boneNames.Count : 0);
+        }
+
+        /// <summary>
+        /// レイヤーが見ている対象が増えたときの積み増し。
+        /// モデルやステージライトのように実体をレイヤーより後から足せるものは、
+        /// 誕生時の断面に 1 本も入らない。増えた項目はまだこのレイヤーに
+        /// 駆動されていないので、今の値がそのまま戻すべき基準になる。
+        /// 毎フレーム呼ぶので、対象数が変わっていなければ辞書引きだけで帰る
+        /// </summary>
+        private void MergeGrownLayerBaseline(ITimelineLayer layer)
+        {
+            if (layer == null || !TimelineLayerRestorePolicy.CanRestoreOnRemove(layer.layerType))
+            {
+                return;
+            }
+
+            var boneNames = layer.allBoneNames;
+            if (boneNames == null)
+            {
+                return;
+            }
+
+            // 対象が減ってから同数まで戻る場合もあるので、増減どちらでも取り直す
+            if (boneNames.Count == _layerBaselineStore.GetCoverage(layer.layerType, layer.slotNo))
+            {
+                return;
+            }
+
+            // 誕生時の断面が無いレイヤー (undo/redo 由来) には積まない。
+            // この時点の値は既にタイムラインが書いたもので、基準にすると復元が嘘になる
+            FrameXml baseline;
+            if (!_layerBaselineStore.TryGet(layer.layerType, layer.slotNo, out baseline))
+            {
+                return;
+            }
+
+            var frame = layer.CreateFrame(0);
+            layer.UpdateFrame(frame, false, true);
+            _layerBaselineStore.Merge(layer.layerType, layer.slotNo, frame.ToXml(), boneNames);
+            _layerBaselineStore.SetCoverage(layer.layerType, layer.slotNo, boneNames.Count);
+        }
+
+        /// <summary>
+        /// タイムラインを捨てる直前に全レイヤーを後始末する。
+        /// アンロード・別タイムラインの読込・新規作成で呼ぶ。
+        /// これを通さないと、前のタイムラインが増やした実体が残るし、
+        /// 次に控える断面も「前のタイムラインが書いた値」へずれていく
+        /// </summary>
+        private void CleanupAllLayersOnRemove()
+        {
+            foreach (var layer in layers)
+            {
+                CleanupLayerOnRemove(layer);
+            }
+        }
+
+        /// <summary>読込・新規作成の直後に全レイヤー分の断面を控える</summary>
+        private void CaptureAllLayerBaselines()
+        {
+            foreach (var layer in layers)
+            {
+                CaptureLayerBaseline(layer);
+            }
+        }
+
+        /// <summary>
+        /// 追跡系レイヤーが対象を増やしたときの積み増し。
+        /// 追加された項目はまだこのレイヤーに駆動されていないので、
+        /// 今の値がそのまま「レイヤーが触り始める直前」の基準になる
+        /// </summary>
+        public void MergeLayerBaseline(
+            ITimelineLayer layer, FrameXml frameXml, List<string> boneNames)
+        {
+            if (layer == null || !TimelineLayerRestorePolicy.CanRestoreOnRemove(layer.layerType))
+            {
+                return;
+            }
+
+            _layerBaselineStore.Merge(layer.layerType, layer.slotNo, frameXml, boneNames);
+        }
+
+        /// <summary>
+        /// 控えた断面をシーンへ書き戻す。キーを 1 本だけにしてから anm を組み直す。
+        /// 末尾には _dummyLastFrame が積まれるので区間が 1 本でき、
+        /// 現在フレームがどこでも定数値として適用される。
+        /// Dispose は _keyFrames と _dummyLastFrame を捨てるので、必ずその前に呼ぶこと
+        /// </summary>
+        private void RestoreLayerBaseline(ITimelineLayer layer)
+        {
+            if (layer == null || !TimelineLayerRestorePolicy.CanRestoreOnRemove(layer.layerType))
+            {
+                return;
+            }
+
+            FrameXml frameXml;
+            if (!_layerBaselineStore.TryGet(layer.layerType, layer.slotNo, out frameXml))
+            {
+                // undo/redo で生えたレイヤーには断面が無い。シーンは触らず現状のままにする
+                MTEUtils.LogDebug("復元する断面がありません: {0}", layer.layerName);
+                return;
+            }
+
+            // FromXml は keyFrames しか読まないので className / slotNo は設定しない
+            var xml = new TimelineLayerXml();
+            xml.keyFrames.Add(frameXml);
+
+            // 復元の失敗で呼び出し元を止めない。ここで抜けると
+            // レイヤーの Dispose やタイムラインの破棄が実行されず中途半端な状態になる
+            try
+            {
+                layer.FromXml(xml);
+                layer.CreateAndApplyAnm();
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+                MTEUtils.LogError("レイヤーの状態復元に失敗しました: {0}", layer.layerName);
+            }
+        }
+
+        /// <summary>
+        /// レイヤーを捨てる直前の後始末。実体の始末はレイヤーに任せ、
+        /// 値の復元は宣言に従う。ライトのように両方走るレイヤーもある
+        /// (追加ライトを消してからメインライトの値を戻す)。
+        /// Dispose は _keyFrames と _dummyLastFrame を捨てるので、必ずその前に呼ぶこと
+        /// </summary>
+        private void CleanupLayerOnRemove(ITimelineLayer layer)
+        {
+            if (layer == null)
+            {
+                return;
+            }
+
+            // 後始末の失敗で呼び出し元を止めない。ここで抜けると
+            // レイヤーの Dispose やタイムラインの破棄が実行されず中途半端な状態になる
+            try
+            {
+                layer.ResetOnRemove();
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+                MTEUtils.LogError("レイヤーの後始末に失敗しました: {0}", layer.layerName);
+            }
+
+            RestoreLayerBaseline(layer);
         }
 
         public void RemoveLayer(ITimelineLayer layer)
@@ -1721,6 +1905,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 選択はレイヤーをまたいで保持するので、削除レイヤーのボーンを残さない
             // (残すと破棄済みレイヤーへ CleanFrames/ApplyCurrentFrame が飛ぶ)
             selectedBones.RemoveWhere(bone => bone.parentLayer == layer);
+
+            // レイヤーが書き換えていたものを片付ける。
+            // 実体ごと捨てるか値を戻すかはレイヤーごとに決まる
+            CleanupLayerOnRemove(layer);
 
             layer.Dispose();
             timeline.RemoveLayer(layer);

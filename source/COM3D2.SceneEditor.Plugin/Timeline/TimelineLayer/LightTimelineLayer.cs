@@ -45,6 +45,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 追加ライトだけ消す。index 0 のメインライトはゲーム側の恒久オブジェクトで
+        /// 消せないため残し、値は断面復元に任せる。
+        /// lights が空でも SetupLights は DeleteLightInternal の index ガードで
+        /// メインライトを残すので、ここでは Count > 1 のときだけ削れば足りる
+        /// </summary>
+        public override void ResetOnRemove()
+        {
+            if (timeline.lights.Count > 1)
+            {
+                timeline.lights.RemoveRange(1, timeline.lights.Count - 1);
+            }
+            lightManager.SetupLights(timeline.lights);
+        }
+
         public override void Dispose()
         {
             base.Dispose();

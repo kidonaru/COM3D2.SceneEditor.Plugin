@@ -47,6 +47,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         List<IBoneMenuItem> allMenuItems { get; }
 
         void Init();
+
+        /// <summary>
+        /// レイヤー削除・アンロード時の後始末。実体ごと捨てるか既定値へ戻す。
+        /// 実体を持つレイヤーと、モデルに従属するレイヤーだけが実装する
+        /// </summary>
+        void ResetOnRemove();
+
         void Dispose();
         void Update();
         void LateUpdate();

@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("ステージレーザー", 43, TimelineLayerCategory.Effect)]
+    [TimelineLayerDesc("ステージレーザー", 43, TimelineLayerCategory.Effect, CanRestoreOnRemove = false)]
     public class StageLaserTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(StageLaserTimelineLayer);
@@ -76,6 +76,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     setMenuItem.AddChild(menuItem);
                 }
             }
+        }
+
+        public override void ResetOnRemove()
+        {
+            timeline.stageLaserCountList.Clear();
+            stageLaserManager.SetupLasers(timeline.stageLaserCountList);
         }
 
         public override void Dispose()

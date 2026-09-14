@@ -228,6 +228,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected abstract void InitMenuItems();
 
+        /// <summary>既定では何もしない。実体を持つレイヤーだけが override する</summary>
+        public virtual void ResetOnRemove()
+        {
+        }
+
         public virtual void Dispose()
         {
             _keyFrames.Clear();

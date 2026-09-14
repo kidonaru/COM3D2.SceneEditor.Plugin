@@ -5,7 +5,7 @@ using System.Xml.Linq;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("メイドボイス", 14, TimelineLayerCategory.Maid)]
+    [TimelineLayerDesc("メイドボイス", 14, TimelineLayerCategory.Maid, CanRestoreOnRemove = false)]
     public partial class VoiceTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(VoiceTimelineLayer);

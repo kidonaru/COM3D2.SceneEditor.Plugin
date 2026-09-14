@@ -14,7 +14,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// SE に対応機能が無い値 (Inversion / StopRotation / FixCamera / Attach / APng 系等) は
     /// XML には保持するが適用しない。billboard は per-frame 値でないため対象外
     /// </summary>
-    [TimelineLayerDesc("PNG配置", 35, TimelineLayerCategory.Background)]
+    [TimelineLayerDesc("PNG配置", 35, TimelineLayerCategory.Background, CanRestoreOnRemove = false)]
     public class PngPlacementTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(PngPlacementTimelineLayer);
@@ -51,6 +51,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var menuItem = new BoneMenuItem(pngObject.name, pngObject.name);
                 allMenuItems.Add(menuItem);
             }
+        }
+
+        /// <summary>
+        /// PngObjectTimelineManager.Setup は追加専用なので、
+        /// SE 側の実体を直接捨ててから対応表を作り直させる
+        /// </summary>
+        public override void ResetOnRemove()
+        {
+            timeline.pngObjects.Clear();
+            sePngManager.ClearAll();
+            pngTimelineManager.RebuildIfChanged();
         }
 
         public override void Dispose()

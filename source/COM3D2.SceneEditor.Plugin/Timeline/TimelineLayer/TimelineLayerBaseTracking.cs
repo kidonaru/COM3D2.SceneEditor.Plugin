@@ -181,6 +181,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // 追加された項目はまだこのレイヤーに駆動されていない。
+            // キーを打つ前の今の値が、レイヤー削除時に戻すべき基準になる
+            timelineManager.MergeLayerBaseline(this, tmpFrame.ToXml(), boneNames);
+
             UpdateBones(0, bones);
             ApplyCurrentFrame(true);
 

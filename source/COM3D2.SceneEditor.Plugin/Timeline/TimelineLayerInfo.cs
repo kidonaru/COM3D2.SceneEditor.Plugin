@@ -25,6 +25,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int Priority { get; set; }
         public TimelineLayerCategory Category { get; set; }
 
+        /// <summary>
+        /// レイヤー削除時に「レイヤーが生まれた時点」のシーン状態へ戻すか。
+        /// 適用が再生トリガや非同期の着替えを起こすレイヤーは false にする
+        /// </summary>
+        public bool CanRestoreOnRemove { get; set; } = true;
+
         public TimelineLayerDescAttribute(string displayName, int priority, TimelineLayerCategory category)
         {
             DisplayName = displayName;

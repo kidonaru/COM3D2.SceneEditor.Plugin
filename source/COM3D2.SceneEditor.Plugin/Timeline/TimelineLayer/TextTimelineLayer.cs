@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [TimelineLayerDesc("テキスト", 53, TimelineLayerCategory.Other)]
+    [TimelineLayerDesc("テキスト", 53, TimelineLayerCategory.Other, CanRestoreOnRemove = false)]
     public class TextTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(TextTimelineLayer);
@@ -52,6 +52,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 allMenuItems.Add(new BoneMenuItem(boneName, boneName));
             }
+        }
+
+        /// <summary>textCount の setter はタイムライン未読込時の自前値も同時に更新する</summary>
+        public override void ResetOnRemove()
+        {
+            textManager.textCount = 1;
+            textManager.ReleaseTexts();
         }
 
         public override bool IsValidData()
