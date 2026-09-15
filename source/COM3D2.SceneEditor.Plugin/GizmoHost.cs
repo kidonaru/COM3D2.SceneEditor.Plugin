@@ -89,7 +89,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 指定カメラのビューでギズモを表示してよいか。
-        /// SceneView ツールバーのギズモ表示とメニューバーの「ボーン表示」の AND で、
+        /// 自前ギズモと同じ条件 (GizmoRenderer.isDrawEnabled: SceneView はツールバーのギズモ表示、
+        /// GameView はさらにメニューバーの「ボーン表示」との AND) で、
         /// 外部ギズモも自前ギズモと同時に消えるようにするための問い合わせ口。
         /// プラグイン未起動時と、ホストが駆動していないカメラ (standalone の Camera.main や
         /// ウィンドウモードのまま非表示になった GameView のカメラ) では true を返し、

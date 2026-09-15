@@ -238,6 +238,8 @@ namespace COM3D2.SceneEditor.Plugin
             // GameView はゲーム本来の見え方を保ちたいため選択枠は出さない (SceneView のみ)
             gizmoRenderer.showSelectionBounds = false;
             gizmoRenderer.showLightGizmos = false;
+            // 編集モード外・ボーン表示 OFF ではギズモも出さない (SceneView はツールバー連動のみ)
+            gizmoRenderer.followsBoneVisibility = true;
             gizmoRenderer.isHostActive = IsGizmoHostActive;
 
             boneLineRenderer = camera.gameObject.AddComponent<BoneLineRenderer>();

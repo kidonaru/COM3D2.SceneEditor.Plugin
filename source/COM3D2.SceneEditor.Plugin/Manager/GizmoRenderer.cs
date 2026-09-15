@@ -157,11 +157,20 @@ namespace COM3D2.SceneEditor.Plugin
         public bool drawEnabled = true;
 
         /// <summary>
-        /// 実際に描画・ドラッグを許すか。ツールバーのギズモ表示 (drawEnabled) と
-        /// メニューバーの「ボーン表示」トグルの AND。
-        /// ボーンだけでなくオブジェクト用ギズモもまとめて消せるようにするため連動させている
+        /// メニューバーの編集モード・「ボーン表示」トグルにギズモ表示を連動させるか。
+        /// GameView はゲーム本来の見え方を保つため true にし、編集モード外や
+        /// ボーン表示 OFF ではオブジェクト・メイドルートのギズモも消す。
+        /// SceneView は常時編集用のビューなので false のまま、ツールバーのギズモ表示 (drawEnabled) だけに従う
         /// </summary>
-        public bool isDrawEnabled => drawEnabled && MaidManipulateManager.instance.isBoneVisible;
+        public bool followsBoneVisibility;
+
+        /// <summary>
+        /// 実際に描画・ドラッグを許すか。ツールバーのギズモ表示 (drawEnabled) に、
+        /// followsBoneVisibility のビューではメニューバーの「ボーン表示」トグルを AND する
+        /// </summary>
+        public bool isDrawEnabled =>
+            drawEnabled
+            && (!followsBoneVisibility || MaidManipulateManager.instance.isBoneVisible);
 
         public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
@@ -257,15 +266,23 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// メイドルートのギズモを隠すか。
-        /// ボーンギズモ・白丸ドラッグ点と同じく編集モード＋ボーン表示 (isBoneEditing) 中だけ出す。
-        /// 編集モード外はレイヤーが毎フレーム再生値を書き戻すため、動かしても巻き戻るだけになる。
+        /// メイドルートのギズモを出してよいか。
+        /// followsBoneVisibility のビュー (GameView) ではボーンギズモ・白丸ドラッグ点と同じく
+        /// 編集モード＋ボーン表示 (isBoneEditing) 中だけ出す。
+        /// SceneView では常に出す。編集モード外で掴んでも RecordGizmoDragHistory 経由の
+        /// HistoryManager.BeforeEdit が AutoEditMode.Enter を呼ぶため、レイヤーの書き戻しで巻き戻ることはない
+        /// </summary>
+        private bool canShowMaidRoot =>
+            !followsBoneVisibility || MaidManipulateManager.instance.isBoneEditing;
+
+        /// <summary>
+        /// メイドルートのギズモを隠すか (canShowMaidRoot の対象判定つき)。
         /// ライト等その他のオブジェクトはレイヤー管理外なのでこの制限をかけない
         /// </summary>
-        private static bool ShouldHideMaidRoot(GameObject go)
+        private bool ShouldHideMaidRoot(GameObject go)
         {
             return go != null
-                && !MaidManipulateManager.instance.isBoneEditing
+                && !canShowMaidRoot
                 && go.GetComponent<Maid>() != null;
         }
 
@@ -353,7 +370,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// メイドルート用ギズモの対象を組み直す。
-        /// 編集モード中であれば、ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
+        /// 出せる状態 (canShowMaidRoot) なら、ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
         /// (ボーンを触っている間に他のメイドを動かせなくなるのを避ける)。
         /// ボーン用ギズモと重なった場合は TryBeginDrag が _gizmo を先に試すので
         /// ボーン側が優先され、掴み間違いにはならない
@@ -367,8 +384,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 選択中メイドと同じく、編集モード外はメイドルートのギズモを出さない
-            if (!MaidManipulateManager.instance.isBoneEditing)
+            // 選択中メイドと同じ条件でメイドルートのギズモを出す
+            if (!canShowMaidRoot)
             {
                 return;
             }
