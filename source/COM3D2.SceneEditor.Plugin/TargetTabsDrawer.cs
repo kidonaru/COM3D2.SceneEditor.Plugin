@@ -22,9 +22,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>操作対象の増減ボタンの幅 (「追加」「削除」が収まる幅)</summary>
         private const float EditButtonWidth = 50f;
 
+        /// <summary>対象が 0 個のときに出す案内ラベルの幅</summary>
+        private const float EmptyLabelWidth = 200f;
+
         /// <summary>
-        /// 末尾の番号タブと「追加」ボタンの間隔。
-        /// 番号を押すつもりで「追加」を踏むのを防ぐため、通常の margin より広く空ける
+        /// 末尾の番号タブと「追加」ボタンの最小間隔。
+        /// 番号を押すつもりで「追加」を踏むのを防ぐため、通常の margin より広く空ける。
+        /// ボタンは行の右端へ寄せるため、通常はこれより広く空く
         /// </summary>
         private const float EditButtonGap = 20f;
 
@@ -84,11 +88,19 @@ namespace COM3D2.SceneEditor.Plugin
                 if (count > 0)
                 {
                     DrawNumberTabs(view, count, ref index, rowHeight, buttonsWidth);
+                }
+                else
+                {
+                    view.DrawLabel(label + "が存在しません", EmptyLabelWidth, rowHeight);
+                }
 
-                    if (buttonCount > 0)
-                    {
-                        view.AddSpace(EditButtonGap, rowHeight);
-                    }
+                if (buttonCount > 0)
+                {
+                    // 最小間隔を先に入れ、余りがあればボタンを行の右端へ寄せる
+                    view.AddSpace(EditButtonGap, rowHeight);
+                    view.AddRightAlignSpace(
+                        buttonCount * EditButtonWidth + (buttonCount - 1) * view.margin,
+                        rowHeight);
                 }
 
                 if (onAdd != null && view.DrawButton("追加", EditButtonWidth, rowHeight, canAdd))
@@ -99,11 +111,6 @@ namespace COM3D2.SceneEditor.Plugin
                     view.DrawButton("削除", EditButtonWidth, rowHeight, canRemove && count > 0))
                 {
                     onRemove();
-                }
-
-                if (count == 0)
-                {
-                    view.DrawLabel(label + "が存在しません", 200, rowHeight);
                 }
             }
             view.EndLayout();
