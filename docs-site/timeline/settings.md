@@ -39,6 +39,7 @@
 | `動画先読み秒数` | 0.5 | 動画の先読み時間（0〜1） |
 | `背景透過度` | 0.5 | グリッド背景の不透明度 |
 | `自動スクロール` | OFF | 再生中に現在フレームを追ってスクロールする |
+| `カテゴリ表示` | ON | グリッドにアクティブレイヤーと同じカテゴリのレイヤーを全て並べる（[表示モード](/timeline/window#表示モード)） |
 | `処理時間出力` | OFF | 処理時間をログに出す（デバッグ用） |
 
 ## トラックタブ
@@ -54,10 +55,10 @@
 | `isAutoKeyFrame` | `true` | `タイムライン操作` の `自動登録` |
 | `isCameraSync` / `isFixedFoV` / `isFixedFocus` / `isPostEffectSync` | `true` / `false` / `false` / `true` | `タイムライン操作` の各トグル |
 | `frameWidth` / `frameHeight` / `frameNoInterval` | 11 / 20 / 5 | グリッドの 1 フレーム幅、行の高さ、目盛り間隔 |
-| `menuWidth` | 100 | ボーンメニューの幅（`□` ドラッグでも変更可） |
+| `menuWidth` | 100 | ボーンメニューの幅（右辺の境界線ドラッグでも変更可） |
 | `thumWidth` / `thumHeight` | 256 / 192 | サムネイルのサイズ |
 | `detailTransformCount` / `detailTangentCount` | 16 / 32 | キーフレーム詳細で表示するブロック数と、補間曲線プレビューに重ねる曲線数の上限 |
-| `isCurveEditorOpen` / `curveEditorHeight` | `false` / 150 | カーブエディタの開閉と高さ |
+| `isCurveEditorOpen` / `curveEditorHeight` | `false` / 150 | カーブエディタの開閉と高さ（高さは上辺の境界線ドラッグでも変更可） |
 | `scaleLinked` | `false` | 拡縮行の XYZ 連動 |
 | `timelineBgColor1` などの色 | — | グリッド・メニュー・選択範囲・カーブの各色 |
 

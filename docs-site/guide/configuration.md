@@ -123,7 +123,8 @@
 |---|---|---|
 | `scenePresetSaveCamera` | `true` | 保存ダイアログの「カメラ」の既定状態 |
 | `scenePresetSaveMaids` | `true` | 保存ダイアログの「メイド」の既定状態 |
-| `scenePresetSaveBackground` | `true` | 保存ダイアログの「背景」（背景・ライト・PNG 配置）の既定状態 |
+| `scenePresetSaveBackground` | `true` | 保存ダイアログの「背景」（背景・ライト・PNG 配置・背景モデル）の既定状態 |
+| `scenePresetSaveEffects` | `true` | 保存ダイアログの「演出」（テキスト・サブカメラ・サウンド・動画・ライブ演出）の既定状態 |
 | `scenePresetDisabledProviders` | 空 | 保存ダイアログで OFF にした連携プラグイン項目（id のカンマ区切り） |
 | `scenePresetAutoLoadKey` | 空 | 事務所シーンで自動ロードするプリセット |
 | `scenePresetAutoLoadOnceOnly` | `false` | 自動ロードをセッション中 1 回のみにする |
