@@ -21,13 +21,10 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int MENU_BUTTON_MARGIN = 2;
         // 最長ラベル (「ウィンドウ表示」) が収まる幅
         public static readonly int TOGGLE_BUTTON_WIDTH = 110;
-        public static readonly int ITEM_HEIGHT = 22;
+        // 行高・枠幅はコンボボックスのドロップダウンと共通にする (バー上のボタンも同じ高さ)
+        public static readonly int ITEM_HEIGHT = GUIView.POPUP_ITEM_HEIGHT;
+        public static readonly int FRAME = GUIView.POPUP_FRAME;
         public static readonly int POPUP_WIDTH = 140;
-        public static readonly int FRAME = 2;
-        /// <summary>IMGUI 既定の縦スクロールバー幅。項目幅の差し引きに使う</summary>
-        public static readonly int SCROLLBAR_WIDTH = 16;
-        // ポップアップ項目のホバー色。label スタイルはホバー反応を持たないため自前で塗る
-        public static readonly Color ITEM_HOVER_COLOR = new Color(1f, 1f, 1f, 0.15f);
 
         private static Config config => ConfigManager.instance.config;
 
@@ -514,7 +511,7 @@ namespace COM3D2.SceneEditor.Plugin
             var y = _windowRect.y + BAR_HEIGHT;
 
             // 項目数が画面高を超えた分はスクロールで辿れるため、ここでは画面内に収める
-            var height = Mathf.Min(GetPopupContentHeight(menuIndex) + FRAME * 2, Screen.height);
+            var height = Mathf.Min(GetPopupHeight(_menus[menuIndex].items), Screen.height);
 
             // バーが画面端にあってもポップアップが画面外へ出ないようクランプ
             x = Mathf.Clamp(x, 0, Screen.width - POPUP_WIDTH);
@@ -523,16 +520,10 @@ namespace COM3D2.SceneEditor.Plugin
             return new Rect(x, y, POPUP_WIDTH, height);
         }
 
-        /// <summary>枠を除いた項目リスト全体の高さ</summary>
-        private float GetPopupContentHeight(int menuIndex)
+        /// <summary>枠込みのポップアップ高さ (ポップアップ・サブポップアップ共通)</summary>
+        private static float GetPopupHeight(MenuItem[] items)
         {
-            return GetContentHeight(_menus[menuIndex].items);
-        }
-
-        /// <summary>枠を除いた項目リスト全体の高さ (ポップアップ・サブポップアップ共通)</summary>
-        private static float GetContentHeight(MenuItem[] items)
-        {
-            return ITEM_HEIGHT * CountVisibleItems(items);
+            return GUIView.GetPopupHeight(CountVisibleItems(items));
         }
 
         private void DrawPopup(int id)
@@ -585,21 +576,8 @@ namespace COM3D2.SceneEditor.Plugin
             Action<int, MenuItem> onClick, Action<int, MenuItem> onHover = null)
         {
             view.Init(0, 0, POPUP_WIDTH, windowHeight);
-            // 枠の内側からスクロール領域を始める。padding だとスクロール内の
-            // 項目座標にも加算されてずれるため、currentPos で位置だけ寄せる
-            view.currentPos = new Vector2(FRAME, FRAME);
 
-            var viewWidth = POPUP_WIDTH - FRAME * 2;
-            var viewHeight = view.viewRect.height - FRAME * 2;
-            var contentHeight = GetContentHeight(items);
-
-            // 収まらないときはスクロールバーが出る分だけ項目を狭め、横スクロールを出さない
-            var itemWidth = contentHeight > viewHeight
-                ? viewWidth - SCROLLBAR_WIDTH
-                : viewWidth;
-
-            view.BeginScrollView(viewWidth, viewHeight,
-                new Rect(0, 0, itemWidth, contentHeight), false, false);
+            var itemWidth = view.BeginPopupList(CountVisibleItems(items));
             {
                 var row = 0;
                 foreach (var item in items)
@@ -609,40 +587,29 @@ namespace COM3D2.SceneEditor.Plugin
                         continue;
                     }
 
-                    // label スタイルはホバー反応を持たないため自前で塗る。
-                    // GetDrawRect は currentPos を進めないので直後のボタンと同じ矩形になる
-                    var rect = view.GetDrawRect(itemWidth, ITEM_HEIGHT);
-                    if (rect.Contains(Event.current.mousePosition))
-                    {
-                        view.BeginColor(ITEM_HOVER_COLOR);
-                        GUI.DrawTexture(rect, Texture2D.whiteTexture);
-                        view.EndColor();
-
-                        if (onHover != null)
-                        {
-                            onHover(row, item);
-                        }
-                    }
-
+                    var name = item.label + (item.buildSubItems != null ? " ▸" : "");
+                    bool isHover;
                     // 連続で切り替えられるよう、クリックしてもメニューは閉じない
-                    var label = (item.isOn() ? "✓ " : "    ") + item.label
-                        + (item.buildSubItems != null ? " ▸" : "");
-                    if (view.DrawButton(label, itemWidth, ITEM_HEIGHT, true, null, GUIView.gsLabel))
+                    if (view.DrawPopupRow(name, item.isOn(), itemWidth, out isHover))
                     {
                         onClick(row, item);
+                    }
+                    else if (isHover && onHover != null)
+                    {
+                        onHover(row, item);
                     }
 
                     row++;
                 }
             }
-            view.EndScrollView();
+            view.EndPopupList();
         }
 
         /// <summary>サブポップアップの矩形。親項目の右横に出し、入り切らなければ左側へ出す</summary>
         private Rect GetSubPopupRect()
         {
             var popupRect = GetPopupRect(_openMenuIndex);
-            var height = Mathf.Min(GetContentHeight(_subItems) + FRAME * 2, Screen.height);
+            var height = Mathf.Min(GetPopupHeight(_subItems), Screen.height);
 
             var x = popupRect.x + POPUP_WIDTH;
             var y = popupRect.y + FRAME
