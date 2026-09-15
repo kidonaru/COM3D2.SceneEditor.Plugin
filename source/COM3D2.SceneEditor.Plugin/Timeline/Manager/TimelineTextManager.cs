@@ -88,12 +88,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private GameObject _canvasObject = null;
         private readonly Dictionary<string, Font> _fontMap = new Dictionary<string, Font>();
 
-        /// <summary>
-        /// 字幕カメラ。所有は CameraManager で、未生成なら null。
-        /// 連番画像出力のようにカメラを手動描画する経路はこのカメラも描かないと字幕が写らない
-        /// </summary>
-        public Camera textCamera => cameraManager.createdTextCamera;
-
         public override void OnLoad()
         {
             InitTexts();

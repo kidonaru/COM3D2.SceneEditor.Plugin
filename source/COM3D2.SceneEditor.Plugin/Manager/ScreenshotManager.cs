@@ -257,40 +257,20 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// メインカメラの後に重ね描きするカメラ (前面カメラ = レターボックス・動画の最前面表示、
-        /// 字幕カメラ) を cameras へ足し、全体を depth 昇順に整える。
-        /// どちらもメインカメラのカリング対象外の専用カメラで描かれるため、
+        /// メインカメラの後に重ね描きするカメラ (最前面動画・字幕・ギズモ) を cameras へ足す。
+        /// どれもメインカメラのカリング対象外の専用カメラで描かれるため、
         /// 手動描画の経路がこれらを描かないと撮影結果に写らない。
-        /// cameras を呼び出し側が渡すのは、毎フレーム呼ぶ連番画像出力が
-        /// リストを使い回してアロケーションを避けられるようにするため
+        /// 列挙と depth 順は所有者の CameraManager に任せ、カメラが増えてもここは変えない
         /// </summary>
         internal static void AddExtraCameras(List<Camera> cameras)
         {
-            AddIfRenderable(cameras, MTEP.CameraManager.instance.createdFrontCamera);
-            AddIfRenderable(cameras, MTEP.TimelineTextManager.instance.textCamera);
-
-            // 画面表示と同じ重なりで合成するため、Unity の描画順と同じ depth 昇順に並べる
-            cameras.Sort(CameraDepthComparison);
-        }
-
-        private static readonly Comparison<Camera> CameraDepthComparison =
-            (a, b) => a.depth.CompareTo(b.depth);
-
-        /// <summary>
-        /// 前面カメラは無効化されうる・字幕カメラは未生成なら null になるため、
-        /// 実際に描かれるカメラだけを重ね描きの対象に加える
-        /// </summary>
-        private static void AddIfRenderable(List<Camera> cameras, Camera camera)
-        {
-            if (camera != null && camera.enabled)
-            {
-                cameras.Add(camera);
-            }
+            MTEP.CameraManager.instance.GetOverlayCameras(cameras);
         }
 
         /// <summary>
         /// 重ね描きカメラを順に描く。
-        /// いずれも clearFlags が Depth のため、メインカメラの描画結果の上に重なる
+        /// いずれも clearFlags が Depth のため、メインカメラの描画結果の上に重なる。
+        /// 通常描画と重なって撮影フレームだけ OnPostRender が 2 回走るが、一時的なコストなので許容する
         /// </summary>
         private static void RenderExtras(List<Camera> extraCameras)
         {
