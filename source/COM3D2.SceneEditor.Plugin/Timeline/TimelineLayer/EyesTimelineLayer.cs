@@ -242,6 +242,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
+            // 実体より多いメイド枠を持つタイムラインでは未配置スロットのレイヤーも作られる
+            var maidCache = this.maidCache;
+            if (maidCache == null) return;
+
             foreach (var eyesName in allBoneNames)
             {
                 var eyesType = EyesTypeMap[eyesName];
