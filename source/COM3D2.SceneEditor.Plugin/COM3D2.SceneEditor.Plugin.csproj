@@ -585,6 +585,7 @@
     <Compile Include="Timeline\TimelineLayerViewFilter.cs" />
     <Compile Include="Timeline\TimelineLayerXml.cs" />
     <Compile Include="Timeline\TimelineXml.cs" />
+    <Compile Include="Timeline\TimelineXmlDiff.cs" />
     <Compile Include="Timeline\TrackData.cs" />
     <Compile Include="Timeline\TransformData\ITransformData.cs" />
     <Compile Include="Timeline\TransformData\TransformDataAnimation.cs" />
