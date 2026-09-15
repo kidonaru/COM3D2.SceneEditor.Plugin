@@ -39,21 +39,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private static readonly int TextLayer = LayerMask.NameToLayer("UI");
 
-        /// <summary>
-        /// 字幕カメラの配置。SceneView のカメラは "UI" レイヤーも描くため、
-        /// シーンから遠く離してキャンバスが編集画面に映り込まないようにする
-        /// </summary>
-        private static readonly Vector3 CameraPosition = new Vector3(0f, -10000f, 0f);
-
-        /// <summary>PIP (サブカメラ) の後に描いて字幕を最前面にするための描画順オフセット</summary>
-        private const float CameraDepthOffset = 100f;
-
-        /// <summary>
-        /// キャンバスをカメラから離す距離。遠いほどキャンバスがワールド座標で大きくなり、
-        /// カメラを原点から離して置いても座標精度が落ちにくい
-        /// </summary>
-        private const float CanvasPlaneDistance = 100f;
-
         private static TimelineTextManager _instance;
         public static TimelineTextManager instance
         {
@@ -101,24 +86,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private GameObject _canvasObject = null;
-        private GameObject _cameraObject = null;
-        private Camera _camera = null;
         private readonly Dictionary<string, Font> _fontMap = new Dictionary<string, Font>();
 
         /// <summary>
-        /// 字幕カメラ。連番画像出力のようにカメラを手動描画する経路は、
-        /// このカメラも描かないと字幕が写らない
+        /// 字幕カメラ。所有は CameraManager で、未生成なら null。
+        /// 連番画像出力のようにカメラを手動描画する経路はこのカメラも描かないと字幕が写らない
         /// </summary>
-        public Camera textCamera => _camera;
+        public Camera textCamera => cameraManager.createdTextCamera;
 
         public override void OnLoad()
         {
             InitTexts();
-        }
-
-        public override void LateUpdate()
-        {
-            UpdateRenderTarget();
         }
 
         /// <summary>
@@ -198,13 +176,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 Object.Destroy(_canvasObject);
                 _canvasObject = null;
             }
-
-            if (_cameraObject != null)
-            {
-                Object.Destroy(_cameraObject);
-                _cameraObject = null;
-                _camera = null;
-            }
         }
 
         public bool IsValidIndex(int index)
@@ -244,7 +215,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             if (_canvasObject == null)
             {
-                CreateCanvasAndCamera();
+                CreateCanvas();
             }
 
             var obj = new GameObject("TimelineText" + index);
@@ -264,32 +235,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// 字幕用のキャンバスと専用カメラを作る。
+        /// 字幕用のキャンバスを作り、CameraManager の字幕カメラに紐付ける。
         /// GameView はメインカメラを RenderTexture に描いて表示しているため、
-        /// 同じ RT へ後乗せするカメラを立てて字幕を GameView 内に映す。
+        /// 同じ RT へ後乗せする専用カメラで字幕を GameView 内に映す。
         /// メインカメラに相乗りするとポストエフェクトの対象に入ってしまう
         /// </summary>
-        private void CreateCanvasAndCamera()
+        private void CreateCanvas()
         {
-            _cameraObject = new GameObject("TimelineTextCamera");
-            _cameraObject.transform.position = CameraPosition;
-            _cameraObject.transform.rotation = Quaternion.identity;
-
-            _camera = _cameraObject.AddComponent<Camera>();
-            _camera.cullingMask = 1 << TextLayer;
-            // 背景と 3D はメインカメラが描き終えているので、深度だけ消して上に重ねる
-            _camera.clearFlags = CameraClearFlags.Depth;
-            _camera.orthographic = false;
-            _camera.fieldOfView = 60f;
-            // HDR 有効のままだと Unity が中間の HDR バッファを挟み、
-            // LDR の GameView RT との往復で画面に黒点が焼き付く。
-            // 生成直後はメインカメラを取得できないことがあるため既定で切っておく
-            // (取得できればこの直後の UpdateRenderTarget がメインカメラへ揃え直す)
-            _camera.allowHDR = false;
-            _camera.nearClipPlane = 1f;
-            // キャンバス (planeDistance の位置) が確実に収まるよう余裕を持たせる
-            _camera.farClipPlane = CanvasPlaneDistance * 2f;
-
             _canvasObject = new GameObject("TimelineTextCanvas");
             _canvasObject.layer = TextLayer;
 
@@ -297,8 +249,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // worldCamera は renderMode と同時に必ず入れること。カメラ未設定のまま
             // 一度でも描画されたキャンバスに後からカメラを挿すと、字幕が左右反転する
             canvas.renderMode = RenderMode.ScreenSpaceCamera;
-            canvas.worldCamera = _camera;
-            canvas.planeDistance = CanvasPlaneDistance;
+            canvas.worldCamera = cameraManager.textCamera;
+            canvas.planeDistance = CameraManager.TextCanvasPlaneDistance;
             canvas.pixelPerfect = false;
             canvas.sortingOrder = 0;
 
@@ -308,41 +260,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0f;
             scaler.referencePixelsPerUnit = 100f;
-
-            UpdateRenderTarget();
-        }
-
-        /// <summary>
-        /// 描画先 (GameView の RenderTexture) と描画順をメインカメラへ追随させる。
-        /// GameView はウィンドウのリサイズで RT を作り直し、最大化中は RT を持たない
-        /// </summary>
-        private void UpdateRenderTarget()
-        {
-            if (_camera == null)
-            {
-                return;
-            }
-
-            var mainCamera = PluginUtils.MainCamera;
-            if (mainCamera == null)
-            {
-                return;
-            }
-
-            // 破棄済み RT は Unity の演算子オーバーロードで null と等価判定されるため、
-            // != 比較だと破棄済み参照の掃除がスキップされる。参照同一性で比較する
-            if (!ReferenceEquals(_camera.targetTexture, mainCamera.targetTexture))
-            {
-                _camera.targetTexture = mainCamera.targetTexture;
-            }
-
-            _camera.depth = mainCamera.depth + CameraDepthOffset;
-
-            // ゲーム側が HDR を切り替えると RT のフォーマットも変わるため、メインカメラへ揃える
-            if (_camera.allowHDR != mainCamera.allowHDR)
-            {
-                _camera.allowHDR = mainCamera.allowHDR;
-            }
         }
 
         private static List<string> GetOSFontNames()
