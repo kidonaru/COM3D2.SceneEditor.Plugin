@@ -57,3 +57,23 @@ Release 構成ではビルド前に Debug / Release 両方の Clean が実行さ
 
 ゲーム起動中は DLL がロックされているためデプロイに失敗しますが、警告を出すだけで
 ビルド自体は成功扱いになります。
+
+## アセットバンドル
+
+ペンライト・レーザー・ポストエフェクト・ステージライトのマテリアルやテクスチャは
+アセットバンドル `se_bundle` として DLL に埋め込んでいます（両構成共通）。
+
+| バンドル | 埋め込むファイル | ビルド元 |
+|---|---|---|
+| `se_bundle` | `Timeline\se_bundle` | `build-bundle.bat`（Unity 5.6.4f1、`UnityProject/`） |
+
+`UnityProject/Assets/Shaders/` と `Assets/Resources/` の全アセットが `se_bundle` に入ります。
+MTE 由来のシェーダに加え、SE で書き換えた体積円錐版のステージライト（シェーダ名 `SE/StageLight`）を含みます。
+Unity 5.6 でビルドしているため COM3D2 (2.0) でもそのまま読めます。
+
+シェーダやテクスチャを変更したら、Unity エディタで UnityProject を閉じた状態で
+`build-bundle.bat` を実行し、生成された `se_bundle` をコミットします。
+Unity のパスは `.env` の `UNITY_56_EXE` で変更できます。
+
+`UnityProject/Assets/Scripts/` の C# はエディタ上の見た目確認用のコピーで、
+正本は `source/COM3D2.SceneEditor.Plugin/Timeline/UnityScripts/` です。

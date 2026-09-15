@@ -90,11 +90,15 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private bool isActive
+        /// <summary>
+        /// 全グリッド共通の表示条件 (全体スイッチ・プラグイン有効・編集中のみ)。
+        /// 動画面グリッドと動画プレビューも同じ条件で出すため公開している
+        /// </summary>
+        public static bool isGridEnabled
         {
             get
             {
-                if (!config.isGridVisible || !SceneEditorPlugin.instance.isEnable || !isHostActive())
+                if (!config.isGridVisible || !SceneEditorPlugin.instance.isEnable)
                 {
                     return false;
                 }
@@ -103,6 +107,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return !config.isGridVisibleOnlyEdit || MaidManipulateManager.instance.isEditMode;
             }
         }
+
+        private bool isActive => isGridEnabled && isHostActive();
 
         private void OnPostRender()
         {

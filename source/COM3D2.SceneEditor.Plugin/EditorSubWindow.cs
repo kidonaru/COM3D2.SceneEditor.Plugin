@@ -41,6 +41,12 @@ namespace COM3D2.SceneEditor.Plugin
         protected virtual float contentTopMargin => 0f;
 
         /// <summary>
+        /// ウィンドウ全体に掛ける不透明度。1 で従来どおり不透明。
+        /// 枠ごと透かしたいウィンドウ (動画プレビュー) が下げる
+        /// </summary>
+        protected virtual float windowAlpha => 1f;
+
+        /// <summary>
         /// コンテンツの空き領域（どのコントロールも押下を消費しなかった場所）の
         /// 左ドラッグでウィンドウ移動を許可するか。コンテンツ全域が
         /// カメラ操作である SceneView は false にする
@@ -85,6 +91,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _tabTitles = titles;
             _tabActiveIndex = activeIndex;
+
+            if (titles == null)
+            {
+                // タブバーを描かなくなるとメニューを閉じる機会も失うのでここで閉じる
+                TabBarDrawer.CloseContextMenu(windowId);
+            }
         }
 
         /// <summary>
@@ -234,7 +246,24 @@ namespace COM3D2.SceneEditor.Plugin
 
             // グループ時はタブバーを自前描画するのでタイトルは空にする (push された状態で判定する)
             var title = _tabTitles != null ? "" : windowTitle;
-            _windowRect = GUI.Window(windowId, _windowRect, DrawWindow, title, GUIView.gsWin);
+
+            // 枠も中身もまとめて透かすため、ウィンドウの描画中だけ GUI.color を下げる
+            var prevColor = GUI.color;
+            GUI.color = WithAlpha(prevColor, prevColor.a * windowAlpha);
+            try
+            {
+                _windowRect = GUI.Window(windowId, _windowRect, DrawWindow, title, GUIView.gsWin);
+            }
+            finally
+            {
+                // 描画中に例外が出ても下げた不透明度を残さない (以降の全ウィンドウに波及するため)
+                GUI.color = prevColor;
+            }
+
+            // タブ切替メニューはホスト矩形にクリップされないよう別ウィンドウとして描く
+            TabBarDrawer.DrawContextMenuWindow(
+                windowId, _windowRect, _tabTitles, _tabActiveIndex,
+                index => TabGroupManager.instance.ActivateTabIndex(this, index));
 
             // 画面外へ出ないようクランプ。
             // 連結中はメンバー間のオフセットを壊さないよう個別クランプせず、
@@ -275,8 +304,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawDropHighlight();
 
-            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)
-            if (!isLocked)
+            // ロック中は移動・リサイズ・ドッキング起点の入力を受け付けない (誤動作防止)。
+            // タブ切替メニューを閉じたクリックも、そのままウィンドウを動かさないよう見送る
+            if (!isLocked && !TabBarDrawer.WasContextMenuClosedThisFrame(windowId))
             {
                 HandleDragInput(closeRect);
             }
@@ -288,6 +318,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private bool DrawHeaderButtons(Rect closeRect)
         {
+            TooltipDrawer.RegisterIfHovered(closeRect, "閉じる");
             // グループ時はアクティブタブだけを閉じる
             if (GUI.Button(closeRect, "x"))
             {
@@ -304,8 +335,9 @@ namespace COM3D2.SceneEditor.Plugin
                 LOCK_BUTTON_WIDTH,
                 CLOSE_BUTTON_HEIGHT);
             var oldColor = GUI.color;
-            // ロック中はアクセントカラーで塗って状態を示す
-            GUI.color = isLocked ? ACCENT_COLOR : Color.white;
+            // ロック中はアクセントカラーで塗って状態を示す (windowAlpha を消さないよう不透明度は引き継ぐ)
+            GUI.color = WithAlpha(isLocked ? ACCENT_COLOR : Color.white, oldColor.a);
+            TooltipDrawer.RegisterIfHovered(lockRect, DockableWindowBase.GetLockTooltip(isLocked));
             if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
             {
                 ToggleLock();
@@ -327,7 +359,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var oldColor = GUI.color;
-            GUI.color = WithAlpha(ACCENT_COLOR, 0.4f);
+            GUI.color = WithAlpha(ACCENT_COLOR, 0.4f * oldColor.a);
             GUI.DrawTexture(new Rect(0, 0, _windowRect.width, HEADER_HEIGHT), Texture2D.whiteTexture);
             GUI.color = oldColor;
         }
@@ -390,15 +422,35 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>グループ時のタブ列。描画は MTEUtils の TabBarDrawer と共通</summary>
         private void DrawTabBar()
         {
-            // タブ列がヘッダー右のボタン (閉じる + ロック) へ食い込まないよう、利用可能幅を先に確定する
-            var available = _windowRect.width - FRAME * 2
-                - (CLOSE_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN * 2)
-                - (LOCK_BUTTON_WIDTH + CLOSE_BUTTON_MARGIN);
+            // タブ列がヘッダー右のボタン (閉じる + ロック) へ食い込まないよう、
+            // 利用可能幅の算出は TabBarLayout へ集約している
+            var geo = new TabBarDrawer.Geometry
+            {
+                x = FRAME,
+                y = (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f,
+                headerHeight = HEADER_HEIGHT,
+                availableWidth = TabBarLayout.CalcAvailableWidth(_windowRect.width),
+            };
 
+            // スクロール位置はグループの状態。タブバーを描くのはアクティブな窓だけなので、
+            // 窓ごとに持つとタブ切替のたびに別の窓が覚えていた位置へ飛ぶ
+            var tabGroup = group;
+            var before = tabGroup != null ? tabGroup.tabScrollX : 0f;
+            var scrollX = before;
             TabBarDrawer.Draw(
-                _tabTitles, _tabActiveIndex,
-                FRAME, (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f, available,
-                (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos));
+                windowId, _tabTitles, _tabActiveIndex, geo,
+                ref scrollX,
+                (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos),
+                index => TabGroupManager.instance.ActivateTabIndex(this, index));
+
+            // 描画中のコールバック (タブ切替) がグループ側を書き換えていたらそちらが新しい。
+            // 無条件に書き戻すと、切替に伴う「見切れたタブへの寄せ」を古い位置で潰してしまう。
+            // この比較が成立するのは、コールバック (OnTabPressed / ActivateTabIndex) が
+            // Draw の中から同期的に TabGroup.PushTabBarState まで到達するため
+            if (tabGroup != null && tabGroup.tabScrollX == before)
+            {
+                tabGroup.tabScrollX = scrollX;
+            }
         }
 
         /// <summary>スクリーンGUI座標がリサイズのつかみ範囲上にあるか</summary>
@@ -416,7 +468,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool isResizing => _resize.isResizing;
 
-        public ResizeCursor.Kind desiredCursorKind =>
+        public virtual ResizeCursor.Kind desiredCursorKind =>
             _resize.GetCursorKind(
                 _windowRect, isWndVisible && gameViewManager.isWindowMode && !isLocked, windowId);
 
@@ -477,6 +529,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             isShowWnd = false;
             _resize.Cancel();
+            // 非表示中は DrawWindow が回らずメニューを閉じられないため先に閉じる
+            TabBarDrawer.CloseContextMenu(windowId);
             // モード終了時の片付け。保存済みのグループ構成は次回復元用に残す
             TabGroupManager.instance.RemoveFromGroup(this, save: false);
             WindowConnectManager.instance.OnWindowHidden(this, save: false);

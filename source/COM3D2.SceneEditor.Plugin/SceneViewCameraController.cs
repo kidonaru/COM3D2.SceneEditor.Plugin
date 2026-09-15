@@ -1,17 +1,24 @@
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// ゲーム内カメラ (UltimateOrbitCamera) と同じ操作感の SceneView カメラ操作。
-    /// 右ドラッグ (または Alt+左ドラッグ) で注視点周りを回転 + WASD/QE で注視点移動、
-    /// 中ドラッグでパン (注視点の平行移動)、ホイールズーム、F で選択対象へフォーカス。
+    /// 右ドラッグで注視点周りを回転、中ドラッグでパン (注視点の平行移動)、ホイールズーム、F で選択対象へフォーカス。
     /// 回転は速度への減衰 (慣性)、ズーム・注視点移動は目標値への Lerp でイージングし、
     /// パラメータは実機の UltimateOrbitCamera から採取した値に合わせている
     /// </summary>
     public class SceneViewCameraController
     {
         private readonly Transform _transform;
+
+        /// <summary>
+        /// メイド追従の設定。追従中は注視点が追従点 + オフセットになり、
+        /// 向き反映時はヨーが「メイドの向き + ヨーオフセット」になる。
+        /// コントローラは再生成されるため、状態は SceneViewWindow が保持して注入する
+        /// </summary>
+        public MTEP.MaidFollowState follow = new MTEP.MaidFollowState();
 
         // 注視点。_targetGoal が入力で動く目標値で、_target が Lerp 追従する実位置
         private Vector3 _target;
@@ -43,8 +50,6 @@ namespace COM3D2.SceneEditor.Plugin
         // 実機は 25 だが、広いステージを俯瞰できるよう上限だけ広げている
         private const float MaxDistance = 100f;
 
-        private const float FlySpeed = 2f;          // m/s
-        private const float FlyFastMultiplier = 4f;
         // フォーカス時のバウンズ半径に対する距離倍率 (画面に余白を持って収まる見た目の調整値)
         private const float FocusDistanceFactor = 2.5f;
 
@@ -133,7 +138,7 @@ namespace COM3D2.SceneEditor.Plugin
             _lastAppliedRotation = _transform.rotation;
         }
 
-        /// <summary>右ドラッグ / Alt+左ドラッグ: 注視点周りの回転。値は Input.GetAxis("Mouse X/Y")</summary>
+        /// <summary>右ドラッグ: 注視点周りの回転。値は Input.GetAxis("Mouse X/Y")</summary>
         public void Rotate(Vector2 mouseAxis)
         {
             _xVelocity += mouseAxis.x * RotateSpeedX;
@@ -152,23 +157,42 @@ namespace COM3D2.SceneEditor.Plugin
             _targetDistance = Mathf.Clamp(_targetDistance - scrollAxis * ZoomSpeed, MinDistance, MaxDistance);
         }
 
-        /// <summary>右ボタン押下中の WASD/QE: 注視点ごと移動するフライスルー</summary>
-        public void Fly(Vector3 localDir, float deltaTime, bool fast)
-        {
-            if (localDir.sqrMagnitude < 0.0001f)
-            {
-                return;
-            }
-            var speed = FlySpeed * (fast ? FlyFastMultiplier : 1f);
-            _targetGoal += _transform.TransformDirection(localDir.normalized) * speed * deltaTime;
-        }
-
-        /// <summary>F キー: 対象のバウンズ全体が収まる距離まで寄る</summary>
+        /// <summary>
+        /// F キー: 対象のバウンズ全体が収まる距離まで寄る。
+        /// 追従中は ApplyFollow が注視点を毎フレーム上書きして寄った先が保てないため、追従を解除する
+        /// </summary>
         public void Focus(Bounds bounds)
         {
+            follow.maidSlotNo = -1;
+
             _targetGoal = bounds.center;
             var radius = Mathf.Max(bounds.extents.magnitude, 0.1f);
             _targetDistance = Mathf.Clamp(radius * FocusDistanceFactor, MinDistance, MaxDistance);
+        }
+
+        /// <summary>
+        /// 追従中は注視点 (と向き反映時のヨー) を追従点基準で上書きする。
+        /// 注視点のイージングも打ち切り、メイドの動きへ遅れなく張り付かせる
+        /// </summary>
+        private void ApplyFollow()
+        {
+            Vector3 anchor;
+            Quaternion faceRotation;
+            // TryGetAnchor が false なら未追従と同じ扱い (isFollow を別に引くと解決が二重になる)
+            if (!follow.TryGetAnchor(out anchor, out faceRotation))
+            {
+                return;
+            }
+
+            _target = _targetGoal = follow.GetFollowPosition(anchor, faceRotation);
+
+            if (follow.followRotation)
+            {
+                var pitch = AngleUtils.NormalizeAngle(_transform.eulerAngles.x);
+                var yaw = faceRotation.eulerAngles.y + follow.yawOffset;
+                _transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
+                _xVelocity = 0f;
+            }
         }
 
         /// <summary>
@@ -189,6 +213,8 @@ namespace COM3D2.SceneEditor.Plugin
             _transform.Rotate(new Vector3(_yVelocity, 0f, 0f), Space.Self);
             _xVelocity *= DampeningX;
             _yVelocity *= DampeningY;
+
+            ApplyFollow();
 
             // 距離と注視点は目標値へ Lerp してイージングする
             _distance = Mathf.Lerp(_distance, _targetDistance, SmoothingZoom);

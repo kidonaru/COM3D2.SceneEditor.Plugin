@@ -41,6 +41,41 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// メインライトの Light コンポーネント。
+        /// LightMain のアクセサではなく Light を直接使うのは、
+        /// LightTimelineLayer が書き込む対象と同じものを読み書きするため
+        /// </summary>
+        public Light mainLightComponent
+        {
+            get
+            {
+                var main = mainLight;
+                return main != null ? main.GetComponent<Light>() : null;
+            }
+        }
+
+        /// <summary>
+        /// プラグインが触る前のメインライトの値。
+        /// LightTimelineLayer が書き込む項目をすべて持つ
+        /// </summary>
+        private struct MainLightSnapshot
+        {
+            public Vector3 localPosition;
+            public Quaternion localRotation;
+            public Color color;
+            public float range;
+            public float intensity;
+            public float spotAngle;
+            public float shadowStrength;
+            public float shadowBias;
+            public int cullingMask;
+            public bool enabled;
+        }
+
+        private bool _hasMainLightSnapshot = false;
+        private MainLightSnapshot _mainLightSnapshot;
+
         private static StudioLightManager _instance = null;
         public static StudioLightManager instance
         {
@@ -115,6 +150,69 @@ namespace COM3D2.SceneEditor.Plugin
             light.type = type;
         }
 
+        /// <summary>
+        /// メインライトの値を控える。既に控えていれば何もしない。
+        /// 有効化時ではなく Update から呼ぶのは、SceneEditorPlugin.OnPluginEnable が
+        /// managerRegistry.OnPluginEnable より先に OnLoad (タイムラインの値を適用する) を
+        /// 呼ぶため、有効化の時点では既にプラグインの値に染まっているからである
+        /// </summary>
+        public void CaptureMainLightSnapshot()
+        {
+            if (_hasMainLightSnapshot)
+            {
+                return;
+            }
+
+            var light = mainLightComponent;
+            if (light == null)
+            {
+                return;
+            }
+
+            var transform = light.transform;
+            _mainLightSnapshot = new MainLightSnapshot
+            {
+                localPosition = transform.localPosition,
+                localRotation = transform.localRotation,
+                color = light.color,
+                range = light.range,
+                intensity = light.intensity,
+                spotAngle = light.spotAngle,
+                shadowStrength = light.shadowStrength,
+                shadowBias = light.shadowBias,
+                cullingMask = light.cullingMask,
+                enabled = light.enabled,
+            };
+            _hasMainLightSnapshot = true;
+        }
+
+        /// <summary>控えた値へ戻す。控える前なら何もしない</summary>
+        public void RestoreMainLightSnapshot()
+        {
+            if (!_hasMainLightSnapshot)
+            {
+                return;
+            }
+
+            var light = mainLightComponent;
+            if (light == null)
+            {
+                return;
+            }
+
+            var transform = light.transform;
+            transform.localPosition = _mainLightSnapshot.localPosition;
+            transform.localRotation = _mainLightSnapshot.localRotation;
+            light.color = _mainLightSnapshot.color;
+            light.range = _mainLightSnapshot.range;
+            light.intensity = _mainLightSnapshot.intensity;
+            light.spotAngle = _mainLightSnapshot.spotAngle;
+            light.shadowStrength = _mainLightSnapshot.shadowStrength;
+            light.shadowBias = _mainLightSnapshot.shadowBias;
+            light.cullingMask = _mainLightSnapshot.cullingMask;
+            light.enabled = _mainLightSnapshot.enabled;
+        }
+
         public void ClearAll()
         {
             foreach (var light in _lights)
@@ -142,6 +240,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override void Update()
         {
+            // メインライトはシーンによっては後から現れるので、取れるまで毎フレーム試す
+            CaptureMainLightSnapshot();
+
             // 外部要因（シーン側の破棄等）で消えたライトをリストへ残さない
             _lights.RemoveAll(light => light == null);
         }
@@ -151,6 +252,9 @@ namespace COM3D2.SceneEditor.Plugin
             // Additive ロードでは旧シーンの GameObject が破棄されず、参照を捨てるだけだと
             // ライトが残留したまま次の AddLight で二重生成される。明示的に破棄する
             ReleaseAll();
+
+            // シーンが変わるとメインライトも別の実体になるので控え直す
+            _hasMainLightSnapshot = false;
         }
 
         public override void OnPluginDisable()

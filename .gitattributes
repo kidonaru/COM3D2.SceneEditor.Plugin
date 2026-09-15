@@ -1,3 +1,4 @@
 * text=auto
 # バッチファイルは CRLF でないと cmd.exe がパースに失敗する
 *.bat text eol=crlf
+*.jpg filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,28 @@
+{
+  "source_sha256": "4d9f17bca712129017f54a5c1d8ad3204bfc7e0760c571f971751c6db3471852",
+  "layer": "ModelMaterialTimelineLayer",
+  "slot": "0",
+  "model": "kdnr_midnight_floor_light_i_.menu",
+  "material": "CM3D2_電飾 | マゼンタ",
+  "start": 355,
+  "end": 498,
+  "first_peak": 362,
+  "period": 12,
+  "fade": 4,
+  "reference_peaks": [266, 278, 290, 302, 314],
+  "description": "動画の床ライトを目視し、XMLのカメラと円周配置を手掛かりに番号を近似対応。観察できない番号は既存5組の継続で補完。完全な位置一致ではない。",
+  "observations": [
+    {"peak":362,"on":[12,15],"off":[13]},
+    {"peak":374,"on":[12,13,16],"off":[15]},
+    {"peak":386,"on":[12,13,16],"off":[15]},
+    {"peak":398,"on":[13,15],"off":[12,16]},
+    {"peak":410,"on":[15],"off":[12,13,16]},
+    {"peak":422,"on":[11,12,15,16],"off":[13,17]},
+    {"peak":434,"on":[12,13,16,17],"off":[11,15]},
+    {"peak":446,"on":[12,13,16,17],"off":[11,15]},
+    {"peak":458,"on":[12,13,15,16],"off":[]},
+    {"peak":470,"on":[11,12,15],"off":[16]},
+    {"peak":482,"on":[],"off":[]},
+    {"peak":494,"on":[],"off":[]}
+  ]
+}

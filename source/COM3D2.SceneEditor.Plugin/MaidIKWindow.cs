@@ -1,11 +1,12 @@
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// IK 固定ウィンドウ。MTE の「IK固定」相当で、四肢の空間固定と足の接地を操作する。
-    /// モーション再生中の固定（IK アニメーション）は MTE 側の担当なので持たない
+    /// 「IKアニメーション」で有効にした箇所は、モーション再生中も固定が効く
     /// </summary>
     public class MaidIKWindow : MaidWindowBase
     {
@@ -74,9 +75,13 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
+
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             DrawHoldToggles(target);
+            view.DrawHorizontalLine();
+            DrawAnimeToggles(target);
             view.DrawHorizontalLine();
             DrawGrounding(target);
 
@@ -88,12 +93,6 @@ namespace COM3D2.SceneEditor.Plugin
             view.BeginHorizontal();
             {
                 view.DrawLabel("IK固定", 60, ROW_HEIGHT);
-
-                // IK 固定はボーン編集（編集モード）中しか効かないため、モード外なら注意を出す
-                if (!MaidManipulateManager.instance.isEditMode)
-                {
-                    view.DrawLabel("※編集モードで有効", -1, ROW_HEIGHT, textColor: Color.yellow);
-                }
             }
             view.EndLayout();
 
@@ -114,8 +113,7 @@ namespace COM3D2.SceneEditor.Plugin
                             });
                     }
 
-                    var allHold = holdController.GetHold(target, pair[0])
-                        && holdController.GetHold(target, pair[1]);
+                    var allHold = IsPairHeld(target, pair);
                     if (view.DrawButton(allHold ? "解除" : "固定", PairButtonWidth, ROW_HEIGHT))
                     {
                         HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
@@ -128,6 +126,54 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 view.EndLayout();
             }
+        }
+
+        /// <summary>再生中も固定を効かせる指定。固定 OFF の箇所は効かないので押させない</summary>
+        private void DrawAnimeToggles(Maid target)
+        {
+            view.DrawLabel("IKアニメーション", -1, ROW_HEIGHT);
+
+            foreach (var pair in HoldTypePairs)
+            {
+                view.BeginHorizontal();
+                {
+                    foreach (var type in pair)
+                    {
+                        var holdType = type;
+                        view.DrawToggle(MaidIKHoldController.GetHoldTypeName(holdType),
+                            holdController.GetAnime(target, holdType), ToggleWidth, ROW_HEIGHT,
+                            holdController.GetHold(target, holdType),
+                            newValue =>
+                            {
+                                HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
+                                    "IKアニメ: " + MaidIKHoldController.GetHoldTypeName(holdType));
+                                holdController.SetAnime(target, holdType, newValue);
+                            });
+                    }
+
+                    var allHold = IsPairHeld(target, pair);
+                    var allAnime = holdController.GetAnime(target, pair[0])
+                        && holdController.GetAnime(target, pair[1]);
+                    if (view.DrawButton(allAnime ? "無効" : "有効", PairButtonWidth, ROW_HEIGHT,
+                        allHold))
+                    {
+                        HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
+                            allAnime ? "IKアニメ無効" : "IKアニメ有効");
+                        foreach (var type in pair)
+                        {
+                            holdController.SetAnime(target, type, !allAnime);
+                        }
+                    }
+                }
+                view.EndLayout();
+            }
+        }
+
+        /// <summary>左右ペアの両方が固定されているか</summary>
+        private bool IsPairHeld(Maid target, MaidIKHoldType[] pair)
+        {
+            return holdController.GetHold(target, pair[0])
+                && holdController.GetHold(target, pair[1]);
         }
 
         private void DrawGrounding(Maid target)

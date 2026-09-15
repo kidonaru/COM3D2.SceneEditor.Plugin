@@ -33,6 +33,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
         }
 
+        public virtual void OnPluginEnable()
+        {
+        }
+
         public virtual void OnPluginDisable()
         {
         }

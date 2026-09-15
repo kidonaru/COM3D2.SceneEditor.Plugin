@@ -244,7 +244,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void EndDrag(Vector3 pointerPos)
         {
+            if (!_isDragging)
+            {
+                return;
+            }
+
             CancelDrag();
+            MaidDragBoneTracker.NotifyDragCompleted(maid);
         }
 
         public void CancelDrag()

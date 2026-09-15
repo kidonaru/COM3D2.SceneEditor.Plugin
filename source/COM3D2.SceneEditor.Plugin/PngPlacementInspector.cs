@@ -19,7 +19,11 @@ namespace COM3D2.SceneEditor.Plugin
         private static PngPlacementManager pngManager => PngPlacementManager.instance;
 
         /// <summary>選択中が PNG 配置なら固有パラメータを描く。描いたら true</summary>
-        public static bool Draw(GUIView view, GameObject go)
+        /// <param name="colorLabelPrefix">
+        /// 色行のラベル (= ピッカーの同定キー) の接頭辞。
+        /// 複数の PNG を並べる呼び出し側がキーを一意にするために使う。null なら付けない
+        /// </param>
+        public static bool Draw(GUIView view, GameObject go, string colorLabelPrefix = null)
         {
             var data = pngManager.FindByRoot(go);
             if (data == null)
@@ -47,7 +51,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             // ColorPickerWindow はラベル文字列で編集対象を識別するため、
             // 他ウィンドウの色行とラベルを重複させないこと
-            var fieldCache = view.GetColorFieldCache("PNG色", true);
+            var colorLabel = colorLabelPrefix == null ? "PNG色" : colorLabelPrefix + "/PNG色";
+            var fieldCache = view.GetColorFieldCache(colorLabel, true);
             view.DrawColor(fieldCache, data.color, Color.white, value =>
             {
                 RecordPngEdit("色");

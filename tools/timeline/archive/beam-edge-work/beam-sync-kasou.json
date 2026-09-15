@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "slot": 0,
+  "color_source": "edge",
+  "emission_scale": 1,
+  "mappings": [
+    {
+      "controller": "StageLaserController (0)",
+      "material": "kdnr_midnight_beam_light_i_.menu (11)/CM3D2_電飾 | アイスシアン"
+    },
+    {
+      "controller": "StageLaserController (1)",
+      "material": "kdnr_midnight_beam_light_i_.menu (15)/CM3D2_電飾 | アイスシアン"
+    },
+    {
+      "controller": "StageLaserController (2)",
+      "material": "kdnr_midnight_beam_light_i_.menu (8)/CM3D2_電飾 | アイスシアン"
+    },
+    {
+      "controller": "StageLaserController (3)",
+      "material": "kdnr_midnight_beam_light_i_.menu (18)/CM3D2_電飾 | アイスシアン"
+    }
+  ],
+  "emission_max": 0.5
+}

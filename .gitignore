@@ -13,3 +13,19 @@ build.log
 build.err.log
 node_modules/
 package-lock.json
+
+# タイムラインの生成物・一時作業。正式なシーン資料は scenes/ に保存する。
+/tools/timeline/work/*
+!/tools/timeline/work/README.md
+__pycache__/
+*.pyc
+
+# UnityProject（se_bundle ビルド用、Unity 5.6）。生成物は追跡しない。Bundles/ の正本は source 側のコピー
+UnityProject/Library/
+UnityProject/Logs/
+UnityProject/Temp/
+UnityProject/UserSettings/
+UnityProject/*.sln
+UnityProject/*.csproj
+UnityProject/Assets/PostProcessing*
+UnityProject/Assets/Bundles/

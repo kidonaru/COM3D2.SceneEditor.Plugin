@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -28,6 +29,11 @@ namespace COM3D2.SceneEditor.Plugin
         public string description { get; set; }
         public Maid maid;
         public HistoryScope scope;
+        /// <summary>
+        /// 同一スコープ内で対象を区別するキー (編集中のマテリアル・シェイプキー名など)。
+        /// 確定待ちの集約判定にだけ使い、null なら区別しない
+        /// </summary>
+        public object targetKey;
         public IStateSnapshot before;
         public IStateSnapshot after;
 
@@ -61,13 +67,29 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>履歴が変化した (追加/undo/redo/ジャンプ/クリア)。ウィンドウ更新用</summary>
         public event Action onChanged;
 
+        /// <summary>
+        /// 内部操作 (BeforeEdit 経由) が値の変更を伴って 1 件確定した。
+        /// タイムラインの自動キーフレーム登録が購読する。
+        /// 外部プラグインの登録 (AddEntry 直接) や undo/redo では発火しない
+        /// </summary>
+        public event Action<HistoryEntry> onEditCommitted;
+
         /// <summary>確定待ちの操作。同一 (メイド, スコープ) の連続変更をまとめる</summary>
         private HistoryEntry _pending;
 
         /// <summary>undo/redo の適用中か。外部エントリからの再入を弾くのに使う</summary>
         private bool _isApplying;
 
-        public bool canUndo => currentIndex >= 0 || _pending != null;
+        /// <summary>
+        /// タイムラインモードか。シーン操作とタイムライン操作が 1 つのスタックに混ざると
+        /// undo の対象が追えなくなるため、タイムライン読み込み中は履歴をタイムライン操作専用にする
+        /// </summary>
+        public bool isTimelineMode => MTEP.TimelineManager.instance.timeline != null;
+
+        /// <summary>前フレームのモード。切り替わりを検出して履歴を捨てるのに使う</summary>
+        private bool _wasTimelineMode;
+
+        public bool canUndo => currentIndex >= 0 || (_pending != null && !isTimelineMode);
         public bool canRedo => currentIndex + 1 < _entries.Count;
 
         /// <summary>
@@ -78,6 +100,30 @@ namespace COM3D2.SceneEditor.Plugin
         public void BeforeEdit(Maid maid, HistoryScope scope, string description,
             IEnumerable<Transform> targetBones = null)
         {
+            BeforeEditCore(maid, scope, description, null,
+                () => SnapshotFactory.Capture(maid, scope, targetBones),
+                targetBones);
+        }
+
+        /// <summary>
+        /// SnapshotFactory を通さず、呼び出し側がスナップショットを組み立てるオーバーロード。
+        /// メイドに紐付かない対象 (モデルのマテリアル・演出の全体状態) 向け。
+        /// targetKey が異なれば別の操作として確定待ちを切り替える。
+        /// capture は確定待ちが無いときだけ評価される
+        /// </summary>
+        public void BeforeEdit(Maid maid, HistoryScope scope, string description,
+            object targetKey, Func<IStateSnapshot> capture)
+        {
+            BeforeEditCore(maid, scope, description, targetKey, capture, null);
+        }
+
+        private void BeforeEditCore(Maid maid, HistoryScope scope, string description,
+            object targetKey, Func<IStateSnapshot> capture, IEnumerable<Transform> targetBones)
+        {
+            // 値を書き換える操作の直前に必ず通る場所なので、ここで編集モードへ入る。
+            // 履歴が無効 (historyLimit <= 0) でも自動移行は必要なため、早期 return より前に置く
+            AutoEditMode.Enter();
+
             if ((maid == null && HistoryScopeUtils.RequiresMaid(scope))
                 || config.historyLimit <= 0)
             {
@@ -85,14 +131,16 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             if (_pending != null
-                && (_pending.maid != maid || _pending.scope != scope))
+                && (_pending.maid != maid
+                    || _pending.scope != scope
+                    || !Equals(_pending.targetKey, targetKey)))
             {
                 CommitPending();
             }
 
             if (_pending == null)
             {
-                var snapshot = SnapshotFactory.Capture(maid, scope, targetBones);
+                var snapshot = capture();
                 if (snapshot == null)
                 {
                     return;
@@ -103,6 +151,7 @@ namespace COM3D2.SceneEditor.Plugin
                     description = description,
                     maid = maid,
                     scope = scope,
+                    targetKey = targetKey,
                     before = snapshot,
                 };
             }
@@ -120,6 +169,7 @@ namespace COM3D2.SceneEditor.Plugin
         public void BeforeEdit(Maid maid, HistoryScope scope, string description,
             Func<IEnumerable<Transform>> targetBonesProvider)
         {
+            // 確定待ちがあるなら BeforeEditCore を通っており編集モードにも入っているため、そのまま抜けてよい
             if (_pending != null && _pending.maid == maid && _pending.scope == scope)
             {
                 return;
@@ -127,8 +177,24 @@ namespace COM3D2.SceneEditor.Plugin
             BeforeEdit(maid, scope, description, targetBonesProvider());
         }
 
+        /// <summary>
+        /// モードの切り替わりを検出し、残った履歴を捨てる (別モードの操作になるため)。
+        /// 読み込み直後の登録が同フレーム内で消されないよう、Update だけでなく登録時にも呼ぶ
+        /// </summary>
+        private void SyncTimelineMode()
+        {
+            var currentMode = isTimelineMode;
+            if (currentMode != _wasTimelineMode)
+            {
+                _wasTimelineMode = currentMode;
+                ClearHistory();
+            }
+        }
+
         public override void Update()
         {
+            SyncTimelineMode();
+
             // マウスを離すまで確定を遅らせ、ドラッグ 1 回を 1 エントリにする
             if (_pending != null && !Input.GetMouseButton(0))
             {
@@ -136,7 +202,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private void CommitPending()
+        /// <param name="notify">確定を onEditCommitted で通知するか。プラグイン無効化時の掃き出しでは通知しない</param>
+        private void CommitPending(bool notify = true)
         {
             var pending = _pending;
             _pending = null;
@@ -155,7 +222,18 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            AddEntry(pending);
+            // タイムラインモードではシーン操作を履歴に積まないが、
+            // 自動キーフレーム登録は変更の確定を頼りにするため通知だけは行う
+            if (!isTimelineMode)
+            {
+                AddEntry(pending);
+            }
+
+            // AddEntry は適用中 (_isApplying) に受け付けないため、履歴に載らない操作は通知しない
+            if (notify && !_isApplying)
+            {
+                onEditCommitted?.Invoke(pending);
+            }
         }
 
         /// <summary>
@@ -170,16 +248,25 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 適用中の登録は _entries を作り替えて適用ループの走査を壊すため受け付けない
+            // (モード同期の ClearHistory も同じ理由で適用中は走らせない)
             if (_isApplying)
             {
                 MTEUtils.LogWarning("履歴の適用中は登録できません: {0}", entry.description);
                 return;
             }
 
+            SyncTimelineMode();
+
             // 外部からの登録時に確定待ちの内部操作が残っていれば先に確定し、時系列を保つ
             if (_pending != null && _pending != entry)
             {
                 CommitPending();
+            }
+
+            // タイムラインモードではタイムライン操作だけを履歴に残す
+            if (isTimelineMode && !(entry is TimelineHistoryEntry))
+            {
+                return;
             }
 
             // 履歴一覧での識別用に記録時刻を付ける
@@ -217,7 +304,7 @@ namespace COM3D2.SceneEditor.Plugin
                     currentIndex--;
                     if (TryApply(entry, useBefore: true))
                     {
-                        MTEUtils.Log("元に戻す: {0}", entry.description);
+                        MTEUtils.LogDebug("元に戻す: {0}", entry.description);
                         return;
                     }
                     // 対象メイドが消えたエントリは飛ばして次を戻す
@@ -244,7 +331,7 @@ namespace COM3D2.SceneEditor.Plugin
                     currentIndex++;
                     if (TryApply(entry, useBefore: false))
                     {
-                        MTEUtils.Log("やり直す: {0}", entry.description);
+                        MTEUtils.LogDebug("やり直す: {0}", entry.description);
                         return;
                     }
                 }
@@ -334,6 +421,9 @@ namespace COM3D2.SceneEditor.Plugin
                     return false;
                 }
 
+                // 戻した値もパラメータ変更と同じく編集モード外では書き戻されるため、当てる前に入る
+                AutoEditMode.Enter();
+
                 if (useBefore)
                 {
                     entry.ApplyBefore();
@@ -357,7 +447,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 無効化中は Update が回らず確定待ちが滞留するため、この時点で確定する
             if (_pending != null)
             {
-                CommitPending();
+                CommitPending(notify: false);
             }
         }
 

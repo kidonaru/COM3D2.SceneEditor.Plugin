@@ -1,5 +1,6 @@
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -42,9 +43,6 @@ namespace COM3D2.SceneEditor.Plugin
         {
         }
 
-        private static MaidGravityController gravityController
-            => maidManager.gravityController;
-
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
             x = config.maidGravityPosX;
@@ -84,93 +82,15 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
+            // タブ切替はゲートの対象外にするため、タブを描いた後で判定する
+            TimelineLayerGate.Begin(view, typeof(MTEP.GravityTimelineLayer), target, ROW_HEIGHT);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            DrawCategory(target, MaidGravityController.categories[(int)_tabType]);
+            GravityRowDrawer.Draw(view, target, MaidGravityController.categories[(int)_tabType], ROW_HEIGHT);
 
             view.EndScrollView();
-        }
-
-        private void DrawCategory(Maid target, GravityCategory category)
-        {
-            if (!gravityController.IsValid(target, category))
-            {
-                // 着ていない・揺れものを持たない衣装では力の掛け先が無い
-                view.DrawLabel("対象の揺れものがありません", -1, ROW_HEIGHT);
-                return;
-            }
-
-            view.BeginHorizontal();
-            {
-                view.DrawToggle("有効", gravityController.GetEnabled(target, category),
-                    80, ROW_HEIGHT, true,
-                    value =>
-                    {
-                        RecordEdit(target, category, "有効");
-                        gravityController.SetEnabled(target, category, value);
-                    });
-
-                if (view.DrawButton("リセット", 80, ROW_HEIGHT))
-                {
-                    RecordEdit(target, category, "リセット");
-                    gravityController.SetOffset(target, category, Vector3.zero);
-                }
-            }
-            view.EndLayout();
-
-            var offset = gravityController.GetOffset(target, category);
-            DrawAxisSlider(target, category, "X", offset.x,
-                value =>
-                {
-                    var current = gravityController.GetOffset(target, category);
-                    current.x = value;
-                    gravityController.SetOffset(target, category, current);
-                });
-            DrawAxisSlider(target, category, "Y", offset.y,
-                value =>
-                {
-                    var current = gravityController.GetOffset(target, category);
-                    current.y = value;
-                    gravityController.SetOffset(target, category, current);
-                });
-            DrawAxisSlider(target, category, "Z", offset.z,
-                value =>
-                {
-                    var current = gravityController.GetOffset(target, category);
-                    current.z = value;
-                    gravityController.SetOffset(target, category, current);
-                });
-        }
-
-        /// <summary>共通書式のスライダー 1 行（LightWindow と同形式）</summary>
-        private void DrawAxisSlider(
-            Maid target, GravityCategory category, string label, float value,
-            System.Action<float> onChanged)
-        {
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = label,
-                labelWidth = 20,
-                width = -1,
-                min = -1f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = value,
-                onChanged = newValue =>
-                {
-                    RecordEdit(target, category, label);
-                    onChanged(newValue);
-                },
-            });
-        }
-
-        /// <summary>重力操作を履歴へ記録する。ドラッグ中の連続変更は 1 件に集約される</summary>
-        private static void RecordEdit(Maid target, GravityCategory category, string label)
-        {
-            HistoryManager.instance.BeforeEdit(target, HistoryScope.Gravity,
-                "重力: " + category.name + " " + label);
         }
     }
 }

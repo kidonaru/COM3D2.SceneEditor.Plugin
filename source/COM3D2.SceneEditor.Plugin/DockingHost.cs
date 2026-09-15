@@ -165,6 +165,44 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// タブ列のスクロール位置 (px) を読む。スクロール位置はグループの状態なので、
+        /// ゲストが自前で持つとタブ切替のたびに位置が飛ぶ。
+        /// 未所属なら fallback をそのまま返す
+        /// </summary>
+        public static float GetTabScrollX(object handle, float fallback)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            var group = adapter != null ? adapter.group : null;
+            return group != null ? group.tabScrollX : fallback;
+        }
+
+        /// <summary>ゲストが操作した結果のスクロール位置 (px) を書き戻す</summary>
+        public static void SetTabScrollX(object handle, float scrollX)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            var group = adapter != null ? adapter.group : null;
+            if (group != null)
+            {
+                group.tabScrollX = scrollX;
+            }
+        }
+
+        /// <summary>
+        /// ゲストのメニュー選択によるタブアクティブ化。tabIndex はグループ内 index。
+        /// ActivateTab と違い自窓以外も指定でき、NotifyTabMouseDown と違い
+        /// つまみドラッグ候補は記録しない (メニュー選択はドラッグではない)
+        /// </summary>
+        public static void ActivateTabIndex(object handle, int tabIndex)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            if (adapter == null)
+            {
+                return;
+            }
+            TabGroupManager.instance.ActivateTabIndex(adapter, tabIndex);
+        }
+
+        /// <summary>
         /// ヘッダー/空き領域の左押下通知。ドラッグスナップ追跡の起点になる。
         /// これを呼ぶゲストだけがドラッグスナップ対象になる契約
         /// (呼ばない旧ゲストは GUI.DragWindow を抑止できず吸着位置と喧嘩するため巻き込まない)
@@ -281,13 +319,19 @@ namespace COM3D2.SceneEditor.Plugin
                     // アダプタを作り直さず同じ登録のまま再表示するゲストにも自動再ドッキングを効かせる
                     adapter.ResetAutoDockRetry();
                 }
-                // 表示直後の一定フレーム、ヘッダー位置がほぼ一致する窓があれば自動再ドッキング。
-                // 外部窓のドッキング構成は復元されないが位置はゲストが保持しているため、
-                // 同じ位置に出てきたものはドッキングへ復帰させる (設計判断は autoDockRetryFrames 参照)
+                // 表示直後の一定フレーム、自動再ドッキングを試みる (猶予は autoDockRetryFrames 参照)。
+                // まず config の保存構成による ID ベース復元 (TryRestoreExternal) を試し、
+                // 保存エントリの無い窓は位置をゲストが保持していることを利用して、
+                // ヘッダー位置がほぼ一致する窓のグループへ復帰させる
                 else if (adapter.group == null && adapter.autoDockRetryFrames > 0)
                 {
                     adapter.autoDockRetryFrames--;
-                    TabGroupManager.instance.MergeIfHeaderMatches(adapter);
+                    // まず config の保存構成による確実な復元を試し、
+                    // 保存エントリの無い窓は従来どおりヘッダー位置一致で復帰させる
+                    if (!TabGroupManager.instance.TryRestoreExternal(adapter))
+                    {
+                        TabGroupManager.instance.MergeIfHeaderMatches(adapter);
+                    }
                     if (adapter.group != null)
                     {
                         // 成立したら残りフレームを捨てる。残したままだと直後に手動で

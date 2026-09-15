@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -125,6 +126,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawHeader(view, target);
 
+            // プリセット適用も指ブレンドを直接書くため、タブを問わずモーションレイヤーに記録される
+            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
+
             _tabType = DrawInnerTabs(_tabType, 80);
 
             if (_tabType == DigitTabType.プリセット)
@@ -151,9 +155,18 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 指関節ごとのドラッグ点を出すトグル。表示条件は体のドラッグ点と
-                // 同じ（ボーン表示 ON）なので、OFF 中に押しても点は出ない
+                // 同じ（編集モード＋ボーン表示 ON）なので、OFF 中に押しても点は出ない
                 view.DrawToggle("個別編集", maidManager.isFingerEditMode, 80, ROW_HEIGHT,
                     value => maidManager.isFingerEditMode = value);
+
+                // タイムライン全体の設定 (FingerBlend.BaseFinger.enabled を握る唯一の経路)。
+                // メイドごとの設定ではないためラベルで明示する
+                var timeline = MTEP.TimelineManager.instance.timeline;
+                if (timeline != null)
+                {
+                    view.DrawToggle("TL:ブレンド有効", timeline.fingerBlendEnabled, 120, ROW_HEIGHT,
+                        value => timeline.fingerBlendEnabled = value);
+                }
 
                 // リセットは右端揃え
                 const int resetButtonWidth = 60;
@@ -253,7 +266,7 @@ namespace COM3D2.SceneEditor.Plugin
                 view.currentPos.x = view.viewRect.width - view.padding.x * 2 - FocusButtonWidth;
 
                 var focusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
-                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f))
+                if (view.DrawTextureButton(focusIcon, FocusButtonWidth, ROW_HEIGHT, 4f, tooltip: "フォーカス"))
                 {
                     FocusOnFinger(unit);
                 }

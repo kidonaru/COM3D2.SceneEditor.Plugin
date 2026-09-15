@@ -1,0 +1,8 @@
+<!--
+  タイムライン操作「次のフレームへ」アイコン (32x32)。白線の右向き三角。塗りつぶしの再生と区別する。
+  白地に黒縁取りで、明るい背景でも暗い背景でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <polygon points="8,6 26,16 8,26" fill="none" stroke="#000000" stroke-width="4.4" stroke-linejoin="round" />
+  <polygon points="8,6 26,16 8,26" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round" />
+</svg>

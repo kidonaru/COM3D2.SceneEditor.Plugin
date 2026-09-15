@@ -1,0 +1,1574 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Xml.Serialization;
+using COM3D2.SceneEditor.Plugin;
+using UnityEngine;
+
+namespace COM3D2.MotionTimelineEditor.Plugin
+{
+    using AttachPoint = PhotoTransTargetObject.AttachPoint;
+
+    public class TimelineModelXml
+    {
+        [XmlElement("Name")]
+        public string name;
+        [XmlElement("AttachPoint")]
+        public AttachPoint attachPoint;
+        [XmlElement("AttachMaidSlotNo")]
+        public int attachMaidSlotNo = -1;
+        [XmlElement("PluginName")]
+        public string pluginName;
+    }
+
+    public class TimelineLightXml
+    {
+        [XmlElement("Name")]
+        public string name;
+        [XmlElement("Type")]
+        public LightType type;
+    }
+
+    public class TimelineMaidShapeKeyXml
+    {
+        [XmlElement("MaidSlotNo")]
+        public int maidSlotNo;
+        [XmlElement("ShapeKey")]
+        public string shapeKey;
+    }
+
+    public class TimelineExtendBoneXml
+    {
+        [XmlElement("MaidSlotNo")]
+        public int maidSlotNo;
+        [XmlElement("ExtendBoneName")]
+        public List<string> extendBoneNames;
+    }
+
+    public class TimelineBGModelXml
+    {
+        [XmlElement("SourceName")]
+        public string sourceName;
+        [XmlElement("Group")]
+        public int group;
+    }
+
+    public class TimelinePngObjectXml
+    {
+        [XmlElement("ImageName")]
+        public string imageName;
+        [XmlElement("Group")]
+        public int group;
+        [XmlElement("Primitive")]
+        public int primitive;
+        [XmlElement("SquareUV")]
+        public bool squareUV;
+        [XmlElement("ShaderDisplay")]
+        public string shaderDisplay;
+        [XmlElement("RenderQueue")]
+        public int renderQueue;
+    }
+
+    public class TimelinePsylliumXml
+    {
+        [XmlElement("AreaCount")]
+        public int areaCount;
+        [XmlElement("PatternCount")]
+        public int patternCount;
+        [XmlElement("Placement")]
+        public List<PsylliumPlacement> placements = new List<PsylliumPlacement>();
+    }
+
+    /// <summary>
+    /// 動画 1 本分の保存形式。
+    /// 旧形式は TimelineXml 直下に Video 接頭辞付きで平置きされていたため、こちらは接頭辞なし
+    /// </summary>
+    public class VideoSettingsXml
+    {
+        [XmlElement("Enabled")]
+        public bool enabled = true;
+
+        [XmlElement("DisplayType")]
+        public VideoDisplayType displayType = VideoDisplayType.GUI;
+
+        [XmlElement("Path")]
+        public string path = "";
+
+        [XmlElement("Position")]
+        public Vector3 position = new Vector3(0, 0, 0);
+
+        [XmlElement("Rotation")]
+        public Vector3 rotation = new Vector3(0, 0, 0);
+
+        [XmlElement("Scale")]
+        public float scale = 1f;
+
+        [XmlElement("StartTime")]
+        public float startTime = 0f;
+
+        [XmlElement("Volume")]
+        public float volume = 0f;
+
+        [XmlElement("Alpha")]
+        public float alpha = 1f;
+
+        [XmlElement("GUIScale")]
+        public float guiScale = 1f;
+
+        [XmlElement("GUIAlpha")]
+        public float guiAlpha = 1f;
+
+        [XmlElement("BackmostPosition")]
+        public Vector2 backmostPosition = new Vector2(0, 0);
+
+        [XmlElement("BackmostScale")]
+        public float backmostScale = 1f;
+
+        [XmlElement("BackmostAlpha")]
+        public float backmostAlpha = 0.5f;
+
+        [XmlElement("FrontmostPosition")]
+        public Vector2 frontmostPosition = new Vector2(-0.8f, 0.8f);
+
+        [XmlElement("FrontmostScale")]
+        public float frontmostScale = 0.38f;
+
+        [XmlElement("FrontmostAlpha")]
+        public float frontmostAlpha = 1f;
+    }
+
+    [XmlRoot("TimelineData")]
+    public class TimelineXml
+    {
+        [XmlAttribute("version")]
+        public int version = 0;
+
+        [XmlElement("Frame", IsNullable = true)]
+        public List<FrameXml> _keyFrames = null;
+
+        [XmlElement("Layer")]
+        public List<TimelineLayerXml> layers = new List<TimelineLayerXml>();
+
+        [XmlArray("Tracks")]
+        [XmlArrayItem("Track")]
+        public List<TrackXml> tracks = new List<TrackXml>();
+
+        [XmlArray("Models")]
+        [XmlArrayItem("Model")]
+        public List<TimelineModelXml> models = new List<TimelineModelXml>();
+
+        [XmlArray("Lights")]
+        [XmlArrayItem("Light")]
+        public List<TimelineLightXml> lights = new List<TimelineLightXml>();
+
+        [XmlArray("BGModels")]
+        [XmlArrayItem("BGModel")]
+        public List<TimelineBGModelXml> bgModels = new List<TimelineBGModelXml>();
+
+        [XmlArray("Psylliums")]
+        [XmlArrayItem("Psyllium")]
+        public List<TimelinePsylliumXml> psylliums = new List<TimelinePsylliumXml>();
+
+        [XmlArray("PngObjects")]
+        [XmlArrayItem("PngObject")]
+        public List<TimelinePngObjectXml> pngObjects = new List<TimelinePngObjectXml>();
+
+        [XmlArray("MaidShapeKeys")]
+        [XmlArrayItem("MaidShapeKey")]
+        public List<TimelineMaidShapeKeyXml> maidShapeKeys = new List<TimelineMaidShapeKeyXml>();
+
+        [XmlArray("ExtendBones")]
+        [XmlArrayItem("ExtendBone")]
+        public List<TimelineExtendBoneXml> extendBones = new List<TimelineExtendBoneXml>();
+
+        [XmlElement("MaxFrameNo")]
+        public int maxFrameNo;
+
+        [XmlElement("FrameRate")]
+        public float frameRate;
+
+        [XmlElement("AnmName")]
+        public string anmName = "";
+
+        [XmlElement("DirectoryName")]
+        public string directoryName = "";
+
+        [XmlElement("IsHold")]
+        public bool[] isHoldList = new bool[(int) IKHoldType.Max];
+
+        [XmlElement("IsIKAnime")]
+        public bool isIKAnime = false;
+
+        [XmlElement("UseMuneKeyL")]
+        public bool useMuneKeyL;
+
+        [XmlElement("UseMuneKeyR")]
+        public bool useMuneKeyR;
+    
+        /// <summary>メイド目線。旧形式 (要素なし) は既定の 無し で読む</summary>
+        [XmlElement("EyeMoveType")]
+        public Maid.EyeMoveType eyeMoveType = Maid.EyeMoveType.無し;
+
+        [XmlElement("IsLoopAnm")]
+        public bool isLoopAnm = true;
+
+        [XmlElement("IsBackgroundVisible")]
+        public bool isBackgroundVisible = true;
+
+        [XmlElement("IsGroundLinkedToBackground")]
+        public bool isGroundLinkedToBackground = false;
+
+        [XmlElement("StartOffsetTime")]
+        public float startOffsetTime = 0.5f;
+
+        [XmlElement("SingleFrameType")]
+        public SingleFrameType singleFrameType = SingleFrameType.Delay;
+
+        [XmlElement("IsEasingAfterFrame")]
+        public bool isEasingAppliedToNextKeyframe = false;
+
+        // Tangent 統一変換を適用済みか。旧 XML には無いので既定 false = 未変換となり、
+        // ロード時に一度だけ easing→Tangent 変換が走る (Undo/Redo での再変換を防ぐ)
+        [XmlElement("IsTangentUnified")]
+        public bool isTangentUnified = false;
+
+        [XmlElement("IsTangentCamera")]
+        public bool isTangentCamera = false;
+
+        [XmlElement("IsTangentLight")]
+        public bool isTangentLight = false;
+
+        [XmlElement("IsTangentMove")]
+        public bool isTangentMove = false;
+
+        [XmlElement("IsTangentModel")]
+        public bool isTangentModel = false;
+
+        [XmlElement("IsTangentModelBone")]
+        public bool isTangentModelBone = false;
+
+        [XmlElement("IsTangentModelShapeKey")]
+        public bool isTangentModelShapeKey = false;
+
+        // 以下のライト補間設定 3 項目は v33 以前の読込互換用。v34 でライトは他レイヤーと同じく
+        // 常時補間になったため値は参照せず、ShouldSerialize で書き出しだけ抑止する
+        [XmlElement("IsLightColorEasing")]
+        public bool isLightColorEasing = true;
+
+        [XmlElement("IsLightExtraEasing")]
+        public bool isLightExtraEasing = false;
+
+        [XmlElement("IsLightCompatibilityMode")]
+        public bool isLightCompatibilityMode = true;
+
+        public bool ShouldSerializeisLightColorEasing() { return false; }
+        public bool ShouldSerializeisLightExtraEasing() { return false; }
+        public bool ShouldSerializeisLightCompatibilityMode() { return false; }
+
+        [XmlElement("StageLaserCountList")]
+        public List<int> stageLaserCountList = new List<int>();
+
+        [XmlElement("StageLightCountList")]
+        public List<int> stageLightCountList = new List<int>();
+
+        [XmlArray("AdditionalSeNames")]
+        [XmlArrayItem("Name")]
+        public List<string> additionalSeNames = new List<string>();
+
+        [XmlElement("ActiveTrackIndex")]
+        public int activeTrackIndex = -1;
+
+        [XmlElement("BGMPath")]
+        public string bgmPath = "";
+
+        [XmlElement("BPM")]
+        public float bpm = 120f;
+
+        [XmlElement("IsShowBPMLine")]
+        public bool isShowBPMLine = false;
+
+        [XmlElement("BPMLineOffsetFrame")]
+        public float bpmLineOffsetFrame = 0f;
+
+        [XmlElement("AspectWidth")]
+        public float aspectWidth = 0f;
+
+        [XmlElement("AspectHeight")]
+        public float aspectHeight = 0f;
+
+        [XmlElement("LetterBoxAlpha")]
+        public float letterBoxAlpha = 1f;
+
+        [XmlElement("TextCount")]
+        public int textCount = 1;
+
+        [XmlElement("FingerBlendEnabled")]
+        public bool fingerBlendEnabled = true;
+
+        [XmlElement("ParaffinCount")]
+        public int paraffinCount = 1;
+
+        [XmlElement("DistanceFogCount")]
+        public int distanceFogCount = 1;
+
+        [XmlElement("RimlightCount")]
+        public int rimlightCount = 1;
+
+        // 以下の Video* 平置き項目は v32 以前の読込互換用。書き出し値は videos リストが持ち、
+        // こちらは既定値のまま出力される (読込時は videos が空のときだけ Initialize() が拾う)
+        [XmlElement("VideoEnabled")]
+        public bool videoEnabled = true;
+
+        [XmlElement("VideoDisplayOnGUI")]
+        public bool videoDisplayOnGUI = true;
+
+        [XmlElement("VideoDisplayType")]
+        public VideoDisplayType videoDisplayType = VideoDisplayType.GUI;
+
+        [XmlElement("VideoPath")]
+        public string videoPath = "";
+
+        [XmlElement("VideoPosition")]
+        public Vector3 videoPosition = new Vector3(0, 0, 0);
+
+        [XmlElement("VideoRotation")]
+        public Vector3 videoRotation = new Vector3(0, 0, 0);
+
+        [XmlElement("VideoScale")]
+        public float videoScale = 1f;
+
+        [XmlElement("VideoStartTime")]
+        public float videoStartTime = 0f;
+
+        [XmlElement("VideoVolume")]
+        public float videoVolume = 0.5f;
+
+        [XmlElement("VideoAlpha")]
+        public float videoAlpha = 1f;
+
+        [XmlElement("VideoGUIScale")]
+        public float videoGUIScale = 1f;
+
+        [XmlElement("VideoGUIAlpha")]
+        public float videoGUIAlpha = 1f;
+
+        [XmlElement("VideoBackmostPosition")]
+        public Vector2 videoBackmostPosition = new Vector2(0, 0);
+
+        [XmlElement("VideoBackmostScale")]
+        public float videoBackmostScale = 1f;
+
+        [XmlElement("VideoBackmostAlpha")]
+        public float videoBackmostAlpha = 0.5f;
+
+        [XmlElement("VideoFrontmostPosition")]
+        public Vector2 videoFrontmostPosition = new Vector2(-0.8f, 0.8f);
+
+        [XmlElement("VideoFrontmostScale")]
+        public float videoFrontmostScale = 0.38f;
+
+        [XmlElement("VideoFrontmostAlpha")]
+        public float videoFrontmostAlpha = 1f;
+
+
+        // Video* 平置き項目は読込互換専用。ShouldSerialize で書き出しだけ抑止し、
+        // 保存ファイルには videos リスト (<Video>) だけを残す
+        public bool ShouldSerializevideoEnabled() { return false; }
+        public bool ShouldSerializevideoDisplayOnGUI() { return false; }
+        public bool ShouldSerializevideoDisplayType() { return false; }
+        public bool ShouldSerializevideoPath() { return false; }
+        public bool ShouldSerializevideoPosition() { return false; }
+        public bool ShouldSerializevideoRotation() { return false; }
+        public bool ShouldSerializevideoScale() { return false; }
+        public bool ShouldSerializevideoStartTime() { return false; }
+        public bool ShouldSerializevideoVolume() { return false; }
+        public bool ShouldSerializevideoAlpha() { return false; }
+        public bool ShouldSerializevideoGUIScale() { return false; }
+        public bool ShouldSerializevideoGUIAlpha() { return false; }
+        public bool ShouldSerializevideoBackmostPosition() { return false; }
+        public bool ShouldSerializevideoBackmostScale() { return false; }
+        public bool ShouldSerializevideoBackmostAlpha() { return false; }
+        public bool ShouldSerializevideoFrontmostPosition() { return false; }
+        public bool ShouldSerializevideoFrontmostScale() { return false; }
+        public bool ShouldSerializevideoFrontmostAlpha() { return false; }
+
+        /// <summary>
+        /// 動画設定 (v33 以降)。1 本目も含めて全本をここへ保存する。
+        /// 旧形式からの取り込みは Initialize() が行うため、FromXml へ渡す前に Initialize() を通すこと
+        /// </summary>
+        [XmlElement("Video")]
+        public List<VideoSettingsXml> videos = new List<VideoSettingsXml>();
+
+        [XmlElement("ImageOutputFrameRate")]
+        public float imageOutputFrameRate = 30f;
+
+        [XmlElement("ImageOutputFormat")]
+        public string imageOutputFormat = "image_{frame:D6}";
+
+        [XmlElement("ImageOutputSize")]
+        public Vector2 imageOutputSize = new Vector2(1920, 1080);
+
+        public TimelineXml()
+        {
+        }
+
+        public void Initialize()
+        {
+            // 旧バージョンではkeyFramesが直接格納されている
+            if (_keyFrames != null && _keyFrames.Count > 0 && layers.Count == 0)
+            {
+                var layer = new TimelineLayerXml();
+                layers.Add(layer);
+
+                layer.className = typeof(MotionTimelineLayer).Name;
+                layer.keyFrames = _keyFrames;
+                _keyFrames = null;
+            }
+
+            if (version < 4)
+            {
+                // 旧バージョンでは動画開始時間にオフセット時間が反映されていない
+                videoStartTime -= startOffsetTime;
+
+                // 旧バージョンでは動画表示タイプがbool
+                videoDisplayType = videoDisplayOnGUI ? VideoDisplayType.GUI : VideoDisplayType.Mesh;
+            }
+
+            // 保存形式に関わらず、リストが空なら平置き項目から 1 本目を起こす
+            // (v32 以前は動画 1 本を平置き項目で保存していたため、その読込がこれに当たる)
+            if (videos.Count == 0)
+            {
+                videos.Add(new VideoSettingsXml
+                {
+                    enabled = videoEnabled,
+                    displayType = videoDisplayType,
+                    path = videoPath,
+                    position = videoPosition,
+                    rotation = videoRotation,
+                    scale = videoScale,
+                    startTime = videoStartTime,
+                    volume = videoVolume,
+                    alpha = videoAlpha,
+                    guiScale = videoGUIScale,
+                    guiAlpha = videoGUIAlpha,
+                    backmostPosition = videoBackmostPosition,
+                    backmostScale = videoBackmostScale,
+                    backmostAlpha = videoBackmostAlpha,
+                    frontmostPosition = videoFrontmostPosition,
+                    frontmostScale = videoFrontmostScale,
+                    frontmostAlpha = videoFrontmostAlpha,
+                });
+            }
+
+            if (version < 6)
+            {
+                // 旧バージョンではモデル情報が格納されていない
+                models.Clear();
+
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "ModelTimelineLayer")
+                    {
+                        var modelNames = new HashSet<string>();
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                modelNames.Add(bone.transform.name);
+                            }
+                        }
+
+                        foreach (var modelName in modelNames)
+                        {
+                            var model = new TimelineModelXml
+                            {
+                                name = modelName
+                            };
+                            models.Add(model);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 7)
+            {
+                // BGTimelineLayerにSY/SZを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "BGTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 7)
+                                {
+                                    MTEUtils.LogDebug("Add SY/SZ to BGTimelineLayer name={0}", transform.name);
+                                    values.Add(values[6]);
+                                    values.Add(values[6]);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 8)
+            {
+                // EyesTimelineLayerにEyesRot/LookAtTargetを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "EyesTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            if (keyFrame.frameNo == 0)
+                            {
+                                var names = new string[] { "EyesRot", "LookAtTarget" };
+                                foreach (var name in names)
+                                {
+                                    var transform = new TransformXml
+                                    {
+                                        name = name,
+                                        values = new float[] {},
+                                    };
+                                    keyFrame.bones.Add(new BoneXml
+                                    {
+                                        transform = transform,
+                                    });
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 9)
+            {
+                // MotionTimelineLayerのExtendBoneにposition/scaleを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "MotionTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                var boneName = transform.name;
+                                
+                                var holdtype = MaidCache.GetIKHoldType(boneName);
+                                var isDefaultBoneName = BoneUtils.IsDefaultBoneName(boneName);
+                                if (holdtype != IKHoldType.Max)
+                                {
+                                    continue;
+                                }
+                                else if (boneName == MotionTimelineLayer.GroundingBoneName)
+                                {
+                                    continue;
+                                }
+                                else if (isDefaultBoneName)
+                                {
+                                    continue;
+                                }
+
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 4)
+                                {
+                                    MTEUtils.LogDebug("Add Position/Scale to MotionTimelineLayer name={0}", transform.name);
+                                    values.Add(float.MinValue);
+                                    values.Add(float.MinValue);
+                                    values.Add(float.MinValue);
+                                    values.Add(1f);
+                                    values.Add(1f);
+                                    values.Add(1f);
+                                }
+                                transform.values = values.ToArray();
+
+                                if (transform.inSmoothBit == 15)
+                                {
+                                    transform.inSmoothBit = 1023;
+                                }
+                                if (transform.outSmoothBit == 15)
+                                {
+                                    transform.outSmoothBit = 1023;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 10)
+            {
+                // 前のバージョンでは次のフレームを拡張する仕様
+                singleFrameType = SingleFrameType.Advance;
+            }
+
+            if (version < 11)
+            {
+                // LightTimelineLayerにmaidSlotIdを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "LightTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 15)
+                                {
+                                    MTEUtils.LogDebug("Add maidSlotId to LightTimelineLayer name={0}", transform.name);
+                                    values.Add(-1f);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 12)
+            {
+                // MotionTimelineLayerにisGroundingFootRを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "MotionTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                if (bone.transform.name != MotionTimelineLayer.GroundingBoneName)
+                                    continue;
+
+                                var transform = bone.transform;
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 6)
+                                {
+                                    MTEUtils.LogDebug("Add isGroundingFootR to MotionTimelineLayer name={0}", transform.name);
+                                    values.Add(values[0]);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 13)
+            {
+                // MotionTimelineLayerにisAnimeを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "MotionTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                var boneName = transform.name;
+
+                                var holdtype = MaidCache.GetIKHoldType(boneName);
+                                if (holdtype == IKHoldType.Max)
+                                {
+                                    continue;
+                                }
+
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 4)
+                                {
+                                    MTEUtils.LogDebug("Add isAnime to MotionTimelineLayer name={0}", transform.name);
+                                    values.Add(isIKAnime ? 1f : 0f);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 14)
+            {
+                // MotionTimelineLayerにFingerBlendを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "MotionTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            if (keyFrame.frameNo == 0)
+                            {
+                                foreach (var name in MotionTimelineLayer.FingerBlendBoneNames)
+                                {
+                                    var transform = new TransformXml
+                                    {
+                                        name = name,
+                                        values = new float[] {},
+                                    };
+                                    keyFrame.bones.Add(new BoneXml
+                                    {
+                                        transform = transform,
+                                    });
+                                    MTEUtils.LogDebug("Add FingerBlend to MotionTimelineLayer name={0}", name);
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 16)
+            {
+                // ModelTimelineLayerにvisibleを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "ModelTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 10)
+                                {
+                                    MTEUtils.LogDebug("Add visible to ModelTimelineLayer name={0}", transform.name);
+                                    values.Add(1f);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+#if DEBUG
+            if (version < 17)
+            {
+                // StageLightTimelineLayerのrotationをeulerAnglesに変更
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "StageLightTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.name.StartsWith("StageLightController", StringComparison.Ordinal))
+                                {
+                                    continue;
+                                }
+
+                                var values = new List<float>(transform.values);
+                                if (values.Count > 6)
+                                {
+                                    MTEUtils.LogDebug("Change rotation to eulerAngles in StageLightTimelineLayer name={0}", transform.name);
+                                    var rotation = new Quaternion(values[3], values[4], values[5], values[6]);
+                                    var eulerAngles = rotation.eulerAngles;
+                                    values[3] = eulerAngles.x;
+                                    values[4] = eulerAngles.y;
+                                    values[5] = eulerAngles.z;
+                                    values[6] = 0f; // not used
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 18)
+            {
+                // StageLightTimelineLayerのにzTest追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "StageLightTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.name.StartsWith("StageLightController", StringComparison.Ordinal))
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count == 36)
+                                    {
+                                        MTEUtils.LogDebug("Add zTest to StageLightTimelineLayer name={0}", transform.name);
+                                        values.Add(1f);
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                                else
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count == 22)
+                                    {
+                                        MTEUtils.LogDebug("Add zTest to StageLightTimelineLayer name={0}", transform.name);
+                                        values.Add(1f);
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 19)
+            {
+                // StageLightTimelineLayerのsegmentAngle上書き
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "StageLightTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.type == TransformType.StageLight)
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 20)
+                                    {
+                                        MTEUtils.LogDebug("Overwrite segmentAngle in StageLightTimelineLayer name={0}", transform.name);
+                                        values[20] = 10f;
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                                else
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 29)
+                                    {
+                                        MTEUtils.LogDebug("Overwrite segmentAngle in StageLightTimelineLayer name={0}", transform.name);
+                                        values[29] = 10f;
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 21)
+            {
+                // StageLaserTimelineLayerのintensityのindex変更
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "StageLaserTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.type == TransformType.StageLaser)
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 26)
+                                    {
+                                        MTEUtils.LogDebug("Change intensity index in StageLaserTimelineLayer name={0}", transform.name);
+                                        values.Insert(16, values[26]);
+                                        values.RemoveAt(27);
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                                else
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 33)
+                                    {
+                                        MTEUtils.LogDebug("Change intensity index in StageLaserTimelineLayer name={0}", transform.name);
+                                        values.Insert(18, values[33]);
+                                        values.RemoveAt(34);
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 22)
+            {
+                // StageLaserTimelineLayerのposition削除
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "StageLaserTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.type == TransformType.StageLaser)
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 3)
+                                    {
+                                        MTEUtils.LogDebug("Remove position in StageLaserTimelineLayer name={0}", transform.name);
+                                        values.RemoveRange(0, 3);
+                                    }
+                                    transform.values = values.ToArray();
+                                }
+                                else
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 33)
+                                    {
+                                        MTEUtils.LogDebug("Fix rotation in StageLaserTimelineLayer name={0}", transform.name);
+                                        var eulerAngles = new float[] {0, 0, 0};
+                                        var rotationMin = new float[] {values[3], values[4], values[5]};
+                                        var rotationMax = new float[] {values[6], values[7], values[8]};
+                                        values.RemoveRange(3, 6);
+                                        values.InsertRange(3, eulerAngles);
+                                        values.InsertRange(31, rotationMin);
+                                        values.InsertRange(34, rotationMax);
+                                    }
+                                    transform.values = values.ToArray();
+                                    if (transform.inSmoothBit == -1)
+                                    {
+                                        transform.inSmoothBit = 137438953471;
+                                    }
+                                    if (transform.outSmoothBit == -1)
+                                    {
+                                        transform.outSmoothBit = 137438953471;
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+#endif
+
+            if (version < 23)
+            {
+                // MoveTimelineLayerにscaleを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "MoveTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 7)
+                                {
+                                    MTEUtils.LogDebug("Add scale to MoveTimelineLayer name={0}", transform.name);
+                                    values.Add(1f);
+                                    values.Add(1f);
+                                    values.Add(1f);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 25)
+            {
+                // LightTimelineLayerにvisibleを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "LightTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                var values = new List<float>(transform.values);
+                                if (values.Count == 16)
+                                {
+                                    MTEUtils.LogDebug("Add visible to LightTimelineLayer name={0}", transform.name);
+                                    values.Add(1f);
+                                }
+                                transform.values = values.ToArray();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 27)
+            {
+                // ModelShapeKeyTimelineLayerのTransformType変更
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "ModelShapeKeyTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.type == TransformType.ShapeKey)
+                                {
+                                    MTEUtils.LogDebug("Change TransformType -> ModelShapeKey name={0}", transform.name);
+                                    transform.type = TransformType.ModelShapeKey;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 28)
+            {
+                // ModelTimelineLayerのeulerAnglesをrotationを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "ModelTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+
+                                var values = new List<float>(transform.values);
+                                if (values.Count > 5)
+                                {
+                                    MTEUtils.LogDebug("Convert eulerAngles to rotation in ModelTimelineLayer name={0}", transform.name);
+                                    var eulerAngles = new Vector3(values[3], values[4], values[5]);
+                                    // 移行は単体テストから通せる必要があるので managed 実装を使う
+                                    var rotation = QuaternionUtils.EulerToQuaternion(eulerAngles);
+                                    values[3] = rotation.x;
+                                    values[4] = rotation.y;
+                                    values[5] = rotation.z;
+                                    values.Insert(6, rotation.w);
+                                    transform.values = values.ToArray();
+                                }
+
+                                var inTangents = transform.inTangents != null
+                                    ? new List<float>(transform.inTangents)
+                                    : new List<float>();
+                                if (inTangents.Count > 5)
+                                {
+                                    inTangents.Insert(6, inTangents[3]);
+                                    transform.inTangents = inTangents.ToArray();
+                                }
+
+                                var outTangents = transform.outTangents != null
+                                    ? new List<float>(transform.outTangents)
+                                    : new List<float>();
+                                if (outTangents.Count > 5)
+                                {
+                                    outTangents.Insert(6, outTangents[3]);
+                                    transform.outTangents = outTangents.ToArray();
+                                }
+
+                                {
+                                    var inSmoothBit = transform.inSmoothBit;
+                                    var value = ((inSmoothBit >> 3) & 1) != 0;
+                                    inSmoothBit = InsertBit(inSmoothBit, 6, value);
+                                    transform.inSmoothBit = inSmoothBit;
+                                }
+
+                                {
+                                    var outSmoothBit = transform.outSmoothBit;
+                                    var value = ((outSmoothBit >> 3) & 1) != 0;
+                                    outSmoothBit = InsertBit(outSmoothBit, 6, value);
+                                    transform.outSmoothBit = outSmoothBit;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 29)
+            {
+                // ModelBoneTimelineLayer/MoveTimelineLayer/LightTimelineLayerのeulerAnglesをrotationを追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "ModelBoneTimelineLayer" ||
+                        layer.className == "MoveTimelineLayer" ||
+                        layer.className == "LightTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+
+                                var values = new List<float>(transform.values);
+                                if (values.Count > 5)
+                                {
+                                    MTEUtils.LogDebug("Convert eulerAngles to rotation in {0} name={1}", layer.className, transform.name);
+                                    var eulerAngles = new Vector3(values[3], values[4], values[5]);
+                                    // 移行は単体テストから通せる必要があるので managed 実装を使う
+                                    var rotation = QuaternionUtils.EulerToQuaternion(eulerAngles);
+                                    values[3] = rotation.x;
+                                    values[4] = rotation.y;
+                                    values[5] = rotation.z;
+                                    values.Insert(6, rotation.w);
+                                    transform.values = values.ToArray();
+                                }
+
+                                var inTangents = transform.inTangents != null
+                                    ? new List<float>(transform.inTangents)
+                                    : new List<float>();
+                                if (inTangents.Count > 5)
+                                {
+                                    inTangents.Insert(6, inTangents[3]);
+                                    transform.inTangents = inTangents.ToArray();
+                                }
+
+                                var outTangents = transform.outTangents != null
+                                    ? new List<float>(transform.outTangents)
+                                    : new List<float>();
+                                if (outTangents.Count > 5)
+                                {
+                                    outTangents.Insert(6, outTangents[3]);
+                                    transform.outTangents = outTangents.ToArray();
+                                }
+
+                                {
+                                    var inSmoothBit = transform.inSmoothBit;
+                                    var value = ((inSmoothBit >> 3) & 1) != 0;
+                                    inSmoothBit = InsertBit(inSmoothBit, 6, value);
+                                    transform.inSmoothBit = inSmoothBit;
+                                }
+
+                                {
+                                    var outSmoothBit = transform.outSmoothBit;
+                                    var value = ((outSmoothBit >> 3) & 1) != 0;
+                                    outSmoothBit = InsertBit(outSmoothBit, 6, value);
+                                    transform.outSmoothBit = outSmoothBit;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (version < 30)
+            {
+                // PostEffectTimelineLayerのTransformDataRimlightのindex:23に0を追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "PostEffectTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.type == TransformType.Rimlight)
+                                {
+                                    var values = new List<float>(transform.values);
+                                    if (values.Count > 23)
+                                    {
+                                        MTEUtils.LogDebug("Add 0 to PostEffectTimelineLayer name={0}", transform.name);
+                                        values.Insert(23, 0f);
+                                        transform.values = values.ToArray();
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (version < 31)
+            {
+                // BGModelMaterialTimelineLayer/ModelMaterialTimelineLayerの特定の色にアルファ値を追加
+                foreach (var layer in layers)
+                {
+                    if (layer.className == "BGModelMaterialTimelineLayer" || 
+                        layer.className == "ModelMaterialTimelineLayer")
+                    {
+                        foreach (var keyFrame in layer.keyFrames)
+                        {
+                            foreach (var bone in keyFrame.bones)
+                            {
+                                var transform = bone.transform;
+                                if (transform.type == TransformType.ModelMaterial)
+                                {
+                                    var values = new List<float>(transform.values);
+                                    
+                                    // ShadowColor (RGB) の後にアルファ値を追加
+                                    if (values.Count >= 8)
+                                    {
+                                        MTEUtils.LogDebug("Add alpha to ShadowColor in {0} name={1}", layer.className, transform.name);
+                                        values.Insert(8, 1f);
+                                    }
+                                    
+                                    // RimColor (RGB) の後にアルファ値を追加
+                                    if (values.Count >= 12)
+                                    {
+                                        MTEUtils.LogDebug("Add alpha to RimColor in {0} name={1}", layer.className, transform.name);
+                                        values.Insert(12, 1f);
+                                    }
+                                    
+                                    // OutlineColor (RGB) の後にアルファ値を追加
+                                    if (values.Count >= 16)
+                                    {
+                                        MTEUtils.LogDebug("Add alpha to OutlineColor in {0} name={1}", layer.className, transform.name);
+                                        values.Insert(16, 1f);
+                                    }
+                                    
+                                    transform.values = values.ToArray();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (version < 32)
+            {
+                var convertedCount = ConvertPostEffectMaskValues();
+                // 変換対象が無いときはログを出さない (他の移行処理と同じく変換した分だけ記録する)
+                if (convertedCount > 0)
+                {
+                    MTEUtils.LogDebug("Convert post effect depth values to mask values count={0}", convertedCount);
+                }
+            }
+
+            if (version < 35)
+            {
+                // 姿勢を表す回転をオイラー角保持からクォータニオン保持へ移行する。
+                // レイヤーの className ではなく TransformXml.Type で拾う
+                // (ToXml が常に type を書き出すので、レイヤー構成に依存せず特定できる)
+                foreach (var layer in layers)
+                {
+                    foreach (var keyFrame in layer.keyFrames)
+                    {
+                        if (keyFrame.bones == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (var bone in keyFrame.bones)
+                        {
+                            var transform = bone.transform;
+                            if (transform == null)
+                            {
+                                continue;
+                            }
+
+                            int[] eulerIndices;
+                            if (!_eulerToRotationIndices.TryGetValue(transform.type, out eulerIndices))
+                            {
+                                continue;
+                            }
+
+                            foreach (var eulerIndex in eulerIndices)
+                            {
+                                ConvertEulerToRotation(transform, eulerIndex);
+                            }
+                        }
+                    }
+                }
+            }
+
+            ConvertPlugin();
+        }
+
+        /// <summary>旧 (COM3D2 版) リムライト/パラフィンの値数。テストからも参照する</summary>
+        public const int OldRimlightValueCount = 28;
+        public const int OldParaffinValueCount = 24;
+
+        // version 32 当時の値レイアウト。移行処理は「そのバージョン当時の形」を前提に動くため、
+        // 実行時の型定義 (valueCount / Index) を参照してはいけない。
+        // 参照すると、後で型のレイアウトを変えた瞬間に旧データの書き込み先がずれる
+        private const int RimlightValueCountAtV32 = 25;
+        private const int RimlightMaskModeIndexAtV32 = 16;
+        private const int RimlightExcludeFaceIndexAtV32 = 17;
+        private const int RimlightApplyHairIndexAtV32 = 18;
+        private const int ParaffinValueCountAtV32 = 22;
+        private const int ParaffinMaskModeIndexAtV32 = 21;
+
+        /// <summary>旧リムライト/パラフィンの Depth 系 3 値 (DepthMin/DepthMax/DepthFade) は
+        /// COM3D2.5 版で廃止され、リムライトは同じ位置がマスク設定 3 値
+        /// (MaskMode/ExcludeFace/ApplyHair) に、パラフィンは MaskMode 1 値に置き換わった。
+        /// そのまま読み込むと Depth 値がマスク設定として解釈され、マスクなしになってしまうため既定値へ戻す。
+        /// 単体テストから直接呼べるよう、Unity 依存のログ出力は呼び出し側に任せて変換件数だけ返す</summary>
+        public int ConvertPostEffectMaskValues()
+        {
+            var convertedCount = 0;
+            var rimlightTrans = TransformDataRimlight.defaultTrans;
+            var paraffinTrans = TransformDataParaffin.defaultTrans;
+
+            // レイヤークラスでは絞り込まず TransformType で判定する
+            // (将来リムライトを扱うレイヤーが増えても移行漏れにならないようにする)
+            foreach (var layer in layers)
+            {
+                foreach (var keyFrame in layer.keyFrames)
+                {
+                    if (keyFrame.bones == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var bone in keyFrame.bones)
+                    {
+                        var transform = bone.transform;
+                        if (transform == null || transform.values == null)
+                        {
+                            continue;
+                        }
+
+                        // 値数で旧形式かどうかを判別する (新形式で保存済みのデータは変換しない)
+                        if (transform.type == TransformType.Rimlight &&
+                            transform.values.Length == OldRimlightValueCount)
+                        {
+                            var values = new List<float>(transform.values);
+                            values.RemoveRange(
+                                RimlightValueCountAtV32,
+                                OldRimlightValueCount - RimlightValueCountAtV32);
+                            values[RimlightMaskModeIndexAtV32] = rimlightTrans.maskModeInfo.defaultValue;
+                            values[RimlightExcludeFaceIndexAtV32] = rimlightTrans.excludeFaceInfo.defaultValue;
+                            values[RimlightApplyHairIndexAtV32] = rimlightTrans.applyHairInfo.defaultValue;
+                            transform.values = values.ToArray();
+                            convertedCount++;
+                        }
+                        else if (transform.type == TransformType.Paraffin &&
+                            transform.values.Length == OldParaffinValueCount)
+                        {
+                            var values = new List<float>(transform.values);
+                            values.RemoveRange(
+                                ParaffinValueCountAtV32,
+                                OldParaffinValueCount - ParaffinValueCountAtV32);
+                            values[ParaffinMaskModeIndexAtV32] = paraffinTrans.maskModeInfo.defaultValue;
+                            transform.values = values.ToArray();
+                            convertedCount++;
+                        }
+                    }
+                }
+            }
+
+            return convertedCount;
+        }
+
+        public static long InsertBit(long bitValues, int index, bool value)
+        {
+            if (index < 0 || index >= 64) // longは64ビット
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), "インデックスは0から63の間である必要があります。");
+            }
+
+            long upperBits = (bitValues >> index) << (index + 1);
+            long lowerBits = bitValues & ((1L << index) - 1);
+            long insertBit = value ? (1L << index) : 0;
+            return upperBits | insertBit | lowerBits;
+        }
+
+        /// <summary>
+        /// オイラー角 3 値をクォータニオン 4 値へ変換し、値・タンジェント・スムーズビットを
+        /// まとめて 1 スロットぶんずらす。version 35 の移行専用。
+        /// 4 つのうち 1 つでも更新し漏れると添字が食い違うため、必ずここで一括して行う
+        /// </summary>
+        /// <param name="transform">変換対象のレコード</param>
+        /// <param name="eulerIndex">オイラー角 X の添字</param>
+        public static void ConvertEulerToRotation(TransformXml transform, int eulerIndex)
+        {
+            var insertIndex = eulerIndex + 3;
+
+            var values = transform.values != null
+                ? new List<float>(transform.values)
+                : new List<float>();
+            if (values.Count < insertIndex)
+            {
+                // 値数の足りない壊れたレコード。触ると余計に壊れるので素通しする
+                MTEUtils.LogWarning(
+                    "回転の移行をスキップしました name={0} type={1} count={2}",
+                    transform.name, transform.type, values.Count);
+                return;
+            }
+
+            var eulerAngles = new Vector3(
+                values[eulerIndex], values[eulerIndex + 1], values[eulerIndex + 2]);
+            // Quaternion.Euler は Unity のネイティブ ECall で単体テストから呼べないため、
+            // 移行のような「静かに壊れると困る」経路では managed 実装を使う
+            var rotation = QuaternionUtils.EulerToQuaternion(eulerAngles);
+            values[eulerIndex] = rotation.x;
+            values[eulerIndex + 1] = rotation.y;
+            values[eulerIndex + 2] = rotation.z;
+            values.Insert(insertIndex, rotation.w);
+            transform.values = values.ToArray();
+
+            // タンジェントはオイラー角空間の値なので持ち越さず、自動補間へ倒す。
+            // 保存されているのは normalizedValue (そのキーの傾き ÷ 近傍の割線の傾き) という比で、
+            // これはオイラー角の近傍差分から求めたものだからクォータニオン空間では意味を持たない。
+            // さらに値が変化しないチャンネルでは UpdateTangent が勾配の代わりに絶対値 0.01 を使うため、
+            // 比がそのまま「値の単位での寄与」になる。度 (±360) からクォータニオン成分 (±1) へ
+            // 約 1/100 に縮んだ値へ同じ比を当てると寄与が約 100 倍に効き、
+            // 両端が同じ姿勢の区間でも途中が大きく振れる (実データで約 67 度の暴れを観測)
+            transform.inTangents = ClearRotationTangents(
+                transform.inTangents, eulerIndex, insertIndex);
+            transform.outTangents = ClearRotationTangents(
+                transform.outTangents, eulerIndex, insertIndex);
+
+            transform.inSmoothBit = SetRotationSmoothBits(transform.inSmoothBit, eulerIndex, insertIndex);
+            transform.outSmoothBit = SetRotationSmoothBits(transform.outSmoothBit, eulerIndex, insertIndex);
+        }
+
+        /// <summary>
+        /// insertIndex へ 1 枠挿入したうえで、回転 4 成分ぶんのタンジェントを 0 で潰す。
+        /// 値配列より短いタンジェント配列はそのまま返す (FromXml 側が不足分を 0 で埋める)
+        /// </summary>
+        private static float[] ClearRotationTangents(float[] source, int eulerIndex, int insertIndex)
+        {
+            if (source == null || source.Length < insertIndex)
+            {
+                return source;
+            }
+
+            var list = new List<float>(source);
+            list.Insert(insertIndex, 0f);
+            for (var i = eulerIndex; i <= insertIndex; i++)
+            {
+                list[i] = 0f;
+            }
+            return list.ToArray();
+        }
+
+        /// <summary>
+        /// insertIndex へ 1 ビット挿入したうえで、回転 4 成分ぶんのスムーズビットを立てる。
+        /// 自動補間にしておけば、クォータニオン空間の近傍から比が計算し直される
+        /// </summary>
+        private static long SetRotationSmoothBits(long bitValues, int eulerIndex, int insertIndex)
+        {
+            var result = InsertBit(bitValues, insertIndex, true);
+            for (var i = eulerIndex; i <= insertIndex; i++)
+            {
+                result |= 1L << i;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// version 35 でクォータニオン化する型と、そのオイラー角 X の添字。
+        /// 複数スロットを持つ型は「後ろのスロットから先に」挿入する順で並べる
+        /// (先に前を挿入すると後ろの添字がずれるため)
+        /// </summary>
+        private static readonly Dictionary<TransformType, int[]> _eulerToRotationIndices
+            = new Dictionary<TransformType, int[]>
+        {
+            { TransformType.Rimlight, new[] { 0 } },
+            { TransformType.PngObject, new[] { 3 } },
+            { TransformType.Text, new[] { 3 } },
+            { TransformType.StageLight, new[] { 3 } },
+            { TransformType.StageLaser, new[] { 1 } },
+            { TransformType.StageLaserController, new[] { 3 } },
+            // 左手 6-8 / 右手 9-11。後ろから挿入しないと左手の挿入で右手の添字がずれる
+            { TransformType.PsylliumTransform, new[] { 9, 6 } },
+        };
+
+        private static readonly HashSet<string> _replacePluginNameSet = new HashSet<string>
+        {
+            "StudioMode",
+            "MeidoPhotoStudio",
+            "MultipleMaids",
+        };
+
+        private static readonly HashSet<string> _modelLayerNameSet = new HashSet<string>
+        {
+            "ModelTimelineLayer",
+            "ModelBoneTimelineLayer",
+            "ModelShapeKeyTimelineLayer",
+        };
+
+        private static Dictionary<string, string> _convertModelNames = new Dictionary<string, string>(8);
+
+        private void ConvertPlugin()
+        {
+            var currentPluginName = SceneEditorHack.pluginName;
+            bool isConvertToStudioMode = currentPluginName == "StudioMode";
+            _convertModelNames.Clear();
+
+            foreach (var model in models)
+            {
+                if (model.pluginName == currentPluginName)
+                {
+                    continue;
+                }
+
+                if (!_replacePluginNameSet.Contains(model.pluginName))
+                {
+                    continue;
+                }
+
+                model.pluginName = currentPluginName;
+
+                if (isConvertToStudioMode)
+                {
+                    if (model.name.Contains(".menu"))
+                    {
+                        var newName = model.name.Replace(".menu", "");
+                        _convertModelNames[model.name] = newName;
+                        model.name = newName;
+                    }
+                }
+                else
+                {
+                    var menuName = PluginUtils.RemoveGroupSuffix(model.name) + ".menu";
+                    if (GameUty.IsExistFile(menuName))
+                    {
+                        _convertModelNames[model.name] = menuName;
+                        model.name = menuName;
+                    }
+                }
+            }
+
+            foreach (var layer in layers)
+            {
+                if (!_modelLayerNameSet.Contains(layer.className))
+                {
+                    continue;
+                }
+
+                foreach (var keyFrame in layer.keyFrames)
+                {
+                    foreach (var bone in keyFrame.bones)
+                    {
+                        var transform = bone.transform;
+                        if (_convertModelNames.TryGetValue(transform.name, out var newName))
+                        {
+                            transform.name = newName;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

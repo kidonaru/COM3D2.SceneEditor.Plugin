@@ -1,7 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -14,11 +15,27 @@ namespace COM3D2.SceneEditor.Plugin
         Undo,
         Redo,
         EditModeToggle,
+        WindowsHiddenToggle,
+        // ここから下はタイムライン操作 (旧 Timeline.xml から統合)
+        AddKeyFrame,
+        AddKeyFrameAll,
+        RemoveKeyFrame,
+        Play,
+        Copy,
+        Paste,
+        FlipPaste,
+        PoseCopy,
+        PosePaste,
+        PrevFrame,
+        NextFrame,
+        PrevKeyFrame,
+        NextKeyFrame,
+        MultiSelect,
     }
 
     public class Config
     {
-        public static readonly int CurrentVersion = 1;
+        public static readonly int CurrentVersion = 2;
 
         [XmlAttribute]
         public int version = 0;
@@ -55,6 +72,7 @@ namespace COM3D2.SceneEditor.Plugin
         // SceneView ツールバーの表示トグル (SceneView にのみ適用。ゲーム画面には影響しない)
         public bool sceneViewShowBg = false;
         public bool sceneViewShowMaid = true;
+        public bool sceneViewShowModel = true;
         public bool sceneViewShowGizmo = true;
         public bool sceneViewOrthographic = false;
         // 選択・配置に連動した自動フォーカス。OFF でも Inspector のフォーカスボタンと F キーは効く
@@ -122,13 +140,6 @@ namespace COM3D2.SceneEditor.Plugin
         public int backgroundHeight = 400;
         public bool backgroundVisible = false;
 
-        // BGMウィンドウ (-1 は未初期化)
-        public int bgmPosX = -1;
-        public int bgmPosY = -1;
-        public int bgmWidth = 300;
-        public int bgmHeight = 400;
-        public bool bgmVisible = false;
-
         public int maidUndressPosX = -1;
         public int maidUndressPosY = -1;
         public int maidUndressWidth = 300;
@@ -184,12 +195,119 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>操作履歴の最大保持数。0 以下で履歴を無効化する</summary>
         public int historyLimit = 20;
 
+        // タイムラインウィンドウ
+        public int timelinePosX = -1;
+        public int timelinePosY = -1;
+        public int timelineWidth = 800;
+        public int timelineHeight = 480;
+        public bool timelineVisible = false;
+
+        // ライブ演出ウィンドウ
+        public int liveEffectPosX = -1;
+        public int liveEffectPosY = -1;
+        public int liveEffectWidth = 440;
+        public int liveEffectHeight = 600;
+        public bool liveEffectVisible = false;
+
+        // テキストウィンドウ
+        public int textPosX = -1;
+        public int textPosY = -1;
+        public int textWidth = 320;
+        public int textHeight = 600;
+        public bool textVisible = false;
+
+        // サウンドウィンドウ
+        public int soundPosX = -1;
+        public int soundPosY = -1;
+        public int soundWidth = 400;
+        public int soundHeight = 420;
+        public bool soundVisible = false;
+
+        // 動画ウィンドウ
+        public int videoPosX = -1;
+        public int videoPosY = -1;
+        public int videoWidth = 340;
+        public int videoHeight = 420;
+        public bool videoVisible = false;
+
+        /// <summary>動画プレビューウィンドウ 1 枚分の配置 (-1 は未初期化)</summary>
+        public class VideoPreviewPlacement
+        {
+            public int posX = -1;
+            public int posY = -1;
+            public int width = 480;
+            public int height = 270;
+            public bool visible = false;
+        }
+
+        // 動画プレビューウィンドウ (動画の添字ごとに 1 件)
+        [XmlElement("videoPreview")]
+        public List<VideoPreviewPlacement> videoPreviews = new List<VideoPreviewPlacement>();
+
+        /// <summary>
+        /// 添字に対応するプレビュー配置。足りない分は既定値で埋めて返すため、
+        /// 旧バージョンの Config を読んでも欠番で落ちない。
+        /// 呼び出し元も添字を丸めるが、壊れた Config を直接読んでも上限を超えないようここでも丸める
+        /// </summary>
+        public VideoPreviewPlacement GetVideoPreview(int index)
+        {
+            index = Mathf.Clamp(index, 0, MTEP.MovieManager.MaxVideoCount - 1);
+
+            while (videoPreviews.Count <= index)
+            {
+                videoPreviews.Add(new VideoPreviewPlacement());
+            }
+            return videoPreviews[index];
+        }
+
+        // タイムライン操作ウィンドウ
+        public int timelineControlPosX = -1;
+        public int timelineControlPosY = -1;
+        public int timelineControlWidth = 800;
+        public int timelineControlHeight = 190;
+        public bool timelineControlVisible = false;
+
         // 設定ウィンドウ
         public int settingPosX = -1;
         public int settingPosY = -1;
         public int settingWidth = 300;
         public int settingHeight = 420;
         public bool settingVisible = false;
+
+        // タイムライン設定ウィンドウ
+        public int timelineSettingPosX = -1;
+        public int timelineSettingPosY = -1;
+        public int timelineSettingWidth = 320;
+        public int timelineSettingHeight = 420;
+        public bool timelineSettingVisible = false;
+
+        // タイムラインロードウィンドウ
+        public int timelineLoadPosX = -1;
+        public int timelineLoadPosY = -1;
+        public int timelineLoadWidth = 480;
+        public int timelineLoadHeight = 420;
+        public bool timelineLoadVisible = false;
+
+        // タイムラインテンプレートウィンドウ
+        public int timelineTemplatePosX = -1;
+        public int timelineTemplatePosY = -1;
+        public int timelineTemplateWidth = 400;
+        public int timelineTemplateHeight = 480;
+        public bool timelineTemplateVisible = false;
+
+        // シェイプキー編集ウィンドウ
+        public int shapeKeyEditPosX = -1;
+        public int shapeKeyEditPosY = -1;
+        public int shapeKeyEditWidth = 400;
+        public int shapeKeyEditHeight = 480;
+        public bool shapeKeyEditVisible = false;
+
+        // マテリアル編集ウィンドウ
+        public int materialEditPosX = -1;
+        public int materialEditPosY = -1;
+        public int materialEditWidth = 400;
+        public int materialEditHeight = 480;
+        public bool materialEditVisible = false;
 
         /// <summary>スクリーンショットの解像度倍率 (画面サイズの何倍で撮るか)</summary>
         public int screenshotScale = 2;
@@ -260,6 +378,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool scenePresetSaveMaids = true;
         // 背景・ライト・PNG 配置をまとめた「背景」カテゴリ
         public bool scenePresetSaveBackground = true;
+        // テキスト・サブカメラ・ポストエフェクトをまとめた「演出」カテゴリ
+        public bool scenePresetSaveEffects = true;
         // 無効化した外部プロバイダ id のカンマ区切り (未指定は全有効)
         public string scenePresetDisabledProviders = "";
 
@@ -368,6 +488,8 @@ namespace COM3D2.SceneEditor.Plugin
         public const int DefaultGridCountInDisplay = 3;
         public const float DefaultGridAlphaInDisplay = 0.3f;
         public const float DefaultGridLineWidthInDisplay = 3f;
+        public const int DefaultGridCountInVideo = 4;
+        public const float DefaultGridAlphaInVideo = 0.3f;
 
         /// <summary>グリッド全体の表示スイッチ</summary>
         public bool isGridVisible = true;
@@ -396,6 +518,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>分割線の幅 (px)</summary>
         public float gridLineWidthInDisplay = DefaultGridLineWidthInDisplay;
 
+        // 動画グリッド (動画の表示面を等分する。3D 表示の動画面と動画プレビューウィンドウに描画する)
+        public bool isGridVisibleInVideo = true;
+        /// <summary>動画面の分割数</summary>
+        public int gridCountInVideo = DefaultGridCountInVideo;
+        public float gridAlphaInVideo = DefaultGridAlphaInVideo;
+        public Color gridColorInVideo = Color.white;
+
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
         public Color backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
@@ -409,7 +538,22 @@ namespace COM3D2.SceneEditor.Plugin
             { KeyBindType.GizmoScale, new KeyBind("C") },
             { KeyBindType.Undo, new KeyBind("Ctrl+Z") },
             { KeyBindType.Redo, new KeyBind("Ctrl+X") },
-            { KeyBindType.EditModeToggle, new KeyBind("Tab") },
+            { KeyBindType.EditModeToggle, new KeyBind("F1") },
+            { KeyBindType.WindowsHiddenToggle, new KeyBind("Tab") },
+            { KeyBindType.AddKeyFrame, new KeyBind("Return") },
+            { KeyBindType.AddKeyFrameAll, new KeyBind("Shift+Return") },
+            { KeyBindType.RemoveKeyFrame, new KeyBind("Backspace") },
+            { KeyBindType.Play, new KeyBind("Space") },
+            { KeyBindType.Copy, new KeyBind("Ctrl+C") },
+            { KeyBindType.Paste, new KeyBind("Ctrl+V") },
+            { KeyBindType.FlipPaste, new KeyBind("Ctrl+Shift+V") },
+            { KeyBindType.PoseCopy, new KeyBind("Ctrl+Alt+C") },
+            { KeyBindType.PosePaste, new KeyBind("Ctrl+Alt+V") },
+            { KeyBindType.PrevFrame, new KeyBind("A") },
+            { KeyBindType.NextFrame, new KeyBind("D") },
+            { KeyBindType.PrevKeyFrame, new KeyBind("Ctrl+A") },
+            { KeyBindType.NextKeyFrame, new KeyBind("Ctrl+D") },
+            { KeyBindType.MultiSelect, new KeyBind("Shift") },
         };
 
         public struct KeyBindPair
@@ -447,8 +591,20 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlIgnore]
         public bool dirty = false;
 
+        /// <summary>連番画像出力中など、タイムライン操作のキーだけ止めたいときに false にする</summary>
+        [XmlIgnore]
+        public bool isTimelineKeyInputEnabled = true;
+
         public void ConvertVersion()
         {
+            // v2: 編集モード切替を Tab から F1 へ移し、Tab はウィンドウ非表示に充てた。
+            // 旧設定の Tab を残すと両方に Tab が割り当たり同時に発動するため、既定値へ寄せる
+            if (version < 2 && GetKeyName(KeyBindType.EditModeToggle) == "Tab")
+            {
+                keyBinds[KeyBindType.EditModeToggle] = new KeyBind("F1");
+                keyBinds[KeyBindType.WindowsHiddenToggle] = new KeyBind("Tab");
+                dirty = true;
+            }
             version = CurrentVersion;
         }
 
@@ -460,6 +616,11 @@ namespace COM3D2.SceneEditor.Plugin
         public bool GetKeyDown(KeyBindType keyBindType)
         {
             return keyBinds[keyBindType].GetKeyDown();
+        }
+
+        public bool GetKeyDownRepeat(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].GetKeyDownRepeat(keyRepeatTimeFirst, keyRepeatTime);
         }
 
         public bool GetKeyUp(KeyBindType keyBindType)

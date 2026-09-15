@@ -1,4 +1,6 @@
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -34,7 +36,7 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// IK 固定（MTE の IKHoldEntity 相当）。ゲーム側 IKManager には依存せず、
+    /// IK 固定。ゲーム側 IKManager には依存せず、
     /// 固定用に自前の MaidIKChain を持って毎フレーム解く。
     /// ドラッグ用チェーン（MaidDragPointController 所有）とは別インスタンスだが、
     /// ドラッグ中の箇所は解かず target の追従記録だけ行うため競合しない
@@ -45,6 +47,8 @@ namespace COM3D2.SceneEditor.Plugin
         private class HoldEntity
         {
             public bool isHold;
+            /// <summary>モーション再生中も固定を効かせる（MTE の IK アニメーション相当）</summary>
+            public bool isAnime;
             public bool resetRequested;
             public Vector3 targetPosition;
         }
@@ -59,11 +63,6 @@ namespace COM3D2.SceneEditor.Plugin
             public readonly MaidIKChain[] chains = new MaidIKChain[4];
             public readonly Transform[] midBones = new Transform[4];
             public readonly Transform[] tipBones = new Transform[4];
-
-            // ドリフト防止（PositonCorrection 相当）用の初期 localPosition
-            public readonly Vector3[] rootLocalPos = new Vector3[4];
-            public readonly Vector3[] midLocalPos = new Vector3[4];
-            public readonly Vector3[] tipLocalPos = new Vector3[4];
             public readonly Transform[] rootBones = new Transform[4];
 
             public MaidEntry()
@@ -98,6 +97,15 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// タイムラインのボーン一覧用の表示名。実ボーン「足首(左)」等と同じ名前が
+        /// 同じグループに並んで区別できないため、IK 固定側には「IK」を前置する
+        /// </summary>
+        public static string GetHoldTypeMenuName(MaidIKHoldType type)
+        {
+            return "IK" + GetHoldTypeName(type);
+        }
+
+        /// <summary>
         /// 固定対象ボーン名 → 固定タイプの逆引き。Inspector の IK 選択表示が
         /// 選択中のドラッグ点に対応する固定トグルを出すために使う
         /// </summary>
@@ -118,6 +126,42 @@ namespace COM3D2.SceneEditor.Plugin
         public static bool TryGetHoldType(string boneName, out MaidIKHoldType type)
         {
             return HoldTypeByBoneName.TryGetValue(boneName, out type);
+        }
+
+        /// <summary>enum メンバ名 → 固定タイプ。タイムラインのキーは enum 名でボーンを指す</summary>
+        private static readonly Dictionary<string, MaidIKHoldType> HoldTypeByEnumName =
+            Enum.GetValues(typeof(MaidIKHoldType))
+                .Cast<MaidIKHoldType>()
+                .Where(t => t != MaidIKHoldType.Max)
+                .ToDictionary(t => t.ToString(), t => t);
+
+        /// <summary>enum メンバ名から固定タイプを引く。未知の名前なら false</summary>
+        public static bool TryParseHoldType(string name, out MaidIKHoldType type)
+        {
+            type = MaidIKHoldType.Max;
+            return !string.IsNullOrEmpty(name) && HoldTypeByEnumName.TryGetValue(name, out type);
+        }
+
+        /// <summary>IK 固定項目をボーンメニュー上で置く腕/脚グループ</summary>
+        public static BoneSetMenuType GetBoneSetMenuType(MaidIKHoldType type)
+        {
+            switch (type)
+            {
+                case MaidIKHoldType.Arm_L_Joint:
+                case MaidIKHoldType.Arm_L_Tip:
+                    return BoneSetMenuType.LeftArm;
+                case MaidIKHoldType.Arm_R_Joint:
+                case MaidIKHoldType.Arm_R_Tip:
+                    return BoneSetMenuType.RightArm;
+                case MaidIKHoldType.Foot_L_Joint:
+                case MaidIKHoldType.Foot_L_Tip:
+                    return BoneSetMenuType.LeftLeg;
+                case MaidIKHoldType.Foot_R_Joint:
+                case MaidIKHoldType.Foot_R_Tip:
+                    return BoneSetMenuType.RightLeg;
+                default:
+                    return BoneSetMenuType.None;
+            }
         }
 
         /// <summary>0=腕L, 1=腕R, 2=脚L, 3=脚R（ChainDefs と同じ並び）</summary>
@@ -194,9 +238,6 @@ namespace COM3D2.SceneEditor.Plugin
                 entry.rootBones[i] = root;
                 entry.midBones[i] = mid;
                 entry.tipBones[i] = tip;
-                entry.rootLocalPos[i] = root.localPosition;
-                entry.midLocalPos[i] = mid.localPosition;
-                entry.tipLocalPos[i] = tip.localPosition;
             }
 
             _entries.Add(maid, entry);
@@ -233,6 +274,53 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MaidMotionState.StopMotion(maid);
             }
+        }
+
+        public bool GetAnime(Maid maid, MaidIKHoldType type)
+        {
+            MaidEntry entry;
+            return _entries.TryGetValue(maid, out entry) && entry.entities[(int)type].isAnime;
+        }
+
+        public void SetAnime(Maid maid, MaidIKHoldType type, bool anime)
+        {
+            var entry = GetOrCreateEntry(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.entities[(int)type].isAnime = anime;
+        }
+
+        /// <summary>固定対象ボーンの現在ワールド座標。エントリを作れなければ Vector3.zero</summary>
+        public Vector3 GetPointPosition(Maid maid, MaidIKHoldType type)
+        {
+            var entry = GetOrCreateEntry(maid);
+            return entry != null ? GetPointPosition(entry, type) : Vector3.zero;
+        }
+
+        /// <summary>固定点の目標ワールド座標。エントリ未作成なら Vector3.zero</summary>
+        public Vector3 GetTargetPosition(Maid maid, MaidIKHoldType type)
+        {
+            MaidEntry entry;
+            return _entries.TryGetValue(maid, out entry)
+                ? entry.entities[(int)type].targetPosition
+                : Vector3.zero;
+        }
+
+        /// <summary>固定点の目標ワールド座標を差し替える（タイムライン再生からの書き戻し用）</summary>
+        public void SetTargetPosition(Maid maid, MaidIKHoldType type, Vector3 position)
+        {
+            var entry = GetOrCreateEntry(maid);
+            if (entry == null)
+            {
+                return;
+            }
+
+            var entity = entry.entities[(int)type];
+            entity.targetPosition = position;
+            // 外から位置を指定した以上、現在のボーン位置で取り直させてはいけない
+            entity.resetRequested = false;
         }
 
         /// <summary>
@@ -298,6 +386,53 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>左右で対になる固定タイプ。ポーズ反転に合わせて状態を入れ替える</summary>
+        private static readonly MaidIKHoldType[,] FlipPairs =
+        {
+            { MaidIKHoldType.Arm_L_Joint, MaidIKHoldType.Arm_R_Joint },
+            { MaidIKHoldType.Arm_L_Tip, MaidIKHoldType.Arm_R_Tip },
+            { MaidIKHoldType.Foot_L_Joint, MaidIKHoldType.Foot_R_Joint },
+            { MaidIKHoldType.Foot_L_Tip, MaidIKHoldType.Foot_R_Tip },
+        };
+
+        /// <summary>
+        /// 固定状態を左右反転する (ポーズ反転に追随させる)。
+        /// 固定 ON / アニメ指定と足の接地フラグを L↔R で入れ替え、目標位置は反転後の
+        /// ボーン位置から取り直させる (古い位置のままだと反転前のポーズへ引き戻される)。
+        /// 固定を一度も使っていないメイドはエントリが無いため何もしない。
+        /// フラグを直接入れ替えるため SetHold のモーション停止は通らない。
+        /// 呼び出し側で停止させておくこと (停止していないと固定が効かない)
+        /// </summary>
+        public void FlipHolds(Maid maid)
+        {
+            MaidEntry entry;
+            if (maid == null || !_entries.TryGetValue(maid, out entry))
+            {
+                return;
+            }
+
+            for (var i = 0; i < FlipPairs.GetLength(0); i++)
+            {
+                var left = entry.entities[(int)FlipPairs[i, 0]];
+                var right = entry.entities[(int)FlipPairs[i, 1]];
+
+                var isHold = left.isHold;
+                left.isHold = right.isHold;
+                right.isHold = isHold;
+
+                var isAnime = left.isAnime;
+                left.isAnime = right.isAnime;
+                right.isAnime = isAnime;
+            }
+
+            var holdParams = entry.holdParams;
+            var isGroundingFootL = holdParams.isGroundingFootL;
+            holdParams.isGroundingFootL = holdParams.isGroundingFootR;
+            holdParams.isGroundingFootR = isGroundingFootL;
+
+            ResetAllTargetPositions(maid);
+        }
+
         public void ResetTargetPosition(Maid maid, MaidIKHoldType type)
         {
             MaidEntry entry;
@@ -347,16 +482,31 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 固定はポーズ編集用の機能なので、編集モード中だけ効かせる
-            // （UI の「※編集モードで有効」表記と揃える）
-            if (!MaidManipulateManager.instance.isEditMode)
-            {
-                return;
-            }
+            // （UI の「※編集モードで有効」表記と揃える）。
+            // ただしアニメ指定（タイムライン再生中の固定）は編集モード外でも効かせる
+            var isEditMode = MaidManipulateManager.instance.isEditMode;
 
             foreach (var pair in _entries)
             {
+                if (!isEditMode && !HasAnime(pair.Value))
+                {
+                    continue;
+                }
                 UpdateMaid(pair.Key, pair.Value);
             }
+        }
+
+        /// <summary>アニメ指定の固定を 1 箇所でも持つか</summary>
+        private static bool HasAnime(MaidEntry entry)
+        {
+            foreach (var entity in entry.entities)
+            {
+                if (entity.isHold && entity.isAnime)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>チェーンのボーンが 1 本でも破棄されているか（部分的な再ロード対策）</summary>
@@ -389,9 +539,15 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                // モーション再生中の固定（IK アニメーション）は MTE 側の担当なので、
-                // 停止中のポーズ編集時のみ固定する
-                if (!isMotionStopped)
+                // 編集モード外はアニメ指定の箇所だけ固定する
+                if (!MaidManipulateManager.instance.isEditMode && !entity.isAnime)
+                {
+                    continue;
+                }
+
+                // モーション再生中の固定はアニメ指定のときだけ行う。
+                // 指定が無ければ従来どおり停止中のポーズ編集時のみ固定する
+                if (!isMotionStopped && !entity.isAnime)
                 {
                     continue;
                 }
@@ -419,6 +575,16 @@ namespace COM3D2.SceneEditor.Plugin
                     targetPosition.y = entry.holdParams.floorHeight + entry.holdParams.footBaseOffset;
                 }
 
+                // FABRIK はボーン位置も動かし得るため、解く前の localPosition を退避して
+                // 解いた後に戻し伸縮を防ぐ。ボディロード直後は体型モーフ適用前で骨長が
+                // 一時的に素の値になるため、固定の初期値ではなく毎回その場の値を使う
+                var rootBone = entry.rootBones[index];
+                var midBone = entry.midBones[index];
+                var tipBone = entry.tipBones[index];
+                var savedRootLocalPos = rootBone.localPosition;
+                var savedMidLocalPos = midBone.localPosition;
+                var savedTipLocalPos = tipBone.localPosition;
+
                 entry.chains[index].Solve(
                     IsJoint(type) ? MaidIKChainPoint.Joint : MaidIKChainPoint.Tip,
                     targetPosition);
@@ -428,10 +594,9 @@ namespace COM3D2.SceneEditor.Plugin
                     AdjustFootGrounding(entry, index);
                 }
 
-                // FABRIK はボーン位置も動かし得るため、初期 localPosition へ戻して伸縮を防ぐ
-                entry.rootBones[index].localPosition = entry.rootLocalPos[index];
-                entry.midBones[index].localPosition = entry.midLocalPos[index];
-                entry.tipBones[index].localPosition = entry.tipLocalPos[index];
+                rootBone.localPosition = savedRootLocalPos;
+                midBone.localPosition = savedMidLocalPos;
+                tipBone.localPosition = savedTipLocalPos;
             }
         }
 
@@ -476,15 +641,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (heightDifference > 0f)
             {
                 // 360 度差を除いて近い方の角度を採用する
-                var diffAngle = (int)(footStretchAngle - targetAngle);
-                if (diffAngle > 180)
-                {
-                    footStretchAngle -= (diffAngle + 180) / 360 * 360;
-                }
-                else if (diffAngle < -180)
-                {
-                    footStretchAngle -= (diffAngle - 180) / 360 * 360;
-                }
+                footStretchAngle = AngleUtils.GetFixedAngle(footStretchAngle, targetAngle);
 
                 var heightRate = Mathf.Clamp01(heightDifference / p.footStretchHeight);
                 targetAngle = Mathf.Lerp(targetAngle, footStretchAngle, heightRate);

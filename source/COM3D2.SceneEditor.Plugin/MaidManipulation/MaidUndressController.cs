@@ -203,16 +203,39 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // MaskMode (Nude 等) が効いていると個別マスクと干渉するため、
-            // 公式の OnMaidAddEvent と同様に個別制御へ切り替えてから適用する
-            if (GetMaskMode(maid.body0) != TBody.MaskMode.None)
-            {
-                maid.body0.SetMaskMode(TBody.MaskMode.None);
-            }
-
             foreach (var slotId in category.GetSlotIds(maid))
             {
-                maid.body0.SetMask(slotId, !undressed);
+                SetSlotMask(maid, slotId, !undressed);
+            }
+        }
+
+        /// <summary>
+        /// スロット単位のマスク書き込みの唯一の入口。
+        /// 脱衣ウィンドウ (カテゴリ単位) もタイムラインの脱衣レイヤー (スロット単位) も
+        /// 最終的にここへ合流し、MaskMode の解除が必ず走るようにする
+        /// </summary>
+        public static void SetSlotMask(Maid maid, TBody.SlotID slotId, bool visible)
+        {
+            if (maid == null || maid.body0 == null)
+            {
+                return;
+            }
+
+            EnsureIndividualMaskMode(maid.body0);
+            maid.body0.SetMask(slotId, visible);
+        }
+
+        /// <summary>
+        /// MaskMode (Nude 等) が効いていると個別マスクと干渉するため、
+        /// 公式の OnMaidAddEvent と同様に個別制御へ切り替える。
+        /// SetMaskMode(None) は全スロットを一旦可視へリセットするため、
+        /// 解除が走った直後は操作対象外のスロットも表示に戻る (公式と同じ挙動)
+        /// </summary>
+        private static void EnsureIndividualMaskMode(TBody body)
+        {
+            if (GetMaskMode(body) != TBody.MaskMode.None)
+            {
+                body.SetMaskMode(TBody.MaskMode.None);
             }
         }
 
@@ -276,11 +299,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (GetMaskMode(maid.body0) != TBody.MaskMode.None)
-            {
-                maid.body0.SetMaskMode(TBody.MaskMode.None);
-            }
-
             foreach (var category in categories)
             {
                 if (!IsVisible(maid, category))
@@ -294,7 +312,7 @@ namespace COM3D2.SceneEditor.Plugin
                         continue;
                     }
                     var undressed = undressedSlotNames.Contains(slotId.ToString());
-                    maid.body0.SetMask(slotId, !undressed);
+                    SetSlotMask(maid, slotId, !undressed);
                 }
             }
         }

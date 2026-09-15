@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -44,24 +46,32 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
-        private readonly GUIComboBox<MaidLookMode> _lookModeComboBox = new GUIComboBox<MaidLookMode>
-        {
-            getName = (mode, _) => mode.ToString(),
-            buttonSize = new Vector2(150, 20),
-            contentSize = new Vector2(150, 100),
-        };
+        /// <summary>タイムライン視線の行描画。Inspector の項目表示と共有する</summary>
+        private readonly TimelineLookRowDrawer _timelineLookRowDrawer = new TimelineLookRowDrawer();
 
-        /// <summary>視線モードの選択肢。列挙の再生成を避けて使い回す</summary>
-        private static readonly List<MaidLookMode> LOOK_MODES = new List<MaidLookMode>
-        {
-            MaidLookMode.カメラ,
-            MaidLookMode.マウス,
-            MaidLookMode.方向指定,
-            MaidLookMode.オブジェクト,
-        };
+        /// <summary>瞳位置・瞳サイズの行描画。Inspector の項目表示と共有する</summary>
+        private readonly EyesPosRowDrawer _eyesPosRowDrawer = new EyesPosRowDrawer();
 
-        private static MaidLookController lookController
-            => MaidManipulateManager.instance.lookController;
+        /// <summary>
+        /// 目線種別。顔/瞳の追従フラグを決める設定で、書き込み先はタイムライン全体の設定。
+        /// 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
+        /// 開いている間にタイムラインが閉じられた場合に備えて null を弾く
+        /// </summary>
+        private readonly GUIComboBox<Maid.EyeMoveType> _eyeMoveTypeComboBox =
+            new GUIComboBox<Maid.EyeMoveType>
+            {
+                items = Enum.GetValues(typeof(Maid.EyeMoveType))
+                    .Cast<Maid.EyeMoveType>().ToList(),
+                getName = (type, _) => type.ToString(),
+                onSelected = (type, _) =>
+                {
+                    var timeline = MTEP.TimelineManager.instance.timeline;
+                    if (timeline != null)
+                    {
+                        timeline.eyeMoveType = type;
+                    }
+                },
+            };
 
         /// <summary>カテゴリ一覧のキャッシュ。毎フレームの再構築を避ける</summary>
         private List<string> _presetCategories = null;
@@ -137,6 +147,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             _tab = DrawInnerTabs(_tab, 70);
 
+            // 視線タブは瞳レイヤー、それ以外（表情・プリセット）は表情レイヤーへ記録される。
+            // プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
+            var layerType = _tab == FaceTab.視線
+                ? typeof(MTEP.EyesTimelineLayer)
+                : typeof(MTEP.MorphTimelineLayer);
+            TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
+
             if (_tab == FaceTab.プリセット)
             {
                 DrawPresetContent(view, target);
@@ -182,13 +199,15 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // まばたき中は全カテゴリのモーフ値が毎フレーム上書きされるため、明示的に切り替えられるようにする。
-                // 表示は「編集した表情を固定するか」の視点に揃えるため、まばたきの反転として扱う
-                var isForceOverride = !MaidFaceMorphController.GetMabataki(target);
+                // 表示は「編集した表情を固定するか」の視点に揃えるため、まばたきの反転として扱う。
+                // 表情レイヤー再生中はキー値が実効値になる。再生中の変更が次フレームで戻るのは
+                // モーフ行と同じ挙動なので、ここでは無効化しない
+                var isForceOverride = MaidFaceMorphController.IsForceOverride(target);
                 view.DrawToggle("強制上書き", isForceOverride, 95, ROW_HEIGHT,
                     newIsForceOverride =>
                     {
                         HistoryManager.instance.BeforeEdit(target, HistoryScope.Face, "強制上書き切替");
-                        MaidFaceMorphController.SetMabataki(target, !newIsForceOverride);
+                        MaidFaceMorphController.SetForceOverride(target, newIsForceOverride);
                     });
 
                 // リセットは右端揃え。対象カテゴリを持つモーフ系タブでのみ出す
@@ -202,6 +221,17 @@ namespace COM3D2.SceneEditor.Plugin
                         HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
                             "表情リセット: " + currentMorphCategory);
                         MaidFaceMorphController.ResetCategory(target, currentMorphCategory);
+
+                        // リセットは未編集状態へ戻す操作なので、カテゴリ内のチェックも外す
+                        var store = FaceEditManager.instance.FindStore(target);
+                        if (store != null)
+                        {
+                            foreach (var def in MaidFaceMorphController.GetAvailableMorphs(
+                                target, currentMorphCategory))
+                            {
+                                store.Unmark(def.name);
+                            }
+                        }
                     }
                 }
             }
@@ -220,150 +250,113 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var def in MaidFaceMorphController.GetAvailableMorphs(target, currentMorphCategory))
             {
-                var value = MaidFaceMorphController.GetMorphValue(target, def);
-
-                if (def.isToggle)
-                {
-                    view.DrawToggle(def.displayName, value >= 0.5f, 150, ROW_HEIGHT, newValue =>
-                    {
-                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
-                            "表情: " + def.displayName);
-                        // まばたき中は編集値が毎フレーム上書きされるため、編集開始で自動的に止める
-                        MaidFaceMorphController.SetMabataki(target, false);
-                        MaidFaceMorphController.SetMorphValue(target, def, newValue ? 1f : 0f);
-                    });
-                }
-                else
-                {
-                    view.DrawSliderValue(new GUIView.SliderOption
-                    {
-                        label = def.displayName,
-                        labelWidth = LABEL_WIDTH,
-                        width = -1,
-                        min = 0f,
-                        max = 1f,
-                        step = 0.01f,
-                        defaultValue = 0f,
-                        value = value,
-                        onChanged = newValue =>
-                        {
-                            HistoryManager.instance.BeforeEdit(target, HistoryScope.Face,
-                                "表情: " + def.displayName);
-                            // まばたき中は編集値が毎フレーム上書きされるため、編集開始で自動的に止める
-                            MaidFaceMorphController.SetMabataki(target, false);
-                            MaidFaceMorphController.SetMorphValue(target, def, newValue);
-                        },
-                    });
-                }
+                FaceMorphRowDrawer.Draw(view, target, def, LABEL_WIDTH, ROW_HEIGHT);
             }
 
             view.EndScrollView();
         }
 
         /// <summary>
-        /// 視線タブ。向け先の選択と顔向き左右/上下を描画する。
-        /// 顔・目のトグルは向け先と独立で、頭ボーンのドラッグでも落ちる
+        /// 視線タブ。向け先 (trsLookTarget) の所有者は MaidLookController だが、
+        /// 入口はタイムラインの注視先キー (MaidCache) に一本化しており、
+        /// MaidLookBridge がそれをコントローラへ流す。
+        /// 顔・瞳の追従フラグは「メイド目線」が決めるため、ここでは個別に出さない
         /// </summary>
         private void DrawLookContent(GUIView view, Maid target)
         {
-            var body = target.body0;
-            var mode = lookController.GetMode(target);
+            var timeline = MTEP.TimelineManager.instance.timeline;
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("向け先", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-                _lookModeComboBox.items = LOOK_MODES;
-                _lookModeComboBox.currentIndex = LOOK_MODES.IndexOf(mode);
-                _lookModeComboBox.onSelected = (newMode, _) =>
-                {
-                    HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線の向け先");
-                    lookController.SetMode(target, newMode);
-                };
-                _lookModeComboBox.DrawButton(view);
-            }
-            view.EndLayout();
+            DrawTimelineLookSection(view, target, timeline);
+            DrawEyesPosSection(view, target, timeline);
 
-            view.BeginHorizontal();
+            view.EndScrollView();
+        }
+
+        /// <summary>
+        /// メイド目線・注視先・顔向きキー。書き込み先はタイムライン設定と MaidCache で、
+        /// タイムライン未読込のときは編集できないため案内だけ出す
+        /// </summary>
+        private void DrawTimelineLookSection(GUIView view, Maid target, MTEP.TimelineData timeline)
+        {
+            if (timeline == null)
             {
-                // 頭部をドラッグすると上書きされるため、追従は自動的に解除される。
-                // BeginEnabled はネスト非対応のため、無効化は各 DrawToggle の enabled 引数で個別に指定する
-                view.DrawToggle("顔を向ける", body != null && body.boHeadToCam, 95, ROW_HEIGHT,
-                    body != null, value =>
-                    {
-                        // カメラ追従は Pose スナップショットに含まれるため Pose で記録する
-                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "顔を向ける");
-                        body.boHeadToCam = value;
-                    });
-                view.DrawToggle("目を向ける", body != null && body.boEyeToCam, 95, ROW_HEIGHT,
-                    body != null, value =>
-                    {
-                        HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "目を向ける");
-                        body.boEyeToCam = value;
-                    });
+                view.DrawLabel("タイムライン未読込のため視線は編集できません",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+                return;
             }
-            view.EndLayout();
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+            if (maidCache == null)
+            {
+                // ここへ来るのはタイムライン読込中に限られ、その場合は
+                // タブ冒頭の TimelineLayerGate が同じ案内を出しているので重ねない
+                return;
+            }
+
+            DrawEyeMoveTypeRow(view, timeline);
+            _timelineLookRowDrawer.DrawLookAtTargetRows(view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
 
             view.AddSpace(5);
+            _timelineLookRowDrawer.DrawLookDirectionRows(view, maidCache, LABEL_WIDTH);
 
-            // DrawSliderValue は内部でボタン等を描き、その EndEnabled が GUI.enabled を
-            // 基準値へ戻してしまう。BeginEnabled は入れ子にできないため、
-            // 基準値そのものを動かす SetEnabled で囲む
-            view.SetEnabled(mode == MaidLookMode.方向指定);
-            DrawLookSlider(view, target, "顔向き左右", lookController.GetLookX(target),
-                value => lookController.SetLook(target, value, lookController.GetLookY(target)));
-            DrawLookSlider(view, target, "顔向き上下", lookController.GetLookY(target),
-                value => lookController.SetLook(target, lookController.GetLookX(target), value));
-            view.SetEnabled(true);
+            DrawKeyedLookResetRow(view, maidCache);
+        }
 
-            if (mode != MaidLookMode.オブジェクト)
+        /// <summary>
+        /// 瞳位置・瞳サイズ。
+        /// 書き込み先は瞳の Transform (MaidCache 経由) で、注視先やメイド目線には依らない
+        /// </summary>
+        private void DrawEyesPosSection(GUIView view, Maid target, MTEP.TimelineData timeline)
+        {
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+            if (maidCache == null)
             {
                 return;
             }
 
+            view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            var current = lookController.GetTarget(target);
-            var selected = SelectionManager.instance.selectedObject;
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("注視対象", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-                view.DrawLabel(current != null ? current.name : "未設定", 150, ROW_HEIGHT);
-            }
-            view.EndLayout();
+            view.DrawLabel("瞳位置", -1, ROW_HEIGHT);
 
-            // Hierarchy の選択をそのまま注視対象にできるようにする。
-            // 選択が無いときは押しても何も起きないため無効化する
-            if (view.DrawButton("選択中のオブジェクトを指定", 200, ROW_HEIGHT, selected != null))
+            if (timeline == null)
             {
-                HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "注視対象の指定");
-                lookController.SetTarget(target, selected.transform);
+                view.DrawLabel("タイムライン未読込のため瞳位置はキー化されません",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+            }
+
+            _eyesPosRowDrawer.DrawEyesPosImage(view, maidCache);
+
+            foreach (var eyesType in EyesPosRowDrawer.AllEyesTypes)
+            {
+                _eyesPosRowDrawer.DrawLabeledEyesSliderRows(view, maidCache, eyesType);
             }
         }
 
-        /// <summary>顔向きスライダー 1 本。値域はフォトモードに合わせて -1〜1</summary>
-        private void DrawLookSlider(
-            GUIView view, Maid target, string label, float value, Action<float> onChanged)
+        /// <summary>
+        /// 目線種別。顔・瞳の追従とそらしをまとめて決める (MaidLookBridge.ApplyEyeMoveType)。
+        /// 「無し」がタイムラインに視線を動かさせない指定になる
+        /// </summary>
+        private void DrawEyeMoveTypeRow(GUIView view, MTEP.TimelineData timeline)
         {
-            view.DrawSliderValue(new GUIView.SliderOption
+            _eyeMoveTypeComboBox.currentIndex = (int) timeline.eyeMoveType;
+            DrawLabeledComboBox("メイド目線", _eyeMoveTypeComboBox);
+        }
+
+        /// <summary>キー化される視線の初期化。書き込み先は MaidCache のため履歴は記録しない</summary>
+        private void DrawKeyedLookResetRow(GUIView view, MTEP.MaidCache maidCache)
+        {
+            if (view.DrawButton("タイムライン視線を初期化", 190, ROW_HEIGHT))
             {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = -1f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 0f,
-                value = value,
-                onChanged = newValue =>
-                {
-                    HistoryManager.instance.BeforeEdit(target, HistoryScope.Pose, "視線: " + label);
-                    onChanged(newValue);
-                },
-            });
+                maidCache.lookDirection = Vector2.zero;
+                maidCache.lookAtTargetType = MTEP.LookAtTargetType.None;
+            }
         }
 
         /// <summary>

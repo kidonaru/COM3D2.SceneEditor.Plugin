@@ -290,11 +290,50 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>モーションが再生中か。再生中はボーンスライダーの基準が定まらないため操作させない</summary>
+        /// <summary>IsPlaying のフレーム内キャッシュ。フレームが替わったら丸ごと捨てる</summary>
+        private static readonly Dictionary<Maid, bool> _isPlayingCache = new Dictionary<Maid, bool>();
+        private static int _isPlayingCacheFrame = -1;
+
+        /// <summary>
+        /// モーションが再生中か。再生中はボーンスライダーの基準が定まらないため操作させない。
+        /// タイムラインの一時停止は enabled のまま speed=0 で止める方式のため、
+        /// Animation.isPlaying だけでなく「実際に動いているか」で判定する。
+        /// GUI からボーン行ごとに毎フレーム呼ばれるため、クリップ列挙の結果はフレーム内でキャッシュする
+        /// </summary>
         public static bool IsPlaying(Maid maid)
         {
             var anim = GetAnimation(maid);
-            return anim != null && anim.isPlaying;
+            if (anim == null || !anim.isPlaying)
+            {
+                return false;
+            }
+
+            if (Time.frameCount != _isPlayingCacheFrame)
+            {
+                _isPlayingCacheFrame = Time.frameCount;
+                _isPlayingCache.Clear();
+            }
+
+            bool cached;
+            if (_isPlayingCache.TryGetValue(maid, out cached))
+            {
+                return cached;
+            }
+
+            // StopMotion と同じく最初に見つかった再生中クリップで判定する (単一クリップ運用が前提)。
+            // 再生中クリップが特定できない場合は安全側に倒して再生中扱いにする
+            var result = true;
+            foreach (AnimationState state in anim)
+            {
+                if (anim.IsPlaying(state.name))
+                {
+                    result = state.speed > 0f;
+                    break;
+                }
+            }
+
+            _isPlayingCache[maid] = result;
+            return result;
         }
 
         /// <summary>再生ボタンで再開できるか。停止中かつ再開先のクリップが残っている場合のみ</summary>

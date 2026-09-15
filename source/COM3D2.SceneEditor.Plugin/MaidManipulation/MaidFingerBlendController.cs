@@ -299,6 +299,28 @@ namespace COM3D2.SceneEditor.Plugin
             return _digits[index].isLock;
         }
 
+        public float GetLockOpen(int index)
+        {
+            return _digits[index].lockOpen;
+        }
+
+        public float GetLockFist(int index)
+        {
+            return _digits[index].lockFist;
+        }
+
+        /// <summary>
+        /// ロック状態を固定値ごと書き戻す。
+        /// SetLock と違い現在のスライダー値を取り込まない (タイムラインのキー適用用)
+        /// </summary>
+        public void SetLockState(int index, bool isLock, float lockOpen, float lockFist)
+        {
+            var digit = _digits[index];
+            digit.isLock = isLock;
+            digit.lockOpen = lockOpen;
+            digit.lockFist = lockFist;
+        }
+
         /// <summary>ロック時は現在のスライダー値を固定値として覚える（ゲームの LockSingleItem と同じ）</summary>
         public void SetLock(int index, bool isLock)
         {

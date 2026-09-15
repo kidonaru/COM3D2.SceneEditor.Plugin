@@ -87,6 +87,44 @@ namespace COM3D2.SceneEditor.Plugin
             return SceneViewWindow.instance.isShowWnd || GameViewManager.isGizmoDispatchActive;
         }
 
+        /// <summary>
+        /// 指定カメラのビューでギズモを表示してよいか。
+        /// 自前ギズモと同じ条件 (GizmoRenderer.isDrawEnabled: SceneView はツールバーのギズモ表示、
+        /// GameView はさらに編集モード＋「ボーン表示」との AND) で、
+        /// 外部ギズモも自前ギズモと同時に消えるようにするための問い合わせ口。
+        /// プラグイン未起動時と、ホストが駆動していないカメラ (standalone の Camera.main や
+        /// ウィンドウモードのまま非表示になった GameView のカメラ) では true を返し、
+        /// 登録側の従来動作を変えない
+        /// </summary>
+        public static bool IsGizmoVisible(Camera camera)
+        {
+            var plugin = SceneEditorPlugin.instance;
+            if (plugin == null || !plugin.isEnable)
+            {
+                return true;
+            }
+
+            if (camera == null)
+            {
+                return true;
+            }
+
+            var renderer = camera.GetComponent<GizmoRenderer>();
+            if (renderer == null)
+            {
+                return true;
+            }
+
+            // GameView のカメラはウィンドウモードを抜けるまで GizmoRenderer が付いたままなので、
+            // 付いているだけでは「ホストが駆動中のビュー」とは言えない
+            if (renderer.isHostActive == null || !renderer.isHostActive())
+            {
+                return true;
+            }
+
+            return renderer.isDrawEnabled;
+        }
+
         public static void Unregister(object handle)
         {
             var entry = handle as Entry;

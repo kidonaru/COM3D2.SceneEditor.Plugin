@@ -207,6 +207,21 @@ namespace COM3D2.SceneEditor.Plugin
             DrawGridColor("分割線の色", config.gridColorInDisplay, value => config.gridColorInDisplay = value);
 
             _view.DrawLabel("ゲーム画面にのみ表示", -1, ROW_HEIGHT, textColor: Color.gray);
+
+            _view.AddSpace(5);
+            _view.DrawLabel("動画グリッド", -1, ROW_HEIGHT);
+
+            DrawGridToggle("動画面の分割線を表示", config.isGridVisibleInVideo,
+                value => config.isGridVisibleInVideo = value);
+            DrawGridSlider("分割数", config.gridCountInVideo, 1f, GridRenderer.MaxDisplayGridCount, 1f,
+                Config.DefaultGridCountInVideo,
+                value => config.gridCountInVideo = Mathf.RoundToInt(value));
+            DrawGridSlider("不透明度", config.gridAlphaInVideo, 0f, 1f, 0.01f,
+                Config.DefaultGridAlphaInVideo,
+                value => config.gridAlphaInVideo = value);
+            DrawGridColor("動画グリッド色", config.gridColorInVideo, value => config.gridColorInVideo = value);
+
+            _view.DrawLabel("3D表示の動画面と動画プレビューに表示", -1, ROW_HEIGHT, textColor: Color.gray);
         }
 
         private void DrawGridToggle(string label, bool value, Action<bool> onChanged, float width = -1)

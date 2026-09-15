@@ -25,7 +25,8 @@ namespace COM3D2.SceneEditor.Plugin
     public static class HistoryAPI
     {
         /// <summary>
-        /// 確定済みの操作を 1 件登録する
+        /// 確定済みの操作を 1 件登録する。
+        /// タイムライン読み込み中 (タイムラインモード) はシーン操作を履歴に残さないため登録は無視される
         /// </summary>
         /// <param name="description">履歴ウィンドウに表示する操作名</param>
         /// <param name="undo">操作前の状態へ書き戻す処理</param>

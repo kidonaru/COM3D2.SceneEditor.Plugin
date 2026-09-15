@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -173,13 +174,23 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawTabs();
 
-            if (_tab == PngTab.配置済み)
+            try
             {
-                DrawPlacedTiles();
+                // 画像タブ（配置）も配置済みタブも PNG 配置レイヤーへ記録される
+                TimelineLayerGate.Begin(_view, typeof(MTEP.PngPlacementTimelineLayer), ROW_HEIGHT);
+
+                if (_tab == PngTab.配置済み)
+                {
+                    DrawPlacedTiles();
+                }
+                else
+                {
+                    DrawImageTab();
+                }
             }
-            else
+            finally
             {
-                DrawImageTab();
+                TimelineLayerGate.End(_view);
             }
         }
 

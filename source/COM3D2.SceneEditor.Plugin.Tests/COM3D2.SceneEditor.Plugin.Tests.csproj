@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <IsPackable>false</IsPackable>
+    <!-- COM3D25 構成でビルドしたプラグイン出力 (ゲーム DLL 同梱) を参照する -->
+    <PluginBin>..\COM3D2.SceneEditor.Plugin\bin\Debug\COM3D25</PluginBin>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="COM3D2.SceneEditor.Plugin">
+      <HintPath>$(PluginBin)\COM3D2.SceneEditor.Plugin.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(PluginBin)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule" Condition="Exists('$(PluginBin)\UnityEngine.CoreModule.dll')">
+      <HintPath>$(PluginBin)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(PluginBin)\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <!-- 実行時の依存解決に必要な DLL のみコピーする。
+         全 DLL のワイルドカードコピーは netstandard.dll / Newtonsoft.Json.dll 等が
+         テストランナー自身の依存と衝突するため行わない -->
+    <!-- netstandard.dll は Unity の 2.1 facade。プラグイン DLL が netstandard 2.1 を要求するため必須 -->
+    <None Include="$(PluginBin)\UnityEngine*.dll;$(PluginBin)\Assembly-CSharp*.dll;$(PluginBin)\COM3D2.SceneEditor.Plugin.dll;$(PluginBin)\netstandard.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="Fixtures\**\*.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- プラグイン未ビルドだと参照解決エラーが分かりにくいため、前提条件を明示する -->
+  <Target Name="EnsurePluginBuilt" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(PluginBin)\COM3D2.SceneEditor.Plugin.dll')"
+           Text="プラグインが未ビルドです。先に COM3D25 構成でビルドしてください (MSBuild source\COM3D2.SceneEditor.Plugin\COM3D2.SceneEditor.Plugin.csproj /p:Configuration=Debug /p:GameVersion=COM3D25)。debug.bat は実機へ DLL をコピーするため使わないこと" />
+  </Target>
+</Project>

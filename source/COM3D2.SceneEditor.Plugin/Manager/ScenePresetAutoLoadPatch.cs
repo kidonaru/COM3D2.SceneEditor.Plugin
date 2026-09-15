@@ -66,7 +66,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _harmony = new Harmony(PluginInfo.PluginFullName + ".ScenePresetAutoLoad");
                 _harmony.Patch(original, postfix: new HarmonyMethod(postfix));
-                MTEUtils.Log("DailyAPI.SceneStart のフックに成功しました");
+                MTEUtils.LogDebug("DailyAPI.SceneStart のフックに成功しました");
             }
             catch (Exception e)
             {

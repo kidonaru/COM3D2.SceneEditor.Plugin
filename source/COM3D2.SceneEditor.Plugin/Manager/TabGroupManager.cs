@@ -23,6 +23,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         public readonly List<TabGroup> groups = new List<TabGroup>();
 
+        /// <summary>
+        /// RestoreGroups 時点の保存構成。外部窓の遅延復元用 (復元途中の SaveGroups 上書きから守る)。
+        /// ユーザー操作でグループ構成が変わったら破棄し、以降の外部窓復帰は
+        /// ヘッダー位置一致のフォールバックに任せる (古い構成への巻き戻し防止)
+        /// </summary>
+        private readonly List<string> _restoreSnapshot = new List<string>();
+
+        /// <summary>TryRestoreExternal 実行中か。復元自身の Merge でスナップショットを破棄しないためのガード</summary>
+        private bool _isRestoringExternal;
+
         // ヘッダー移動ドラッグの追跡。GUI.DragWindow に移動を任せ、離した位置だけ見る
         private IDockableWindow _headerDragWindow;
         private Vector2 _headerDragStartPos;
@@ -31,6 +41,10 @@ namespace COM3D2.SceneEditor.Plugin
         private IDockableWindow _tabDragWindow;
         private Vector2 _tabGrabOffset;
         private bool _tabDetached;
+
+        // タブ並び替えの追跡。押下時点の X を基準に、タブ幅ぶん動くたびに隣へ移す
+        private float _tabReorderBaseX;
+        private bool _tabReordered;
 
         private static TabGroupManager _instance = null;
         public static TabGroupManager instance
@@ -62,6 +76,8 @@ namespace COM3D2.SceneEditor.Plugin
             _tabDragWindow = window;
             _tabGrabOffset = grabOffset;
             _tabDetached = false;
+            _tabReorderBaseX = InputRemapper.rawGuiPosition.x;
+            _tabReordered = false;
         }
 
         /// <summary>
@@ -78,6 +94,20 @@ namespace COM3D2.SceneEditor.Plugin
             var target = group.windows[tabIndex];
             group.SetActive(target);
             OnTabMouseDown(target, grabOffset);
+        }
+
+        /// <summary>
+        /// メニュー選択によるアクティブ化。押下由来ではないためドラッグ候補は記録しない
+        /// (記録すると次フレームの UpdateTabDrag がタブを分離してしまう)
+        /// </summary>
+        public void ActivateTabIndex(IDockableWindow member, int tabIndex)
+        {
+            var group = member.group;
+            if (group == null || tabIndex < 0 || tabIndex >= group.windows.Count)
+            {
+                return;
+            }
+            group.SetActive(group.windows[tabIndex]);
         }
 
         public bool IsDropTarget(IDockableWindow window)
@@ -151,6 +181,11 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            if (!_tabDetached)
+            {
+                UpdateTabReorder(guiPos);
+            }
+
             if (_tabDetached)
             {
                 // つまんだ位置がヘッダー上に来るよう追従させる
@@ -179,8 +214,52 @@ namespace COM3D2.SceneEditor.Plugin
                         _tabDragWindow.SavePlacement();
                     }
                 }
+                if (_tabReordered)
+                {
+                    // 並び順も config (tabGroups) の一部なので保存する
+                    MarkGroupsDirty();
+                    _tabReordered = false;
+                }
                 _tabDragWindow = null;
                 _tabDetached = false;
+            }
+        }
+
+        /// <summary>
+        /// ヘッダー内に留まっている間の横ドラッグをグループ内の並び替えとして処理する。
+        /// 押下タブの表示位置やスクロール位置はウィンドウ側にしか無いため、
+        /// 絶対座標へのマッピングではなく「タブ 1 枚ぶん動くたびに隣とスワップ」で追う
+        /// </summary>
+        private void UpdateTabReorder(Vector2 guiPos)
+        {
+            var group = _tabDragWindow.group;
+            if (group == null)
+            {
+                return;
+            }
+
+            // タブ幅は描画側と同じレイアウト計算 (TabBarLayout に集約) で求める。
+            // スクロール位置は幅の算出に関与しないため 0 を渡す
+            var available = TabBarLayout.CalcAvailableWidth(group.activeWindow.headerRect.width);
+            var layout = TabBarLayout.Calc(group.windows.Count, available, 0f);
+            // TabBarLayout.Calc は tabWidth >= MIN_TAB_WIDTH を保証するので step は必ず正
+            // (0 だと下の while が無限ループになる)
+            var step = layout.tabWidth + TabBarDrawer.TAB_MARGIN;
+
+            var dx = guiPos.x - _tabReorderBaseX;
+            while (Mathf.Abs(dx) >= step)
+            {
+                var index = group.windows.IndexOf(_tabDragWindow);
+                var newIndex = dx > 0 ? index + 1 : index - 1;
+                if (newIndex < 0 || newIndex >= group.windows.Count)
+                {
+                    break;
+                }
+                group.Move(_tabDragWindow, newIndex);
+                _tabReordered = true;
+                // 基準点を 1 枚ぶん進めて次のスワップ判定へ (往復ドラッグでも破綻しない)
+                _tabReorderBaseX += dx > 0 ? step : -step;
+                dx = guiPos.x - _tabReorderBaseX;
             }
         }
 
@@ -294,7 +373,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// source (グループなら全員) を target のグループへ統合する。
         /// target が独立窓なら新しいグループを作る
         /// </summary>
-        public void Merge(IDockableWindow source, IDockableWindow target)
+        public void Merge(IDockableWindow source, IDockableWindow target, bool activate = true)
         {
             // 同一グループ同士だと Remove と Add が同じリストへ交互に働いて並びが壊れる
             if (source.group != null && source.group == target.group)
@@ -327,12 +406,15 @@ namespace COM3D2.SceneEditor.Plugin
                     targetGroup.Add(member, activate: false);
                 }
                 groups.Remove(sourceGroup);
-                // ドラッグしていたタブをアクティブにする
-                targetGroup.SetActive(source);
+                if (activate)
+                {
+                    // ドラッグしていたタブをアクティブにする
+                    targetGroup.SetActive(source);
+                }
             }
             else
             {
-                targetGroup.Add(source);
+                targetGroup.Add(source, activate);
             }
 
             targetGroup.SyncRect(target.windowRect);
@@ -391,6 +473,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void MarkGroupsDirty()
         {
+            // ユーザー操作による構成変更後は起動時構成が陳腐化するため遅延復元を打ち切る
+            // (復元処理自身の Merge 由来では破棄しない)
+            if (!_isRestoringExternal)
+            {
+                _restoreSnapshot.Clear();
+            }
+
             SaveGroups();
             config.dirty = true;
         }
@@ -411,31 +500,133 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>config のグループ構成を復元する。不明な ID や非表示ウィンドウは無視する</summary>
-        public void RestoreGroups()
+        /// <summary>RestoreGroups の直前に呼ぶ。外部窓の遅延復元用スナップショットを確保する</summary>
+        public void CaptureRestoreSnapshot()
         {
-            foreach (var entry in config.tabGroups)
+            _restoreSnapshot.Clear();
+            _restoreSnapshot.AddRange(config.tabGroups);
+        }
+
+        /// <summary>
+        /// 外部窓の遅延復元。起動時の RestoreGroups は外部窓の登録前に走るため、
+        /// 登録後の自動ドッキング猶予中に保存構成の所属エントリを引いて復帰させる。
+        /// 保存された並び順を保つため、Merge の末尾追加後に本来の位置へ移す
+        /// </summary>
+        public bool TryRestoreExternal(IDockableWindow adapter)
+        {
+            _isRestoringExternal = true;
+            try
             {
-                var parts = entry.Split(':');
-                if (parts.Length != 2)
+                foreach (var text in _restoreSnapshot)
+                {
+                    TabGroupConfigEntry entry;
+                    if (!TabGroupConfigEntry.TryParse(text, out entry))
+                    {
+                        continue;
+                    }
+                    var myIndex = entry.memberIds.IndexOf(adapter.tabWindowId);
+                    if (myIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    var peer = FindRestorePeer(entry, adapter);
+                    if (peer == null)
+                    {
+                        // 合流先がまだ表示されていない。次フレーム以降の猶予に賭ける
+                        return false;
+                    }
+
+                    // activate: false で並びだけ作る (復元でアクティブタブを奪わない + Activate 連鎖防止)
+                    Merge(adapter, peer, activate: false);
+
+                    var group = adapter.group;
+                    if (group != null)
+                    {
+                        // Merge は末尾追加なので、保存された並び順 (エントリ内の相対順) へ移す
+                        group.Move(adapter, ComputeRestoreIndex(group, entry, adapter, myIndex));
+
+                        // 保存時にアクティブだった窓を優先する
+                        // (SetActive は同一窓なら no-op なので連鎖は最大 1 回)
+                        var active = FindWindow(entry.activeId);
+                        if (active != null && group.Contains(active))
+                        {
+                            group.SetActive(active);
+                        }
+
+                        // Merge 内の保存は末尾追加時点の並びなので、補正後の並びで上書きする
+                        // (これを欠くと次回起動の復元順がユーザーの意図からずれる)
+                        MarkGroupsDirty();
+                    }
+                    return true;
+                }
+                return false;
+            }
+            finally
+            {
+                _isRestoringExternal = false;
+            }
+        }
+
+        /// <summary>
+        /// 復元エントリの中から合流先にできる表示中の窓を探す。
+        /// 見つからなければ (まだ誰も表示されていなければ) null
+        /// </summary>
+        private IDockableWindow FindRestorePeer(TabGroupConfigEntry entry, IDockableWindow adapter)
+        {
+            foreach (var id in entry.memberIds)
+            {
+                if (id == adapter.tabWindowId)
                 {
                     continue;
                 }
+                var window = FindWindow(id);
+                if (window != null && window.isShowWnd)
+                {
+                    return window;
+                }
+            }
+            return null;
+        }
 
-                int activeId;
-                if (!int.TryParse(parts[0], out activeId))
+        /// <summary>
+        /// 保存された並び順での adapter の挿入位置を求める。
+        /// 未登録のメンバーは飛ばしたいので、既に居るメンバーのうち
+        /// エントリ内で adapter より前にあるものだけを数える
+        /// </summary>
+        private static int ComputeRestoreIndex(
+            TabGroup group, TabGroupConfigEntry entry, IDockableWindow adapter, int myIndex)
+        {
+            var target = 0;
+            foreach (var member in group.windows)
+            {
+                if (member == adapter)
+                {
+                    continue;
+                }
+                var index = entry.memberIds.IndexOf(member.tabWindowId);
+                if (index >= 0 && index < myIndex)
+                {
+                    target++;
+                }
+            }
+            return target;
+        }
+
+        /// <summary>config のグループ構成を復元する。不明な ID や非表示ウィンドウは無視する</summary>
+        public void RestoreGroups()
+        {
+            foreach (var text in config.tabGroups)
+            {
+                TabGroupConfigEntry entry;
+                if (!TabGroupConfigEntry.TryParse(text, out entry))
                 {
                     continue;
                 }
 
                 var members = new List<IDockableWindow>();
-                foreach (var idText in parts[1].Split(','))
+                foreach (var id in entry.memberIds)
                 {
-                    int id;
-                    if (!int.TryParse(idText, out id))
-                    {
-                        continue;
-                    }
                     var window = FindWindow(id);
                     if (window != null && window.isShowWnd && window.group == null)
                     {
@@ -457,7 +648,7 @@ namespace COM3D2.SceneEditor.Plugin
                     group.Add(member, activate: false);
                 }
 
-                var active = FindWindow(activeId);
+                var active = FindWindow(entry.activeId);
                 if (active != null && group.Contains(active))
                 {
                     group.SetActive(active);
@@ -506,6 +697,42 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 外部ゲスト窓がグループへ加入したまま無効化されると復帰不能になるため解除する
             DockingHost.OnHostDisabled();
+        }
+    }
+
+    /// <summary>
+    /// config.tabGroups の 1 エントリ ("activeId:id1,id2,...") のパース結果。
+    /// 起動時の RestoreGroups と外部窓の遅延復元 (TryRestoreExternal) で共有する
+    /// </summary>
+    public struct TabGroupConfigEntry
+    {
+        public int activeId;
+        public List<int> memberIds;
+
+        public static bool TryParse(string entry, out TabGroupConfigEntry result)
+        {
+            result = default(TabGroupConfigEntry);
+            if (string.IsNullOrEmpty(entry))
+            {
+                return false;
+            }
+
+            var parts = entry.Split(':');
+            if (parts.Length != 2 || !int.TryParse(parts[0], out result.activeId))
+            {
+                return false;
+            }
+
+            result.memberIds = new List<int>();
+            foreach (var idText in parts[1].Split(','))
+            {
+                int id;
+                if (int.TryParse(idText, out id))
+                {
+                    result.memberIds.Add(id);
+                }
+            }
+            return result.memberIds.Count > 0;
         }
     }
 }
