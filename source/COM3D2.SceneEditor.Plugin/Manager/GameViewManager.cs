@@ -290,7 +290,7 @@ namespace COM3D2.SceneEditor.Plugin
             ReleaseRenderTexture();
             CreateRenderTexture(Screen.width, Screen.height);
             camera.targetTexture = renderTexture;
-            MTEUtils.Log("画面サイズの変更に追従しました ({0}x{1})", _rtWidth, _rtHeight);
+            MTEUtils.LogDebug("画面サイズの変更に追従しました ({0}x{1})", _rtWidth, _rtHeight);
         }
 
         public override void LateUpdate()

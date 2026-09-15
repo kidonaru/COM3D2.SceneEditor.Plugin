@@ -790,7 +790,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 if (config.outputElapsedTime)
                 {
-                    MTEUtils.Log("  slotNo={0} startFrameNo={1}, endFrameNo={2} ",
+                    MTEUtils.LogDebug("  slotNo={0} startFrameNo={1}, endFrameNo={2} ",
                             slotNo, startFrameNo, endFrameNo);
                 }
             }

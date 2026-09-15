@@ -427,7 +427,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                             true);
                         modelHackManager.CreateModel(model);
 
-                        MTEUtils.Log("Create model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
+                        MTEUtils.LogDebug("Create model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
                             model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
                     }
                     else
@@ -452,7 +452,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         modelHackManager.DeleteModel(model);
 
-                        MTEUtils.Log("Remove model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
+                        MTEUtils.LogDebug("Remove model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
                             model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
                     }
                 }

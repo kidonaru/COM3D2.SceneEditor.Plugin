@@ -3241,7 +3241,7 @@ namespace COM3D2.SceneEditor.Plugin
                 ApplyScenery(data);
 
                 _autoLoadPreloadedData = data;
-                MTEUtils.Log("シーンプリセットの背景・カメラ・ライトを先行適用しました: {0}", item.name);
+                MTEUtils.LogDebug("シーンプリセットの背景・カメラ・ライトを先行適用しました: {0}", item.name);
             }
             catch (Exception e)
             {

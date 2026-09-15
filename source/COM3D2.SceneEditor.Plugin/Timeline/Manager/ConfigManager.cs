@@ -73,7 +73,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void SaveConfigXml()
         {
-            MTEUtils.Log("設定保存中...");
+            MTEUtils.LogDebug("設定保存中...");
             try
             {
                 config.dirty = false;

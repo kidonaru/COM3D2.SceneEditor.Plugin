@@ -266,8 +266,6 @@ namespace COM3D2.SceneEditor.Plugin
             // タイムラインモードではタイムライン操作だけを履歴に残す
             if (isTimelineMode && !(entry is TimelineHistoryEntry))
             {
-                MTEUtils.Log("タイムラインモード中のためシーン操作の履歴登録を省略しました: {0}",
-                    entry.description);
                 return;
             }
 
@@ -306,7 +304,7 @@ namespace COM3D2.SceneEditor.Plugin
                     currentIndex--;
                     if (TryApply(entry, useBefore: true))
                     {
-                        MTEUtils.Log("元に戻す: {0}", entry.description);
+                        MTEUtils.LogDebug("元に戻す: {0}", entry.description);
                         return;
                     }
                     // 対象メイドが消えたエントリは飛ばして次を戻す
@@ -333,7 +331,7 @@ namespace COM3D2.SceneEditor.Plugin
                     currentIndex++;
                     if (TryApply(entry, useBefore: false))
                     {
-                        MTEUtils.Log("やり直す: {0}", entry.description);
+                        MTEUtils.LogDebug("やり直す: {0}", entry.description);
                         return;
                     }
                 }

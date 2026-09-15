@@ -81,7 +81,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _harmony = new Harmony(PluginInfo.PluginFullName + ".SkirtHookDrift");
                 _harmony.Patch(original, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
-                MTEUtils.Log("DynamicSkirtBone." + original.Name + " のフックに成功しました");
+                MTEUtils.LogDebug("DynamicSkirtBone." + original.Name + " のフックに成功しました");
             }
             catch (Exception e)
             {

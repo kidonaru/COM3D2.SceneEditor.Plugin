@@ -358,7 +358,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
-                MTEUtils.Log("初期化中...");
+                MTEUtils.LogDebug("初期化中...");
                 MTEUtils.LogDebug("Unity Version: " + Application.unityVersion);
 
                 // GameView表示領域内では Input.mousePosition が RT座標へ変換されるため、

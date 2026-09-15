@@ -238,7 +238,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     var stat = CreateLightStat(lightData.type, i);
                     CreateLightInternal(stat);
 
-                    MTEUtils.Log("Create light: type={0} displayName={1} name={2}",
+                    MTEUtils.LogDebug("Create light: type={0} displayName={1} name={2}",
                         stat.type, stat.displayName, stat.name);
                 }
                 else
@@ -257,7 +257,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     DeleteLightInternal(stat);
 
-                    MTEUtils.Log("Remove light: type={0} displayName={1} name={2}",
+                    MTEUtils.LogDebug("Remove light: type={0} displayName={1} name={2}",
                         stat.type, stat.displayName, stat.name);
                 }
             }
