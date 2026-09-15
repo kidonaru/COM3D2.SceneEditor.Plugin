@@ -47,8 +47,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // それ以前へ戻る意味がないため積まない
             if (beforeXml != null)
             {
+                // 差分は登録時に 1 度だけ求め、Undo/Redo の両方向で使い回す
+                var diff = TimelineXmlDiff.Compute(beforeXml, afterXml);
                 SceneEditor.Plugin.HistoryManager.instance.AddEntry(
-                    new SceneEditor.Plugin.TimelineHistoryEntry(beforeXml, afterXml, description));
+                    new SceneEditor.Plugin.TimelineHistoryEntry(beforeXml, afterXml, diff, description));
             }
 
             lastCommittedXml = afterXml;

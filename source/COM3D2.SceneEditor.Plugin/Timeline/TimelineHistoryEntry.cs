@@ -5,7 +5,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// タイムライン操作 1 件の履歴エントリ。
     /// タイムラインの状態は IStateSnapshot で表現できないため、
-    /// TimelineXml の前後スナップショットを対で持ち SE の履歴スタックへ参加する
+    /// TimelineXml の前後スナップショットを対で持ち SE の履歴スタックへ参加する。
+    /// 前後の差分 (変更レイヤー) も持ち、可能なら該当レイヤーだけ再構築する
     /// </summary>
     public class TimelineHistoryEntry : IHistoryEntry
     {
@@ -13,11 +14,17 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly MTEP.TimelineXml _before;
         private readonly MTEP.TimelineXml _after;
+        private readonly MTEP.TimelineXmlDiff _diff;
 
-        public TimelineHistoryEntry(MTEP.TimelineXml before, MTEP.TimelineXml after, string description)
+        public TimelineHistoryEntry(
+            MTEP.TimelineXml before,
+            MTEP.TimelineXml after,
+            MTEP.TimelineXmlDiff diff,
+            string description)
         {
             _before = before;
             _after = after;
+            _diff = diff;
             this.description = description;
         }
 
@@ -26,19 +33,36 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void ApplyBefore()
         {
-            Restore(_before);
+            Restore(_before, _after);
         }
 
         public void ApplyAfter()
         {
-            Restore(_after);
+            Restore(_after, _before);
         }
 
-        private static void Restore(MTEP.TimelineXml xml)
+        /// <param name="xml">復元する側</param>
+        /// <param name="paired">対になる側。現在のタイムラインがこれと同一のときだけ部分適用できる</param>
+        private void Restore(MTEP.TimelineXml xml, MTEP.TimelineXml paired)
         {
-            MTEP.TimelineManager.instance.UpdateTimeline(xml);
+            var timelineManager = MTEP.TimelineManager.instance;
+            var historyManager = MTEP.TimelineHistoryManager.instance;
+
+            // 部分適用は「現在のタイムラインが paired と同一」が前提。AddHistory は前エントリの
+            // after をそのまま次の before に使い、ここは適用後に lastCommittedXml を置き換えるため、
+            // 隣接エントリを順に辿っている限り参照が一致する。エントリのスキップ・適用失敗・
+            // RestoreTo の多段ジャンプで前提が崩れると一致しないので全再構築へ倒す
+            if (_diff != null && _diff.canApplyPartially &&
+                ReferenceEquals(historyManager.lastCommittedXml, paired))
+            {
+                timelineManager.UpdateTimelineLayers(xml, _diff.changedLayerIndices);
+            }
+            else
+            {
+                timelineManager.UpdateTimeline(xml);
+            }
             // 次の編集の before がこの復元後状態を指すよう、確定済みスナップショットを更新する
-            MTEP.TimelineHistoryManager.instance.lastCommittedXml = xml;
+            historyManager.lastCommittedXml = xml;
         }
     }
 }
