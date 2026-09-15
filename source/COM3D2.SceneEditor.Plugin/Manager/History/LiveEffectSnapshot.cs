@@ -473,6 +473,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 controller.refreshRequired = true;
+                // メッシュの再生成は ManualUpdate でしか走らず、その駆動元はサイリウムレイヤーだけ。
+                // レイヤー無し (タイムライン未読込含む) でも見た目が追従するようここで 1 回回す
+                controller.ManualUpdate(controller.time);
             }
         }
 

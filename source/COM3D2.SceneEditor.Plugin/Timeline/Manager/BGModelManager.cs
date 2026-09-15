@@ -292,12 +292,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 UpdateTimelineBGModels();
                 onModelAdded?.Invoke(model);
-                timelineManager.RequestHistory("背景モデルの追加: " + model.displayName);
+                RequestHistoryIfTimelineLoaded("背景モデルの追加: " + model.displayName);
             }
 
             MTEUtils.LogDebug("背景モデルを追加しました: " + model.displayName);
 
             return model;
+        }
+
+        /// <summary>
+        /// タイムライン未読込では控えた履歴文字列が消費されず残り、後で新規作成した
+        /// タイムラインへ無関係な履歴として積まれるため、読込済みのときだけ要求する
+        /// </summary>
+        private static void RequestHistoryIfTimelineLoaded(string description)
+        {
+            if (timelineManager.timeline != null)
+            {
+                timelineManager.RequestHistory(description);
+            }
         }
 
         public BGModelStat AddModelBySourceName(string sourceName, bool notify = true)
@@ -331,7 +343,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 UpdateTimelineBGModels();
                 onModelRemoved?.Invoke(model);
-                timelineManager.RequestHistory("背景モデルの削除: " + model.displayName);
+                RequestHistoryIfTimelineLoaded("背景モデルの削除: " + model.displayName);
             }
 
             model.Destroy();

@@ -279,12 +279,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawBgModelTab()
         {
-            if (MTEP.TimelineManager.instance.timeline == null)
-            {
-                _view.DrawLabel("タイムラインが読み込まれていません", -1, ROW_HEIGHT,
-                    textColor: Color.yellow);
-                return;
-            }
+            // 背景モデルの列挙はタイムライン有効時の LateUpdate でしか同期されないため、
+            // タイムライン未読込 (プリセットで復元した直後など) でも一覧が出るようここで同期する。
+            // 同期済みなら no-op
+            MTEP.BGModelManager.instance.SyncToCurrentBg();
 
             // End は DrawContent の finally が行う
             TimelineLayerGate.Begin(_view, typeof(MTEP.BGModelTimelineLayer), ROW_HEIGHT);

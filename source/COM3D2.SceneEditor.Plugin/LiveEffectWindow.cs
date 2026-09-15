@@ -128,14 +128,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (timelineManager.timeline == null)
-            {
-                // ライブ演出オブジェクトはタイムライン文脈でのみ生成・更新される
-                // (各マネージャの Update は TimelineIntegration.UpdateGuards 通過時のみ回る)
-                _view.DrawLabel("タイムライン読込後に使用できます", -1, ROW_HEIGHT);
-                return;
-            }
-
+            // タイムライン未読込でも編集できる。各コントローラーは MonoBehaviour 自身が描画・更新し、
+            // 自動値やサイリウムの時間進行はレイヤーが担うため、未読込は「レイヤー未追加」と同じ扱いになる
+            // (プリセットで復元したライブ演出をタイムライン無しで調整する用途)
             _topTab = _view.DrawTabs(_topTab, 70, ROW_HEIGHT);
 
             switch (_topTab)
