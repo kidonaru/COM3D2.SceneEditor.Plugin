@@ -25,8 +25,10 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int MAX_MENU_WIDTH = 300;
         /// <summary>フレーム番号バーの高さ</summary>
         private static readonly int FRAME_LABEL_HEIGHT = 20;
-        /// <summary>レイヤー操作ボタン (削除 / 追加コンボ) の幅</summary>
+        /// <summary>レイヤー操作ボタン (追加コンボ) の幅</summary>
         private static readonly int LAYER_BUTTON_WIDTH = 20;
+        /// <summary>ボーンメニューのレイヤーヘッダー行の高さ</summary>
+        private static readonly int LAYER_HEADER_HEIGHT = 20;
         /// <summary>レイヤーカテゴリ行に対するボーンメニュー行の字下げ幅</summary>
         private static readonly int MENU_INDENT_WIDTH = 10;
         /// <summary>折りたたみトグルの列幅。記号と後ろの文字が離れないよう記号幅に詰めている</summary>
@@ -165,6 +167,32 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<MTEP.TimelineLayerInfo> _addableLayerInfoList
             = new List<MTEP.TimelineLayerInfo>(32);
 
+        /// <summary>レイヤーヘッダーの右クリックメニュー項目</summary>
+        private enum LayerMenuAction
+        {
+            Remove,
+        }
+
+        private static readonly List<LayerMenuAction> LAYER_MENU_ACTIONS =
+            new List<LayerMenuAction> { LayerMenuAction.Remove };
+
+        /// <summary>右クリックメニューのポップアップサイズ (1 項目 20px + 余白)</summary>
+        private static readonly Vector2 LAYER_MENU_CONTENT_SIZE =
+            new Vector2(120, 20 * LAYER_MENU_ACTIONS.Count + 10);
+
+        /// <summary>レイヤーヘッダーの右クリックメニューの対象レイヤー</summary>
+        private MTEP.ITimelineLayer _layerMenuTarget = null;
+
+        /// <summary>レイヤーヘッダーの右クリックメニュー (全レイヤー共用)</summary>
+        private readonly GUIComboBox<LayerMenuAction> _layerMenuComboBox
+            = new GUIComboBox<LayerMenuAction>
+        {
+            items = LAYER_MENU_ACTIONS,
+            getName = (action, _) => GetLayerMenuLabel(action),
+            contentSize = LAYER_MENU_CONTENT_SIZE,
+            showArrow = false,
+        };
+
         /// <summary>未使用レイヤーの追加コンボ。選択と同時にアクティブ化する</summary>
         private readonly GUIComboBox<MTEP.TimelineLayerInfo> _addLayerComboBox = new GUIComboBox<MTEP.TimelineLayerInfo>
         {
@@ -251,6 +279,9 @@ namespace COM3D2.SceneEditor.Plugin
                     timelineManager.SetCurrentLayer(first);
                 }
             };
+
+            _layerMenuComboBox.getEnabled = (action, _) => IsLayerMenuActionEnabled(action);
+            _layerMenuComboBox.onSelected = (action, _) => OnLayerMenuSelected(action);
         }
 
         // ドラッグ編集完了時 (SE 独自機能)
@@ -606,6 +637,12 @@ namespace COM3D2.SceneEditor.Plugin
                 // レイヤーを別インスタンスにするため、キーキャッシュを貼り直しに行く
                 if (timeline != _lastTimeline || timelineManager.layers.Count != _lastLayerCount)
                 {
+                    if (timeline != _lastTimeline)
+                    {
+                        // タイムラインごと作り直されるとレイヤーは別インスタンスになるため、
+                        // 開いたままの右クリックメニューが破棄済みレイヤーを掴み続けないようにする
+                        _layerMenuTarget = null;
+                    }
                     _lastTimeline = timeline;
                     _lastLayerCount = timelineManager.layers.Count;
                     _rowState.Prune(timelineManager.layers);
@@ -1549,16 +1586,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーンメニュー上部 (フレーム番号バーと同じ高さの空き領域) にレイヤー行を描く。
-        /// 選択コンボ + 削除 + 追加をメニュー幅いっぱいに並べる。
+        /// 選択コンボ + 追加をメニュー幅いっぱいに並べる (削除はレイヤーヘッダーの右クリックメニュー)。
         /// 表示モード (カテゴリ/レイヤー) の切替はタイムライン設定ウィンドウで行う
         /// </summary>
         private void DrawLayerControls(GUIView view, int menuWidth)
         {
-            var layerType = currentLayer.layerType;
             var isCategoryMode = timelineConfig.layerViewMode == MTEP.TimelineLayerViewMode.Category;
 
             // コンボ (矢印込み) に割ける幅
-            var comboAreaWidth = menuWidth - LAYER_BUTTON_WIDTH * 2;
+            var comboAreaWidth = menuWidth - LAYER_BUTTON_WIDTH;
             // カテゴリコンボの前後送り矢印はコンボ本体の幅を食う。
             // 矢印を出すとコンボ本体が下限幅を割るほど狭いときは、右端からはみ出さないよう矢印を畳む
             var arrowWidth = GUIComboBoxBase.ARROW_SIZE * 2;
@@ -1588,14 +1624,6 @@ namespace COM3D2.SceneEditor.Plugin
             // コンボの実描画幅は本体 + 矢印なので、後続のボタンはその分だけ右へ寄せる
             view.currentPos.x = comboWidth + usedArrowWidth;
             view.currentPos.y = 0;
-            if (view.DrawButton("-", LAYER_BUTTON_WIDTH, FRAME_LABEL_HEIGHT,
-                    layerType != typeof(MTEP.MotionTimelineLayer)))
-            {
-                timelineManager.RemoveLayers(layerType);
-            }
-
-            view.currentPos.x = comboWidth + usedArrowWidth + LAYER_BUTTON_WIDTH;
-            view.currentPos.y = 0;
             _addLayerComboBox.currentIndex = -1;
             // 現在のメイドでまだ使っていない型を列挙する (スロット無しレイヤーは存在チェックのみ)。
             // 旧レイヤーコンボが担っていた「型選択で現在メイドのインスタンスを自動生成する」導線の代替
@@ -1609,6 +1637,83 @@ namespace COM3D2.SceneEditor.Plugin
             }
             _addLayerComboBox.items = _addableLayerInfoList;
             _addLayerComboBox.DrawButton(view);
+        }
+
+        /// <summary>次に描く領域の上で右クリックされたか</summary>
+        private static bool IsRightClickOnNextRect(GUIView view, float width, float height)
+        {
+            var ev = Event.current;
+            return ev.type == EventType.MouseDown && ev.button == 1 &&
+                view.IsMouseOverRect(width, height);
+        }
+
+        /// <summary>
+        /// レイヤーヘッダーの右クリックメニューを開く。同じレイヤーの再右クリックは閉じる
+        /// </summary>
+        private void OpenLayerMenu(GUIView view, MTEP.ITimelineLayer layer, float menuWidth)
+        {
+            Event.current.Use();
+
+            // コンボは全レイヤー共用のため、開いたままだと ProcessFocus のトグルが別レイヤーで誤爆する
+            var wasOpen = ComboBoxPopupWindow.instance.IsOpenFor(this);
+            ComboBoxPopupWindow.instance.Close();
+            if (wasOpen && _layerMenuTarget == layer)
+            {
+                // 閉じた後も参照を残すと破棄済みレイヤーを掴み続けるため捨てる
+                _layerMenuTarget = null;
+                return;
+            }
+
+            _layerMenuTarget = layer;
+            // 前回の選択を引きずって項目がハイライトされないようにする
+            _layerMenuComboBox.currentIndex = -1;
+            _layerMenuComboBox.buttonSize = new Vector2(menuWidth, LAYER_HEADER_HEIGHT);
+            _layerMenuComboBox.buttonPos =
+                view.GetDrawRect(menuWidth, LAYER_HEADER_HEIGHT).position + view.scrollOffset;
+            view.SetFocusComboBox(_layerMenuComboBox);
+        }
+
+        /// <summary>右クリックメニューの表示名</summary>
+        private static string GetLayerMenuLabel(LayerMenuAction action)
+        {
+            switch (action)
+            {
+                case LayerMenuAction.Remove: return "レイヤーを削除";
+                default: return "";
+            }
+        }
+
+        /// <summary>右クリックメニューの項目が実行可能か</summary>
+        private bool IsLayerMenuActionEnabled(LayerMenuAction action)
+        {
+            switch (action)
+            {
+                case LayerMenuAction.Remove:
+                    // アニメレイヤーは削除できない
+                    return _layerMenuTarget != null &&
+                        _layerMenuTarget.layerType != typeof(MTEP.MotionTimelineLayer);
+                default: return false;
+            }
+        }
+
+        /// <summary>右クリックメニューの選択</summary>
+        private void OnLayerMenuSelected(LayerMenuAction action)
+        {
+            var layer = _layerMenuTarget;
+            _layerMenuTarget = null;
+            // メニューを開いたままタイムラインが作り直されると破棄済みレイヤーを指しうるので、
+            // 今のタイムラインに残っているものだけ操作する
+            if (layer == null || !timelineManager.layers.Contains(layer))
+            {
+                return;
+            }
+
+            switch (action)
+            {
+                case LayerMenuAction.Remove:
+                    timelineManager.RemoveLayer(layer);
+                    break;
+            }
         }
 
         /// <summary>現在の MouseDown がダブルクリックの 2 回目か</summary>
@@ -1705,10 +1810,16 @@ namespace COM3D2.SceneEditor.Plugin
                     }
 
                     view.currentPos.x = 0;
+                    // 判定は同じサイズの描画の直前で行う (次要素の矩形を先読みするため)
+                    if (IsRightClickOnNextRect(view, menuWidth, LAYER_HEADER_HEIGHT))
+                    {
+                        OpenLayerMenu(view, headerLayer, menuWidth);
+                    }
+
                     view.DrawLabel(
                         _rowState.IsCollapsed(headerLayer) ? FOLD_CLOSED : FOLD_OPEN,
                         FOLD_TOGGLE_WIDTH,
-                        20,
+                        LAYER_HEADER_HEIGHT,
                         headerColor,
                         null,
                         () =>
@@ -1721,13 +1832,13 @@ namespace COM3D2.SceneEditor.Plugin
                     view.DrawLabel(
                         GetLayerDisplayName(headerLayer),
                         menuWidth - FOLD_TOGGLE_WIDTH,
-                        20,
+                        LAYER_HEADER_HEIGHT,
                         headerColor
                     );
 
                     view.InvokeActionOnEvent(
                         menuWidth - FOLD_TOGGLE_WIDTH - 20,
-                        20,
+                        LAYER_HEADER_HEIGHT,
                         EventType.MouseDown,
                         (pos) =>
                         {
