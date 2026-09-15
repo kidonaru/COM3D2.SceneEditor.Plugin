@@ -602,6 +602,13 @@ Expected:
 - Task 3 の `RequestRefresh` / `refreshKind` / `Refresh(kind)` は Task 2 の enum 名と一致
 - Task 3 の `ManualUpdate` は Placement を `area.refreshRequired` へ委譲し、位置計算の二重実行を避ける（plan-review の指摘を反映）
 
+## 実機検証結果（2026-09-15）
+
+- シーク時: `ApplyPlayData: PsylliumTimelineLayer` のログが 10ms → 1ms。強制的に種別を積んだ計測は Material のみ 0.75ms / Mesh 1.8ms / Placement 4.5ms / All 5.2ms（変更前の All は 6.7ms）
+- 通常フレーム: 約 1.0ms（リフレクション計測、変更前 0.95ms）。プロファイラ計測では約 1.8ms で変更前と同等
+- **Task 4（並列化）は取り消した**。`Area.UpdateTransform` 4 本合計が並列 0.76ms / 直列 0.74ms で差がなく、事前計測の「0.84 → 0.25ms」はリフレクション経由デリゲートの呼び出しコストが直列側に乗った見かけ上の改善だった
+- 見た目（配置・色・形）は変更前と同じことをスクリーンショットで確認
+
 ## レビュー却下メモ
 
 - `PsylliumBarConfig` の `groupIndex` / `name` / `displayName` が `GetRefreshKind` の対象外である旨をコメントで触れる — 既存の `Equals` / `CopyFrom` と同じ扱いで自明。コメントを増やす価値が薄いため見送り
