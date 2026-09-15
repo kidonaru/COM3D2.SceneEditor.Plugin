@@ -166,11 +166,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 実際に描画・ドラッグを許すか。ツールバーのギズモ表示 (drawEnabled) に、
-        /// followsBoneVisibility のビューではメニューバーの「ボーン表示」トグルを AND する
+        /// followsBoneVisibility のビューでは編集モード＋「ボーン表示」(isBoneEditing) を AND する。
+        /// ボーン表示は編集モード外でも既定で ON のため、isBoneVisible 単独では編集モード外で
+        /// 外部プラグインのギズモ (GizmoHost.IsGizmoVisible) まで出てしまう
         /// </summary>
         public bool isDrawEnabled =>
             drawEnabled
-            && (!followsBoneVisibility || MaidManipulateManager.instance.isBoneVisible);
+            && (!followsBoneVisibility || MaidManipulateManager.instance.isBoneEditing);
 
         public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
