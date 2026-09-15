@@ -97,6 +97,55 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Vector3[] _boundsCorners = new Vector3[8];
 
         private Camera _camera;
+
+        /// <summary>
+        /// 行列・ピッキング・サイズ計算の基準になるカメラ。既定は自分が付いているカメラ。
+        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする
+        /// </summary>
+        public Camera viewCamera
+        {
+            get => _camera;
+            set => _camera = value != null ? value : GetComponent<Camera>();
+        }
+
+        /// <summary>有効な GizmoRenderer。GizmoHost が視点カメラから逆引きするのに使う</summary>
+        private static readonly List<GizmoRenderer> _activeRenderers = new List<GizmoRenderer>();
+
+        /// <summary>
+        /// 視点カメラが camera の GizmoRenderer を返す。
+        /// メインカメラは GizmoRenderer を持たない (gizmo カメラに付く) ため、
+        /// GetComponent では引けない GameView 側のレンダラをここで解決する
+        /// </summary>
+        public static GizmoRenderer FindByViewCamera(Camera camera)
+        {
+            if (camera == null)
+            {
+                return null;
+            }
+            for (var i = 0; i < _activeRenderers.Count; i++)
+            {
+                var renderer = _activeRenderers[i];
+                if (renderer != null && renderer._camera == camera)
+                {
+                    return renderer;
+                }
+            }
+            return null;
+        }
+
+        private void OnEnable()
+        {
+            if (!_activeRenderers.Contains(this))
+            {
+                _activeRenderers.Add(this);
+            }
+        }
+
+        private void OnDisable()
+        {
+            _activeRenderers.Remove(this);
+        }
+
         private Material _lineMaterial;
 
         /// <summary>ギズモ本体。描画・ヒット判定・ドラッグ解決はすべてここが持つ</summary>
@@ -493,6 +542,7 @@ namespace COM3D2.SceneEditor.Plugin
             var gameMain = GameMain.Instance;
             var mainCameraMain = gameMain != null ? gameMain.MainCamera : null;
             var mainCamera = mainCameraMain != null ? mainCameraMain.camera : null;
+            // 視点がメインカメラそのもの (GameView) なら自分の視錐台は描かない
             if (mainCamera == null || mainCamera == _camera)
             {
                 return;

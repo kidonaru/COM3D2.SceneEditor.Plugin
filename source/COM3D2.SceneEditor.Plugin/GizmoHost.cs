@@ -109,7 +109,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return true;
             }
 
-            var renderer = camera.GetComponent<GizmoRenderer>();
+            // SceneView はカメラ自身に付いている。GameView はメインカメラを視点にした
+            // gizmo カメラ側に付いているため、視点カメラからの逆引きも試す
+            var renderer = camera.GetComponent<GizmoRenderer>() ?? GizmoRenderer.FindByViewCamera(camera);
             if (renderer == null)
             {
                 return true;

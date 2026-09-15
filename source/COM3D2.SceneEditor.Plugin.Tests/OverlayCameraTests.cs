@@ -55,5 +55,30 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var sync = type.GetMethod("SyncToMainCamera", System.Type.EmptyTypes);
             Assert.NotNull(sync);
         }
+
+        [Theory]
+        [InlineData(typeof(GizmoRenderer))]
+        [InlineData(typeof(BoneLineRenderer))]
+        [InlineData(typeof(GridRenderer))]
+        public void 描画コンポーネントは視点カメラを差し替えられる(System.Type type)
+        {
+            // GameView ではホスト (gizmo カメラ) とは別にメインカメラを視点にするため、
+            // 3 コンポーネントとも同じ名前で公開する
+            var property = type.GetProperty("viewCamera", BindingFlags.Public | BindingFlags.Instance);
+            Assert.NotNull(property);
+            Assert.Equal(typeof(Camera), property.PropertyType);
+            Assert.True(property.CanWrite);
+        }
+
+        [Fact]
+        public void GizmoRendererを視点カメラから逆引きできる()
+        {
+            // GizmoHost.IsGizmoVisible は外部プラグインからメインカメラで問われるため、
+            // メインカメラに GizmoRenderer が付いていなくても viewCamera から引ける必要がある
+            var method = typeof(GizmoRenderer).GetMethod(
+                "FindByViewCamera", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Camera) }, null);
+            Assert.NotNull(method);
+            Assert.Equal(typeof(GizmoRenderer), method.ReturnType);
+        }
     }
 }
