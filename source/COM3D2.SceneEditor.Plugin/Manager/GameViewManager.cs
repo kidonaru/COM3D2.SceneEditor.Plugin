@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -27,7 +27,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メインカメラに載せたギズモ。GameView 上で選択オブジェクトを操作するのに使う</summary>
         public GizmoRenderer gizmoRenderer { get; private set; }
         public BoneLineRenderer boneLineRenderer { get; private set; }
-        public GridRenderer gridRenderer { get; private set; }
+        /// <summary>床グリッド担当。深度でシーンのオブジェクトに隠すためメインカメラに付ける</summary>
+        public GridRenderer worldGridRenderer { get; private set; }
+
+        /// <summary>画面分割グリッド担当。ポストエフェクトを避けるため gizmo カメラに付ける</summary>
+        public GridRenderer displayGridRenderer { get; private set; }
 
         private readonly List<Camera> _hiddenUICameras = new List<Camera>();
         private readonly List<UICamera> _disabledUICameraEvents = new List<UICamera>();
@@ -166,8 +170,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     camera.targetTexture = null;
                 }
-            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
-            cameraManager.SyncToMainCamera();
+                // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+                cameraManager.SyncToMainCamera();
                 ReleaseRenderTexture();
                 cameraManager.SetClearCameraActive(false, config.backgroundColor);
                 isMaximized = true;
@@ -183,8 +187,8 @@ namespace COM3D2.SceneEditor.Plugin
                 CreateRenderTexture(Screen.width, Screen.height);
                 cameraManager.SetClearCameraActive(true, config.backgroundColor);
                 camera.targetTexture = renderTexture;
-            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
-            cameraManager.SyncToMainCamera();
+                // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+                cameraManager.SyncToMainCamera();
                 isMaximized = false;
                 GameViewWindow.instance.isShowWnd = true;
                 MTEUtils.Log("GameViewをウィンドウ化しました ({0}x{1})", _rtWidth, _rtHeight);
@@ -233,9 +237,11 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ギズモ・骨格線・グリッドの描画をオーバーレイ (gizmo) カメラへ載せる。
+        /// ギズモ・骨格線・グリッドの描画を載せる。
         /// メインカメラに載せると OnPostRender の GL 描画にポストエフェクトが乗るため、
-        /// 何も映さない専用カメラで後から重ね描きし、視点だけメインカメラを使う
+        /// 何も映さない専用カメラ (gizmo カメラ) で後から重ね描きし、視点だけメインカメラを使う。
+        /// 例外は床グリッドで、シーンのオブジェクトに隠れる必要があり深度が要るため
+        /// メインカメラ側に残す (ポストエフェクトは乗る)
         /// </summary>
         private void AttachGizmoRenderer(Camera camera)
         {
@@ -256,11 +262,17 @@ namespace COM3D2.SceneEditor.Plugin
             boneLineRenderer.viewCamera = camera;
             boneLineRenderer.isHostActive = IsGizmoHostActive;
 
-            gridRenderer = host.AddComponent<GridRenderer>();
-            gridRenderer.viewCamera = camera;
-            gridRenderer.isHostActive = IsGizmoHostActive;
-            // 構図合わせ用の画面分割グリッドはゲーム画面側にだけ出す
-            gridRenderer.drawDisplayGrid = true;
+            // 床グリッドはメインカメラの深度が要るのでメインカメラ側で描く
+            worldGridRenderer = camera.gameObject.AddComponent<GridRenderer>();
+            worldGridRenderer.isHostActive = IsGizmoHostActive;
+
+            // 構図合わせ用の画面分割グリッドはゲーム画面側にだけ出す。
+            // 深度を使わない画面空間の描画なのでオーバーレイ側へ回せる
+            displayGridRenderer = host.AddComponent<GridRenderer>();
+            displayGridRenderer.viewCamera = camera;
+            displayGridRenderer.isHostActive = IsGizmoHostActive;
+            displayGridRenderer.drawWorldGrid = false;
+            displayGridRenderer.drawDisplayGrid = true;
         }
 
         /// <summary>最大化中は GameView ウィンドウ非表示のままギズモ・骨格線を全画面で生かす</summary>
@@ -283,11 +295,17 @@ namespace COM3D2.SceneEditor.Plugin
             }
             boneLineRenderer = null;
 
-            if (gridRenderer != null)
+            if (worldGridRenderer != null)
             {
-                Object.Destroy(gridRenderer);
+                Object.Destroy(worldGridRenderer);
             }
-            gridRenderer = null;
+            worldGridRenderer = null;
+
+            if (displayGridRenderer != null)
+            {
+                Object.Destroy(displayGridRenderer);
+            }
+            displayGridRenderer = null;
         }
 
         /// <summary>

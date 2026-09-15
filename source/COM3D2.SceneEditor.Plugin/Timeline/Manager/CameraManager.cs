@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -37,7 +37,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public const float TextCanvasPlaneDistance = 100f;
 
-        private static readonly int TextLayer = LayerMask.NameToLayer("UI");
+        /// <summary>
+        /// 字幕を載せるレイヤー。シーン側で未使用かつメインカメラのカリング対象外なので、
+        /// 字幕カメラだけが描く = ポストエフェクトの影響を受けない。
+        /// 字幕カメラの cullingMask と字幕オブジェクトの layer が食い違うと何も映らないため、
+        /// TimelineTextManager もここを参照する
+        /// </summary>
+        public static readonly int TextLayer = LayerMask.NameToLayer("UI");
 
         private static CameraManager _instance = null;
         public static CameraManager instance

@@ -270,7 +270,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 重ね描きカメラを順に描く。
         /// いずれも clearFlags が Depth のため、メインカメラの描画結果の上に重なる。
-        /// 通常描画と重なって撮影フレームだけ OnPostRender が 2 回走るが、一時的なコストなので許容する
+        /// 通常描画と重なって撮影フレームだけ OnPostRender が 2 回走るが、一時的なコストなので許容する。
+        /// ギズモ系は撮影に写したくないので HideOverlays が事前に止めており、gizmo カメラは実質何も描かない
         /// </summary>
         private static void RenderExtras(List<Camera> extraCameras)
         {
@@ -293,7 +294,8 @@ namespace COM3D2.SceneEditor.Plugin
             var gameViewManager = GameViewManager.instance;
             HideOverlay(hidden, gameViewManager.gizmoRenderer);
             HideOverlay(hidden, gameViewManager.boneLineRenderer);
-            HideOverlay(hidden, gameViewManager.gridRenderer);
+            HideOverlay(hidden, gameViewManager.worldGridRenderer);
+            HideOverlay(hidden, gameViewManager.displayGridRenderer);
 
             foreach (var ring in UnityEngine.Object.FindObjectsOfType<MaidDragPointRing>())
             {

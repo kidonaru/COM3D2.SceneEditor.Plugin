@@ -100,7 +100,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 行列・ピッキング・サイズ計算の基準になるカメラ。既定は自分が付いているカメラ。
-        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする
+        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする。
+        /// null を代入すると未設定ではなく自身の Camera へ戻る
         /// </summary>
         public Camera viewCamera
         {

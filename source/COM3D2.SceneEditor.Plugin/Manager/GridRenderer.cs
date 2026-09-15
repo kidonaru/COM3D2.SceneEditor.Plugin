@@ -9,8 +9,9 @@ namespace COM3D2.SceneEditor.Plugin
     /// 床の XZ 平面グリッド + XYZ 軸線 (ワールドグリッド) と、
     /// 画面を等分する構図用のオーバーレイ (画面分割グリッド) を持つ。
     /// 描画・座標変換の作法は BoneLineRenderer に揃えている。
-    /// ポストエフェクトを避けるためメインカメラではなく gizmo カメラの OnPostRender で描き、
-    /// 行列は viewCamera から取る
+    /// GameView では 2 つに分けて使う。床グリッドはシーンのオブジェクトに隠れる必要があり
+    /// 深度が要るためメインカメラへ、画面分割グリッドはポストエフェクトを避けたいため
+    /// gizmo カメラへ付け、後者は行列を viewCamera (メインカメラ) から取る
     /// </summary>
     public class GridRenderer : MonoBehaviour
     {
@@ -37,20 +38,27 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ホスト側の表示切替。既定は SceneView で、GameView 側は生成時に差し替える</summary>
         public Func<bool> isHostActive = () => SceneViewWindow.instance.isShowWnd;
 
+        /// <summary>
+        /// 床グリッドを描くか。GameView では深度テストのためメインカメラ側のインスタンスが
+        /// 描くので、gizmo カメラ側 (画面分割グリッド担当) では false にする
+        /// </summary>
+        public bool drawWorldGrid = true;
+
         /// <summary>画面分割グリッドを描くか。構図用なので GameView 側でのみ有効にする</summary>
         public bool drawDisplayGrid = false;
 
-        /// <summary>
-        /// 床グリッドと画面分割グリッド共用。ポストエフェクト後に別カメラで描くため
-        /// メインカメラの深度は参照できず、どちらも深度テスト無しで常に手前に出す
-        /// </summary>
-        private Material _lineMaterial;
+        /// <summary>床グリッド用。他のオブジェクトに隠れるよう深度テストは残す</summary>
+        private Material _worldMaterial;
+
+        /// <summary>画面分割グリッド用。常に手前に出すため深度テストを無効化する</summary>
+        private Material _overlayMaterial;
 
         private Camera _camera;
 
         /// <summary>
         /// 行列・線幅計算の基準になるカメラ。既定は自分が付いているカメラ。
-        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする
+        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする。
+        /// null を代入すると未設定ではなく自身の Camera へ戻る
         /// </summary>
         public Camera viewCamera
         {
@@ -72,26 +80,33 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _lineMaterial = CreateLineMaterial(shader);
+            _worldMaterial = CreateLineMaterial(shader, UnityEngine.Rendering.CompareFunction.LessEqual);
+            _overlayMaterial = CreateLineMaterial(shader, UnityEngine.Rendering.CompareFunction.Always);
         }
 
-        private static Material CreateLineMaterial(Shader shader)
+        private static Material CreateLineMaterial(Shader shader, UnityEngine.Rendering.CompareFunction zTest)
         {
             var material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
             material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             material.SetInt("_ZWrite", 0);
-            material.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+            material.SetInt("_ZTest", (int)zTest);
             return material;
         }
 
         private void OnDestroy()
         {
-            if (_lineMaterial != null)
+            if (_worldMaterial != null)
             {
-                Destroy(_lineMaterial);
-                _lineMaterial = null;
+                Destroy(_worldMaterial);
+                _worldMaterial = null;
+            }
+
+            if (_overlayMaterial != null)
+            {
+                Destroy(_overlayMaterial);
+                _overlayMaterial = null;
             }
         }
 
@@ -117,17 +132,17 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void OnPostRender()
         {
-            if (_lineMaterial == null || !isActive)
+            if (!isActive)
             {
                 return;
             }
 
-            if (config.isGridVisibleInWorld)
+            if (_worldMaterial != null && drawWorldGrid && config.isGridVisibleInWorld)
             {
                 DrawWorldGrid();
             }
 
-            if (drawDisplayGrid && config.isGridVisibleInDisplay)
+            if (_overlayMaterial != null && drawDisplayGrid && config.isGridVisibleInDisplay)
             {
                 DrawDisplayGrid();
             }
@@ -151,7 +166,7 @@ namespace COM3D2.SceneEditor.Plugin
             var cameraPos = _camera.transform.position;
             var halfWidth = Vector3.Distance(Vector3.zero, cameraPos) * WidthPerDistance * lineWidth * 0.5f;
 
-            _lineMaterial.SetPass(0);
+            _worldMaterial.SetPass(0);
             GL.PushMatrix();
             GL.LoadProjectionMatrix(_camera.projectionMatrix);
             GL.modelview = _camera.worldToCameraMatrix;
@@ -228,7 +243,7 @@ namespace COM3D2.SceneEditor.Plugin
             var halfWidthX = lineWidth * 0.5f / Mathf.Max(_camera.pixelWidth, 1);
             var halfWidthY = lineWidth * 0.5f / Mathf.Max(_camera.pixelHeight, 1);
 
-            _lineMaterial.SetPass(0);
+            _overlayMaterial.SetPass(0);
             GL.PushMatrix();
             GL.LoadOrtho();
             GL.Begin(GL.QUADS);

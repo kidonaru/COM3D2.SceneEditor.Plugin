@@ -33,11 +33,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public const int MinTextCount = 1;
         public const int MaxTextCount = 16;
 
-        /// <summary>
-        /// 字幕を載せるレイヤー。シーン側で未使用かつメインカメラのカリング対象外なので、
-        /// 専用カメラだけが描く = ポストエフェクトの影響を受けない
-        /// </summary>
-        private static readonly int TextLayer = LayerMask.NameToLayer("UI");
+        /// <summary>字幕を載せるレイヤー。カメラ側の cullingMask と揃える必要があるので所有者から借りる</summary>
+        private static int TextLayer => CameraManager.TextLayer;
 
         private static TimelineTextManager _instance;
         public static TimelineTextManager instance
