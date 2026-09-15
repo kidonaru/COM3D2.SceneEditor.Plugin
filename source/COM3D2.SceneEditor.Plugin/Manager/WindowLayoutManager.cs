@@ -197,13 +197,8 @@ namespace COM3D2.SceneEditor.Plugin
                 menuBarPosY = (int)menuBar.windowRect.y,
             };
 
-            foreach (var window in WindowManager.instance.windows)
+            foreach (var subWindow in GetSubWindows())
             {
-                var subWindow = window as EditorSubWindow;
-                if (subWindow == null)
-                {
-                    continue;
-                }
                 data.windows.Add(new WindowLayoutEntry
                 {
                     windowId = subWindow.tabWindowId,
@@ -228,6 +223,8 @@ namespace COM3D2.SceneEditor.Plugin
             TabGroupManager.instance.DissolveAllGroups();
             WindowConnectManager.instance.DisconnectAll();
 
+            var appliedWindowIds = new HashSet<int>();
+
             foreach (var entry in data.windows)
             {
                 var subWindow = FindSubWindow(entry.windowId);
@@ -236,10 +233,25 @@ namespace COM3D2.SceneEditor.Plugin
                     // 別バージョンで保存されたレイアウト等。該当ウィンドウだけ諦めて続行する
                     continue;
                 }
+                appliedWindowIds.Add(entry.windowId);
                 subWindow.isShowWnd = entry.visible;
                 subWindow.ApplyPlacement(
                     entry.x, entry.y, entry.width, entry.height,
                     data.screenWidth, data.screenHeight);
+            }
+
+            // 旧バージョンで保存されたレイアウト等、エントリが無いウィンドウは
+            // 適用前の表示状態が残ってしまうため非表示にする
+            foreach (var subWindow in GetSubWindows())
+            {
+                if (appliedWindowIds.Contains(subWindow.tabWindowId))
+                {
+                    continue;
+                }
+                subWindow.isShowWnd = false;
+                // エントリ側は ApplyPlacement 経由で保存されるため、
+                // 非表示化した分も config へ反映して次回起動時の復元とずれないようにする
+                subWindow.SavePlacement();
             }
 
             if (data.gameView != null)
@@ -287,12 +299,24 @@ namespace COM3D2.SceneEditor.Plugin
             config.dirty = true;
         }
 
-        private static EditorSubWindow FindSubWindow(int windowId)
+        /// <summary>レイアウト管轄のサブウィンドウのみを列挙する</summary>
+        private static IEnumerable<EditorSubWindow> GetSubWindows()
         {
             foreach (var window in WindowManager.instance.windows)
             {
                 var subWindow = window as EditorSubWindow;
-                if (subWindow != null && subWindow.tabWindowId == windowId)
+                if (subWindow != null)
+                {
+                    yield return subWindow;
+                }
+            }
+        }
+
+        private static EditorSubWindow FindSubWindow(int windowId)
+        {
+            foreach (var subWindow in GetSubWindows())
+            {
+                if (subWindow.tabWindowId == windowId)
                 {
                     return subWindow;
                 }
