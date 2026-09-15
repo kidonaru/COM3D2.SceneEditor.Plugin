@@ -448,7 +448,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 現在背景の操作行。位置・回転の編集は Inspector に寄せたため、
+        /// 現在背景の操作行。Transform の編集は Inspector に寄せたため、
         /// ここでは削除と選択のみ。背景なし時は案内のみ
         /// </summary>
         private void DrawCurrentBgRow(BgMgr bgMgr)
@@ -480,25 +480,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _view.EndLayout();
-
-            DrawBgTransformRows(bgMgr);
-        }
-
-        /// <summary>背景モデルのローカル Transform 編集行。実体は BackgroundRowDrawer 側</summary>
-        private void DrawBgTransformRows(BgMgr bgMgr)
-        {
-            var bgObject = bgMgr.current_bg_object;
-            if (bgObject == null)
-            {
-                return;
-            }
-
-            var transform = bgObject.transform;
-
-            _view.DrawHorizontalLine();
-            _view.DrawLabel("背景Transform (ローカル)", -1, ROW_HEIGHT);
-
-            BackgroundRowDrawer.DrawBgTransformRows(_view, transform, LABEL_WIDTH, ROW_HEIGHT);
         }
 
         /// <summary>
