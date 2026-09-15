@@ -142,17 +142,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void UpdateTransform()
         {
-#if COM3D2
+            // PreUpdateTransform は Unity API に触らず managed データしか読まないので並列化できる。
+            // Transform への書き込みは UpdateTransform 側でメインスレッドから行う
             ParallelHelper.ForEach(hands, hand =>
             {
                 hand.PreUpdateTransform();
             });
-#else
-            foreach (var hand in hands)
-            {
-                hand.PreUpdateTransform();
-            }
-#endif
 
             foreach (var hand in hands)
             {
