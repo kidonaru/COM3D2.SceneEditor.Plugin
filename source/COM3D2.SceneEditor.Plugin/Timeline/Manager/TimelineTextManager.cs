@@ -281,6 +281,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _camera.clearFlags = CameraClearFlags.Depth;
             _camera.orthographic = false;
             _camera.fieldOfView = 60f;
+            // HDR 有効のままだと Unity が中間の HDR バッファを挟み、
+            // LDR の GameView RT との往復で画面に黒点が焼き付く。
+            // 生成直後はメインカメラを取得できないことがあるため既定で切っておく
+            // (取得できればこの直後の UpdateRenderTarget がメインカメラへ揃え直す)
+            _camera.allowHDR = false;
             _camera.nearClipPlane = 1f;
             // キャンバス (planeDistance の位置) が確実に収まるよう余裕を持たせる
             _camera.farClipPlane = CanvasPlaneDistance * 2f;
@@ -332,6 +337,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             _camera.depth = mainCamera.depth + CameraDepthOffset;
+
+            // ゲーム側が HDR を切り替えると RT のフォーマットも変わるため、メインカメラへ揃える
+            if (_camera.allowHDR != mainCamera.allowHDR)
+            {
+                _camera.allowHDR = mainCamera.allowHDR;
+            }
         }
 
         private static List<string> GetOSFontNames()
