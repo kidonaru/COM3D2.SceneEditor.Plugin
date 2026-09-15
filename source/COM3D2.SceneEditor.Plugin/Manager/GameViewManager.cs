@@ -319,9 +319,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             camera.targetTexture = null;
+            // 破棄する RT への参照をオーバーレイカメラからも先に外す。
+            // CameraManager.LateUpdate はメイド・タイムラインが揃っているときしか走らないため、
+            // 次フレームの自動追随はあてにできない
+            cameraManager.SyncToMainCamera();
             ReleaseRenderTexture();
             CreateRenderTexture(Screen.width, Screen.height);
             camera.targetTexture = renderTexture;
+            cameraManager.SyncToMainCamera();
             MTEUtils.LogDebug("画面サイズの変更に追従しました ({0}x{1})", _rtWidth, _rtHeight);
         }
 
@@ -355,6 +360,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (camera.targetTexture == null)
             {
                 camera.targetTexture = renderTexture;
+                cameraManager.SyncToMainCamera();
             }
 
             // モード中に新たに有効化されたUIカメラ (ダイアログ等) も隠す
