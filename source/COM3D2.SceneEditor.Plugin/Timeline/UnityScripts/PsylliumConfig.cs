@@ -6,6 +6,20 @@ using UnityEditor;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    /// <summary>
+    /// サイリウムの設定変更で必要になる再構築の種類。
+    /// 席の再配置は約 6ms かかるので、色やメッシュだけの変更では走らせない
+    /// </summary>
+    [System.Flags]
+    public enum PsylliumRefreshKind
+    {
+        None = 0,
+        Placement = 1, // 席の再配置（PsylliumArea.Refresh）
+        Mesh = 2,      // バーメッシュの再生成（UpdateMeshs）
+        Material = 4,  // マテリアル色の更新（UpdateMaterials）
+        All = Placement | Mesh | Material,
+    }
+
     [System.Serializable]
     public class PsylliumBarConfig
     {
@@ -76,6 +90,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 && cutoffAlpha == other.cutoffAlpha;
         }
 
+        /// <summary>
+        /// other へ変更したときに必要な再構築の種類を返す（other は non-null 前提。Equals と同じ）。
+        /// フィールドを追加したら Equals / CopyFrom と一緒にここの分類も更新すること
+        /// </summary>
+        public PsylliumRefreshKind GetRefreshKind(PsylliumBarConfig other)
+        {
+            var kind = PsylliumRefreshKind.None;
+
+            if (color1a != other.color1a
+                || color1b != other.color1b
+                || color1c != other.color1c
+                || color2a != other.color2a
+                || color2b != other.color2b
+                || color2c != other.color2c
+                || cutoffAlpha != other.cutoffAlpha)
+            {
+                kind |= PsylliumRefreshKind.Material;
+            }
+
+            if (width != other.width
+                || height != other.height
+                || positionY != other.positionY
+                || radius != other.radius
+                || topThreshold != other.topThreshold)
+            {
+                kind |= PsylliumRefreshKind.Mesh;
+            }
+
+            // baseScale はメッシュ寸法と席の間隔の両方に効く
+            if (baseScale != other.baseScale)
+            {
+                kind |= PsylliumRefreshKind.Placement | PsylliumRefreshKind.Mesh;
+            }
+
+            return kind;
+        }
+
         public void UpdateName(int groupIndex)
         {
             this.groupIndex = groupIndex;
@@ -109,6 +160,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return handSpacing == other.handSpacing
                 && barOffsetPosition == other.barOffsetPosition
                 && barOffsetRotation == other.barOffsetRotation;
+        }
+
+        /// <summary>other へ変更したときに必要な再構築の種類を返す（全項目が席配置に効く。other は non-null 前提）</summary>
+        public PsylliumRefreshKind GetRefreshKind(PsylliumHandConfig other)
+        {
+            return Equals(other) ? PsylliumRefreshKind.None : PsylliumRefreshKind.Placement;
         }
 
         public void UpdateName(int groupIndex)
