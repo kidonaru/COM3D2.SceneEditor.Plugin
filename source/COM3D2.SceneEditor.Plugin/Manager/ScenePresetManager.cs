@@ -548,6 +548,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
+                // タイムラインが残っていると適用直後のフレーム更新でプリセットの内容が
+                // 巻き戻されるため、適用より前にアンロードする
+                UnloadTimelineForPresetLoad();
+
                 // SceneCapture プリセットはフォーマットも適用経路も別物のため専用処理へ
                 if (item.isSceneCapture)
                 {
@@ -575,6 +579,30 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEUtils.LogException(e);
                 DialogPopupWindow.ShowDialog("プリセットの読み込みに失敗しました");
             }
+        }
+
+        /// <summary>
+        /// 読み込み中のタイムラインを破棄する（再生停止・レイヤーの後始末・履歴クリアを含む）
+        /// </summary>
+        private static void UnloadTimelineForPresetLoad()
+        {
+            var timelineManager = MTEP.TimelineManager.instance;
+            // UnloadTimeline 自体は timeline == null でも安全に no-op だが、
+            // 何もしていないのに「アンロードしました」とログが出るのを防ぐためここで判定する
+            if (timelineManager.timeline == null)
+            {
+                return;
+            }
+
+            // UnloadTimeline の Stop() は studioHack を null ガードなしで触るため、
+            // タイトル画面 (instance == null) では呼べない
+            if (MTEP.SceneEditorHack.instance == null)
+            {
+                return;
+            }
+
+            timelineManager.UnloadTimeline();
+            MTEUtils.Log("シーンプリセット適用のためタイムラインをアンロードしました");
         }
 
         /// <summary>
