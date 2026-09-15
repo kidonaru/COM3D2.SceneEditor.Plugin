@@ -171,7 +171,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// ボーン回転ギズモの表示倍率。
         /// ゲーム側 GizmoRender のボーンギズモは generalLens (= 0.5 * tan(fov/2) * 距離) に
         /// offsetScale 0.25 を掛けた長さで、FoV 45 度では距離の 0.0518 倍だった。
-        /// TransformGizmo は距離の 0.15 倍 * sizeScale なので、そこへ合わせた値
+        /// TransformGizmo は基準画角 (45 度) で距離の 0.15 倍 * sizeScale なので、そこへ合わせた値。
+        /// どちらも tan(fov/2) で正規化するようになったため、この比はどの画角でも保たれる
         /// </summary>
         private const float BoneGizmoSizeScale = 0.345f;
 
