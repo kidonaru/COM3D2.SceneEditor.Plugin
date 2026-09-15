@@ -47,7 +47,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isAutoScroll = false;
         // ドラッグ編集の完了時と、操作履歴に載る値変更の確定時に
         // 現在フレームへ自動でキーフレーム登録する (SE 独自機能)
-        public bool isAutoKeyFrame = true;
+        public bool isAutoKeyFrame = false;
         public TangentType defaultTangentType = TangentType.Smooth;
         public MoveEasingType defaultEasingType = MoveEasingType.SineInOut;
         public int detailTransformCount = 16;
