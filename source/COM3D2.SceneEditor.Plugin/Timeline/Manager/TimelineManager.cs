@@ -531,6 +531,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// Undo/Redo 用の部分再構築。レイヤー構成とレイヤー外の設定が現在と同一である
         /// 前提で、指定添字のレイヤーだけをキーフレームごと作り直す。
+        /// レイヤー外の設定が不変なので mte.OnLoad (モデル・動画等の再セットアップ) は通さない。
         /// 前提が崩れている場合 (添字範囲外・型不一致) は UpdateTimeline へ倒す
         /// </summary>
         public void UpdateTimelineLayers(TimelineXml xml, IList<int> layerIndices)

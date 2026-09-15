@@ -167,7 +167,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// layers を除いた XML 文字列。レイヤー外の項目の同一性判定に使う。
-        /// シリアライズ中だけ layers を空リストに差し替え、必ず元へ戻す
+        /// シリアライズ中だけ layers を空リストに差し替え、必ず元へ戻す。
+        /// xml を一時的に書き換えるためメインスレッド専用で、同じ xml への再入は不可
         /// </summary>
         public static string SerializeWithoutLayers(TimelineXml xml)
         {

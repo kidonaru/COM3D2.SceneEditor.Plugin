@@ -26,7 +26,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// 現在のタイムライン状態に対応する確定済みスナップショット。
         /// 積むエントリの before として使う。AddHistory と
-        /// TimelineHistoryEntry (SE 側 Undo/Redo 適用) の双方で更新する
+        /// TimelineHistoryEntry (SE 側 Undo/Redo 適用) の双方で更新する。
+        /// TimelineHistoryEntry はこの参照とエントリが持つ XML の参照一致で
+        /// 部分適用の可否を判定するため、ここへ入れる XML を複製してはならない
         /// </summary>
         public TimelineXml lastCommittedXml { get; set; }
 

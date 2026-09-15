@@ -33,27 +33,27 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void ApplyBefore()
         {
-            Restore(_before, _after);
+            Restore(_before, expectedCurrentXml: _after);
         }
 
         public void ApplyAfter()
         {
-            Restore(_after, _before);
+            Restore(_after, expectedCurrentXml: _before);
         }
 
         /// <param name="xml">復元する側</param>
-        /// <param name="paired">対になる側。現在のタイムラインがこれと同一のときだけ部分適用できる</param>
-        private void Restore(MTEP.TimelineXml xml, MTEP.TimelineXml paired)
+        /// <param name="expectedCurrentXml">現在のタイムラインがこれと同一のときだけ部分適用できる</param>
+        private void Restore(MTEP.TimelineXml xml, MTEP.TimelineXml expectedCurrentXml)
         {
             var timelineManager = MTEP.TimelineManager.instance;
             var historyManager = MTEP.TimelineHistoryManager.instance;
 
-            // 部分適用は「現在のタイムラインが paired と同一」が前提。AddHistory は前エントリの
-            // after をそのまま次の before に使い、ここは適用後に lastCommittedXml を置き換えるため、
-            // 隣接エントリを順に辿っている限り参照が一致する。エントリのスキップ・適用失敗・
-            // RestoreTo の多段ジャンプで前提が崩れると一致しないので全再構築へ倒す
+            // 部分適用は「現在のタイムラインが expectedCurrentXml と同一」が前提。AddHistory は
+            // 前エントリの after をそのまま次の before に使い、ここは適用後に lastCommittedXml を
+            // 置き換えるため、隣接エントリを順に辿っている限り参照が一致する。エントリのスキップ・
+            // 適用失敗・RestoreTo の多段ジャンプで前提が崩れると一致しないので全再構築へ倒す
             if (_diff != null && _diff.canApplyPartially &&
-                ReferenceEquals(historyManager.lastCommittedXml, paired))
+                ReferenceEquals(historyManager.lastCommittedXml, expectedCurrentXml))
             {
                 timelineManager.UpdateTimelineLayers(xml, _diff.changedLayerIndices);
             }
