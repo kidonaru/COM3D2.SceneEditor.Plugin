@@ -47,7 +47,9 @@ if (_lineMaterial == null || !isDrawEnabled)
 
 「SceneEditor のビューでないカメラ」の判定は **`GizmoRenderer` の有無だけでは足りない**。`GameViewManager.AttachGizmoRenderer`（`Manager/GameViewManager.cs:233`）はゲーム本体のメインカメラ（= `Camera.main`）へ `GizmoRenderer` を付け、ウィンドウモードを抜けるまで外さない。GameView をウィンドウモードのまま非表示にした状態では、`GizmoHostClient.isViewActive` は false（= 登録側は standalone へ落ちて `Camera.main` を直接使う）なのに `GizmoRenderer` は付いたまま、という組み合わせが起きる。そこで `GizmoRenderer.isHostActive()`（GameView 側は `IsGizmoHostActive` = `isShowWnd || isMaximized`、SceneView 側は `isShowWnd`）も併せて確認し、**ホストがそのカメラを実際に駆動している間だけ表示状態を返す**。それ以外は true（従来どおり表示）で、SceneEditor のウィンドウを閉じている間に ModItemExplorer のギズモが理由なく消える事故を防ぐ。
 
-**ドラッグ中の可視性変化**も扱う。SceneEditor は `isBoneVisible` を false にした瞬間に自前ギズモのドラッグを打ち切る（`MaidManipulateManager.cs:253-259` の `EndGizmoDrag`）が、外部ギズモには届かない。ModItemExplorer 側は更新時にも可視性を見て、非表示になったらその場で `EndDrag()` する（描画だけ消えて掴みっぱなしになるのを防ぐ）。ホストは `_dragEntry` を握ったままだが、後からマウスアップで `endDrag` が再度呼ばれても `ModelGizmoManager.EndDrag` は冪等なので問題ない。
+**ドラッグ中の可視性変化**も扱う。SceneEditor は `isBoneVisible` を false にした瞬間に自前ギズモのドラッグを打ち切る（`MaidManipulateManager.cs:253-259` の `EndGizmoDrag`）が、外部ギズモには届かない。ModItemExplorer 側は更新時にも可視性を見て、**非表示の間は対象を動かさない**。ただし掴み自体は解放せず、解放はマウスアップでホストから来る `endDrag` に任せる。
+
+クライアントが自前で `EndDrag()` してしまうと、`SceneViewWindow.UpdatePointerInput` が同一フレーム内で `GizmoHost.IsExternalDragging(camera)` を再評価する（`SceneViewWindow.cs:551-552`）ため、マウスを押したままでもそのフレームからカメラ操作の抑止が外れて視点が跳ねる。ホスト側の `_dragEntry` も残ったままになる。更新を止めるだけならホストとクライアントのドラッグ状態が食い違わない。
 
 ---
 
@@ -356,26 +358,37 @@ Expected: HEAD が Task 1 のコミットになる（`GizmoHostClient.cs` に `I
 
 SceneEditor は `isBoneVisible` を false にした瞬間に自前ギズモのドラッグを打ち切るが、外部ギズモには届かない。更新側でも可視性を見て、消えた瞬間に掴みを解放する。
 
-(a) `TryRegisterHost` の `GizmoHostClient.Register` 呼び出しで、`updateDrag` に渡しているラムダを差し替える:
+(a) `TryRegisterHost` の `GizmoHostClient.Register` 呼び出しで `updateDrag` に渡す引数を、可視性を見る名前付きメソッドへ差し替える（他の引数と粒度を揃える）:
 
 ```csharp
             _hostHandle = GizmoHostClient.Register(
                 "ModItemExplorer",
                 TryBeginDrag,
-                // TransformGizmo は掴んだカメラを内部で保持し続けるため、更新時の camera は座標には使わない。
-                // 表示状態の判定だけに使い、ドラッグ中に非表示化されたらその場で解放する
-                (camera, rtPoint) =>
-                {
-                    if (!GizmoHostClient.IsGizmoVisible(camera))
-                    {
-                        EndDrag();
-                        return;
-                    }
-                    UpdateDrag(rtPoint);
-                },
+                UpdateDragFromHost,
                 EndDrag,
                 () => isDragging,
                 DrawAll);
+```
+
+`UpdateDrag` の手前に追加する:
+
+```csharp
+        /// <summary>
+        /// ホスト経由のドラッグ更新。TransformGizmo は掴んだカメラを内部で保持し続けるため、
+        /// 渡された camera は表示状態の判定にだけ使う。
+        /// 非表示の間は動かさないが、掴み自体は解放しない。ここで自前に EndDrag すると
+        /// ホスト側は同フレーム内でドラッグ終了とみなし、マウスを押したままでも
+        /// カメラ操作の抑止が外れてしまう (SceneViewWindow.UpdatePointerInput)。
+        /// 解放はマウスアップでホストから来る endDrag に任せる
+        /// </summary>
+        private void UpdateDragFromHost(Camera camera, Vector2 rtPoint)
+        {
+            if (!GizmoHostClient.IsGizmoVisible(camera))
+            {
+                return;
+            }
+            UpdateDrag(rtPoint);
+        }
 ```
 
 (b) `UpdateStandaloneInput` のドラッグ継続分岐にも同じ判定を入れる:
@@ -383,21 +396,22 @@ SceneEditor は `isBoneVisible` を false にした瞬間に自前ギズモの�
 ```csharp
             if (isDragging)
             {
-                if (Input.GetMouseButton(0) && GizmoHostClient.IsGizmoVisible(camera))
-                {
-                    // 旧バージョンの SceneEditor 環境では InputRemapper が GameView 内で
-                    // RT 座標へ変換済みのため、Camera.main とのペアで正しく成立する
-                    UpdateDrag((Vector2)Input.mousePosition);
-                }
-                else
+                if (!Input.GetMouseButton(0))
                 {
                     EndDrag();
+                }
+                else if (GizmoHostClient.IsGizmoVisible(camera))
+                {
+                    // 旧バージョンの SceneEditor 環境では InputRemapper が GameView 内で
+                    // RT 座標へ変換済みのため、Camera.main とのペアで正しく成立する。
+                    // 非表示中は更新を止めるだけにする (ホスト経由の更新と同じ扱い)
+                    UpdateDrag((Vector2)Input.mousePosition);
                 }
                 return;
             }
 ```
 
-ホスト側は `_dragEntry` を握ったままだが、マウスアップ時に `endDrag` が再度呼ばれても `EndDrag()` は冪等（`_dragGizmo` を null にし `isDragging` を false にするだけ）なので二重解放にはならない。
+どちらも掴みは解放しない。クライアントが自前で `EndDrag()` すると、`SceneViewWindow.UpdatePointerInput` が同一フレーム内で `GizmoHost.IsExternalDragging(camera)` を再評価する（`SceneViewWindow.cs:551-552`）ため、マウスを押したままカメラ操作の抑止が外れて視点が跳ねる。
 
 - [ ] **Step 5: 2 構成ともビルドする**
 

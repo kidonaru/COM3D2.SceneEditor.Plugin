@@ -9,7 +9,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 {
     /// <summary>
     /// GizmoHost の表示状態 API は外部プラグイン (ModItemExplorer) がリフレクションで
-    /// 呼ぶ公開契約なので、シグネチャと不在時の既定値を機械検証する
+    /// 呼ぶ公開契約なので、シグネチャと不在時の既定値を機械検証する。
+    /// カメラに GizmoRenderer が付いた状態の分岐 (isHostActive / isDrawEnabled) は
+    /// Unity ランタイムが要るためここでは検証できず、実機 (devbridge) で担保する
     /// </summary>
     public class GizmoHostVisibilityTests
     {
