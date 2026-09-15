@@ -109,12 +109,15 @@ namespace COM3D2.SceneEditor.Plugin
             _modelTreeView.getChild = (node, i) => node.children[i];
 
             _modelTreeView.getLabel = node => node.info.displayName;
+            // 選択中は Hierarchy と同じアクセント色、制御対象は緑で区別する
             _modelTreeView.getLabelColor = node =>
-                IsControlled(node) ? Color.green : Color.white;
+                IsSelected(node) ? ACCENT_COLOR
+                    : IsControlled(node) ? Color.green : Color.white;
 
-            // 行で変えられるのは制御対象かどうかだけ。ラベルは押しても何もしない
-            _modelTreeView.isSelected = node => false;
-            _modelTreeView.onSelected = node => { };
+            // 制御対象かどうかはチェック、ラベルのクリックは Inspector の選択に使う
+            _modelTreeView.isSelected = IsSelected;
+            _modelTreeView.onSelected = node =>
+                SelectionManager.instance.Select(node.info.gameObject);
 
             _modelTreeView.getChecked = IsControlled;
             _modelTreeView.onCheckChanged = (node, isChecked) =>
@@ -123,6 +126,12 @@ namespace COM3D2.SceneEditor.Plugin
                 _pendingCheckSourceName = node.info.sourceName;
                 _pendingCheckValue = isChecked;
             };
+        }
+
+        /// <summary>Inspector で選択中のモデルか</summary>
+        private static bool IsSelected(BGModelNode node)
+        {
+            return SelectionManager.instance.selectedObject == node.info.gameObject;
         }
 
         private static bool IsControlled(BGModelNode node)
