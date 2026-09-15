@@ -1300,6 +1300,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            if (version < 36)
+            {
+                // 背景レイヤーを「背景ごとのボーン」から「固定ボーン BG + strValues[0] に背景名」へ移行する。
+                // 旧形式は 1 フレームに 1 ボーンだが、複数残っている場合は最後のものだけ残す
+                foreach (var layer in layers)
+                {
+                    if (layer.className != "BGTimelineLayer")
+                    {
+                        continue;
+                    }
+
+                    foreach (var keyFrame in layer.keyFrames)
+                    {
+                        if (keyFrame.bones == null || keyFrame.bones.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        var last = keyFrame.bones[keyFrame.bones.Count - 1];
+                        var transform = last.transform;
+                        if (transform == null)
+                        {
+                            continue;
+                        }
+
+                        MTEUtils.LogDebug("Convert BGTimelineLayer bone to strValues name={0} frameNo={1} discarded={2}",
+                            transform.name, keyFrame.frameNo, keyFrame.bones.Count - 1);
+                        transform.strValues = new[] { transform.name ?? string.Empty };
+                        transform.name = BGBoneNameAtV36;
+
+                        keyFrame.bones.Clear();
+                        keyFrame.bones.Add(last);
+                    }
+                }
+            }
+
             ConvertPlugin();
         }
 
@@ -1316,6 +1352,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private const int RimlightApplyHairIndexAtV32 = 18;
         private const int ParaffinValueCountAtV32 = 22;
         private const int ParaffinMaskModeIndexAtV32 = 21;
+
+        // version 36 で背景レイヤーのボーン名を固定した当時の名前。レイヤー側の定数は参照しない
+        private const string BGBoneNameAtV36 = "BG";
 
         /// <summary>旧リムライト/パラフィンの Depth 系 3 値 (DepthMin/DepthMax/DepthFade) は
         /// COM3D2.5 版で廃止され、リムライトは同じ位置がマスク設定 3 値

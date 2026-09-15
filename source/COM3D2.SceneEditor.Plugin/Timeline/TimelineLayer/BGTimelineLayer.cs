@@ -5,19 +5,19 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    /// <summary>
+    /// 背景レイヤー。ボーンは固定名 1 本で、どの背景かはキーの文字列値 (TransformDataBG.bgName) が持つ
+    /// </summary>
     [TimelineLayerDesc("背景", 31, TimelineLayerCategory.Background)]
     public partial class BGTimelineLayer : TimelineLayerBase
     {
         public override Type layerType => typeof(BGTimelineLayer);
         public override string layerName => nameof(BGTimelineLayer);
 
-        /// <summary>
-        /// 背景を消しているときのボーンメニュー表示名。
-        /// この状態の背景名 (BgMgr.GetBGName()) は空文字で、そのままだと行が無名になる
-        /// </summary>
-        private const string NoBgDisplayName = "背景なし";
+        public const string BGBoneName = "BG";
+        private const string BGDisplayName = "背景";
 
-        private List<string> _allBoneNames = new List<string>();
+        private List<string> _allBoneNames = new List<string> { BGBoneName };
         public override List<string> allBoneNames => _allBoneNames;
 
         private static BgMgr bgMgr => GameMain.Instance.BgMgr;
@@ -35,29 +35,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         protected override void InitMenuItems()
         {
-            {
-                var boneNameSet = new HashSet<string>(GetExistBoneNames());
-
-                // 背景なし (空文字) も背景ありと同じく現在の状態として行を出す。
-                // 除外すると、背景を消した状態はキーを打つまで一覧に現れない
-                boneNameSet.Add(bgMgr.GetBGName());
-
-                _allBoneNames.Clear();
-                _allBoneNames.AddRange(boneNameSet);
-            }
-
-            {
-                allMenuItems.Clear();
-
-                foreach (var boneName in allBoneNames)
-                {
-                    var displayName = string.IsNullOrEmpty(boneName)
-                        ? NoBgDisplayName
-                        : photoBGManager.GetDisplayName(boneName);
-                    var menuItem = new BoneMenuItem(boneName, displayName);
-                    allMenuItems.Add(menuItem);
-                }
-            }
+            allMenuItems.Clear();
+            allMenuItems.Add(new BoneMenuItem(BGBoneName, BGDisplayName));
         }
 
         public override bool IsValidData()
@@ -66,25 +45,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return true;
         }
 
-        private string _prevBgName = null;
-
         public override void Update()
         {
             base.Update();
-
-            if (SceneEditorHack.isPoseEditing)
-            {
-                var bgName = bgMgr.GetBGName();
-                if (bgName != _prevBgName)
-                {
-                    OnBGChanged();
-                    _prevBgName = bgName;
-                }
-            }
-            else
-            {
-                _prevBgName = null;
-            }
 
             if (!SceneEditorHack.isPoseEditing)
             {
@@ -104,19 +67,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            //MTEUtils.LogDebug("ApplyMotion: bgName={0} stFrame={1}, stPos={2}, stRot={3}",
-            //    motion.name, motion.stFrame, motion.myTm.stPos, motion.myTm.stRot);
+            var start = motion.start as TransformDataBG;
+            var bgName = start.bgName ?? string.Empty;
 
             try
             {
-                if (motion.name != bgMgr.GetBGName())
+                if (bgName != bgMgr.GetBGName())
                 {
-                    studioHack.ChangeBackground(motion.name);
+                    studioHack.ChangeBackground(bgName);
                 }
 
                 studioHack.SetBackgroundVisible(timeline.isBackgroundVisible);
-
-                var start = motion.start;
 
                 if (bgObject != null)
                 {
@@ -128,15 +89,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
-                MTEUtils.LogError("選択された背景が導入されていません: " + motion.name);
+                MTEUtils.LogError("選択された背景が導入されていません: " + bgName);
             }
         }
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
-            var bgName = bgMgr.GetBGName();
-
-            var trans = CreateTransformData<TransformDataBG>(bgName);
+            var trans = CreateTransformData<TransformDataBG>(BGBoneName);
+            trans.bgName = bgMgr.GetBGName();
             if (bgObject != null)
             {
                 trans.position = bgObject.transform.localPosition;
@@ -161,19 +121,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override TransformType GetTransformType(string name)
         {
             return TransformType.BG;
-        }
-
-        public override void UpdateBones(int frameNo, IEnumerable<BoneData> bones)
-        {
-            // 背景は常に前のフレームをクリアしてから更新する
-            var frame = GetOrCreateFrame(frameNo);
-            frame.ClearBones();
-            frame.UpdateBones(bones);
-        }
-
-        private void OnBGChanged()
-        {
-            InitMenuItems();
         }
     }
 }
