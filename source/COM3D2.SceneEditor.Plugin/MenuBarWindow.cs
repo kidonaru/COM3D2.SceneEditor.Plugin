@@ -406,13 +406,13 @@ namespace COM3D2.SceneEditor.Plugin
             if (_openMenuIndex >= 0)
             {
                 var popupRect = GetPopupRect(_openMenuIndex);
-                GUI.Window(POPUP_WINDOW_ID, popupRect, DrawPopup, "", GUIView.gsWin);
+                GUI.Window(POPUP_WINDOW_ID, popupRect, DrawPopup, "", GUIView.gsPopupWin);
                 // GameView 以外のウィンドウにも隠されないよう最前面へ
                 GUI.BringWindowToFront(POPUP_WINDOW_ID);
 
                 if (_openSubItemIndex >= 0)
                 {
-                    GUI.Window(SUB_POPUP_WINDOW_ID, GetSubPopupRect(), DrawSubPopup, "", GUIView.gsWin);
+                    GUI.Window(SUB_POPUP_WINDOW_ID, GetSubPopupRect(), DrawSubPopup, "", GUIView.gsPopupWin);
                     GUI.BringWindowToFront(SUB_POPUP_WINDOW_ID);
                 }
             }
