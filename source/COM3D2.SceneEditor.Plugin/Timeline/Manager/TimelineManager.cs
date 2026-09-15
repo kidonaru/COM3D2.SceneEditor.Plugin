@@ -528,6 +528,65 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Refresh();
         }
 
+        /// <summary>
+        /// Undo/Redo 用の部分再構築。レイヤー構成とレイヤー外の設定が現在と同一である
+        /// 前提で、指定添字のレイヤーだけをキーフレームごと作り直す。
+        /// 前提が崩れている場合 (添字範囲外・型不一致) は UpdateTimeline へ倒す
+        /// </summary>
+        public void UpdateTimelineLayers(TimelineXml xml, IList<int> layerIndices)
+        {
+            if (timeline == null || xml.layers.Count != layers.Count)
+            {
+                UpdateTimeline(xml);
+                return;
+            }
+
+            foreach (var index in layerIndices)
+            {
+                if (index < 0 || index >= layers.Count ||
+                    layers[index].layerName != xml.layers[index].className ||
+                    layers[index].slotNo != xml.layers[index].slotNo)
+                {
+                    MTEUtils.LogWarning("履歴の部分適用の前提が崩れたため全再構築します index={0}", index);
+                    UpdateTimeline(xml);
+                    return;
+                }
+            }
+
+            // 選択中のボーンは差し替え前の FrameData を指すため、全再構築時と同様に解除する
+            UnselectAll();
+
+            try
+            {
+                foreach (var index in layerIndices)
+                {
+                    var layer = layers[index];
+                    // Init がイベント購読を行うレイヤーがあるため、同一インスタンスの再初期化では
+                    // 必ず Dispose (購読解除) を先に通す
+                    layer.Dispose();
+                    layer.FromXml(xml.layers[index]);
+                    layer.Init();
+                    layer.CreateAndApplyAnm();
+                }
+            }
+            catch (Exception e)
+            {
+                // 途中まで差し替えた中間状態を残すと以後の履歴適用の前提が崩れるため、
+                // 全再構築で xml の状態へ揃え直す
+                MTEUtils.LogException(e);
+                MTEUtils.LogWarning("履歴の部分適用に失敗したため全再構築します");
+                UpdateTimeline(xml);
+                return;
+            }
+
+            if (initialEditFrame != null)
+            {
+                OnPoseEditUpdated();
+            }
+
+            Refresh();
+        }
+
         /// <returns>更新できたら true</returns>
         public bool SaveThumbnail()
         {
