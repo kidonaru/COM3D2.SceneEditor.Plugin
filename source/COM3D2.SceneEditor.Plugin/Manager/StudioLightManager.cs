@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Globalization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -25,8 +26,8 @@ namespace COM3D2.SceneEditor.Plugin
         private GameObject _root = null;
         private readonly List<Light> _lights = new List<Light>();
 
-        /// <summary>次に生成するライトの表示名の番号。削除しても戻さず名前の重複を避ける</summary>
-        private int _nextLightNumber = 1;
+        /// <summary>追加ライトの表示名の接頭辞</summary>
+        private const string LIGHT_NAME_PREFIX = "追加ライト ";
 
         /// <summary>追加ライトの一覧。破棄済み要素は Update で除去される</summary>
         public List<Light> lights => _lights;
@@ -101,7 +102,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _root = new GameObject(ROOT_NAME);
             }
 
-            var go = new GameObject("追加ライト " + _nextLightNumber++);
+            var go = new GameObject(LIGHT_NAME_PREFIX + GetNextLightNumber());
             go.transform.SetParent(_root.transform, false);
             go.transform.position = DefaultPosition;
 
@@ -114,6 +115,43 @@ namespace COM3D2.SceneEditor.Plugin
 
             _lights.Add(light);
             return light;
+        }
+
+        /// <summary>次に生成するライトの表示名の番号。現存するライトが使っていない最小の番号を返す</summary>
+        private int GetNextLightNumber()
+        {
+            var usedNumbers = new HashSet<int>();
+
+            foreach (var light in _lights)
+            {
+                if (light == null)
+                {
+                    continue;
+                }
+
+                var name = light.gameObject.name;
+                if (!name.StartsWith(LIGHT_NAME_PREFIX, System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int number;
+                if (int.TryParse(
+                    name.Substring(LIGHT_NAME_PREFIX.Length),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out number))
+                {
+                    usedNumbers.Add(number);
+                }
+            }
+
+            var result = 1;
+            while (usedNumbers.Contains(result))
+            {
+                result++;
+            }
+            return result;
         }
 
         public void RemoveLight(Light light)
@@ -223,7 +261,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _lights.Clear();
-            _nextLightNumber = 1;
         }
 
         /// <summary>ライトとルートごと生成物を破棄する</summary>
