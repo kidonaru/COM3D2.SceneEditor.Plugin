@@ -237,8 +237,11 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ボーン表示トグル。メニューバーのトグルと連動する (メニューバー側は編集モード中のみ操作可)。
-        /// ボーンを実際に出すかは編集モードとの AND (isBoneEditing) で決まる。
+        /// ボーン表示トグル。メニューバーのトグルと連動する。
+        /// 白丸ドラッグ点はこのトグルだけで出す (GameView 側は isGameViewDragPointVisible で絞る)。
+        /// 編集モード外で SceneView から掴んでも BeginDrag → HistoryManager.BeforeEdit が
+        /// AutoEditMode.Enter を呼ぶため、レイヤーの書き戻しで巻き戻ることはない。
+        /// ボーンギズモ・骨格線を実際に出すかは編集モードとの AND (isBoneEditing) で決まる。
         /// GameView のオブジェクト用ギズモ (GizmoRenderer.followsBoneVisibility) も編集モードとの AND でこのトグルに従う。
         /// SceneView のギズモはツールバーのギズモ表示だけに従い、このトグルでは消えない
         /// </summary>
@@ -285,11 +288,28 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 白丸・ボーンギズモを実際に出すか。
-        /// 編集モード外はポーズを触れない (レイヤーが値を書き戻す) ため、
-        /// ボーン表示が ON でも出さない
+        /// ボーンギズモ・骨格線を実際に出すか。
+        /// 編集モード外はポーズを触れない (レイヤーが値を書き戻す) ため、ボーン表示が ON でも出さない
         /// </summary>
         public bool isBoneEditing => isEditMode && isBoneVisible;
+
+        /// <summary>
+        /// ゲーム画面 (GameView) 上で白丸ドラッグ点を描画・操作してよいか。
+        /// 白丸自体は isBoneVisible だけで作られ SceneView では常に出すが、
+        /// GameView はゲーム本来の見え方を保つため編集モード外では描かず、掴ませもしない。
+        /// 描画 (MaidDragPointRing) と Unity マウスメッセージ経由の掴み (各点の OnMouseDown) は
+        /// この 1 つの判定に揃える (描画だけ隠れて掴める、のような食い違いを作らない)
+        /// </summary>
+        public bool isGameViewDragPointVisible => isBoneEditing;
+
+        /// <summary>
+        /// 白丸ドラッグ点の実体 (コライダ付き GameObject) を作っておくか。
+        /// ボーン表示は既定で ON のため isBoneVisible だけで作ると、SceneView を開かない利用者でも
+        /// 編集モード外の GameView に見えないコライダが常駐し、ゲーム側へ通すクリックを奪いうる。
+        /// 見せるビュー (編集モード中の GameView か、表示中の SceneView) があるときだけ作る
+        /// </summary>
+        private bool isDragPointActive =>
+            isBoneVisible && (isEditMode || SceneViewWindow.instance.isShowWnd);
 
         /// <summary>操作対象として扱える状態か（実体が残っているか）。非表示中も操作対象に残す</summary>
         private static bool IsAlive(Maid maid)
@@ -307,14 +327,15 @@ namespace COM3D2.SceneEditor.Plugin
             // 上書きされて編集が消えるため、座標を触る操作の対象から外す
             var movableMaid = IsVisible(activeMaid) ? activeMaid : null;
 
-            // ギズモ・ドラッグ点は編集モードと「ボーン表示」の両方が ON のときだけ出す
-            // (isBoneEditing)。
+            // ボーンギズモは編集モードと「ボーン表示」の両方が ON のときだけ出す (isBoneEditing)。
             // 非表示の間はギズモコンポーネントを付けたままにしない
             // (呼出済みの全メイドへ常時アタッチされ、描画・ログのコストが残るため)
             boneGizmoController.SetTarget(isBoneEditing ? movableMaid : null);
             boneGizmoController.Update(isBoneEditing);
 
-            dragPointController.SetTarget(isBoneEditing ? movableMaid : null);
+            // 白丸ドラッグ点は SceneView では編集モード外でも出す (isDragPointActive)。
+            // GameView 側の描画・掴みは isGameViewDragPointVisible で絞る
+            dragPointController.SetTarget(isDragPointActive ? movableMaid : null);
 
             fingerDragPointController.SetTarget(
                 isBoneEditing && isFingerEditMode ? movableMaid : null);

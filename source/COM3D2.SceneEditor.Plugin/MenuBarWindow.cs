@@ -235,9 +235,6 @@ namespace COM3D2.SceneEditor.Plugin
                         var manager = MaidManipulateManager.instance;
                         manager.isBoneVisible = !manager.isBoneVisible;
                     },
-                    // ボーンは編集モード中しか出ないため、モード外では押せなくして
-                    // 「ON なのに何も出ない」状態を作らない
-                    enabled = () => MaidManipulateManager.instance.isEditMode,
                 },
                 new MenuItem
                 {

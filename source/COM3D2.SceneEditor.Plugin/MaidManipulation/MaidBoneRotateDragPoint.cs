@@ -254,6 +254,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void OnMouseDown()
         {
+            // ゲーム画面で見えていない白丸は掴ませない
+            if (!MaidManipulateManager.instance.isGameViewDragPointVisible)
+            {
+                return;
+            }
             BeginDrag(GetGameCamera(), Input.mousePosition);
         }
 
