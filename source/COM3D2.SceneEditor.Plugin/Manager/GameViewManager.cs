@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -29,7 +29,6 @@ namespace COM3D2.SceneEditor.Plugin
         public BoneLineRenderer boneLineRenderer { get; private set; }
         public GridRenderer gridRenderer { get; private set; }
 
-        private Camera _clearCamera = null;
         private readonly List<Camera> _hiddenUICameras = new List<Camera>();
         private readonly List<UICamera> _disabledUICameraEvents = new List<UICamera>();
         private UICamera _systemUICamera = null;
@@ -98,9 +97,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             CreateRenderTexture(Screen.width, Screen.height);
-            CreateClearCamera();
+            cameraManager.SetClearCameraActive(true, config.backgroundColor);
             HideUICameras(camera);
             camera.targetTexture = renderTexture;
+            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+            cameraManager.SyncToMainCamera();
             AttachGizmoRenderer(camera);
             isWindowMode = true;
             MTEUtils.Log("エディタウィンドウモードを開始しました ({0}x{1})", _rtWidth, _rtHeight);
@@ -126,9 +127,10 @@ namespace COM3D2.SceneEditor.Plugin
                 camera.targetTexture = null;
             }
             DetachGizmoRenderer();
-            SyncFrontCameraTarget();
+            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+            cameraManager.SyncToMainCamera();
             RestoreUICameras();
-            DestroyClearCamera();
+            cameraManager.SetClearCameraActive(false, config.backgroundColor);
             ReleaseRenderTexture();
             MTEUtils.Log("エディタウィンドウモードを終了しました");
         }
@@ -164,8 +166,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     camera.targetTexture = null;
                 }
+            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+            cameraManager.SyncToMainCamera();
                 ReleaseRenderTexture();
-                DestroyClearCamera();
+                cameraManager.SetClearCameraActive(false, config.backgroundColor);
                 isMaximized = true;
                 GameViewWindow.instance.isShowWnd = false;
                 // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
@@ -177,8 +181,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 SetUIVisible(false);
                 CreateRenderTexture(Screen.width, Screen.height);
-                CreateClearCamera();
+                cameraManager.SetClearCameraActive(true, config.backgroundColor);
                 camera.targetTexture = renderTexture;
+            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+            cameraManager.SyncToMainCamera();
                 isMaximized = false;
                 GameViewWindow.instance.isShowWnd = true;
                 MTEUtils.Log("GameViewをウィンドウ化しました ({0}x{1})", _rtWidth, _rtHeight);
@@ -227,14 +233,18 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// メインカメラへギズモ描画を載せる。ゲーム本体の GameObject を借りるため、
-        /// モード終了時には必ず取り外す
+        /// ギズモ・骨格線・グリッドの描画をオーバーレイ (gizmo) カメラへ載せる。
+        /// メインカメラに載せると OnPostRender の GL 描画にポストエフェクトが乗るため、
+        /// 何も映さない専用カメラで後から重ね描きし、視点だけメインカメラを使う
         /// </summary>
         private void AttachGizmoRenderer(Camera camera)
         {
             DetachGizmoRenderer();
 
-            gizmoRenderer = camera.gameObject.AddComponent<GizmoRenderer>();
+            var host = cameraManager.gizmoCamera.gameObject;
+
+            gizmoRenderer = host.AddComponent<GizmoRenderer>();
+            gizmoRenderer.viewCamera = camera;
             // GameView はゲーム本来の見え方を保ちたいため選択枠は出さない (SceneView のみ)
             gizmoRenderer.showSelectionBounds = false;
             gizmoRenderer.showLightGizmos = false;
@@ -242,10 +252,12 @@ namespace COM3D2.SceneEditor.Plugin
             gizmoRenderer.followsBoneVisibility = true;
             gizmoRenderer.isHostActive = IsGizmoHostActive;
 
-            boneLineRenderer = camera.gameObject.AddComponent<BoneLineRenderer>();
+            boneLineRenderer = host.AddComponent<BoneLineRenderer>();
+            boneLineRenderer.viewCamera = camera;
             boneLineRenderer.isHostActive = IsGizmoHostActive;
 
-            gridRenderer = camera.gameObject.AddComponent<GridRenderer>();
+            gridRenderer = host.AddComponent<GridRenderer>();
+            gridRenderer.viewCamera = camera;
             gridRenderer.isHostActive = IsGizmoHostActive;
             // 構図合わせ用の画面分割グリッドはゲーム画面側にだけ出す
             gridRenderer.drawDisplayGrid = true;
@@ -312,7 +324,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // 最大化中はRTを持たないため、サイズ追従も targetTexture の保険も不要。
                 // UI表示ONの間は新たに出たUIカメラも隠さない
-                SyncFrontCameraTarget();
                 if (!isUIVisible)
                 {
                     HideUICameras(camera);
@@ -328,31 +339,8 @@ namespace COM3D2.SceneEditor.Plugin
                 camera.targetTexture = renderTexture;
             }
 
-            // 動画の最前面表示は遅れて生成されうるので、RT の割当も毎フレーム見直す
-            SyncFrontCameraTarget();
-
             // モード中に新たに有効化されたUIカメラ (ダイアログ等) も隠す
             HideUICameras(camera);
-        }
-
-        /// <summary>
-        /// 動画の最前面表示カメラを GameView と同じ RT へ向ける。
-        /// 画面へ直接描かせるとエディタウィンドウの下に潜って見えなくなるため、
-        /// ウィンドウ化中はゲーム画面と同じ RT に重ねる (最大化中とモード外は直接描画へ戻す)
-        /// </summary>
-        private void SyncFrontCameraTarget()
-        {
-            var frontCamera = MTEP.CameraManager.instance.createdFrontCamera;
-            if (frontCamera == null)
-            {
-                return;
-            }
-
-            var target = (isWindowMode && !isMaximized) ? renderTexture : null;
-            if (frontCamera.targetTexture != target)
-            {
-                frontCamera.targetTexture = target;
-            }
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
@@ -385,26 +373,6 @@ namespace COM3D2.SceneEditor.Plugin
                 renderTexture.Release();
                 Object.Destroy(renderTexture);
                 renderTexture = null;
-            }
-        }
-
-        private void CreateClearCamera()
-        {
-            var go = new GameObject("SceneEditorClearCamera");
-            Object.DontDestroyOnLoad(go);
-            _clearCamera = go.AddComponent<Camera>();
-            _clearCamera.depth = -100;
-            _clearCamera.clearFlags = CameraClearFlags.SolidColor;
-            _clearCamera.backgroundColor = config.backgroundColor;
-            _clearCamera.cullingMask = 0;
-        }
-
-        private void DestroyClearCamera()
-        {
-            if (_clearCamera != null)
-            {
-                Object.Destroy(_clearCamera.gameObject);
-                _clearCamera = null;
             }
         }
 
@@ -486,7 +454,9 @@ namespace COM3D2.SceneEditor.Plugin
             for (var i = 0; i < count; i++)
             {
                 var cam = _cameraBuffer[i];
-                if (cam == null || cam == camera || cam == _clearCamera)
+                // 自前のオーバーレイカメラ (背景クリア・最前面動画・字幕・ギズモ) は
+                // ゲーム UI ではなく編集中も見せる描画物なので隠す対象から外す
+                if (cam == null || cam == camera || cameraManager.IsOverlayCamera(cam))
                 {
                     continue;
                 }
@@ -494,13 +464,6 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // ギアメニューのカメラはモード中も表示・操作可能なままにする
                     if (sysUICamera != null && cam == sysUICamera.GetComponent<Camera>())
-                    {
-                        continue;
-                    }
-
-                    // 動画の最前面表示は NGUI レイヤーを使うが、ゲーム UI ではなく
-                    // 編集中も見せる描画物なので隠す対象から外す
-                    if (cam == MTEP.CameraManager.instance.createdFrontCamera)
                     {
                         continue;
                     }
