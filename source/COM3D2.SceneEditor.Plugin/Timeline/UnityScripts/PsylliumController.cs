@@ -40,7 +40,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Material[] materials;
         public Mesh[] meshes;
         public float time;
-        public bool refreshRequired;
+        public PsylliumRefreshKind refreshKind;
+
+        /// <summary>
+        /// 旧コード互換用。true で全再構築、false で全種別クリア（部分クリアは不可）。
+        /// 新規コードは RequestRefresh(kind) で必要な種別だけ積むこと
+        /// </summary>
+        public bool refreshRequired
+        {
+            get { return refreshKind != PsylliumRefreshKind.None; }
+            set { refreshKind = value ? PsylliumRefreshKind.All : PsylliumRefreshKind.None; }
+        }
+
+        /// <summary>必要な再構築種別を積む。次の ManualUpdate でまとめて実行される</summary>
+        public void RequestRefresh(PsylliumRefreshKind kind)
+        {
+            refreshKind |= kind;
+        }
 
         [SerializeField]
         private Vector3 _position = DefaultPosition;
@@ -181,15 +197,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Refresh()
         {
-            foreach (var area in areas)
+            Refresh(PsylliumRefreshKind.All);
+        }
+
+        public void Refresh(PsylliumRefreshKind kind)
+        {
+            if ((kind & PsylliumRefreshKind.Placement) != 0)
             {
-                area.Refresh();
+                foreach (var area in areas)
+                {
+                    area.Refresh();
+                }
             }
 
-            UpdateMaterials();
-            UpdateMeshs();
+            if ((kind & PsylliumRefreshKind.Material) != 0)
+            {
+                UpdateMaterials();
+            }
 
-            refreshRequired = false;
+            if ((kind & PsylliumRefreshKind.Mesh) != 0)
+            {
+                UpdateMeshs();
+            }
+
+            refreshKind = PsylliumRefreshKind.None;
         }
 
         public void UpdateName()
@@ -237,6 +268,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             internal static readonly int _CutoffAlpha = Shader.PropertyToID("_CutoffAlpha");
         }
 
+        // UpdateMesh 用の作業配列。頂点 8 個固定なので使い回す（メインスレッドから逐次呼ぶ前提。
+        // Mesh のセッターは配列をコピーするので、書き込み後に再利用してよい）
+        private readonly Vector3[] _meshVertices = new Vector3[8];
+        private readonly Vector2[] _meshUv = new Vector2[8];
+        private readonly Vector2[] _meshUv2 = new Vector2[8];
+        private static readonly int[] MeshTriangles = new int[] {
+            0, 1, 2,
+            1, 3, 2,
+            1, 4, 3,
+            4, 5, 3,
+            4, 6, 5,
+            6, 7, 5,
+        };
+
         public void UpdateMeshs()
         {
             UpdateMesh(0);
@@ -251,61 +296,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var positionY = barConfig.positionY * barConfig.baseScale;
             var barTopThreshold = barConfig.topThreshold;
 
-            var vertices = new Vector3[] {
-                new Vector3(-halfWidth, 0, 0),  // 0
-                new Vector3(-halfWidth, 0, 0),  // 1
-                new Vector3( halfWidth, 0, 0),  // 2
-                new Vector3( halfWidth, 0, 0),  // 3
-                new Vector3(-halfWidth, barHeight, 0),  // 4
-                new Vector3( halfWidth, barHeight, 0),  // 5
-                new Vector3(-halfWidth, barHeight, 0),  // 6 
-                new Vector3( halfWidth, barHeight, 0),  // 7
-            };
+            var vertices = _meshVertices;
+            vertices[0] = new Vector3(-halfWidth, positionY, 0);
+            vertices[1] = new Vector3(-halfWidth, positionY, 0);
+            vertices[2] = new Vector3( halfWidth, positionY, 0);
+            vertices[3] = new Vector3( halfWidth, positionY, 0);
+            vertices[4] = new Vector3(-halfWidth, positionY + barHeight, 0);
+            vertices[5] = new Vector3( halfWidth, positionY + barHeight, 0);
+            vertices[6] = new Vector3(-halfWidth, positionY + barHeight, 0);
+            vertices[7] = new Vector3( halfWidth, positionY + barHeight, 0);
 
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                var v = vertices[i];
-                v.y += positionY;
-                vertices[i] = v;
-            }
+            var uv = _meshUv;
+            uv[0] = new Vector2(0, 0);
+            uv[1] = new Vector2(0, barTopThreshold);
+            uv[2] = new Vector2(1, 0);
+            uv[3] = new Vector2(1, barTopThreshold);
+            uv[4] = new Vector2(0, 1 - barTopThreshold);
+            uv[5] = new Vector2(1, 1 - barTopThreshold);
+            uv[6] = new Vector2(0, 1);
+            uv[7] = new Vector2(1, 1);
 
-            var uv = new Vector2[] {
-                new Vector2(0, 0),
-                new Vector2(0, barTopThreshold),
-                new Vector2(1, 0),
-                new Vector2(1, barTopThreshold),
-                new Vector2(0, 1 - barTopThreshold),
-                new Vector2(1, 1 - barTopThreshold),
-                new Vector2(0, 1),
-                new Vector2(1, 1),
-            };
-
-            var uv2 = new Vector2[] {
-                new Vector2(-barRadius, 0),
-                new Vector2(0, 0),
-                new Vector2(-barRadius, 0),
-                new Vector2(0, 0),
-                new Vector2(0, 0),
-                new Vector2(0, 0),
-                new Vector2(barRadius, 0),
-                new Vector2(barRadius, 0),
-            };
-
-            for (int i = 0; i < uv2.Length; i++)
-            {
-                var v = uv2[i];
-                v.y = colorIndex;
-                uv2[i] = v;
-            }
-
-            var triangles = new int[] {
-                0, 1, 2,
-                1, 3, 2,
-                1, 4, 3,
-                4, 5, 3,
-                4, 6, 5,
-                6, 7, 5,
-            };
+            // uv2.y は colorIndex（シェーダー側で色セットの選択に使う）
+            var uv2 = _meshUv2;
+            uv2[0] = new Vector2(-barRadius, colorIndex);
+            uv2[1] = new Vector2(0, colorIndex);
+            uv2[2] = new Vector2(-barRadius, colorIndex);
+            uv2[3] = new Vector2(0, colorIndex);
+            uv2[4] = new Vector2(0, colorIndex);
+            uv2[5] = new Vector2(0, colorIndex);
+            uv2[6] = new Vector2(barRadius, colorIndex);
+            uv2[7] = new Vector2(barRadius, colorIndex);
 
             var mesh = meshes[colorIndex];
             mesh.Clear();
@@ -315,8 +335,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             mesh.uv = uv;
             mesh.uv2 = uv2;
 
-            mesh.SetTriangles(triangles, 0);
-            mesh.SetTriangles(triangles, 1);
+            mesh.SetTriangles(MeshTriangles, 0);
+            mesh.SetTriangles(MeshTriangles, 1);
         }
 
         public PsylliumArea AddArea()
@@ -402,26 +422,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void ManualUpdate(float time)
         {
-            if (refreshRequired)
+            if (refreshKind != PsylliumRefreshKind.None)
             {
-                Refresh();
+                // 席の再配置は area.refreshRequired 経由で area.ManualUpdate に委譲する
+                // （ここで area.Refresh() を呼ぶと直後の area.ManualUpdate と位置計算が二重に走る）
+                if ((refreshKind & PsylliumRefreshKind.Placement) != 0)
+                {
+                    foreach (var area in areas)
+                    {
+                        area.refreshRequired = true;
+                    }
+                }
+
+                if ((refreshKind & PsylliumRefreshKind.Material) != 0)
+                {
+                    UpdateMaterials();
+                }
+
+                if ((refreshKind & PsylliumRefreshKind.Mesh) != 0)
+                {
+                    UpdateMeshs();
+                }
+
+                refreshKind = PsylliumRefreshKind.None;
             }
 
             this.time = time;
-
-            var stopwatch = new StopwatchDebug();
 
             foreach (var pattern in patterns)
             {
                 pattern.ManualUpdate();
             }
-            //stopwatch.ProcessEnd("  Pattern Update");
 
             foreach (var area in areas)
             {
                 area.ManualUpdate();
             }
-            //stopwatch.ProcessEnd("  Area Update");
         }
 
         public void CopyFrom(PsylliumController src)

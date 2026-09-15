@@ -270,11 +270,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var start = motion.start as TransformDataPsylliumController;
 
+            // 各 setter が transform / SetActive を直接反映するので席の再配置は不要。
+            // ここで refreshRequired を立てるとキー境界ごとに全席再配置（約 6ms）が走る
             controller.visible = start.visible;
             controller.position = start.position;
             controller.eulerAngles = start.eulerAngles;
-
-            controller.refreshRequired = true;
         }
 
         private void ApplyBarConfigMotionInit(MotionData motion, float t)
@@ -294,13 +294,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataPsylliumBar;
             var targetConfig = start.ToConfig();
 
-            if (targetConfig.Equals(barConfig))
+            var kind = barConfig.GetRefreshKind(targetConfig);
+            if (kind == PsylliumRefreshKind.None)
             {
                 return;
             }
 
             barConfig.CopyFrom(targetConfig);
-            controller.refreshRequired = true;
+            controller.RequestRefresh(kind);
         }
 
         private void ApplyHandConfigMotionInit(MotionData motion, float t)
@@ -320,13 +321,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var start = motion.start as TransformDataPsylliumHand;
             var targetConfig = start.ToConfig();
 
-            if (targetConfig.Equals(handConfig))
+            var kind = handConfig.GetRefreshKind(targetConfig);
+            if (kind == PsylliumRefreshKind.None)
             {
                 return;
             }
 
             handConfig.CopyFrom(targetConfig);
-            controller.refreshRequired = true;
+            controller.RequestRefresh(kind);
         }
 
         private void ApplyAreaMotionInit(MotionData motion, float t)
