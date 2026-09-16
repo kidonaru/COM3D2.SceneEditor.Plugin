@@ -149,7 +149,17 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         internal static GameObject ResolveModel(GameObject go)
         {
-            return go != null ? FindProvidedModelRoot(go) : null;
+            return ResolveModel(go, ModelProviderHost.GetModels());
+        }
+
+        /// <summary>
+        /// 提供中モデル一覧を呼び出し側が用意する版。
+        /// GetModels は呼ぶたびに一覧を組み直すため、1 クリックで多数のオブジェクトを
+        /// 判定する経路 (SelectAtRay の候補収集) では一度取った一覧を使い回す
+        /// </summary>
+        internal static GameObject ResolveModel(GameObject go, List<ExternalModelEntry> models)
+        {
+            return go != null ? FindProvidedModelRoot(go, models) : null;
         }
 
         /// <summary>
@@ -161,7 +171,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static GameObject FindProvidedModelRoot(GameObject go)
         {
-            var models = ModelProviderHost.GetModels();
+            return FindProvidedModelRoot(go, ModelProviderHost.GetModels());
+        }
+
+        private static GameObject FindProvidedModelRoot(
+            GameObject go, List<ExternalModelEntry> models)
+        {
             foreach (var entry in models)
             {
                 if (entry.obj != null && go.transform.IsChildOf(entry.obj.transform))

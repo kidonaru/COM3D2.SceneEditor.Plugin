@@ -343,6 +343,25 @@ namespace COM3D2.SceneEditor.Plugin
             return null;
         }
 
+        /// <summary>
+        /// go 自身か祖先が配置物のルートなら、その配置物を返す。どれにも属さなければ null。
+        /// SceneView クリックでは板の実体 (子の PngQuad) がヒットするため、祖先も含めて判定する
+        /// </summary>
+        public PngObjectData FindByDescendant(GameObject go)
+        {
+            for (var transform = go != null ? go.transform : null;
+                transform != null;
+                transform = transform.parent)
+            {
+                var data = FindByRoot(transform.gameObject);
+                if (data != null)
+                {
+                    return data;
+                }
+            }
+            return null;
+        }
+
         /// <summary>一覧内の位置を移動する。プリセットの差分適用で順序を合わせるために使う</summary>
         public void MovePng(PngObjectData data, int index)
         {

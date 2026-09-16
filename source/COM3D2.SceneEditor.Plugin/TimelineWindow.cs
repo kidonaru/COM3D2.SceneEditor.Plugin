@@ -451,13 +451,50 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                // 追加ライトならライトレイヤーへ切替 (LightTimelineLayer は slotNo を持たない単一レイヤー)
+                // 以降はメイド以外の単一レイヤー (slotNo を持たない) への切替。
+                // 対象を扱うレイヤーを既に開いている場合は、同じ対象の別レイヤー
+                // (モデルボーン等) を見ている最中に引き戻さないよう切り替えない。
+                // いずれも選択に追従するだけなのでレイヤーは作らない
+
+                // PNG 配置
+                if (PngPlacementManager.instance.FindByDescendant(go) != null)
+                {
+                    if (currentLayer.layerType != typeof(MTEP.PngPlacementTimelineLayer))
+                    {
+                        timelineManager.ChangeActiveLayerIfExists(
+                            typeof(MTEP.PngPlacementTimelineLayer));
+                    }
+                    return;
+                }
+
+                // 外部プラグインが提供する配置モデル
+                if (ModelSelectHost.ResolveModel(go) != null)
+                {
+                    if (!(currentLayer is MTEP.ModelTimelineLayerBase))
+                    {
+                        timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.ModelTimelineLayer));
+                    }
+                    return;
+                }
+
+                // 背景モデル。入れ子のノードを個別に選ぶ作りなので完全一致で引く。
+                // タイムラインへの登録済み一覧 (models) ではなく背景の実ノード一覧で判定する
+                // (別背景で作られたタイムラインでは登録側の実体が null のまま残るため)
+                if (MTEP.BGModelManager.instance.modelInfoList.Exists(info => info.gameObject == go))
+                {
+                    if (!(currentLayer is MTEP.BGModelTimelineLayerBase))
+                    {
+                        timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.BGModelTimelineLayer));
+                    }
+                    return;
+                }
+
+                // 追加ライトならライトレイヤーへ切替
                 var light = go.GetComponentInChildren<Light>();
                 if (light != null && StudioLightManager.instance.lights.Contains(light))
                 {
                     if (currentLayer.layerType != typeof(MTEP.LightTimelineLayer))
                     {
-                        // 選択に追従するだけなのでレイヤーは作らない
                         timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.LightTimelineLayer));
                     }
                 }

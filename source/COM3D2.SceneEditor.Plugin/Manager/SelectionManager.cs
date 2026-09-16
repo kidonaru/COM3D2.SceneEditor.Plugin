@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -286,11 +286,13 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var ray = camera.ScreenPointToRay(new Vector3(rtPoint.x, rtPoint.y, 0f));
             var candidates = new List<GameObject>();
+            // 候補ごとに組み直すとクリック 1 回で何度も一覧を作ることになるため、ここで 1 回だけ取る
+            var models = ModelProviderHost.GetModels();
 
             // NGUI の判定用コライダは選択対象外
             foreach (var hit in Physics.RaycastAll(ray, RaycastDistance, ~PluginUtils.NGUILayerMask))
             {
-                AddCandidate(candidates, hit.collider.gameObject);
+                AddCandidate(candidates, hit.collider.gameObject, models);
             }
 
             foreach (var renderer in UnityEngine.Object.FindObjectsOfType<Renderer>())
@@ -303,7 +305,7 @@ namespace COM3D2.SceneEditor.Plugin
                 float distance;
                 if (renderer.bounds.IntersectRay(ray, out distance))
                 {
-                    AddCandidate(candidates, renderer.gameObject);
+                    AddCandidate(candidates, renderer.gameObject, models);
                 }
             }
 
@@ -318,10 +320,11 @@ namespace COM3D2.SceneEditor.Plugin
             return candidates;
         }
 
-        /// <summary>メイドルートへ丸めたうえで、重複しなければ候補に加える</summary>
-        private static void AddCandidate(List<GameObject> candidates, GameObject go)
+        /// <summary>選択の代表オブジェクトへ丸めたうえで、重複しなければ候補に加える</summary>
+        private static void AddCandidate(
+            List<GameObject> candidates, GameObject go, List<ExternalModelEntry> models)
         {
-            var resolved = ResolveMaidRoot(go);
+            var resolved = ResolveSelectionRoot(go, models);
             if (!candidates.Contains(resolved))
             {
                 candidates.Add(resolved);
@@ -392,11 +395,30 @@ namespace COM3D2.SceneEditor.Plugin
             _pickIndex = 0;
         }
 
-        /// <summary>メイド配下のオブジェクトならメイドルートの GameObject へ丸める</summary>
-        private static GameObject ResolveMaidRoot(GameObject go)
+        /// <summary>
+        /// ユーザーが 1 つの物として扱う単位のルートへ丸める。
+        /// メイド・PNG 配置・提供モデルはいずれもルートに描画物を持たず、
+        /// クリックでヒットするのは配下のメッシュなので、そのままだと
+        /// ギズモが子だけを動かし Inspector にも固有パラメータが出ない。
+        /// 背景モデルは入れ子の各ノードを個別に選ぶ作りなので丸めない
+        /// </summary>
+        private static GameObject ResolveSelectionRoot(
+            GameObject go, List<ExternalModelEntry> models)
         {
             var maid = go.GetComponentInParent<Maid>();
-            return maid != null ? maid.gameObject : go;
+            if (maid != null)
+            {
+                return maid.gameObject;
+            }
+
+            var pngData = PngPlacementManager.instance.FindByDescendant(go);
+            if (pngData != null)
+            {
+                return pngData.rootObject;
+            }
+
+            var model = ModelSelectHost.ResolveModel(go, models);
+            return model != null ? model : go;
         }
 
         public void ClearSelection()
