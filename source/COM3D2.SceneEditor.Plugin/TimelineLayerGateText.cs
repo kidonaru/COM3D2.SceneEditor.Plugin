@@ -38,5 +38,26 @@ namespace COM3D2.SceneEditor.Plugin
         {
             return "「" + displayName + "」レイヤーを追加";
         }
+
+        /// <summary>
+        /// レイヤーがタイムラインに表示されているか。キーが記録されるのは表示中のレイヤーだけ。
+        /// 判定は TimelineLayerViewFilter と同規則 (レイヤーモードはアクティブのみ、
+        /// カテゴリモードはアクティブレイヤーと同カテゴリ)
+        /// </summary>
+        public static bool IsLayerDisplayed(
+            bool isCurrent, bool isCategoryViewMode, bool isSameCategoryAsCurrent)
+        {
+            return isCurrent || (isCategoryViewMode && isSameCategoryAsCurrent);
+        }
+
+        public static string HiddenNoticeText(string displayName)
+        {
+            return "「" + displayName + "」レイヤーが非表示のためタイムラインに記録されません";
+        }
+
+        public static string ShowButtonText(string displayName)
+        {
+            return "「" + displayName + "」レイヤーを表示";
+        }
     }
 }

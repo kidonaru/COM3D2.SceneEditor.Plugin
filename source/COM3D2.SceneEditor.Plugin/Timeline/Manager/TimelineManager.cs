@@ -2440,15 +2440,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// カメラレイヤーへの差分キーフレーム登録を見送るか。
+        /// カメラ系レイヤーへの差分キーフレーム登録を見送るか。
         /// カメラはカメラ同期で常時動いており、他の操作のたびに意図しないキーフレームが
         /// 増えてしまうため自動登録の対象から外す。
-        /// 手動の「登録」では、そのレイヤーがアクティブなときだけ記録する
-        /// (カメラ同期の ON/OFF は再生への反映だけを決め、登録可否には関わらない)
+        /// 手動の「登録」では他レイヤーと同じく画面に出ていれば記録する
+        /// (カメラ同期の ON/OFF は再生への反映だけを決め、登録可否には関わらない)。
+        /// ただし視野角固定・フォーカス固定は非アクティブなメインカメラの実カメラ値を
+        /// 強制値へ置き換える (CameraTimelineLayer.ApplyMotion) ため、その状態で記録すると
+        /// 強制値がキーに混入する。この間だけは非アクティブのメインカメラを見送る
         /// </summary>
         private bool ShouldSkipCameraKeyFrame(ITimelineLayer layer, bool isAuto)
         {
-            return isAuto || !layer.isCurrent;
+            if (isAuto)
+            {
+                return true;
+            }
+            var isMainCameraFixed = layer is CameraTimelineLayer && !layer.isCurrent
+                && (config.isFixedFoV || config.isFixedFocus);
+            return isMainCameraFixed;
         }
 
         /// <summary>

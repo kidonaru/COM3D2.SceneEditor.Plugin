@@ -113,6 +113,45 @@ namespace COM3D2.SceneEditor.Plugin
             return state;
         }
 
+        /// <summary>
+        /// メイド非依存レイヤー向けの追加案内。Begin が Ready を返した後に呼ぶ。
+        /// 登録は表示中のレイヤーだけが対象なので、表示モードの絞り込みで
+        /// タイムラインに出ていなければ注意ラベルと表示ボタンを描く (項目は無効化しない)
+        /// </summary>
+        public static void DrawHiddenLayerNotice(GUIView view, Type layerType, float rowHeight)
+        {
+            var layer = timelineManager.GetLayer(layerType, 0);
+            var currentLayer = timelineManager.currentLayer;
+            if (layer == null || currentLayer == null)
+            {
+                return;
+            }
+
+            var isCategoryViewMode =
+                MTEP.ConfigManager.instance.config.layerViewMode == MTEP.TimelineLayerViewMode.Category;
+            var isSameCategoryAsCurrent =
+                timelineManager.GetLayerCategory(layer) == timelineManager.GetLayerCategory(currentLayer);
+            if (TimelineLayerGateText.IsLayerDisplayed(
+                layer == currentLayer, isCategoryViewMode, isSameCategoryAsCurrent))
+            {
+                return;
+            }
+
+            var info = timelineManager.GetLayerInfo(layerType);
+            var displayName = info != null ? info.displayName : layerType.Name;
+
+            view.DrawLabel(TimelineLayerGateText.HiddenNoticeText(displayName), -1, rowHeight,
+                textColor: Color.yellow);
+
+            if (view.DrawButton(TimelineLayerGateText.ShowButtonText(displayName), BUTTON_WIDTH, rowHeight))
+            {
+                timelineManager.ChangeActiveLayer(layerType, 0);
+            }
+
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+        }
+
         /// <summary>強制無効を解除して有効へ戻す。冪等</summary>
         public static void End(GUIView view)
         {

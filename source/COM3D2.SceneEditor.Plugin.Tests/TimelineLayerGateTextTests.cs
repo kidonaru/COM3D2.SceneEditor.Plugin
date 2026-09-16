@@ -44,6 +44,36 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void アクティブレイヤーは表示モードによらず表示中()
+        {
+            Assert.True(TimelineLayerGateText.IsLayerDisplayed(true, false, true));
+            Assert.True(TimelineLayerGateText.IsLayerDisplayed(true, true, false));
+        }
+
+        [Fact]
+        public void レイヤーモードでは非アクティブなら非表示()
+        {
+            Assert.False(TimelineLayerGateText.IsLayerDisplayed(false, false, true));
+        }
+
+        [Fact]
+        public void カテゴリモードでは同カテゴリなら表示中()
+        {
+            // サブカメラがアクティブでもカメラは同カテゴリなので表示中 (記録される)
+            Assert.True(TimelineLayerGateText.IsLayerDisplayed(false, true, true));
+            Assert.False(TimelineLayerGateText.IsLayerDisplayed(false, true, false));
+        }
+
+        [Fact]
+        public void 非表示案内の文言にレイヤー表示名が埋まる()
+        {
+            Assert.Equal("「カメラ」レイヤーが非表示のためタイムラインに記録されません",
+                TimelineLayerGateText.HiddenNoticeText("カメラ"));
+            Assert.Equal("「カメラ」レイヤーを表示",
+                TimelineLayerGateText.ShowButtonText("カメラ"));
+        }
+
+        [Fact]
         public void 状態の数値は外部プラグインとの契約なので固定()
         {
             // TimelineLayerGateHost.GetState が int で返す値。MTEUtils の

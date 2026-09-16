@@ -159,7 +159,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (_targetIndex == 0)
                 {
-                    TimelineLayerGate.Begin(_view, typeof(MTEP.CameraTimelineLayer), ROW_HEIGHT);
+                    BeginCameraLayerGate(typeof(MTEP.CameraTimelineLayer));
                     // プリセットは Main カメラ専用のため他タブでは行を出さない
                     DrawPresetRow();
                     DrawMainCameraContent();
@@ -171,7 +171,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 else if (_targetIndex == 2)
                 {
-                    TimelineLayerGate.Begin(_view, typeof(MTEP.SubCameraTimelineLayer), ROW_HEIGHT);
+                    BeginCameraLayerGate(typeof(MTEP.SubCameraTimelineLayer));
                     DrawSubCameraContent();
                 }
             }
@@ -402,6 +402,19 @@ namespace COM3D2.SceneEditor.Plugin
                 state.followRotation = values[10] != 0f;
             }
             return state;
+        }
+
+        /// <summary>
+        /// カメラ系レイヤーのゲート。登録済みでもタイムラインに表示されていなければ
+        /// 記録されないので、その案内も続けて描く
+        /// </summary>
+        private void BeginCameraLayerGate(Type layerType)
+        {
+            var state = TimelineLayerGate.Begin(_view, layerType, ROW_HEIGHT);
+            if (state == TimelineLayerGateState.Ready)
+            {
+                TimelineLayerGate.DrawHiddenLayerNotice(_view, layerType, ROW_HEIGHT);
+            }
         }
 
         private void DrawMainCameraContent()
