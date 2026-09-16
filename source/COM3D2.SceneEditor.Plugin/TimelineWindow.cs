@@ -279,6 +279,9 @@ namespace COM3D2.SceneEditor.Plugin
                     _targetLayers, category, GetLayerCategory, GetLayerPriority);
                 if (first != null && first != timelineManager.currentLayer)
                 {
+                    // レイヤー切替は選択を保持するが、カテゴリ切替は編集対象が変わるので解除する
+                    timelineManager.UnselectAll();
+                    requestUpdateTexture = true;
                     timelineManager.SetCurrentLayer(first);
                 }
             };
