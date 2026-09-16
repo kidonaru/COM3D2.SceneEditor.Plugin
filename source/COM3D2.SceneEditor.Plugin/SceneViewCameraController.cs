@@ -11,6 +11,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class SceneViewCameraController
     {
+        private static Config config => ConfigManager.instance.config;
+
         private readonly Transform _transform;
 
         /// <summary>
@@ -159,6 +161,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// F キー: 対象のバウンズ全体が収まる距離まで寄る。
+        /// 距離の自動調整が OFF のときは注視点だけ移して距離は保つ。
         /// 追従中は ApplyFollow が注視点を毎フレーム上書きして寄った先が保てないため、追従を解除する
         /// </summary>
         public void Focus(Bounds bounds)
@@ -166,6 +169,12 @@ namespace COM3D2.SceneEditor.Plugin
             follow.maidSlotNo = -1;
 
             _targetGoal = bounds.center;
+
+            if (!config.sceneViewFocusAdjustDistance)
+            {
+                return;
+            }
+
             var radius = Mathf.Max(bounds.extents.magnitude, 0.1f);
             _targetDistance = Mathf.Clamp(radius * FocusDistanceFactor, MinDistance, MaxDistance);
         }

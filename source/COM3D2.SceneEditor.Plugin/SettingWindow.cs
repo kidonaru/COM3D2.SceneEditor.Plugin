@@ -27,6 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
         private enum SettingTabType
         {
             撮影,
+            ビュー,
             グリッド,
             履歴,
             プリセット,
@@ -96,6 +97,9 @@ namespace COM3D2.SceneEditor.Plugin
                 case SettingTabType.撮影:
                     DrawScreenshotSection();
                     break;
+                case SettingTabType.ビュー:
+                    DrawSceneViewSection();
+                    break;
                 case SettingTabType.グリッド:
                     DrawGridSection();
                     break;
@@ -150,6 +154,20 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ScreenshotManager.Capture();
             }
+        }
+
+        /// <summary>SceneView のカメラ挙動の設定</summary>
+        private void DrawSceneViewSection()
+        {
+            _view.DrawToggle("フォーカス時に距離を自動調整", config.sceneViewFocusAdjustDistance,
+                -1, ROW_HEIGHT, newValue =>
+                {
+                    config.sceneViewFocusAdjustDistance = newValue;
+                    config.dirty = true;
+                });
+
+            _view.DrawLabel("OFF なら注視点だけ移し、カメラ距離は保つ", -1, ROW_HEIGHT,
+                textColor: Color.gray);
         }
 
         /// <summary>グリッド表示の詳細設定。反映は GridRenderer が毎フレーム config を見るだけで済む</summary>

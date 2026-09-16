@@ -77,6 +77,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool sceneViewOrthographic = false;
         // 選択・配置に連動した自動フォーカス。OFF でも Inspector のフォーカスボタンと F キーは効く
         public bool sceneViewAutoFocus = true;
+        // フォーカス時にカメラ距離を対象の大きさへ合わせるか。OFF なら注視点だけ移して距離は保つ
+        public bool sceneViewFocusAdjustDistance = false;
 
         // ギズモ設定。SceneView / GameView 双方のギズモが共有する。
         // 操作種別 (currentTool) はホットキーで頻繁に切り替える一時的なモードなので永続化しない
