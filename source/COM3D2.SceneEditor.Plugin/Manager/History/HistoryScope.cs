@@ -39,6 +39,11 @@
         Video,
         /// <summary>ライブ演出 (ステージライト・レーザー・サイリウムの全体状態)</summary>
         LiveEffect,
+        /// <summary>
+        /// 外部プラグインの状態 (HistoryAPI.BeforeEdit 経由)。
+        /// 捕捉・復元は外部のデリゲートに委ね、対象の区別は targetKey で行う
+        /// </summary>
+        External,
     }
 
     public static class HistoryScopeUtils
@@ -74,6 +79,7 @@
                 case HistoryScope.Sound:
                 case HistoryScope.Video:
                 case HistoryScope.LiveEffect:
+                case HistoryScope.External:
                     return false;
                 default:
                     return true;

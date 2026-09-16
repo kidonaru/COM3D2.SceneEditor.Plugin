@@ -235,6 +235,7 @@
     <Compile Include="Manager\HistoryManager.cs" />
     <Compile Include="Manager\History\HistoryScope.cs" />
     <Compile Include="Manager\History\IStateSnapshot.cs" />
+    <Compile Include="Manager\History\ExternalStateSnapshot.cs" />
     <Compile Include="Manager\History\PresetDtoUtils.cs" />
     <Compile Include="Manager\History\PresetDtoSnapshot.cs" />
     <Compile Include="Manager\History\MaterialSnapshot.cs" />
