@@ -50,6 +50,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             isWindowsHidden = hidden;
             isMenuBarHidden = hidden && hideMenuBar;
+
+            // 連携プラグインのウィンドウも追従させる。GameView の最大化より先に配るのは、
+            // 最大化処理が例外で抜けても内部窓と外部窓の表示状態を食い違わせないため
+            DockingHost.RefreshExternalTabVisible();
+
             if (hidden)
             {
                 _wasMaximizedBeforeHidden = gameViewManager.isMaximized;
@@ -70,6 +75,7 @@ namespace COM3D2.SceneEditor.Plugin
             isWindowsHidden = false;
             isMenuBarHidden = false;
             _wasMaximizedBeforeHidden = false;
+            DockingHost.RefreshExternalTabVisible();
         }
 
         private static WindowManager _instance = null;

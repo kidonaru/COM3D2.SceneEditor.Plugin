@@ -69,7 +69,37 @@ namespace COM3D2.SceneEditor.Plugin
             var adapter = new ExternalWindowAdapter(
                 windowId, title ?? "", getRect, setRect, isVisible, setTabVisible);
             _externals.Add(adapter);
+            // 一時非表示中に登録された窓 (非表示中に開き直したゲスト) も隠しておく。
+            // アダプタの初期値は表示なので、ここで押し込まないと 1 つだけ出たままになる
+            adapter.NotifyTabVisibleChanged();
             return adapter;
+        }
+
+        /// <summary>
+        /// ホスト側のウィンドウ一時非表示 (WindowManager.isWindowsHidden) に外部窓も追従させるか。
+        /// プラグイン無効化中は追従させない。無効化時はホストが管理を手放してゲストが
+        /// 独立ウィンドウへ戻る契機なので、隠したまま取り残すと復帰手段が無くなる。
+        /// WindowManager の生フラグとは条件が違うため、別名にして取り違えを防ぐ
+        /// </summary>
+        internal static bool shouldHideExternalWindows
+        {
+            get
+            {
+                var plugin = SceneEditorPlugin.instance;
+                return plugin != null && plugin.isEnable && WindowManager.instance.isWindowsHidden;
+            }
+        }
+
+        /// <summary>
+        /// 全外部窓へタブ表示状態を配り直す。一時非表示の切り替えはタブグループの
+        /// 増減を伴わず NotifyTabVisibleChanged が自然発火しないため、明示的に押し出す
+        /// </summary>
+        internal static void RefreshExternalTabVisible()
+        {
+            foreach (var adapter in _externals)
+            {
+                adapter.NotifyTabVisibleChanged();
+            }
         }
 
         public static void Unregister(object handle)
@@ -397,6 +427,11 @@ namespace COM3D2.SceneEditor.Plugin
                     adapter.ResetAutoDockRetry();
                 }
             }
+
+            // 一時非表示のまま無効化された場合、グループ未所属だった窓は上の解除で
+            // 通知が発火しない。無効化後は isWindowsHidden が false になるので、
+            // ここで配り直して隠れたままの窓を確実に復帰させる
+            RefreshExternalTabVisible();
         }
     }
 
@@ -531,11 +566,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void NotifyTabVisibleChanged()
         {
-            if (_lastTabVisible == isTabVisible)
+            // ゲストへ渡す「描くべきか」はタブの畳み状態と一時非表示の合成。
+            // isTabVisible 自体はタブの畳み状態だけを表す契約 (ITabVisibleWindow) なので
+            // 一時非表示を混ぜず、内部ウィンドウが isWndVisible で合成しているのと同じ形にする
+            var visible = !DockingHost.shouldHideExternalWindows && isTabVisible;
+            if (_lastTabVisible == visible)
             {
                 return;
             }
-            _lastTabVisible = isTabVisible;
+            _lastTabVisible = visible;
             try
             {
                 _setTabVisible(_lastTabVisible);
