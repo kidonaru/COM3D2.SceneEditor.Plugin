@@ -576,3 +576,5 @@ t.GetProperty("isAvailable").GetValue(null, null)
 - `DrawColor` の「R」ボタンがフックを通らない (機能面 🔴) — 誤検知。`ColorFieldCache.ResetColor` は同フレームで `_color` を書き換え、`DrawColor` 末尾の `fieldCache.color != color` 判定 (`GUIView.cs:3240-3245`) で `NotifyBeforeValueChanged()` → `onColorChanged` の順に通る
 - `_timelineControllers` の空判定を初期化済みフラグへ置き換える (機能面 🟡) — 既存 `InitTimelineControllers` の「登録前なら次回描画で再試行する」意図を壊すため見送り。重複していた判定は `EnsureTimelineControllers` へ集約した
 - `HasTimelineDrivenController` の線形走査 (可読性 🟢) — ボタン押下時のみの経路で実害なし
+- 編集モード継続中に新規登録されたレイヤーはスナップショット欠如で切り替わらない (機能面 🟡、レイヤー追従の追加分) — レイヤー追加は `ChangeActiveLayer` → `SetCurrentLayer` で編集セッションが張り直されスナップショットが揃うため、既存の追加経路では起きない。該当ケースは `FocusLayerKeepingEdit` の LogDebug で可視化した
+- `AutoEditModeHost` が `TimelineWindow` の static を直接呼ぶ結合 (機能面 🟢) — 既存 `FocusEditedLayer` と同じ構造。`TimelineManager` への移設は別リファクタ

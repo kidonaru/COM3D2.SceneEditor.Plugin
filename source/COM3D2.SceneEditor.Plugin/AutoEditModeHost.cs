@@ -41,9 +41,8 @@ namespace COM3D2.SceneEditor.Plugin
                 ? MTEP.MaidManager.instance.maidSlotNo
                 : 0;
 
-            // SceneEditor 内の編集は履歴確定時に「触ったレイヤー」の控えから追従するが、
-            // 外部プラグインの編集は履歴に乗らず確定イベントが来ない。
-            // 控えを残すと無関係な次の確定で誤って追従するため、控えずにその場で切り替える
+            // 控え (TimelineLayerGate.RecordEditedLayer) を残すと無関係な次の確定で誤って追従するため、
+            // 控えずにその場で切り替える
             // (Enter が同フレームでスナップショットを取るので、切替先のスナップショットは揃っている)
             TimelineWindow.FocusLayerKeepingEdit(info.layerType, slotNo);
         }

@@ -373,7 +373,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 指定レイヤーを編集セッションを保ったままアクティブにする。
+        /// 指定レイヤーを編集セッションを保ったまま (未登録の編集値を巻き戻さずに) アクティブにする。
+        /// 編集開始時スナップショットが無いレイヤーへは切り替えない (initialEditFrame との食い違い防止)。
         /// カテゴリ表示のコンボはアクティブレイヤーに追従するので、カテゴリ切替もこれで済む。
         /// 外部プラグインの編集は履歴確定 (OnEditCommitted) を経由しないため、
         /// AutoEditModeHost が値を書く直前にここを直接呼ぶ
@@ -390,6 +391,7 @@ namespace COM3D2.SceneEditor.Plugin
             // currentLayer と initialEditFrame が食い違ったまま残る
             if (timelineManager.GetInitialEditFrame(layer) == null)
             {
+                MTEUtils.LogDebug("編集開始時スナップショットが無いためレイヤーを切り替えません: " + layer.layerName);
                 return;
             }
 
