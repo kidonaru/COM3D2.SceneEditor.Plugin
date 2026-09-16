@@ -326,8 +326,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// 現在のタイムラインを破棄し、切替に伴う状態をまとめてリセットする。
-        /// 別タイムラインの lastCommittedXml を持ち越すと SE 履歴ブリッジが
-        /// タイムライン間の壊れた undo エントリを積むため、履歴は必ずクリアする
+        /// 履歴は 2 段でクリアする。(1) 別タイムラインの lastCommittedXml を持ち越すと
+        /// SE 履歴ブリッジがタイムライン間の壊れた undo エントリを積むため基準を捨て、
+        /// (2) 既に積まれている SE 側エントリもスタックごと捨てる
         /// </summary>
         private void ResetTimelineState()
         {
@@ -338,6 +339,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             ClearTimeline();
             historyManager.ClearHistory();
+
+            // 残った SE 側エントリは別タイムラインの状態へ戻そうとするため、
+            // スタックごと捨てる。タイムライン以外の編集履歴も道連れになる
+            // (新規作成・読み込み・アンロードで共通)
+            SE.HistoryManager.instance.ClearHistory();
+            MTEUtils.Log("タイムライン切替のため操作履歴をクリアしました");
+
             _layerBaselineStore.Clear();
             timelineSessionId++;
             currentLayerIndex = 0;
