@@ -280,6 +280,7 @@
     <Compile Include="Config.cs" />
     <Compile Include="EditorSubWindow.cs" />
     <Compile Include="EditorStateHost.cs" />
+    <Compile Include="AutoEditModeHost.cs" />
     <Compile Include="MaidSelectHost.cs" />
     <Compile Include="DockingHost.cs" />
     <Compile Include="IDockableWindow.cs" />
