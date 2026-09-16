@@ -13,8 +13,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// - 値を書く「直前」に呼ぶこと。編集モード外はタイムラインのレイヤーが
     ///   毎フレーム再生値を書き戻すため、書いた後に呼んでも巻き戻る
     /// - 既に編集モードなら再入しない (AutoEditMode.Enter と同じ)
-    /// - layerName が既知なら「触ったレイヤー」として控え、SceneEditor 側の
-    ///   編集確定時にそのレイヤーをアクティブへ切り替える。未知の名前なら控えない
+    /// - layerName が既知ならそのレイヤーをその場でアクティブにする (カテゴリ表示も追従する)。
+    ///   未知の名前・レイヤー未登録なら何もしない
     /// - SceneEditor の UI が無効の間は何もしない (レイヤーが動いていないため入る意味が無い)
     /// - 連携設定 (linkExternalPlugin) は見ない。TimelineLayerGateHost と同じく
     ///   タイムライン再生値との整合に必要な経路で、OFF にすると外部側の操作が毎フレーム巻き戻る
@@ -28,8 +28,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // Enter 内の RecordEditedLayerFromOpenGate は SceneEditor 側のゲートを見るが、
-            // 外部ウィンドウの描画中は開いていないため控えが消える。後から明示的に控え直す
             AutoEditMode.Enter();
 
             var info = FindLayerInfo(layerName);
@@ -42,7 +40,12 @@ namespace COM3D2.SceneEditor.Plugin
             var slotNo = info.category == MTEP.TimelineLayerCategory.Maid
                 ? MTEP.MaidManager.instance.maidSlotNo
                 : 0;
-            TimelineLayerGate.RecordEditedLayer(info.layerType, slotNo);
+
+            // SceneEditor 内の編集は履歴確定時に「触ったレイヤー」の控えから追従するが、
+            // 外部プラグインの編集は履歴に乗らず確定イベントが来ない。
+            // 控えを残すと無関係な次の確定で誤って追従するため、控えずにその場で切り替える
+            // (Enter が同フレームでスナップショットを取るので、切替先のスナップショットは揃っている)
+            TimelineWindow.FocusLayerKeepingEdit(info.layerType, slotNo);
         }
 
         /// <summary>TimelineManager 未初期化 (タイトル画面など) でも落ちないよう null を許容する</summary>

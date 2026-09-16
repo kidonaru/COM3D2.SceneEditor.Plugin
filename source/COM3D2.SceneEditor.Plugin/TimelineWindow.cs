@@ -369,6 +369,17 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            FocusLayerKeepingEdit(layerType, slotNo);
+        }
+
+        /// <summary>
+        /// 指定レイヤーを編集セッションを保ったままアクティブにする。
+        /// カテゴリ表示のコンボはアクティブレイヤーに追従するので、カテゴリ切替もこれで済む。
+        /// 外部プラグインの編集は履歴確定 (OnEditCommitted) を経由しないため、
+        /// AutoEditModeHost が値を書く直前にここを直接呼ぶ
+        /// </summary>
+        public static void FocusLayerKeepingEdit(Type layerType, int slotNo)
+        {
             var layer = timelineManager.GetLayer(layerType, slotNo);
             if (layer == null || layer == timelineManager.currentLayer || layer.isCameraLayer)
             {

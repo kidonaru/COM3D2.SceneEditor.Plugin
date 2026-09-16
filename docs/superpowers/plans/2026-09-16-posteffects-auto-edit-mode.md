@@ -12,7 +12,7 @@
 - PostEffects 側 `MTEUtils/GUIView.cs` は SceneEditor 側と同じ版で `onBeforeValueChanged` フックを持つ (スライダー / トグル / 色欄 / コンボ / ドラッグ数値欄で発火。`DrawColor` はピッカー経由の変更も、`GUIComboBox` はポップアップ選択も同フックを通す)
 - `DrawColor` の「R」ボタンは `ColorFieldCache.ResetColor()` 後、同フレーム末尾の `fieldCache.color != color` 判定で `NotifyBeforeValueChanged()` を通るため対応不要 (`GUIView.cs:3240-3245`)
 - `DrawButton` はフックを通さない。対象は `EffectControllerBase.DrawDataTabs` の追加/削除、`MainWindow.DrawEffectRow` のリセット、`MainWindow.DrawEffectContent` のカテゴリリセット
-- SceneEditor 側の `AutoEditMode.Enter()` は `TimelineLayerGate.RecordEditedLayerFromOpenGate()` で「開いているゲート」を控えるが、外部ウィンドウ描画中は SceneEditor 側のゲートが開いていないので控えが null になる。外部からはレイヤー名で明示的に控える必要がある
+- SceneEditor 内の編集は履歴確定 (`HistoryManager.onEditCommitted`) → `TimelineWindow.FocusEditedLayer` で「触ったレイヤー」へ追従するが、外部プラグインの編集は履歴に乗らず確定イベントが来ない。そのためホストは控えを残さず、`TimelineWindow.FocusLayerKeepingEdit(Type, int)` でその場でアクティブレイヤーを切り替える (追記 2026-09-16: カテゴリ表示のコンボはアクティブレイヤーに追従するので、レイヤーカテゴリの自動切替もこれで実現する)
 - 連携設定 (`linkExternalPlugin`) は参照しない。`TimelineLayerGateHost` と同じく、これはタイムライン再生値との整合 (巻き戻り防止) に必要な経路であり、OFF にすると PostEffects 側の操作が毎フレーム巻き戻されて操作不能になるため
 - タイムライン未読込・ポストエフェクトレイヤー未登録の状態で触った場合も SceneEditor 自身のウィンドウと同じ扱い (`AutoEditMode.Enter` の既存分岐に従い編集モードへ入る)。タイムラインタブは既存ゲートで無効化されるので影響はエフェクトタブのみ
 - 対象は PostEffects.Plugin のみ (ModItemExplorer は対象外)。タイムラインタブに加えエフェクトタブでも 6 系統 (DoF / GTToneMap / パラフィン / 距離フォグ / リムライト / ブルーム) に適用する
