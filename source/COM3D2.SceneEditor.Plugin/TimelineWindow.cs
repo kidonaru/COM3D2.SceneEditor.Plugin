@@ -255,6 +255,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             MTEP.TimelineManager.onRefresh += () => requestUpdateTexture = true;
             SelectionManager.instance.onSelectionChanged += OnSelectionChanged;
+            // Inspector 側の選択操作はキーフレーム表示より優先する。
+            // 同一メイドの再選択でも切り替えたいので onSelectionChanged ではなくこちらで解除する
+            SelectionManager.instance.onSelectRequested += OnSelectRequested;
             MaidDragBoneTracker.onDragCompleted += OnDragCompleted;
             HistoryManager.instance.onEditCommitted += OnEditCommitted;
 
@@ -382,6 +385,16 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private bool _syncingSelection = false;
+
+        private void OnSelectRequested()
+        {
+            var timelineManager = MTEP.TimelineManager.instance;
+            if (timelineManager.HasSelected())
+            {
+                timelineManager.UnselectAll();
+                requestUpdateTexture = true;
+            }
+        }
 
         // Hierarchy 等での選択をタイムラインのアクティブメイド/レイヤーへ同期する
         private void OnSelectionChanged(GameObject go)

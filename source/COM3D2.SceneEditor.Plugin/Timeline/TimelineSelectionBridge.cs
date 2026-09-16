@@ -119,9 +119,8 @@ namespace COM3D2.SceneEditor.Plugin
             var selection = SelectionManager.instance;
             if (selection.hasBoneSelection || selection.hasIKSelection)
             {
-                // 同一オブジェクトの再選択でボーン/IK 選択だけを解除する
-                // (SelectionManager.Select は同値早期 return の前にボーン/IK を解除する)
-                selection.Select(selection.selectedObject);
+                // ボーン/IK 選択だけを解除する (Select 経由だとキーフレーム選択も解除される)
+                selection.ClearSubSelection();
             }
         }
 

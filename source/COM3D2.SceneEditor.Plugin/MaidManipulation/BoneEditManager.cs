@@ -240,8 +240,8 @@ namespace COM3D2.SceneEditor.Plugin
             selectedBone = null;
             if (selectionManager.hasBoneSelection)
             {
-                // 同一オブジェクトの再選択はイベントを発火させずに定義選択だけ解除する
-                selectionManager.Select(selectionManager.selectedObject);
+                // 定義選択だけ解除する (Select 経由だとキーフレーム選択も解除される)
+                selectionManager.ClearSubSelection();
             }
         }
 

@@ -57,6 +57,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         public event Action<GameObject> onSelectionChanged;
 
+        /// <summary>
+        /// 選択処理 (Select / SelectBone / SelectIK / ClearSelection) が走るたびに発火する。
+        /// onSelectionChanged と違い同一オブジェクトの再選択でも発火するため、
+        /// 「選択操作そのもの」に反応したい側 (タイムラインのキーフレーム選択解除等) が使う
+        /// </summary>
+        public event Action onSelectRequested;
+
         private static SelectionManager _instance = null;
         public static SelectionManager instance
         {
@@ -112,6 +119,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public void Select(GameObject go, bool showGizmo, bool focus)
         {
+            onSelectRequested?.Invoke();
+
             if (focus)
             {
                 SceneViewWindow.instance.FocusOn(go);
@@ -152,6 +161,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            onSelectRequested?.Invoke();
             _selectedBoneMaid = maid;
             _selectedBoneDef = def;
             _selectedIKPoint = null;
@@ -167,6 +177,18 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// ボーン・IK 選択だけを解除し、selectedObject はそのまま残す。
+        /// Select(selectedObject) の同値再選択と違い onSelectRequested を発火しないため、
+        /// 内部同期での降格 (キーフレーム選択を巻き込みたくない経路) に使う
+        /// </summary>
+        public void ClearSubSelection()
+        {
+            _selectedBoneMaid = null;
+            _selectedBoneDef = null;
+            _selectedIKPoint = null;
+        }
+
+        /// <summary>
         /// IK ドラッグ点を選択する。SelectBone と同じく selectedObject はメイドルートにして
         /// Hierarchy 等の既存表示と整合させる（Select はこの選択を解除するため直接書き込む）
         /// </summary>
@@ -177,6 +199,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            onSelectRequested?.Invoke();
             _selectedBoneMaid = null;
             _selectedBoneDef = null;
             _selectedIKPoint = point;
@@ -378,6 +401,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void ClearSelection()
         {
+            onSelectRequested?.Invoke();
             _gizmoSuppressed = false;
             _selectedBoneMaid = null;
             _selectedBoneDef = null;

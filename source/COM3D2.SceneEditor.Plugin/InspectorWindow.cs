@@ -153,7 +153,7 @@ namespace COM3D2.SceneEditor.Plugin
             else if (KeyFrameInspector.ShouldDraw())
             {
                 // タイムラインのキーフレーム選択はオブジェクト選択より優先して表示する
-                // (選択解除で元の表示に戻る)
+                // (キーフレーム選択解除、または SelectionManager の選択操作で元の表示に戻る)
                 _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
                 DrawGizmoHeader(_view);
                 KeyFrameInspector.instance.Draw(_view);
