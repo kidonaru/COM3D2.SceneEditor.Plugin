@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -114,7 +116,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             public readonly Dictionary<string, Vector3> offsets = new Dictionary<string, Vector3>();
 
-            /// <summary>前フレームの着替え中フラグ。立ち下がりで揺れものを取り直す</summary>
+            /// <summary>
+            /// 前フレームの着替え中フラグ。
+            /// 立ち上がりでボーンを基準値へ戻し、立ち下がりで揺れものを取り直す。
+            /// 着替え中は ApplyCategory がオフセットを書き込まない（基準値を汚さないため）
+            /// </summary>
             public bool wasBusy;
         }
 
@@ -220,11 +226,24 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var isBusy = maid.IsAllProcPropBusy;
-                if (entry.wasBusy && !isBusy)
+                if (isBusy != entry.wasBusy)
                 {
-                    Rebuild(maid, entry);
+                    entry.wasBusy = isBusy;
+                    if (isBusy)
+                    {
+                        // 着替えでスロットが破棄される前（ボーンがまだ生きているうち）に戻しておく。
+                        // 破棄後だとゲーム側 Update が破棄済みボーンで例外を投げ、
+                        // 生き残ったボーンまで戻し損ねて基準値が汚れる
+                        foreach (var control in entry.controls.Values)
+                        {
+                            RestoreBaseline(control);
+                        }
+                    }
+                    else
+                    {
+                        Rebuild(maid, entry);
+                    }
                 }
-                entry.wasBusy = isBusy;
 
                 foreach (var control in entry.controls.Values)
                 {
@@ -358,8 +377,37 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
+                RestoreBaseline(control);
                 control.SetTargetSlods(category.slotIds);
                 ApplyCategory(entry, category);
+            }
+        }
+
+        /// <summary>
+        /// 揺れものへ書き込んだ力を基準値へ戻す。
+        /// SetTargetSlods はその時点のボーンの力をそのまま基準値として取り込むため、
+        /// オフセット適用中に取り直すと「基準値 + オフセット」が新しい基準値になり、
+        /// 取り直すたびに力が積み上がる。着替えで作り直されなかったスロットで起きるので、
+        /// 取り直し・破棄の前に必ずオフセット (localPosition) を 0 に戻してから
+        /// ゲーム側の Update を通し、ボーンを SetTargetSlods 取り込み時点の基準値へ戻す
+        /// </summary>
+        private static void RestoreBaseline(GravityTransformControl control)
+        {
+            if (control == null)
+            {
+                return;
+            }
+            control.isEnabled = false;
+            control.transform.localPosition = Vector3.zero;
+            try
+            {
+                control.Update();
+            }
+            catch (Exception e)
+            {
+                // 破棄済みの揺れものが混ざると UpdateParameters が例外を投げることがある。
+                // その揺れものは消えているので戻す必要は無く、取り直しは続行してよい
+                MTEUtils.LogWarning("重力の基準値復元に失敗しました: {0} {1}", control.name, e.Message);
             }
         }
 
@@ -368,6 +416,13 @@ namespace COM3D2.SceneEditor.Plugin
         {
             GravityTransformControl control;
             if (!entry.controls.TryGetValue(category.id, out control) || control == null)
+            {
+                return;
+            }
+
+            // 着替え中に書き込むと、完了時の取り直しで汚れた値を基準値にしてしまう。
+            // 保持した値は Rebuild が完了後に焼き直す
+            if (entry.wasBusy)
             {
                 return;
             }
@@ -397,7 +452,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
             if (entry.root != null)
             {
-                Object.Destroy(entry.root);
+                // コンポーネントに OnDestroy は無く、破棄しただけではボーンに力が残る
+                foreach (var control in entry.controls.Values)
+                {
+                    RestoreBaseline(control);
+                }
+                UnityEngine.Object.Destroy(entry.root);
             }
             entry.root = null;
             entry.controls.Clear();
