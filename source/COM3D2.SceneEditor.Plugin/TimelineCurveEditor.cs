@@ -46,6 +46,9 @@ namespace COM3D2.SceneEditor.Plugin
         private const float LEGEND_ROW_HEIGHT = 16f;
         private const float LEGEND_ITEM_MARGIN = 10f;
         private const float LEGEND_PADDING = 4f;
+        /// <summary>凡例を出すために最低限残したいグラフ高さ (px)。
+        /// これを下回るペインでは凡例を省いて全面をグラフに使う</summary>
+        private const float MIN_GRAPH_HEIGHT = 24f;
 
         /// <summary>プリセットサムネの生成解像度 (表示は幅・高さに合わせて縮小する)</summary>
         private const int PRESET_TEX_SIZE = 40;
@@ -152,6 +155,11 @@ namespace COM3D2.SceneEditor.Plugin
         private long _channelsSignature = 0;
         private bool _channelsValid = false;
         private int _totalChannelCount = 0;
+        /// <summary>直近の凡例レイアウト。テキスト幅計測を含むので、
+        /// チャンネル再構築時とペインサイズ変化時だけ作り直す (GC 対策)</summary>
+        private LegendLayout _legend = null;
+        /// <summary>_legend を構築したときのペインサイズ</summary>
+        private Vector2 _legendPaneSize = Vector2.zero;
         /// <summary>シグネチャ計算用の作業バッファ (選択ボーン名を初出順に並べる)</summary>
         private readonly List<string> _signatureBoneNames = new List<string>(8);
         /// <summary>BuildMapping の縦軸フィット用バッファ (毎 Repaint の確保を避ける)</summary>
@@ -634,11 +642,13 @@ namespace COM3D2.SceneEditor.Plugin
             // 毎パス作り直すと数百 KB/frame 確保するため、構築入力が変わったときだけ再収集する。
             // 値・タンジェントは ValueData の参照を共有しているので、その場編集は再構築なしで反映される
             var signature = ComputeChannelsSignature();
+            var channelsRebuilt = false;
             if (!_channelsValid || signature != _channelsSignature)
             {
                 _channels = CollectChannels(out _totalChannelCount);
                 _channelsSignature = signature;
                 _channelsValid = true;
+                channelsRebuilt = true;
             }
             var totalChannelCount = _totalChannelCount;
 
@@ -654,32 +664,41 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 凡例はペイン下端の情報表示行なので、グラフはその分だけ縮めた領域に描く。
+            // ヒットテストも同じ領域で行うため、マッピング構築より先に高さを決める
+            var paneSize = new Vector2(paneRect.width, paneRect.height);
+            if (_legend == null || channelsRebuilt || paneSize != _legendPaneSize)
+            {
+                _legend = BuildLegend(paneRect);
+                _legendPaneSize = paneSize;
+            }
+            var graphRect = new Rect(
+                paneRect.x, paneRect.y, paneRect.width, paneRect.height - _legend.height);
+
             // 表示中の座標系は Repaint 時に確定させ、他イベントは同じ座標系でヒットテストする。
             // Euler 表示のキー値も BuildMapping 内で同じタイミングにだけ更新される
             if (Event.current.type == EventType.Repaint || _mapping == null)
             {
-                _mapping = BuildMapping(_channels, paneRect, scrollX, frameWidth, _mappingValues);
+                _mapping = BuildMapping(_channels, graphRect, scrollX, frameWidth, _mappingValues);
             }
 
             if (Event.current.type == EventType.Repaint)
             {
-                var legend = BuildLegend(paneRect);
-
-                DrawValueScale(view, paneRect, legend.height);
+                DrawValueScale(view, graphRect);
 
                 foreach (var channel in _channels)
                 {
-                    DrawChannelCurve(view, channel, paneRect);
+                    DrawChannelCurve(view, channel, graphRect);
                 }
 
                 foreach (var channel in _channels)
                 {
-                    DrawChannelKeys(view, channel, paneRect, scrollX);
-                    DrawChannelHandles(view, channel, paneRect, scrollX);
+                    DrawChannelKeys(view, channel, graphRect, scrollX);
+                    DrawChannelHandles(view, channel, graphRect, scrollX);
                 }
 
                 // 凡例はカーブより手前に重ねる
-                DrawLegend(view, paneRect, legend);
+                DrawLegend(view, paneRect, _legend);
 
                 if (totalChannelCount > _channels.Count)
                 {
@@ -692,7 +711,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (guiEnabled)
             {
-                HandleInput(view, paneRect, scrollX);
+                HandleInput(view, graphRect, scrollX);
             }
             else if (_dragMode != DragMode.None)
             {
@@ -702,11 +721,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>キー点とタンジェントハンドルのドラッグ処理</summary>
-        private void HandleInput(GUIView view, Rect paneRect, float scrollX)
+        /// <summary>キー点とタンジェントハンドルのドラッグ処理。
+        /// graphRect は凡例行を除いたグラフ領域 (描画と同じ座標系)</summary>
+        private void HandleInput(GUIView view, Rect graphRect, float scrollX)
         {
-            // paneRect はビューローカル。イベント座標系へ合わせるため原点を変換する
-            var origin = view.GetDrawRect(paneRect.x, paneRect.y, 1f, 1f);
+            // graphRect はビューローカル。イベント座標系へ合わせるため原点を変換する
+            var origin = view.GetDrawRect(graphRect.x, graphRect.y, 1f, 1f);
             var mouse = Event.current.mousePosition - new Vector2(origin.x, origin.y);
             var e = Event.current;
 
@@ -731,7 +751,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            if (mouse.x < 0f || mouse.x > paneRect.width || mouse.y < 0f || mouse.y > paneRect.height)
+            if (mouse.x < 0f || mouse.x > graphRect.width || mouse.y < 0f || mouse.y > graphRect.height)
             {
                 return;
             }
@@ -1441,10 +1461,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>表示範囲をサンプリングして縦軸マッピングを決める</summary>
         private static MTEP.CurveViewMapping BuildMapping(
-            List<CurveChannel> channels, Rect paneRect, float scrollX, float frameWidth,
+            List<CurveChannel> channels, Rect graphRect, float scrollX, float frameWidth,
             List<float> allValues)
         {
-            var columnCount = Mathf.Max(2, (int)(paneRect.width / SAMPLE_STEP) + 1);
+            var columnCount = Mathf.Max(2, (int)(graphRect.width / SAMPLE_STEP) + 1);
             allValues.Clear();
 
             foreach (var channel in channels)
@@ -1463,7 +1483,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            return MTEP.CurveViewMapping.AutoFit(frameWidth, paneRect.height, allValues);
+            return MTEP.CurveViewMapping.AutoFit(frameWidth, graphRect.height, allValues);
         }
 
         /// <summary>チャンネルのフレーム位置 frameNo における実値。キー範囲外は端の値で保持する</summary>
@@ -1595,6 +1615,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             layout.height = layout.items.Count > 0 ? LEGEND_ROW_HEIGHT : 0f;
+
+            // ペインが低すぎるとグラフが潰れるので、その場合は凡例を出さない
+            if (paneRect.height - layout.height < MIN_GRAPH_HEIGHT)
+            {
+                layout.items.Clear();
+                layout.height = 0f;
+            }
             return layout;
         }
 
@@ -1637,30 +1664,29 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>縦軸の目盛りラベル (上端・中央・下端)。
-        /// 下端は凡例に隠れないよう legendHeight 分だけ持ち上げる</summary>
-        private void DrawValueScale(GUIView view, Rect paneRect, float legendHeight)
+        /// <summary>縦軸の目盛りラベル (上端・中央・下端)</summary>
+        private void DrawValueScale(GUIView view, Rect graphRect)
         {
-            var centerY = paneRect.height * 0.5f;
-            DrawValueLabel(view, paneRect, 0f, _mapping.valueMax);
-            DrawValueLabel(view, paneRect, centerY, (_mapping.valueMin + _mapping.valueMax) * 0.5f);
+            var centerY = graphRect.height * 0.5f;
+            DrawValueLabel(view, graphRect, 0f, _mapping.valueMax);
+            DrawValueLabel(view, graphRect, centerY, (_mapping.valueMin + _mapping.valueMax) * 0.5f);
 
-            // ペインが低いと凡例に押し上げられて中央ラベルと交差するため、その場合は下端を省く
-            var minLabelY = paneRect.height - VALUE_LABEL_HEIGHT - legendHeight;
+            // グラフが低いと下端ラベルが中央ラベルと交差するため、その場合は省く
+            var minLabelY = graphRect.height - VALUE_LABEL_HEIGHT;
             if (minLabelY >= centerY + VALUE_LABEL_HEIGHT)
             {
-                DrawValueLabel(view, paneRect, minLabelY, _mapping.valueMin);
+                DrawValueLabel(view, graphRect, minLabelY, _mapping.valueMin);
             }
         }
 
-        private static void DrawValueLabel(GUIView view, Rect paneRect, float y, float value)
+        private static void DrawValueLabel(GUIView view, Rect graphRect, float y, float value)
         {
-            view.currentPos = new Vector2(paneRect.x + 2, paneRect.y + y);
+            view.currentPos = new Vector2(graphRect.x + 2, graphRect.y + y);
             view.DrawLabel(value.ToString("F2"), 60, VALUE_LABEL_HEIGHT, new Color(1f, 1f, 1f, 0.5f));
         }
 
         /// <summary>サンプル値を SAMPLE_STEP 幅の矩形セグメントで折れ線描画する</summary>
-        private void DrawChannelCurve(GUIView view, CurveChannel channel, Rect paneRect)
+        private void DrawChannelCurve(GUIView view, CurveChannel channel, Rect graphRect)
         {
             var samples = channel.samples;
             for (var i = 1; i < samples.Count; i++)
@@ -1670,45 +1696,45 @@ namespace COM3D2.SceneEditor.Plugin
                 var top = Mathf.Min(y0, y1);
                 var bottom = Mathf.Max(y0, y1);
 
-                // 表示値域外へ出た区間は描かない (ペイン外へはみ出させない)
-                if (bottom < 0f || top > paneRect.height)
+                // 表示値域外へ出た区間は描かない (グラフ外へはみ出させない)
+                if (bottom < 0f || top > graphRect.height)
                 {
                     continue;
                 }
-                top = Mathf.Clamp(top, 0f, paneRect.height);
-                bottom = Mathf.Clamp(bottom, 0f, paneRect.height);
+                top = Mathf.Clamp(top, 0f, graphRect.height);
+                bottom = Mathf.Clamp(bottom, 0f, graphRect.height);
 
                 var x = (i - 1) * SAMPLE_STEP;
-                if (x + SAMPLE_STEP > paneRect.width)
+                if (x + SAMPLE_STEP > graphRect.width)
                 {
                     break;
                 }
 
-                view.currentPos = new Vector2(paneRect.x + x, paneRect.y + top);
+                view.currentPos = new Vector2(graphRect.x + x, graphRect.y + top);
                 // 隣接セグメントとの縦ギャップを埋めるため線の太さ分だけ足す
                 view.DrawTexture(
                     GUIView.texWhite,
                     SAMPLE_STEP,
-                    Mathf.Min(bottom - top + CURVE_THICKNESS, paneRect.height - top),
+                    Mathf.Min(bottom - top + CURVE_THICKNESS, graphRect.height - top),
                     channel.color);
             }
         }
 
         /// <summary>キー点マーカー。非選択キーは半透明で描く</summary>
-        private void DrawChannelKeys(GUIView view, CurveChannel channel, Rect paneRect, float scrollX)
+        private void DrawChannelKeys(GUIView view, CurveChannel channel, Rect graphRect, float scrollX)
         {
             var half = KEY_MARKER_SIZE * 0.5f;
 
             for (var i = 0; i < channel.values.Count; i++)
             {
                 var x = _mapping.FrameToX(channel.frameNos[i]) - scrollX;
-                if (x < half || x > paneRect.width - half)
+                if (x < half || x > graphRect.width - half)
                 {
                     continue;
                 }
 
                 var y = _mapping.ValueToY(channel.GetKeyValue(i));
-                if (y < half || y > paneRect.height - half)
+                if (y < half || y > graphRect.height - half)
                 {
                     continue;
                 }
@@ -1719,13 +1745,13 @@ namespace COM3D2.SceneEditor.Plugin
                     color.a = 0.5f;
                 }
 
-                view.currentPos = new Vector2(paneRect.x + x - half, paneRect.y + y - half);
+                view.currentPos = new Vector2(graphRect.x + x - half, graphRect.y + y - half);
                 view.DrawTexture(GUIView.texWhite, KEY_MARKER_SIZE, KEY_MARKER_SIZE, color);
             }
         }
 
         /// <summary>編集区間 (前キー → 選択キー) のタンジェントハンドルを描画する</summary>
-        private void DrawChannelHandles(GUIView view, CurveChannel channel, Rect paneRect, float scrollX)
+        private void DrawChannelHandles(GUIView view, CurveChannel channel, Rect graphRect, float scrollX)
         {
             var handleColor = new Color(1f, 1f, 1f, 0.8f);
             var half = HANDLE_MARKER_SIZE * 0.5f;
@@ -1757,18 +1783,18 @@ namespace COM3D2.SceneEditor.Plugin
                     for (var s = 1; s <= steps; s++)
                     {
                         var p = Vector2.Lerp(keyPos, handlePos, s / (float)steps);
-                        if (!IsInPane(p, paneRect, 1f))
+                        if (!IsInGraph(p, graphRect, 1f))
                         {
                             continue;
                         }
-                        view.currentPos = new Vector2(paneRect.x + p.x - 1f, paneRect.y + p.y - 1f);
+                        view.currentPos = new Vector2(graphRect.x + p.x - 1f, graphRect.y + p.y - 1f);
                         view.DrawTexture(GUIView.texWhite, SAMPLE_STEP, SAMPLE_STEP, handleColor);
                     }
 
-                    if (IsInPane(handlePos, paneRect, half))
+                    if (IsInGraph(handlePos, graphRect, half))
                     {
                         view.currentPos = new Vector2(
-                            paneRect.x + handlePos.x - half, paneRect.y + handlePos.y - half);
+                            graphRect.x + handlePos.x - half, graphRect.y + handlePos.y - half);
                         view.DrawTexture(
                             GUIView.texWhite, HANDLE_MARKER_SIZE, HANDLE_MARKER_SIZE, handleColor);
                     }
@@ -1776,10 +1802,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static bool IsInPane(Vector2 pos, Rect paneRect, float margin)
+        private static bool IsInGraph(Vector2 pos, Rect graphRect, float margin)
         {
-            return pos.x >= margin && pos.x <= paneRect.width - margin
-                && pos.y >= margin && pos.y <= paneRect.height - margin;
+            return pos.x >= margin && pos.x <= graphRect.width - margin
+                && pos.y >= margin && pos.y <= graphRect.height - margin;
         }
     }
 }
