@@ -466,7 +466,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             // 読み込み直後の最初の操作から Undo できるよう、基準をここで据える
             historyManager.SetBaseline(_timeline);
-            // Extensions.ShowDialog("タイムライン「" + anmName + "」を読み込みました");
+
+            // 読み込んだタイムラインを先頭から自動再生する
+            Play();
         }
 
         public void SaveTimeline()
