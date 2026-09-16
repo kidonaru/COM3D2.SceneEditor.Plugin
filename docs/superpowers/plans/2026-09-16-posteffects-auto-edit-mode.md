@@ -570,3 +570,9 @@ t.GetProperty("isAvailable").GetValue(null, null)
 - `InitTimelineControllers` の遅延初期化がエフェクトタブで行数ぶん空振りする — 既存 `DrawTimelineContent` と同じパターンで、起動直後の数フレームに限られるため見送り (未確認のまま見送り)
 - 契約テストがオーバーロード追加時の `AmbiguousMatchException` を検出しない — 既存 `TimelineLayerGateHostContractTests` と同水準で許容
 - タイムライン未読込時に `AutoEditMode.Enter` が走る — SceneEditor 自身のウィンドウと同じ挙動。Spec に明記した
+
+## コードレビュー却下メモ
+
+- `DrawColor` の「R」ボタンがフックを通らない (機能面 🔴) — 誤検知。`ColorFieldCache.ResetColor` は同フレームで `_color` を書き換え、`DrawColor` 末尾の `fieldCache.color != color` 判定 (`GUIView.cs:3240-3245`) で `NotifyBeforeValueChanged()` → `onColorChanged` の順に通る
+- `_timelineControllers` の空判定を初期化済みフラグへ置き換える (機能面 🟡) — 既存 `InitTimelineControllers` の「登録前なら次回描画で再試行する」意図を壊すため見送り。重複していた判定は `EnsureTimelineControllers` へ集約した
+- `HasTimelineDrivenController` の線形走査 (可読性 🟢) — ボタン押下時のみの経路で実害なし
