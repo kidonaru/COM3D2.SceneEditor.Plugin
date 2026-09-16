@@ -293,9 +293,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public Vector2 GuiToRtPoint(Vector2 guiPos)
         {
-            // 最大化中は直接描画のため、画面ピクセル座標がそのままカメラのスクリーン座標。
+            // 直接描画中は画面ピクセル座標がそのままカメラのスクリーン座標。
             // GUI座標 (左上原点) → スクリーン座標 (左下原点) のY反転のみ行う
-            if (gameViewManager.isMaximized)
+            if (gameViewManager.isDirectRender)
             {
                 return new Vector2(guiPos.x, Screen.height - guiPos.y);
             }

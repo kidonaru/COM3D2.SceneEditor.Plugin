@@ -20,12 +20,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// キーバインドから隠したときはメニューバーも消えるためキーだけになる
         /// (isMenuBarHidden)。キーバインド側に発動条件を足すなら戻れなくなるので、
         /// ここから戻れる経路も併せて用意すること。
-        /// GameView の最大化も連動させるため、書き換えは SetWindowsHidden 経由で行う
+        /// GameView の描画方式も連動させるため、書き換えは SetWindowsHidden 経由で行う
         /// </summary>
         public bool isWindowsHidden { get; private set; }
-
-        /// <summary>非表示に入る前に GameView が最大化されていたか。復帰時に元の表示へ戻すために覚える</summary>
-        private bool _wasMaximizedBeforeHidden = false;
 
         /// <summary>
         /// 一時非表示中にメニューバーも隠すか。
@@ -36,8 +33,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ウィンドウの一時非表示を切り替える。
-        /// 非表示中はゲーム画面だけを見たい場面なので GameView を最大化し、
-        /// 復帰時は非表示前がウィンドウ表示だったときだけウィンドウ化へ戻す。
+        /// 非表示中はゲーム画面だけを見たい場面なので GameView を最大化と同じ直接描画にする。
+        /// 最大化の状態自体は変えないため、復帰時は非表示前の表示へそのまま戻る。
         /// hideMenuBar が効くのは非表示へ切り替わる遷移時だけで、
         /// 非表示中に呼び直してもメニューバーの表示は変わらない
         /// </summary>
@@ -51,30 +48,21 @@ namespace COM3D2.SceneEditor.Plugin
             isWindowsHidden = hidden;
             isMenuBarHidden = hidden && hideMenuBar;
 
-            // 連携プラグインのウィンドウも追従させる。GameView の最大化より先に配るのは、
-            // 最大化処理が例外で抜けても内部窓と外部窓の表示状態を食い違わせないため
+            // 連携プラグインのウィンドウも追従させる。GameView の描画切替より先に配るのは、
+            // 切替処理が例外で抜けても内部窓と外部窓の表示状態を食い違わせないため
             DockingHost.RefreshExternalTabVisible();
 
-            if (hidden)
-            {
-                _wasMaximizedBeforeHidden = gameViewManager.isMaximized;
-                gameViewManager.SetMaximized(true);
-            }
-            else if (!_wasMaximizedBeforeHidden)
-            {
-                gameViewManager.SetMaximized(false);
-            }
+            gameViewManager.UpdateDirectRender();
         }
 
         /// <summary>
-        /// 非表示状態を最大化と連動させずに落とす。
+        /// 非表示状態を描画方式と連動させずに落とす。
         /// ExitWindowMode のように GameView 側が自前で状態を畳む経路で使う
         /// </summary>
         public void ResetWindowsHidden()
         {
             isWindowsHidden = false;
             isMenuBarHidden = false;
-            _wasMaximizedBeforeHidden = false;
             DockingHost.RefreshExternalTabVisible();
         }
 
@@ -173,8 +161,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             GUIView.InitStyles();
 
-            // 登録順と同じ順で描き、重なり順を通常時と揃える
-            GameViewWindow.instance.OnGUI();
+            // 非表示中は直接描画なので GameView の枠 (タイトルバー・ボタン) も描かない。
+            // isShowWnd は非表示前の値を保つため、ここで呼ぶと枠だけが画面に残る
             if (!isMenuBarHidden)
             {
                 MenuBarWindow.instance.OnGUI();

@@ -76,8 +76,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static bool IsGameViewActiveAt(Vector2 guiPos)
         {
-            // 最大化中は全画面が3Dシーン。IMGUIウィンドウ上とギアメニュー上だけUIとして除外する
-            if (GameViewManager.instance.isMaximized)
+            // 直接描画中は全画面が3Dシーン。IMGUIウィンドウ上とギアメニュー上だけUIとして除外する
+            if (GameViewManager.instance.isDirectRender)
             {
                 return !GuiWindowTracker.IsOverWindowExcept(GameViewWindow.WINDOW_ID, guiPos) &&
                     !GameViewManager.instance.IsOverSystemUI(guiPos);

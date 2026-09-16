@@ -16,8 +16,16 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public bool isWindowMode { get; private set; }
 
-        /// <summary>最大化中か。RTを使わずメインカメラを画面へ直接描画する表示サブモード</summary>
+        /// <summary>最大化中か。ユーザー操作で選ぶ表示サブモードで config に保存される</summary>
         public bool isMaximized { get; private set; }
+
+        /// <summary>
+        /// RTを使わずメインカメラを画面へ直接描画中か。
+        /// 最大化中に加え、ウィンドウ一時非表示中 (WindowManager.isWindowsHidden) も
+        /// ゲーム画面だけを見たい場面なので直接描画にする。最大化と違い非表示は
+        /// isShowWnd や config を書き換えないため、復帰時は元のウィンドウ表示へそのまま戻る
+        /// </summary>
+        public bool isDirectRender { get; private set; }
 
         /// <summary>最大化中にNGUIを表示するか。ウィンドウ化に戻すと false へリセットされる</summary>
         public bool isUIVisible { get; private set; }
@@ -53,7 +61,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// GizmoHost の稼働判定と GameViewWindow の入力ガードで共有する
         /// </summary>
         public static bool isGizmoDispatchActive
-            => instance.isWindowMode && (GameViewWindow.instance.isShowWnd || instance.isMaximized);
+            => instance.isWindowMode && (GameViewWindow.instance.isShowWnd || instance.isDirectRender);
 
         /// <summary>GameView が描画するゲーム本体のカメラ。外部ギズモのディスパッチ先にも使う</summary>
         public static Camera mainCamera
@@ -119,6 +127,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             isWindowMode = false;
             isMaximized = false;
+            isDirectRender = false;
             isUIVisible = false;
             // 隠したままモードを抜けると、次にモードへ入ったときウィンドウが出てこない
             WindowManager.instance.ResetWindowsHidden();
@@ -140,12 +149,66 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 最大化 (直接描画) とウィンドウ化 (RT描画) を切り替える。
-        /// 最大化中は RT・クリアカメラを持たないため、関連処理は全て止まる
+        /// 最大化とウィンドウ化を切り替える。
+        /// 描画方式の切替は UpdateDirectRender に任せ、ここでは表示状態と config だけを持つ。
+        /// ウィンドウ一時非表示中に呼ばれた場合は直接描画のまま状態だけ変わり、
+        /// 復帰時にその状態へ描画方式が揃う
         /// </summary>
         public void SetMaximized(bool maximized)
         {
             if (!isWindowMode || isMaximized == maximized)
+            {
+                return;
+            }
+
+            // 描画方式の切替に失敗すると表示状態だけ先に変わって画面に何も出なくなるため、
+            // 切り替えられない状況では状態も変えずに抜ける
+            if (mainCamera == null)
+            {
+                MTEUtils.LogError("メインカメラが取得できないため表示モードを切り替えられません");
+                return;
+            }
+
+            if (maximized)
+            {
+                isMaximized = true;
+                GameViewWindow.instance.isShowWnd = false;
+                // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
+                // させたいので、config の保存済みグループ構成は上書きしない
+                WindowConnectManager.instance.OnWindowHidden(GameViewWindow.instance, save: false);
+                MTEUtils.Log("GameViewを最大化しました");
+            }
+            else
+            {
+                // NGUI表示は最大化中だけの設定なので、フラグを落とす前に戻す
+                SetUIVisible(false);
+                isMaximized = false;
+                GameViewWindow.instance.isShowWnd = true;
+                MTEUtils.Log("GameViewをウィンドウ化しました");
+            }
+
+            UpdateDirectRender();
+
+            // ExitWindowMode の解除 (モード終了) と違い、ここはユーザー操作・レイアウト適用に
+            // よる切替なので、次回の有効化で復元できるよう config へ残す
+            config.gameViewMaximized = maximized;
+            config.dirty = true;
+        }
+
+        /// <summary>
+        /// 最大化・ウィンドウ一時非表示の状態から描画方式を揃える。
+        /// 直接描画中は RT・クリアカメラを持たないため、関連処理は全て止まる。
+        /// メインカメラが取れず切り替えられなかった場合は LateUpdate から再試行される
+        /// </summary>
+        public void UpdateDirectRender()
+        {
+            if (!isWindowMode)
+            {
+                return;
+            }
+
+            var directRender = isMaximized || WindowManager.instance.isWindowsHidden;
+            if (isDirectRender == directRender)
             {
                 return;
             }
@@ -163,7 +226,7 @@ namespace COM3D2.SceneEditor.Plugin
                 gizmoRenderer.EndDrag();
             }
 
-            if (maximized)
+            if (directRender)
             {
                 // 他コード箇所 (ExitWindowMode 等) と同じく、自分が設定したRTのときだけ外す
                 if (camera.targetTexture == renderTexture)
@@ -174,30 +237,19 @@ namespace COM3D2.SceneEditor.Plugin
                 cameraManager.SyncToMainCamera();
                 ReleaseRenderTexture();
                 cameraManager.SetClearCameraActive(false, config.backgroundColor);
-                isMaximized = true;
-                GameViewWindow.instance.isShowWnd = false;
-                // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
-                // させたいので、config の保存済みグループ構成は上書きしない
-                WindowConnectManager.instance.OnWindowHidden(GameViewWindow.instance, save: false);
-                MTEUtils.Log("GameViewを最大化しました");
+                isDirectRender = true;
+                MTEUtils.Log("GameViewを直接描画に切り替えました");
             }
             else
             {
-                SetUIVisible(false);
                 CreateRenderTexture(Screen.width, Screen.height);
                 cameraManager.SetClearCameraActive(true, config.backgroundColor);
                 camera.targetTexture = renderTexture;
                 // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
                 cameraManager.SyncToMainCamera();
-                isMaximized = false;
-                GameViewWindow.instance.isShowWnd = true;
-                MTEUtils.Log("GameViewをウィンドウ化しました ({0}x{1})", _rtWidth, _rtHeight);
+                isDirectRender = false;
+                MTEUtils.Log("GameViewをRT描画に切り替えました ({0}x{1})", _rtWidth, _rtHeight);
             }
-
-            // ExitWindowMode の解除 (モード終了) と違い、ここはユーザー操作・レイアウト適用に
-            // よる切替なので、次回の有効化で復元できるよう config へ残す
-            config.gameViewMaximized = maximized;
-            config.dirty = true;
         }
 
         /// <summary>
@@ -275,10 +327,10 @@ namespace COM3D2.SceneEditor.Plugin
             displayGridRenderer.drawDisplayGrid = true;
         }
 
-        /// <summary>最大化中は GameView ウィンドウ非表示のままギズモ・骨格線を全画面で生かす</summary>
+        /// <summary>直接描画中は GameView ウィンドウ非表示のままギズモ・骨格線を全画面で生かす</summary>
         private static bool IsGizmoHostActive()
         {
-            return GameViewWindow.instance.isShowWnd || instance.isMaximized;
+            return GameViewWindow.instance.isShowWnd || instance.isDirectRender;
         }
 
         private void DetachGizmoRenderer()
@@ -343,9 +395,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (isMaximized)
+            // 切替時にメインカメラが取れなかった場合の再試行
+            UpdateDirectRender();
+
+            if (isDirectRender)
             {
-                // 最大化中はRTを持たないため、サイズ追従も targetTexture の保険も不要。
+                // 直接描画中はRTを持たないため、サイズ追従も targetTexture の保険も不要。
                 // UI表示ONの間は新たに出たUIカメラも隠さない
                 if (!isUIVisible)
                 {
