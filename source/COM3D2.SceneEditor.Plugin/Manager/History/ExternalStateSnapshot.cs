@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -44,9 +45,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         public IStateSnapshot CaptureCurrent()
         {
-            // 確定時に捕捉できなくても before 側の対象集合は変わらないので、
-            // null のままにせず「変化なし」扱いへ倒して無変化エントリとして捨てさせる
-            return Capture(_capture, _apply, _canApply) ?? this;
+            var current = Capture(_capture, _apply, _canApply);
+            if (current == null)
+            {
+                // 確定時に捕捉できなければ自分自身を返し、Approximately が true になって
+                // 無変化エントリとして捨てられる。値が変わっていた場合も履歴に残らないため、
+                // 黙って落とさずログで気付けるようにする
+                MTEUtils.LogWarning("外部プラグインの状態を捕捉できなかったため、この操作は履歴に残しません");
+                return this;
+            }
+            return current;
         }
 
         public void Apply(Maid maid)

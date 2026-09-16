@@ -554,3 +554,13 @@ git commit -m "feat(window): タイムライン対応 6 系統の値変更を Sc
 - カテゴリリセットの targetKey に enum の ToString を使う (🟡) — 確定待ちの区別にしか使わず永続化しないため、enum 名変更の影響は無い
 - 契約テストのアセンブリ解決 (🟡) — 既存 `TimelineLayerGateHostContractTests` / `AutoEditModeHostContractTests` と同じ経路で通っている
 
+
+## コードレビュー却下メモ
+
+- `HistoryAPI.BeforeEdit` が毎回クロージャを生成する (機能面 🟢) — `_pending` がある間は評価されず実捕捉は 1 ドラッグ 1 回。デリゲート 1 個の生成は許容
+- `description` の null 検査 (機能面 🟢) — 既存 `Register` と同水準。`string.Format` は null でも落ちない
+- `_beforeEditHooks` がコントローラ削除に追従しない (機能面 🟢) — `PostEffectManager.controllers` は起動時固定
+- 全プリセット XML を丸ごと戻す (機能面 🟢) — 計画で許容済みの設計
+- `BeforeEdit` の位置引数 (可読性 🟡、確信度 低) — 既存 `Register` 呼び出しと同じ様式を優先
+- `MainWindow.BeforeEdit` の同名 (可読性 🟢) — private static で名前空間により区別できる
+- 取り込み: `ExternalStateSnapshot.CaptureCurrent` の捕捉失敗を警告ログ付きにした (機能面 🟡 + 可読性 🟢)
