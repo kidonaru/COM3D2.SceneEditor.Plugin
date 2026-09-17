@@ -161,23 +161,54 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             MaidManager.onMaidSlotNoChanged += OnMaidSlotNoChanged;
             MaidCache.onMaidChanged += OnMaidChanged;
-            SE.MaidManipulateManager.instance.ikHoldController.onTargetCaptured += OnIKHoldTargetCaptured;
         }
+
+        /// <summary>編集開始スナップショットを取ったフレーム。固定 IK ぶんの取り直し待ちが無ければ -1</summary>
+        private int _ikHoldRebaselineSnapshotFrame = -1;
+
+        /// <summary>
+        /// 取り直し待ちが解けなくても、この猶予を過ぎたら取り直す (待ち続けると後の編集まで基準に取り込む)。
+        /// 通常は翌フレームで解けるので、これはアニメ指定なしの固定がモーション再生中で解かれない
+        /// といった場合の上限で、値そのものに精度の意味は無い
+        /// </summary>
+        private const int IK_HOLD_REBASELINE_MAX_WAIT_FRAMES = 3;
 
         /// <summary>
         /// 固定 IK が動かすボーンだけ編集開始スナップショットを取り直す。
-        /// スナップショットは Update 中に取るが、固定目標の取り直しと解決は翌フレームの
-        /// LateUpdate で確定する (ゲーム側の体の高さオフセット・前腕スケール適用後)。
-        /// 確定前の姿勢を基準のままにすると、固定で動いた腕脚や IK 目標が触っていないのに
-        /// 差分として登録される。全ボーンを取り直さないのは、編集モードへ自動で入った同じ
-        /// フレームに書かれたユーザーの変更まで基準に取り込んでしまわないため
+        /// スナップショットは Update 中に取るが、その姿勢はまだ固定が効いておらず、しかもゲーム側の
+        /// TBody.LateUpdate (体の高さオフセット・前腕スケール) がプラグインより後に走るため、
+        /// 固定後の姿勢が落ち着くのは翌フレームの LateUpdate。確定前の姿勢を基準のままにすると、
+        /// 固定で動いた腕脚や IK 目標が触っていないのに差分として登録される。
+        /// 全ボーンを取り直さないのは、編集モードへ自動で入った同じフレームに書かれた
+        /// ユーザーの変更まで基準に取り込んでしまわないため
         /// </summary>
-        private void OnIKHoldTargetCaptured(Maid maid)
+        private void RebaselineIKHoldBonesIfSettled()
         {
-            if (_initialEditFrames.Count == 0 || maid == null)
+            if (_ikHoldRebaselineSnapshotFrame < 0)
             {
                 return;
             }
+
+            var maid = this.maid;
+            if (_initialEditFrames.Count == 0 || maid == null)
+            {
+                _ikHoldRebaselineSnapshotFrame = -1;
+                return;
+            }
+
+            var elapsed = Time.frameCount - _ikHoldRebaselineSnapshotFrame;
+            var ikHoldController = SE.MaidManipulateManager.instance.ikHoldController;
+            if (elapsed < 1)
+            {
+                // 同一フレームの LateUpdate ではゲーム側の補正がまだ入っていない
+                return;
+            }
+            if (ikHoldController.HasPendingReset(maid) && elapsed < IK_HOLD_REBASELINE_MAX_WAIT_FRAMES)
+            {
+                // 取り直し待ちが残っていれば、猶予フレーム内は確定を待つ
+                return;
+            }
+            _ikHoldRebaselineSnapshotFrame = -1;
 
             foreach (var layer in editTargetLayers)
             {
@@ -300,6 +331,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     MTEUtils.LogException(e);
                 }
             }
+
+            // MaidManipulateManager (固定 IK の解決) の LateUpdate はこれより先に走る
+            RebaselineIKHoldBonesIfSettled();
         }
 
         public bool IsValidFileName(string fileName)
@@ -2596,8 +2630,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             OnPoseEditEnd();
 
-            // 固定 IK が動かす腕脚はここでは確定していない (取り直しは翌フレームの LateUpdate)。
-            // そのぶんは OnIKHoldTargetCaptured で後から取り直す
+            // 固定 IK が動かす腕脚はここでは確定していない。そのぶんは固定後の姿勢が落ち着いた
+            // 翌フレームの LateUpdate で取り直す (RebaselineIKHoldBonesIfSettled)
+            _ikHoldRebaselineSnapshotFrame = Time.frameCount;
 
             // MotionTimelineLayer.UpdateFrame は initialEditFrame の有無で挙動を変えるため、
             // 全レイヤーのスナップショットを取り終えてから initialEditFrame を設定する
@@ -2663,6 +2698,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private void OnPoseEditEnd()
         {
             _initialEditFrames.Clear();
+            _ikHoldRebaselineSnapshotFrame = -1;
 
             if (initialEditFrame != null)
             {

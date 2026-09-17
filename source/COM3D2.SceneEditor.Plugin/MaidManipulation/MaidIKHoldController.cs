@@ -109,11 +109,26 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly string[] SolvedBoneNames = ChainDefs.SelectMany(chain => chain).ToArray();
 
         /// <summary>
-        /// 固定目標の取り直しが確定した直後に、そのメイドを渡して通知する。
-        /// タイムラインはこれを受けて編集開始スナップショットのうち固定が動かすボーンを取り直す
-        /// (取り直し前の姿勢を基準にすると、固定で動いた腕脚が触っていないのに差分扱いになる)
+        /// 固定目標の取り直し待ちが残っているか (要求フレーム中は解かないため、その間の
+        /// ポーズはまだ固定が効いていない)。タイムラインが編集開始スナップショットのうち
+        /// 固定が動かすボーンを取り直すタイミングを決めるのに使う
         /// </summary>
-        public event Action<Maid> onTargetCaptured;
+        public bool HasPendingReset(Maid maid)
+        {
+            MaidEntry entry;
+            if (maid == null || !_entries.TryGetValue(maid, out entry))
+            {
+                return false;
+            }
+            foreach (var entity in entry.entities)
+            {
+                if (entity.isHold && entity.isResetRequested)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private readonly Dictionary<Maid, MaidEntry> _entries = new Dictionary<Maid, MaidEntry>();
 
@@ -557,7 +572,6 @@ namespace COM3D2.SceneEditor.Plugin
         private void UpdateMaid(Maid maid, MaidEntry entry)
         {
             var isMotionStopped = MaidMotionState.IsMotionStopped(maid);
-            var captured = false;
 
             // 同一チェーンで Joint と Tip を両方固定した場合、列挙順で後の Tip が
             // チェーン全体を解き直すため実質 Tip 固定が勝つ（MTE と同じ挙動）
@@ -605,7 +619,6 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     entity.targetPosition = GetPointPosition(entry, type);
                     entity.ClearResetRequest();
-                    captured = true;
                 }
 
                 var targetPosition = entity.targetPosition;
@@ -637,11 +650,6 @@ namespace COM3D2.SceneEditor.Plugin
                 rootBone.localPosition = savedRootLocalPos;
                 midBone.localPosition = savedMidLocalPos;
                 tipBone.localPosition = savedTipLocalPos;
-            }
-
-            if (captured)
-            {
-                onTargetCaptured?.Invoke(maid);
             }
         }
 
