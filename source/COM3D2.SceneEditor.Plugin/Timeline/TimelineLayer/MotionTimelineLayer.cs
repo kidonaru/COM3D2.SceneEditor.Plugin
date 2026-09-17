@@ -435,6 +435,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             InitMenuItems();
         }
 
+        /// <summary>同じメイドのメイド移動レイヤーが存在するか</summary>
+        private bool HasMoveLayer()
+        {
+            return timelineManager.GetLayer<MoveTimelineLayer>(slotNo) != null;
+        }
+
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
             var cacheBoneData = maidManager.cacheBoneData;
@@ -451,8 +457,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // 編集モード中の移動は中心ボーンに反映  
-            if (timelineManager.initialEditFrame != null)
+            // 編集モード中の移動は中心ボーンに反映。
+            // メイド移動レイヤーがあるときはそちらが maid.transform をキーに焼くので書き戻さない。
+            // 書き戻すと maid.transform が編集開始位置へ戻り、移動レイヤー側で差分が消える
+            if (timelineManager.initialEditFrame != null && !HasMoveLayer())
             {
                 var targetPosition = rootBone.transform.position;
                 var targetRotation = rootBone.transform.rotation;
