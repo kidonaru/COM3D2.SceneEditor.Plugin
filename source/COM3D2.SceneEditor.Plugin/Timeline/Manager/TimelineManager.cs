@@ -161,6 +161,59 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             MaidManager.onMaidSlotNoChanged += OnMaidSlotNoChanged;
             MaidCache.onMaidChanged += OnMaidChanged;
+            SE.MaidManipulateManager.instance.ikHoldController.onTargetCaptured += OnIKHoldTargetCaptured;
+        }
+
+        /// <summary>
+        /// 固定 IK が動かすボーンだけ編集開始スナップショットを取り直す。
+        /// スナップショットは Update 中に取るが、固定目標の取り直しと解決は翌フレームの
+        /// LateUpdate で確定する (ゲーム側の体の高さオフセット・前腕スケール適用後)。
+        /// 確定前の姿勢を基準のままにすると、固定で動いた腕脚や IK 目標が触っていないのに
+        /// 差分として登録される。全ボーンを取り直さないのは、編集モードへ自動で入った同じ
+        /// フレームに書かれたユーザーの変更まで基準に取り込んでしまわないため
+        /// </summary>
+        private void OnIKHoldTargetCaptured(Maid maid)
+        {
+            if (_initialEditFrames.Count == 0 || maid == null)
+            {
+                return;
+            }
+
+            foreach (var layer in editTargetLayers)
+            {
+                var motionLayer = layer as MotionTimelineLayer;
+                if (motionLayer == null || motionLayer.maid != maid)
+                {
+                    continue;
+                }
+
+                FrameData initialFrame;
+                if (!_initialEditFrames.TryGetValue(layer, out initialFrame))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // UpdateFrame はキーフレーム登録と同じ経路。編集中の移動は中心ボーンへ反映済みで
+                    // maid.transform は編集開始位置のままなので、その書き戻しはここでは無変化
+                    var tmpFrame = layer.CreateFrame(currentFrameNo);
+                    layer.UpdateFrame(tmpFrame, initialEdit: true);
+                    foreach (var name in SE.MaidIKHoldController.SolvedBoneNames)
+                    {
+                        initialFrame.SetBone(tmpFrame.GetBone(name));
+                    }
+                    foreach (var name in MaidCache.ikHoldTypeMap.Keys)
+                    {
+                        initialFrame.SetBone(tmpFrame.GetBone(name));
+                    }
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogError("固定 IK 確定後のスナップショット取り直しに失敗しました layer={0}", layer.layerName);
+                    MTEUtils.LogException(e);
+                }
+            }
         }
 
         public override void Update()
@@ -2543,10 +2596,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             OnPoseEditEnd();
 
-            // 固定 IK・接地は LateUpdate で解かれるため、ここ (Update 中) でボーンを読むと
-            // 固定が効く前のポーズがスナップショットになり、腕脚が触っていないのに差分扱いになる。
-            // 先に解いて「固定が効いた後」を基準にする
-            SE.MaidManipulateManager.instance.ikHoldController.Solve();
+            // 固定 IK が動かす腕脚はここでは確定していない (取り直しは翌フレームの LateUpdate)。
+            // そのぶんは OnIKHoldTargetCaptured で後から取り直す
 
             // MotionTimelineLayer.UpdateFrame は initialEditFrame の有無で挙動を変えるため、
             // 全レイヤーのスナップショットを取り終えてから initialEditFrame を設定する

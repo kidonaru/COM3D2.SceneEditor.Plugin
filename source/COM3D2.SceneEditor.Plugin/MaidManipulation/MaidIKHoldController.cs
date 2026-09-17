@@ -49,8 +49,24 @@ namespace COM3D2.SceneEditor.Plugin
             public bool isHold;
             /// <summary>モーション再生中も固定を効かせる（MTE の IK アニメーション相当）</summary>
             public bool isAnime;
-            public bool resetRequested;
+            /// <summary>
+            /// 目標を現在のボーン位置から取り直す要求を出したフレーム。
+            /// 取り直しは翌フレーム以降に行う (MaidIKHoldResetGate 参照)
+            /// </summary>
+            public int resetRequestedFrame = MaidIKHoldResetGate.NoRequest;
             public Vector3 targetPosition;
+
+            public bool isResetRequested => resetRequestedFrame != MaidIKHoldResetGate.NoRequest;
+
+            public void RequestReset()
+            {
+                resetRequestedFrame = Time.frameCount;
+            }
+
+            public void ClearResetRequest()
+            {
+                resetRequestedFrame = MaidIKHoldResetGate.NoRequest;
+            }
         }
 
         /// <summary>メイド 1 人ぶんの固定状態とチェーン</summary>
@@ -88,6 +104,16 @@ namespace COM3D2.SceneEditor.Plugin
             "肘(右)", "手首(右)", "肘(左)", "手首(左)",
             "膝(右)", "足首(右)", "膝(左)", "足首(左)",
         };
+
+        /// <summary>固定の解決で回転を書き換えるボーン名 (四肢チェーンの全ボーン)</summary>
+        public static readonly string[] SolvedBoneNames = ChainDefs.SelectMany(chain => chain).ToArray();
+
+        /// <summary>
+        /// 固定目標の取り直しが確定した直後に、そのメイドを渡して通知する。
+        /// タイムラインはこれを受けて編集開始スナップショットのうち固定が動かすボーンを取り直す
+        /// (取り直し前の姿勢を基準にすると、固定で動いた腕脚が触っていないのに差分扱いになる)
+        /// </summary>
+        public event Action<Maid> onTargetCaptured;
 
         private readonly Dictionary<Maid, MaidEntry> _entries = new Dictionary<Maid, MaidEntry>();
 
@@ -264,7 +290,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             entity.isHold = hold;
-            entity.resetRequested = true;
+            entity.RequestReset();
 
             // 固定はモーション停止中しか解かないため、ボーンを触っていなくても
             // ON にした時点で停止させてすぐ効くようにする（ボーンドラッグ開始と同じ扱い）。
@@ -320,7 +346,7 @@ namespace COM3D2.SceneEditor.Plugin
             var entity = entry.entities[(int)type];
             entity.targetPosition = position;
             // 外から位置を指定した以上、現在のボーン位置で取り直させてはいけない
-            entity.resetRequested = false;
+            entity.ClearResetRequest();
         }
 
         /// <summary>
@@ -341,7 +367,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     // モード外の間に変わったポーズへ固定位置を取り直す。
                     // 残しておくと再開時に古い位置へ引き戻してしまう
-                    entity.resetRequested = true;
+                    entity.RequestReset();
                     hasHold = true;
                 }
 
@@ -381,7 +407,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 foreach (var entity in entry.entities)
                 {
-                    entity.resetRequested = true;
+                    entity.RequestReset();
                 }
             }
         }
@@ -438,7 +464,7 @@ namespace COM3D2.SceneEditor.Plugin
             MaidEntry entry;
             if (_entries.TryGetValue(maid, out entry))
             {
-                entry.entities[(int)type].resetRequested = true;
+                entry.entities[(int)type].RequestReset();
             }
         }
 
@@ -460,19 +486,12 @@ namespace COM3D2.SceneEditor.Plugin
             ResetTargetPosition(maid, MaidIKHoldType.Foot_R_Tip);
         }
 
-        public void LateUpdate()
-        {
-            Solve();
-        }
-
         /// <summary>
-        /// 全メイドの固定を今すぐ解く。通常は LateUpdate から呼ぶが、タイムラインの
-        /// 編集開始スナップショットは Update 中に取られるため、固定が効く前のポーズを
-        /// 基準にしてしまう。スナップショット直前にここで解いておき、固定・接地で動く
-        /// 腕脚が「触っていないのに差分あり」にならないようにする。
-        /// 1 フレームに複数回呼ばれても目標は同じなので冪等
+        /// 全メイドの固定を解く。ゲーム側の TBody.LateUpdate (体の高さオフセット・前腕スケール)
+        /// はこれより後に走るため、ポーズが変わったフレームの目標取り直しは翌フレームへ回す
+        /// (MaidIKHoldResetGate)
         /// </summary>
-        public void Solve()
+        public void LateUpdate()
         {
             // 消滅したメイドのエントリを片づける。破棄済みボーンへ触らないよう、解く前に必ず通す
             List<Maid> deadMaids = null;
@@ -538,6 +557,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void UpdateMaid(Maid maid, MaidEntry entry)
         {
             var isMotionStopped = MaidMotionState.IsMotionStopped(maid);
+            var captured = false;
 
             // 同一チェーンで Joint と Tip を両方固定した場合、列挙順で後の Tip が
             // チェーン全体を解き直すため実質 Tip 固定が勝つ（MTE と同じ挙動）
@@ -574,10 +594,18 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                if (entity.resetRequested)
+                if (entity.isResetRequested)
                 {
+                    // 要求と同じフレームはゲーム側 LateUpdate (体の高さオフセット・前腕スケール) が
+                    // ポーズを確定させる前なので取り直さず、解きもしない。確定前の位置を目標にすると
+                    // 翌フレームに腕脚が引き戻され、触っていないボーンが動いてしまう
+                    if (!MaidIKHoldResetGate.ShouldCapture(entity.resetRequestedFrame, Time.frameCount))
+                    {
+                        continue;
+                    }
                     entity.targetPosition = GetPointPosition(entry, type);
-                    entity.resetRequested = false;
+                    entity.ClearResetRequest();
+                    captured = true;
                 }
 
                 var targetPosition = entity.targetPosition;
@@ -609,6 +637,11 @@ namespace COM3D2.SceneEditor.Plugin
                 rootBone.localPosition = savedRootLocalPos;
                 midBone.localPosition = savedMidLocalPos;
                 tipBone.localPosition = savedTipLocalPos;
+            }
+
+            if (captured)
+            {
+                onTargetCaptured?.Invoke(maid);
             }
         }
 
