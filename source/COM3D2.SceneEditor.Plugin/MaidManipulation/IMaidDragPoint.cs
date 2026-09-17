@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -45,14 +46,36 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public static string draggingBoneName { get; private set; }
 
+        /// <summary>
+        /// ドラッグ点を掴んでいるか。ボーン名は取れないことがある (ボーン未解決の点) ため、
+        /// 掴み状態そのものは draggingBoneName と別に持つ
+        /// </summary>
+        public static bool isDragging { get; private set; }
+
         public static void BeginDrag(string boneName)
         {
             draggingBoneName = boneName;
+            isDragging = true;
         }
 
         public static void EndDrag()
         {
             draggingBoneName = null;
+            isDragging = false;
+        }
+
+        /// <summary>
+        /// ドラッグ編集の完了通知（引数は編集対象のメイド）。
+        /// タイムラインの自動キーフレーム登録などが購読する。
+        /// 各ドラッグ点の正常終了 (EndDrag) からのみ発火し、
+        /// キャンセルやコンポーネント破棄による終了では発火しない。
+        /// EndDrag() は掴み状態のクリアで、この完了通知とは別物
+        /// </summary>
+        public static event Action<Maid> onDragCompleted;
+
+        public static void NotifyDragCompleted(Maid maid)
+        {
+            onDragCompleted?.Invoke(maid);
         }
     }
 }

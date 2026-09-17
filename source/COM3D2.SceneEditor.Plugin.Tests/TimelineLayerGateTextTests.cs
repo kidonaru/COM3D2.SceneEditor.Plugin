@@ -1,0 +1,97 @@
+﻿using COM3D2.SceneEditor.Plugin;
+using Xunit;
+
+namespace COM3D2.SceneEditor.Plugin.Tests
+{
+    public class TimelineLayerGateTextTests
+    {
+        [Fact]
+        public void タイムライン未読込なら常にNoTimeline()
+        {
+            Assert.Equal(TimelineLayerGateState.NoTimeline,
+                TimelineLayerGateText.Resolve(false, false, false, false));
+            // レイヤーが存在していても未読込が優先される
+            Assert.Equal(TimelineLayerGateState.NoTimeline,
+                TimelineLayerGateText.Resolve(false, true, true, true));
+        }
+
+        [Fact]
+        public void メイドが必要で見つからなければMaidNotFound()
+        {
+            Assert.Equal(TimelineLayerGateState.MaidNotFound,
+                TimelineLayerGateText.Resolve(true, true, false, false));
+            // メイド不要なら maidFound は無視される
+            Assert.Equal(TimelineLayerGateState.Missing,
+                TimelineLayerGateText.Resolve(true, false, false, false));
+        }
+
+        [Fact]
+        public void レイヤーの有無でMissingとReadyが分かれる()
+        {
+            Assert.Equal(TimelineLayerGateState.Missing,
+                TimelineLayerGateText.Resolve(true, true, true, false));
+            Assert.Equal(TimelineLayerGateState.Ready,
+                TimelineLayerGateText.Resolve(true, true, true, true));
+        }
+
+        [Fact]
+        public void 文言にレイヤー表示名が埋まる()
+        {
+            Assert.Equal("「メイド表情」レイヤーが未登録のためタイムラインに記録されません",
+                TimelineLayerGateText.NoticeText("メイド表情"));
+            Assert.Equal("「メイド表情」レイヤーを追加",
+                TimelineLayerGateText.AddButtonText("メイド表情"));
+        }
+
+        [Fact]
+        public void アクティブレイヤーは表示モードによらず表示中()
+        {
+            Assert.True(TimelineLayerGateText.IsLayerDisplayed(true, false, true));
+            Assert.True(TimelineLayerGateText.IsLayerDisplayed(true, true, false));
+        }
+
+        [Fact]
+        public void レイヤーモードでは非アクティブなら非表示()
+        {
+            Assert.False(TimelineLayerGateText.IsLayerDisplayed(false, false, true));
+        }
+
+        [Fact]
+        public void カテゴリモードでは同カテゴリなら表示中()
+        {
+            // サブカメラがアクティブでもカメラは同カテゴリなので表示中 (記録される)
+            Assert.True(TimelineLayerGateText.IsLayerDisplayed(false, true, true));
+            Assert.False(TimelineLayerGateText.IsLayerDisplayed(false, true, false));
+        }
+
+        [Fact]
+        public void 非表示案内の文言にレイヤー表示名が埋まる()
+        {
+            Assert.Equal("「カメラ」レイヤーが非表示のためタイムラインに記録されません",
+                TimelineLayerGateText.HiddenNoticeText("カメラ"));
+            Assert.Equal("「カメラ」レイヤーを表示",
+                TimelineLayerGateText.ShowButtonText("カメラ"));
+        }
+
+        [Fact]
+        public void 状態の数値は外部プラグインとの契約なので固定()
+        {
+            // TimelineLayerGateHost.GetState が int で返す値。MTEUtils の
+            // TimelineLayerGateClient がこの数値で解釈するため、並び替え・挿入は禁止
+            Assert.Equal(0, (int)TimelineLayerGateState.NoTimeline);
+            Assert.Equal(1, (int)TimelineLayerGateState.MaidNotFound);
+            Assert.Equal(2, (int)TimelineLayerGateState.Missing);
+            Assert.Equal(3, (int)TimelineLayerGateState.Ready);
+        }
+
+        [Fact]
+        public void レイヤー名は外部プラグインとの文字列契約なので固定()
+        {
+            // TimelineLayerGateHost はレイヤーを Type ではなくクラス名文字列で受け取る。
+            // 外部プラグイン側は同じ文字列を直書きしており、コンパイル時参照禁止の制約上
+            // リネームを型システムで検知できないため、ここで名前を固定する
+            Assert.Equal("PostEffectTimelineLayer",
+                typeof(COM3D2.MotionTimelineEditor.Plugin.PostEffectTimelineLayer).Name);
+        }
+    }
+}

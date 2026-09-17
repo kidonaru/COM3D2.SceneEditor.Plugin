@@ -51,7 +51,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var prefix = new HarmonyMethod(AccessTools.Method(typeof(CameraControlArbiter), nameof(SetControlPrefix)));
                 harmony.Patch(original, prefix: prefix);
                 isEnabled = true;
-                MTEUtils.Log("CameraMain.SetControl のフックに成功しました");
+                MTEUtils.LogDebug("CameraMain.SetControl のフックに成功しました");
             }
             catch (Exception e)
             {
@@ -70,7 +70,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var prefix = new HarmonyMethod(AccessTools.Method(typeof(CameraControlArbiter), nameof(ResetInputAxesPrefix)));
                 harmony.Patch(original, prefix: prefix);
-                MTEUtils.Log("Input.ResetInputAxes のフックに成功しました");
+                MTEUtils.LogDebug("Input.ResetInputAxes のフックに成功しました");
             }
             catch (Exception e)
             {

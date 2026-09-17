@@ -1,6 +1,7 @@
 using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -50,6 +51,12 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         private SceneViewCameraController _cameraController = null;
+
+        /// <summary>
+        /// SceneView カメラのメイド追従設定。
+        /// コントローラはシーン遷移で作り直されるため、設定はウィンドウ側で持ち越す
+        /// </summary>
+        private readonly MTEP.MaidFollowState _cameraFollow = new MTEP.MaidFollowState();
         private bool _dragging = false;
 
         /// <summary>SceneView カメラの操作状態。CameraWindow からの数値編集にも使う (非表示中は null)</summary>
@@ -167,7 +174,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _cameraController = new SceneViewCameraController(camera.transform);
+            _cameraController = new SceneViewCameraController(camera.transform)
+            {
+                follow = _cameraFollow,
+            };
         }
 
         protected override void OnResizeEnd()
@@ -269,19 +279,21 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>背景/メイド/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
+        /// <summary>背景/メイド/モデル/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
         protected override void DrawToolbar()
         {
             var bgIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg);
             var maidIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Maid);
+            var modelIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model);
             var gizmoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Gizmo);
             var orthoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Ortho);
             var autoFocusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
             var spaceOption = GizmoRenderer.CreateToolRowOption();
 
-            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 5 箇所分
-            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 5 +
+            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 6 箇所分
+            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 6 +
                 GetToolbarToggleWidth(bgIcon) + GetToolbarToggleWidth(maidIcon) +
+                GetToolbarToggleWidth(modelIcon) +
                 GetToolbarToggleWidth(gizmoIcon) + GetToolbarToggleWidth(orthoIcon) +
                 GetToolbarToggleWidth(autoFocusIcon) +
                 GizmoToolRowDrawer.GetSpaceButtonWidth(spaceOption, TOOLBAR_ITEM_HEIGHT);
@@ -300,6 +312,8 @@ namespace COM3D2.SceneEditor.Plugin
                 value => config.sceneViewShowBg = value);
             DrawToolbarToggle(view, maidIcon, "メイド", config.sceneViewShowMaid,
                 value => config.sceneViewShowMaid = value);
+            DrawToolbarToggle(view, modelIcon, "モデル", config.sceneViewShowModel,
+                value => config.sceneViewShowModel = value);
             DrawToolbarToggle(view, gizmoIcon, "ギズモ", config.sceneViewShowGizmo,
                 value => config.sceneViewShowGizmo = value);
             DrawToolbarToggle(view, orthoIcon, "平行投影", config.sceneViewOrthographic,
@@ -410,7 +424,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (icon != null)
             {
                 view.DrawToggle(icon, value, TOOLBAR_ITEM_HEIGHT, TOOLBAR_ITEM_HEIGHT,
-                    onChanged, TOOLBAR_ICON_OFFSET);
+                    onChanged, TOOLBAR_ICON_OFFSET, label);
             }
             else
             {
@@ -496,9 +510,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             // 3. 左クリック開始: 自前ギズモ → 外部ギズモ → ボーンピック → 選択の順に試す。
             //    ギズモ類はハンドルの明示 UI なのでシーン内容 (関節・オブジェクト) より優先する
-            //    (Alt 押下中はオービット操作)
             else if (Input.GetMouseButtonDown(0) &&
-                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt) &&
                 sceneViewManager.isActive && IsSceneViewActiveAt(guiPos))
             {
                 var rtPoint = GuiToRtPoint(guiPos);
@@ -617,13 +629,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _dragging = true;
                 _cameraController.Rotate(mouseAxis);
-                UpdateFlyThrough();
-            }
-            else if (Input.GetMouseButton(0) &&
-                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
-            {
-                _dragging = true;
-                _cameraController.Rotate(mouseAxis);
             }
             else if (Input.GetMouseButton(2))
             {
@@ -646,21 +651,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 FocusOn(selectionManager.selectedObject, true);
             }
-        }
-
-        /// <summary>右ボタン押下中の WASD/QE フライスルー</summary>
-        private void UpdateFlyThrough()
-        {
-            var dir = Vector3.zero;
-            if (Input.GetKey(KeyCode.W)) dir += Vector3.forward;
-            if (Input.GetKey(KeyCode.S)) dir += Vector3.back;
-            if (Input.GetKey(KeyCode.A)) dir += Vector3.left;
-            if (Input.GetKey(KeyCode.D)) dir += Vector3.right;
-            if (Input.GetKey(KeyCode.E)) dir += Vector3.up;
-            if (Input.GetKey(KeyCode.Q)) dir += Vector3.down;
-
-            _cameraController.Fly(dir, Time.deltaTime,
-                Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
         }
 
         /// <summary>ortho 中はピボット距離から表示範囲を毎フレーム同期し、ホイールズームを効かせる</summary>

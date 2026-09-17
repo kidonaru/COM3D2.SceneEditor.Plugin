@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -34,6 +35,7 @@ namespace COM3D2.SceneEditor.Plugin
                 state.mainColor = mainLight.color;
                 state.mainIntensity = mainLight.intensity;
                 state.mainShadowStrength = mainLight.shadowStrength;
+                state.mainShadowBias = mainLight.shadowBias;
             }
 
             foreach (var light in lightManager.lights)
@@ -42,6 +44,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
+                var followLight = LightRowDrawer.FindFollowLight(light);
                 state.additionalLights.Add(new ScenePresetAdditionalLight
                 {
                     type = (int)light.type,
@@ -52,6 +55,12 @@ namespace COM3D2.SceneEditor.Plugin
                     range = light.range,
                     spotAngle = light.spotAngle,
                     enabled = light.enabled,
+                    // 本プラグインが書いたマスク以外は判別できないため「全て」として記録する
+                    target = (int)LightTarget.FromCullingMask(light.cullingMask),
+                    shadowStrength = light.shadowStrength,
+                    shadowBias = light.shadowBias,
+                    maidSlotNo = followLight != null ? followLight.maidSlotNo : -1,
+                    followOffset = followLight != null ? followLight.offset : Vector3.zero,
                 });
             }
 
@@ -81,6 +90,8 @@ namespace COM3D2.SceneEditor.Plugin
                 lightMain.SetColor(state.mainColor);
                 lightMain.SetIntensity(state.mainIntensity);
                 lightMain.SetShadowStrength(state.mainShadowStrength);
+                // shadowBias に LightMain の API は無いため Light へ直接書く（LightRowDrawer と同じ扱い）
+                mainLight.shadowBias = state.mainShadowBias;
             }
 
             var lights = lightManager.lights;
@@ -97,9 +108,18 @@ namespace COM3D2.SceneEditor.Plugin
                 lightManager.RemoveLight(last);
             }
 
+            var added = false;
             while (lights.Count < state.additionalLights.Count)
             {
                 lightManager.AddLight();
+                added = true;
+            }
+
+            // 追従はタイムライン側の StudioLightStat が持つ。新規生成した灯は次の定期収集
+            // (30 フレーム間隔) まで登録されず追従が復元できないため、即時に収集させる
+            if (added)
+            {
+                MTEP.StudioLightManager.instance.LateUpdate(true);
             }
 
             for (var i = 0; i < state.additionalLights.Count; i++)
@@ -124,6 +144,17 @@ namespace COM3D2.SceneEditor.Plugin
             light.range = lightState.range;
             light.spotAngle = lightState.spotAngle;
             light.enabled = lightState.enabled;
+            light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(lightState.target));
+            light.shadowStrength = lightState.shadowStrength;
+            light.shadowBias = lightState.shadowBias;
+
+            // 追従はタイムライン側の収集後にしか触れない (未収集なら追従行も出ていない)
+            var followLight = LightRowDrawer.FindFollowLight(light);
+            if (followLight != null)
+            {
+                followLight.maidSlotNo = lightState.maidSlotNo;
+                followLight.offset = lightState.followOffset;
+            }
         }
 
         public void AddBones(IEnumerable<Transform> targetBones)
@@ -147,6 +178,7 @@ namespace COM3D2.SceneEditor.Plugin
                 || _state.mainColor != o._state.mainColor
                 || !Mathf.Approximately(_state.mainIntensity, o._state.mainIntensity)
                 || !Mathf.Approximately(_state.mainShadowStrength, o._state.mainShadowStrength)
+                || !Mathf.Approximately(_state.mainShadowBias, o._state.mainShadowBias)
                 || _state.additionalLights.Count != o._state.additionalLights.Count)
             {
                 return false;
@@ -163,7 +195,12 @@ namespace COM3D2.SceneEditor.Plugin
                     || a.color != b.color
                     || !Mathf.Approximately(a.intensity, b.intensity)
                     || !Mathf.Approximately(a.range, b.range)
-                    || !Mathf.Approximately(a.spotAngle, b.spotAngle))
+                    || !Mathf.Approximately(a.spotAngle, b.spotAngle)
+                    || a.target != b.target
+                    || !Mathf.Approximately(a.shadowStrength, b.shadowStrength)
+                    || !Mathf.Approximately(a.shadowBias, b.shadowBias)
+                    || a.maidSlotNo != b.maidSlotNo
+                    || a.followOffset != b.followOffset)
                 {
                     return false;
                 }

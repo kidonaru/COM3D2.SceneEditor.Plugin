@@ -16,10 +16,55 @@ namespace COM3D2.SceneEditor.Plugin
         /// プラグインのウィンドウを一時的に隠しているか。
         /// isShowWnd を書き換えずに描画だけ止めるため、復帰時は配置・タブ・連結がそのまま戻る。
         /// 一時的な表示切替なので config へは保存しない (セッション限り)。
-        /// 復帰手段はメニューバーの「ウィンドウ表示」トグルだけなので、
-        /// あちらに表示条件を付けるならここから戻れる経路も併せて用意すること
+        /// 復帰手段はメニューバーの「ウィンドウ表示」トグルとキーバインドだけで、
+        /// キーバインドから隠したときはメニューバーも消えるためキーだけになる
+        /// (isMenuBarHidden)。キーバインド側に発動条件を足すなら戻れなくなるので、
+        /// ここから戻れる経路も併せて用意すること。
+        /// GameView の描画方式も連動させるため、書き換えは SetWindowsHidden 経由で行う
         /// </summary>
-        public bool isWindowsHidden { get; set; }
+        public bool isWindowsHidden { get; private set; }
+
+        /// <summary>
+        /// 一時非表示中にメニューバーも隠すか。
+        /// キーバインドからの切替はゲーム画面だけを見たい操作なのでメニューバーごと消す。
+        /// メニューバーのトグルから隠したときは戻す入口を残すため隠さない
+        /// </summary>
+        public bool isMenuBarHidden { get; private set; }
+
+        /// <summary>
+        /// ウィンドウの一時非表示を切り替える。
+        /// 非表示中はゲーム画面だけを見たい場面なので GameView を最大化と同じ直接描画にする。
+        /// 最大化の状態自体は変えないため、復帰時は非表示前の表示へそのまま戻る。
+        /// hideMenuBar が効くのは非表示へ切り替わる遷移時だけで、
+        /// 非表示中に呼び直してもメニューバーの表示は変わらない
+        /// </summary>
+        public void SetWindowsHidden(bool hidden, bool hideMenuBar = false)
+        {
+            if (isWindowsHidden == hidden)
+            {
+                return;
+            }
+
+            isWindowsHidden = hidden;
+            isMenuBarHidden = hidden && hideMenuBar;
+
+            // 連携プラグインのウィンドウも追従させる。GameView の描画切替より先に配るのは、
+            // 切替処理が例外で抜けても内部窓と外部窓の表示状態を食い違わせないため
+            DockingHost.RefreshExternalTabVisible();
+
+            gameViewManager.UpdateDirectRender();
+        }
+
+        /// <summary>
+        /// 非表示状態を描画方式と連動させずに落とす。
+        /// ExitWindowMode のように GameView 側が自前で状態を畳む経路で使う
+        /// </summary>
+        public void ResetWindowsHidden()
+        {
+            isWindowsHidden = false;
+            isMenuBarHidden = false;
+            DockingHost.RefreshExternalTabVisible();
+        }
 
         private static WindowManager _instance = null;
         public static WindowManager instance
@@ -55,13 +100,27 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(MaidUndressWindow.instance);
             AddWindow(MaidGravityWindow.instance);
             AddWindow(BoneEditWindow.instance);
+            AddWindow(ShapeKeyEditWindow.instance);
+            AddWindow(MaterialEditWindow.instance);
             AddWindow(CameraWindow.instance);
             AddWindow(BackgroundWindow.instance);
-            AddWindow(BgmWindow.instance);
+            AddWindow(SoundWindow.instance);
+            AddWindow(LiveEffectWindow.instance);
+            AddWindow(TextWindow.instance);
+            AddWindow(VideoWindow.instance);
+            foreach (var previewWindow in VideoPreviewWindow.instances)
+            {
+                AddWindow(previewWindow);
+            }
             AddWindow(LightWindow.instance);
             AddWindow(PngPlacementWindow.instance);
             AddWindow(PresetWindow.instance);
             AddWindow(HistoryWindow.instance);
+            AddWindow(TimelineWindow.instance);
+            AddWindow(TimelineControlWindow.instance);
+            AddWindow(TimelineSettingWindow.instance);
+            AddWindow(TimelineLoadWindow.instance);
+            AddWindow(TimelineTemplateWindow.instance);
             AddWindow(SettingWindow.instance);
 
             // ComboBoxPopupWindow はホストの描画中に開閉が確定するため、
@@ -86,6 +145,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 一時非表示中はメニューバー (復帰操作の入口) と GameView (ゲーム画面そのもの) 以外を描かない。
+        /// キーバインドから隠した場合 (isMenuBarHidden) はメニューバーも描かず、復帰はキーだけになる。
         /// 描画を止めれば GuiWindowTracker の矩形も期限切れになるため、
         /// 隠れた領域でのカメラ操作の抑止も自動で解ける
         /// </summary>
@@ -101,9 +161,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             GUIView.InitStyles();
 
-            // 登録順と同じ順で描き、重なり順を通常時と揃える
-            GameViewWindow.instance.OnGUI();
-            MenuBarWindow.instance.OnGUI();
+            // 非表示中は直接描画なので GameView の枠 (タイトルバー・ボタン) も描かない。
+            // isShowWnd は非表示前の値を保つため、ここで呼ぶと枠だけが画面に残る
+            if (!isMenuBarHidden)
+            {
+                MenuBarWindow.instance.OnGUI();
+            }
             ToastManager.OnGUI();
         }
 
@@ -118,6 +181,28 @@ namespace COM3D2.SceneEditor.Plugin
         {
             // min クランプ等で連結グループの隣接がずれうるため、群単位でクランプし直す
             WindowConnectManager.instance.ClampGroups();
+        }
+
+        /// <summary>
+        /// サブウィンドウの表示をトグルする。
+        /// メニューバーと各ウィンドウの導線ボタンで挙動を揃えるための共通処理
+        /// </summary>
+        public static void ToggleWindowVisible(EditorSubWindow window)
+        {
+            window.isShowWnd = !window.isShowWnd;
+
+            if (window.isShowWnd)
+            {
+                // 表示位置のヘッダーが他ウィンドウと重なっていればそのままドッキングする
+                TabGroupManager.instance.MergeIfHeaderOverlaps(window);
+            }
+            else
+            {
+                // 非表示にしたウィンドウをグループへ残すとタブバーに出続けるため、
+                // ウィンドウ自身の x ボタンと同様にグループからも外す
+                TabGroupManager.instance.RemoveFromGroup(window);
+                WindowConnectManager.instance.OnWindowHidden(window);
+            }
         }
 
         /// <summary>サブウィンドウの配置と表示状態を config へ書き出す</summary>
@@ -149,6 +234,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 表示状態を復元してからでないと、非表示ウィンドウをグループへ入れてしまう
+            // 外部窓は登録がまだのため RestoreGroups では復元できない。
+            // 遅延復元 (TryRestoreExternal) 用に復元前の構成を控えておく
+            TabGroupManager.instance.CaptureRestoreSnapshot();
             TabGroupManager.instance.RestoreGroups();
             WindowConnectManager.instance.RestoreGroups();
         }

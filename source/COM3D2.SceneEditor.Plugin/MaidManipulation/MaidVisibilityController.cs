@@ -27,7 +27,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 退避中のメイドの戻り先を差し替える。
-        /// 退避中は実座標が退避先で埋まっているため、配置の変更はここへ記録する
+        /// 退避中は実座標が退避先で埋まっているため、配置の変更はここへ記録する。
+        /// 退避していないメイドに対しては何もしない (呼び出し側で IsHidden を確認する前提)
         /// </summary>
         public void SetRestorePosition(Maid maid, Vector3 pos)
         {

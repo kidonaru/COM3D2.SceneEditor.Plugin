@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine.SceneManagement;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -15,8 +16,16 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public bool isWindowMode { get; private set; }
 
-        /// <summary>最大化中か。RTを使わずメインカメラを画面へ直接描画する表示サブモード</summary>
+        /// <summary>最大化中か。ユーザー操作で選ぶ表示サブモードで config に保存される</summary>
         public bool isMaximized { get; private set; }
+
+        /// <summary>
+        /// RTを使わずメインカメラを画面へ直接描画中か。
+        /// 最大化中に加え、ウィンドウ一時非表示中 (WindowManager.isWindowsHidden) も
+        /// ゲーム画面だけを見たい場面なので直接描画にする。最大化と違い非表示は
+        /// isShowWnd や config を書き換えないため、復帰時は元のウィンドウ表示へそのまま戻る
+        /// </summary>
+        public bool isDirectRender { get; private set; }
 
         /// <summary>最大化中にNGUIを表示するか。ウィンドウ化に戻すと false へリセットされる</summary>
         public bool isUIVisible { get; private set; }
@@ -26,9 +35,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>メインカメラに載せたギズモ。GameView 上で選択オブジェクトを操作するのに使う</summary>
         public GizmoRenderer gizmoRenderer { get; private set; }
         public BoneLineRenderer boneLineRenderer { get; private set; }
-        public GridRenderer gridRenderer { get; private set; }
+        /// <summary>床グリッド担当。深度でシーンのオブジェクトに隠すためメインカメラに付ける</summary>
+        public GridRenderer worldGridRenderer { get; private set; }
 
-        private Camera _clearCamera = null;
+        /// <summary>画面分割グリッド担当。ポストエフェクトを避けるため gizmo カメラに付ける</summary>
+        public GridRenderer displayGridRenderer { get; private set; }
+
         private readonly List<Camera> _hiddenUICameras = new List<Camera>();
         private readonly List<UICamera> _disabledUICameraEvents = new List<UICamera>();
         private UICamera _systemUICamera = null;
@@ -49,7 +61,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// GizmoHost の稼働判定と GameViewWindow の入力ガードで共有する
         /// </summary>
         public static bool isGizmoDispatchActive
-            => instance.isWindowMode && (GameViewWindow.instance.isShowWnd || instance.isMaximized);
+            => instance.isWindowMode && (GameViewWindow.instance.isShowWnd || instance.isDirectRender);
 
         /// <summary>GameView が描画するゲーム本体のカメラ。外部ギズモのディスパッチ先にも使う</summary>
         public static Camera mainCamera
@@ -97,9 +109,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             CreateRenderTexture(Screen.width, Screen.height);
-            CreateClearCamera();
+            cameraManager.SetClearCameraActive(true, config.backgroundColor);
             HideUICameras(camera);
             camera.targetTexture = renderTexture;
+            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+            cameraManager.SyncToMainCamera();
             AttachGizmoRenderer(camera);
             isWindowMode = true;
             MTEUtils.Log("エディタウィンドウモードを開始しました ({0}x{1})", _rtWidth, _rtHeight);
@@ -113,9 +127,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
             isWindowMode = false;
             isMaximized = false;
+            isDirectRender = false;
             isUIVisible = false;
             // 隠したままモードを抜けると、次にモードへ入ったときウィンドウが出てこない
-            WindowManager.instance.isWindowsHidden = false;
+            WindowManager.instance.ResetWindowsHidden();
 
             // メインカメラが取得できない状況でも、NGUIカメラの復元とリソース解放は必ず行う。
             // ここで打ち切るとUIが消えたまま戻らなくなる
@@ -125,19 +140,75 @@ namespace COM3D2.SceneEditor.Plugin
                 camera.targetTexture = null;
             }
             DetachGizmoRenderer();
+            // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+            cameraManager.SyncToMainCamera();
             RestoreUICameras();
-            DestroyClearCamera();
+            cameraManager.SetClearCameraActive(false, config.backgroundColor);
             ReleaseRenderTexture();
             MTEUtils.Log("エディタウィンドウモードを終了しました");
         }
 
         /// <summary>
-        /// 最大化 (直接描画) とウィンドウ化 (RT描画) を切り替える。
-        /// 最大化中は RT・クリアカメラを持たないため、関連処理は全て止まる
+        /// 最大化とウィンドウ化を切り替える。
+        /// 描画方式の切替は UpdateDirectRender に任せ、ここでは表示状態と config だけを持つ。
+        /// ウィンドウ一時非表示中に呼ばれた場合は直接描画のまま状態だけ変わり、
+        /// 復帰時にその状態へ描画方式が揃う
         /// </summary>
         public void SetMaximized(bool maximized)
         {
             if (!isWindowMode || isMaximized == maximized)
+            {
+                return;
+            }
+
+            // 描画方式の切替に失敗すると表示状態だけ先に変わって画面に何も出なくなるため、
+            // 切り替えられない状況では状態も変えずに抜ける
+            if (mainCamera == null)
+            {
+                MTEUtils.LogError("メインカメラが取得できないため表示モードを切り替えられません");
+                return;
+            }
+
+            if (maximized)
+            {
+                isMaximized = true;
+                GameViewWindow.instance.isShowWnd = false;
+                // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
+                // させたいので、config の保存済みグループ構成は上書きしない
+                WindowConnectManager.instance.OnWindowHidden(GameViewWindow.instance, save: false);
+                MTEUtils.Log("GameViewを最大化しました");
+            }
+            else
+            {
+                // NGUI表示は最大化中だけの設定なので、フラグを落とす前に戻す
+                SetUIVisible(false);
+                isMaximized = false;
+                GameViewWindow.instance.isShowWnd = true;
+                MTEUtils.Log("GameViewをウィンドウ化しました");
+            }
+
+            UpdateDirectRender();
+
+            // ExitWindowMode の解除 (モード終了) と違い、ここはユーザー操作・レイアウト適用に
+            // よる切替なので、次回の有効化で復元できるよう config へ残す
+            config.gameViewMaximized = maximized;
+            config.dirty = true;
+        }
+
+        /// <summary>
+        /// 最大化・ウィンドウ一時非表示の状態から描画方式を揃える。
+        /// 直接描画中は RT・クリアカメラを持たないため、関連処理は全て止まる。
+        /// メインカメラが取れず切り替えられなかった場合は LateUpdate から再試行される
+        /// </summary>
+        public void UpdateDirectRender()
+        {
+            if (!isWindowMode)
+            {
+                return;
+            }
+
+            var directRender = isMaximized || WindowManager.instance.isWindowsHidden;
+            if (isDirectRender == directRender)
             {
                 return;
             }
@@ -155,37 +226,30 @@ namespace COM3D2.SceneEditor.Plugin
                 gizmoRenderer.EndDrag();
             }
 
-            if (maximized)
+            if (directRender)
             {
                 // 他コード箇所 (ExitWindowMode 等) と同じく、自分が設定したRTのときだけ外す
                 if (camera.targetTexture == renderTexture)
                 {
                     camera.targetTexture = null;
                 }
+                // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+                cameraManager.SyncToMainCamera();
                 ReleaseRenderTexture();
-                DestroyClearCamera();
-                isMaximized = true;
-                GameViewWindow.instance.isShowWnd = false;
-                // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
-                // させたいので、config の保存済みグループ構成は上書きしない
-                WindowConnectManager.instance.OnWindowHidden(GameViewWindow.instance, save: false);
-                MTEUtils.Log("GameViewを最大化しました");
+                cameraManager.SetClearCameraActive(false, config.backgroundColor);
+                isDirectRender = true;
+                MTEUtils.Log("GameViewを直接描画に切り替えました");
             }
             else
             {
-                SetUIVisible(false);
                 CreateRenderTexture(Screen.width, Screen.height);
-                CreateClearCamera();
+                cameraManager.SetClearCameraActive(true, config.backgroundColor);
                 camera.targetTexture = renderTexture;
-                isMaximized = false;
-                GameViewWindow.instance.isShowWnd = true;
-                MTEUtils.Log("GameViewをウィンドウ化しました ({0}x{1})", _rtWidth, _rtHeight);
+                // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
+                cameraManager.SyncToMainCamera();
+                isDirectRender = false;
+                MTEUtils.Log("GameViewをRT描画に切り替えました ({0}x{1})", _rtWidth, _rtHeight);
             }
-
-            // ExitWindowMode の解除 (モード終了) と違い、ここはユーザー操作・レイアウト適用に
-            // よる切替なので、次回の有効化で復元できるよう config へ残す
-            config.gameViewMaximized = maximized;
-            config.dirty = true;
         }
 
         /// <summary>
@@ -225,32 +289,48 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// メインカメラへギズモ描画を載せる。ゲーム本体の GameObject を借りるため、
-        /// モード終了時には必ず取り外す
+        /// ギズモ・骨格線・グリッドの描画を載せる。
+        /// メインカメラに載せると OnPostRender の GL 描画にポストエフェクトが乗るため、
+        /// 何も映さない専用カメラ (gizmo カメラ) で後から重ね描きし、視点だけメインカメラを使う。
+        /// 例外は床グリッドで、シーンのオブジェクトに隠れる必要があり深度が要るため
+        /// メインカメラ側に残す (ポストエフェクトは乗る)
         /// </summary>
         private void AttachGizmoRenderer(Camera camera)
         {
             DetachGizmoRenderer();
 
-            gizmoRenderer = camera.gameObject.AddComponent<GizmoRenderer>();
+            var host = cameraManager.gizmoCamera.gameObject;
+
+            gizmoRenderer = host.AddComponent<GizmoRenderer>();
+            gizmoRenderer.viewCamera = camera;
             // GameView はゲーム本来の見え方を保ちたいため選択枠は出さない (SceneView のみ)
             gizmoRenderer.showSelectionBounds = false;
             gizmoRenderer.showLightGizmos = false;
+            // 編集モード外・ボーン表示 OFF ではギズモも出さない (SceneView はツールバー連動のみ)
+            gizmoRenderer.followsBoneVisibility = true;
             gizmoRenderer.isHostActive = IsGizmoHostActive;
 
-            boneLineRenderer = camera.gameObject.AddComponent<BoneLineRenderer>();
+            boneLineRenderer = host.AddComponent<BoneLineRenderer>();
+            boneLineRenderer.viewCamera = camera;
             boneLineRenderer.isHostActive = IsGizmoHostActive;
 
-            gridRenderer = camera.gameObject.AddComponent<GridRenderer>();
-            gridRenderer.isHostActive = IsGizmoHostActive;
-            // 構図合わせ用の画面分割グリッドはゲーム画面側にだけ出す
-            gridRenderer.drawDisplayGrid = true;
+            // 床グリッドはメインカメラの深度が要るのでメインカメラ側で描く
+            worldGridRenderer = camera.gameObject.AddComponent<GridRenderer>();
+            worldGridRenderer.isHostActive = IsGizmoHostActive;
+
+            // 構図合わせ用の画面分割グリッドはゲーム画面側にだけ出す。
+            // 深度を使わない画面空間の描画なのでオーバーレイ側へ回せる
+            displayGridRenderer = host.AddComponent<GridRenderer>();
+            displayGridRenderer.viewCamera = camera;
+            displayGridRenderer.isHostActive = IsGizmoHostActive;
+            displayGridRenderer.drawWorldGrid = false;
+            displayGridRenderer.drawDisplayGrid = true;
         }
 
-        /// <summary>最大化中は GameView ウィンドウ非表示のままギズモ・骨格線を全画面で生かす</summary>
+        /// <summary>直接描画中は GameView ウィンドウ非表示のままギズモ・骨格線を全画面で生かす</summary>
         private static bool IsGizmoHostActive()
         {
-            return GameViewWindow.instance.isShowWnd || instance.isMaximized;
+            return GameViewWindow.instance.isShowWnd || instance.isDirectRender;
         }
 
         private void DetachGizmoRenderer()
@@ -267,11 +347,17 @@ namespace COM3D2.SceneEditor.Plugin
             }
             boneLineRenderer = null;
 
-            if (gridRenderer != null)
+            if (worldGridRenderer != null)
             {
-                Object.Destroy(gridRenderer);
+                Object.Destroy(worldGridRenderer);
             }
-            gridRenderer = null;
+            worldGridRenderer = null;
+
+            if (displayGridRenderer != null)
+            {
+                Object.Destroy(displayGridRenderer);
+            }
+            displayGridRenderer = null;
         }
 
         /// <summary>
@@ -285,10 +371,15 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             camera.targetTexture = null;
+            // 破棄する RT への参照をオーバーレイカメラからも先に外す。
+            // CameraManager.LateUpdate はメイド・タイムラインが揃っているときしか走らないため、
+            // 次フレームの自動追随はあてにできない
+            cameraManager.SyncToMainCamera();
             ReleaseRenderTexture();
             CreateRenderTexture(Screen.width, Screen.height);
             camera.targetTexture = renderTexture;
-            MTEUtils.Log("画面サイズの変更に追従しました ({0}x{1})", _rtWidth, _rtHeight);
+            cameraManager.SyncToMainCamera();
+            MTEUtils.LogDebug("画面サイズの変更に追従しました ({0}x{1})", _rtWidth, _rtHeight);
         }
 
         public override void LateUpdate()
@@ -304,9 +395,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (isMaximized)
+            // 切替時にメインカメラが取れなかった場合の再試行
+            UpdateDirectRender();
+
+            if (isDirectRender)
             {
-                // 最大化中はRTを持たないため、サイズ追従も targetTexture の保険も不要。
+                // 直接描画中はRTを持たないため、サイズ追従も targetTexture の保険も不要。
                 // UI表示ONの間は新たに出たUIカメラも隠さない
                 if (!isUIVisible)
                 {
@@ -321,6 +415,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (camera.targetTexture == null)
             {
                 camera.targetTexture = renderTexture;
+                cameraManager.SyncToMainCamera();
             }
 
             // モード中に新たに有効化されたUIカメラ (ダイアログ等) も隠す
@@ -357,26 +452,6 @@ namespace COM3D2.SceneEditor.Plugin
                 renderTexture.Release();
                 Object.Destroy(renderTexture);
                 renderTexture = null;
-            }
-        }
-
-        private void CreateClearCamera()
-        {
-            var go = new GameObject("SceneEditorClearCamera");
-            Object.DontDestroyOnLoad(go);
-            _clearCamera = go.AddComponent<Camera>();
-            _clearCamera.depth = -100;
-            _clearCamera.clearFlags = CameraClearFlags.SolidColor;
-            _clearCamera.backgroundColor = config.backgroundColor;
-            _clearCamera.cullingMask = 0;
-        }
-
-        private void DestroyClearCamera()
-        {
-            if (_clearCamera != null)
-            {
-                Object.Destroy(_clearCamera.gameObject);
-                _clearCamera = null;
             }
         }
 
@@ -458,7 +533,9 @@ namespace COM3D2.SceneEditor.Plugin
             for (var i = 0; i < count; i++)
             {
                 var cam = _cameraBuffer[i];
-                if (cam == null || cam == camera || cam == _clearCamera)
+                // 自前のオーバーレイカメラ (背景クリア・最前面動画・字幕・ギズモ) は
+                // ゲーム UI ではなく編集中も見せる描画物なので隠す対象から外す
+                if (cam == null || cam == camera || cameraManager.IsOverlayCamera(cam))
                 {
                     continue;
                 }

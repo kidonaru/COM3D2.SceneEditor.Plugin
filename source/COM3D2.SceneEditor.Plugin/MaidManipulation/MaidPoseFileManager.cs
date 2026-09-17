@@ -481,7 +481,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// キャッシュはボーンの Transform を直接持つため、ボディ再構築で不正になる。
         /// CreateCache は全状態を作り直す冪等な実装なので、保存のたびに張り直す
         /// </summary>
-        private static CacheBoneDataArray GetOrCreateCacheBoneData(Maid maid)
+        public static CacheBoneDataArray GetOrCreateCacheBoneData(Maid maid)
         {
             var cache = maid.gameObject.GetComponent<CacheBoneDataArray>();
             if (cache == null)

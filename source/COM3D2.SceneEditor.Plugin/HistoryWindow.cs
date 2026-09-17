@@ -65,6 +65,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawButtonRow();
 
+            if (historyManager.isTimelineMode)
+            {
+                _view.DrawLabel("タイムラインモード (シーン操作は記録されません)", -1, ROW_HEIGHT);
+            }
+
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
 

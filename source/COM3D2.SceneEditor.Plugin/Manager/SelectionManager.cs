@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -57,6 +57,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         public event Action<GameObject> onSelectionChanged;
 
+        /// <summary>
+        /// 選択処理 (Select / SelectBone / SelectIK / ClearSelection) が走るたびに発火する。
+        /// onSelectionChanged と違い同一オブジェクトの再選択でも発火するため、
+        /// 「選択操作そのもの」に反応したい側 (タイムラインのキーフレーム選択解除等) が使う
+        /// </summary>
+        public event Action onSelectRequested;
+
         private static SelectionManager _instance = null;
         public static SelectionManager instance
         {
@@ -112,6 +119,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public void Select(GameObject go, bool showGizmo, bool focus)
         {
+            onSelectRequested?.Invoke();
+
             if (focus)
             {
                 SceneViewWindow.instance.FocusOn(go);
@@ -152,6 +161,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            onSelectRequested?.Invoke();
             _selectedBoneMaid = maid;
             _selectedBoneDef = def;
             _selectedIKPoint = null;
@@ -167,6 +177,18 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// ボーン・IK 選択だけを解除し、selectedObject はそのまま残す。
+        /// Select(selectedObject) の同値再選択と違い onSelectRequested を発火しないため、
+        /// 内部同期での降格 (キーフレーム選択を巻き込みたくない経路) に使う
+        /// </summary>
+        public void ClearSubSelection()
+        {
+            _selectedBoneMaid = null;
+            _selectedBoneDef = null;
+            _selectedIKPoint = null;
+        }
+
+        /// <summary>
         /// IK ドラッグ点を選択する。SelectBone と同じく selectedObject はメイドルートにして
         /// Hierarchy 等の既存表示と整合させる（Select はこの選択を解除するため直接書き込む）
         /// </summary>
@@ -177,6 +199,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            onSelectRequested?.Invoke();
             _selectedBoneMaid = null;
             _selectedBoneDef = null;
             _selectedIKPoint = point;
@@ -263,11 +286,13 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var ray = camera.ScreenPointToRay(new Vector3(rtPoint.x, rtPoint.y, 0f));
             var candidates = new List<GameObject>();
+            // 候補ごとに組み直すとクリック 1 回で何度も一覧を作ることになるため、ここで 1 回だけ取る
+            var models = ModelProviderHost.GetModels();
 
             // NGUI の判定用コライダは選択対象外
             foreach (var hit in Physics.RaycastAll(ray, RaycastDistance, ~PluginUtils.NGUILayerMask))
             {
-                AddCandidate(candidates, hit.collider.gameObject);
+                AddCandidate(candidates, hit.collider.gameObject, models);
             }
 
             foreach (var renderer in UnityEngine.Object.FindObjectsOfType<Renderer>())
@@ -280,7 +305,7 @@ namespace COM3D2.SceneEditor.Plugin
                 float distance;
                 if (renderer.bounds.IntersectRay(ray, out distance))
                 {
-                    AddCandidate(candidates, renderer.gameObject);
+                    AddCandidate(candidates, renderer.gameObject, models);
                 }
             }
 
@@ -295,10 +320,11 @@ namespace COM3D2.SceneEditor.Plugin
             return candidates;
         }
 
-        /// <summary>メイドルートへ丸めたうえで、重複しなければ候補に加える</summary>
-        private static void AddCandidate(List<GameObject> candidates, GameObject go)
+        /// <summary>選択の代表オブジェクトへ丸めたうえで、重複しなければ候補に加える</summary>
+        private static void AddCandidate(
+            List<GameObject> candidates, GameObject go, List<ExternalModelEntry> models)
         {
-            var resolved = ResolveMaidRoot(go);
+            var resolved = ResolveSelectionRoot(go, models);
             if (!candidates.Contains(resolved))
             {
                 candidates.Add(resolved);
@@ -369,15 +395,35 @@ namespace COM3D2.SceneEditor.Plugin
             _pickIndex = 0;
         }
 
-        /// <summary>メイド配下のオブジェクトならメイドルートの GameObject へ丸める</summary>
-        private static GameObject ResolveMaidRoot(GameObject go)
+        /// <summary>
+        /// ユーザーが 1 つの物として扱う単位のルートへ丸める。
+        /// メイド・PNG 配置・提供モデルはいずれもルートに描画物を持たず、
+        /// クリックでヒットするのは配下のメッシュなので、そのままだと
+        /// ギズモが子だけを動かし Inspector にも固有パラメータが出ない。
+        /// 背景モデルは入れ子の各ノードを個別に選ぶ作りなので丸めない
+        /// </summary>
+        private static GameObject ResolveSelectionRoot(
+            GameObject go, List<ExternalModelEntry> models)
         {
             var maid = go.GetComponentInParent<Maid>();
-            return maid != null ? maid.gameObject : go;
+            if (maid != null)
+            {
+                return maid.gameObject;
+            }
+
+            var pngData = PngPlacementManager.instance.FindByDescendant(go);
+            if (pngData != null)
+            {
+                return pngData.rootObject;
+            }
+
+            var model = ModelSelectHost.ResolveModel(go, models);
+            return model != null ? model : go;
         }
 
         public void ClearSelection()
         {
+            onSelectRequested?.Invoke();
             _gizmoSuppressed = false;
             _selectedBoneMaid = null;
             _selectedBoneDef = null;

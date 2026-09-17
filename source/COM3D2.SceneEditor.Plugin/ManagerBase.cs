@@ -11,6 +11,8 @@ namespace COM3D2.SceneEditor.Plugin
         protected static WindowManager windowManager => WindowManager.instance;
         protected static GameViewManager gameViewManager => GameViewManager.instance;
         protected static SelectionManager selectionManager => SelectionManager.instance;
+        /// <summary>オーバーレイカメラ (背景クリア・最前面動画・字幕・ギズモ) の所有者</summary>
+        protected static MotionTimelineEditor.Plugin.CameraManager cameraManager => MotionTimelineEditor.Plugin.CameraManager.instance;
         protected static CharacterMgr characterMgr => GameMain.Instance.CharacterMgr;
 
         public virtual void Init()
@@ -30,6 +32,10 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         public virtual void OnLoad()
+        {
+        }
+
+        public virtual void OnPluginEnable()
         {
         }
 

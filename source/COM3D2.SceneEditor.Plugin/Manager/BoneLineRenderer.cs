@@ -36,6 +36,18 @@ namespace COM3D2.SceneEditor.Plugin
         public bool drawEnabled = true;
 
         private Camera _camera;
+
+        /// <summary>
+        /// 行列・ピッキング・線幅計算の基準になるカメラ。既定は自分が付いているカメラ。
+        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする。
+        /// null を代入すると未設定ではなく自身の Camera へ戻る
+        /// </summary>
+        public Camera viewCamera
+        {
+            get => _camera;
+            set => _camera = value != null ? value : GetComponent<Camera>();
+        }
+
         private Material _lineMaterial;
 
         private static BoneEditManager boneEditManager => BoneEditManager.instance;
@@ -71,7 +83,7 @@ namespace COM3D2.SceneEditor.Plugin
             && SceneEditorPlugin.instance.isEnable
             && isHostActive()
             && boneEditManager.editMode
-            && MaidManipulateManager.instance.isBoneVisible;
+            && MaidManipulateManager.instance.isBoneEditing;
 
         private void OnPostRender()
         {

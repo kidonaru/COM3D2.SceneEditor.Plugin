@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -215,6 +215,8 @@ namespace COM3D2.SceneEditor.Plugin
                 // 背景トグルは背景・ライト・PNG 配置をまとめて制御する
                 DrawLoadToggle("背景", ScenePresetManager.loadBackground,
                     value => ScenePresetManager.loadBackground = value);
+                DrawLoadToggle("演出", ScenePresetManager.loadEffects,
+                    value => ScenePresetManager.loadEffects = value);
 
                 foreach (var provider in ScenePresetProviderRegistry.providers)
                 {

@@ -61,7 +61,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 harmony.Patch(doWindow, postfix: postfix);
                 isEnabled = true;
-                MTEUtils.Log("GUI.DoWindow のフックに成功しました");
+                MTEUtils.LogDebug("GUI.DoWindow のフックに成功しました");
                 return;
             }
             catch (Exception e)
@@ -92,7 +92,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 isEnabled = true;
-                MTEUtils.Log($"GUI.Window のフックに成功しました ({patchedCount}件)");
+                MTEUtils.LogDebug($"GUI.Window のフックに成功しました ({patchedCount}件)");
             }
             catch (Exception e)
             {

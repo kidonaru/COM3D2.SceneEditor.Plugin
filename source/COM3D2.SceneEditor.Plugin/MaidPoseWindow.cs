@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -148,6 +149,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 直前のガードと違い、レイヤー未登録では return しない（項目は見せたまま無効化する）
+            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
+
             DrawPlaybackRows(view, target);
             view.DrawHorizontalLine();
             DrawCategoryRow(view, target);
@@ -204,7 +208,7 @@ namespace COM3D2.SceneEditor.Plugin
                     ApplyNavEntry(maid, 1);
                 }
 
-                AddRightAlignSpace(view, 30);
+                view.AddRightAlignSpace(30, ROW_HEIGHT);
 
                 // 再生中は停止、停止中は再生と、状態に応じて 1 つのボタンを切り替える
                 var isPlaying = MaidMotionState.IsPlaying(maid);
@@ -263,7 +267,24 @@ namespace COM3D2.SceneEditor.Plugin
                     MTEUtils.OpenDirectory(folder);
                 }
 
-                AddRightAlignSpace(view, 60);
+                view.AddRightAlignSpace(60 + 60 + view.margin, ROW_HEIGHT);
+
+                // 現在のポーズを左右反転する。再生中は書き戻しが翌フレームに
+                // 上書きされるため、他の編集操作と同じく先に停止させる
+                // (停止操作を内包するので、リセットと違い再生中でも押せる)
+                if (view.DrawButton("反転", 60, ROW_HEIGHT))
+                {
+                    MaidMotionState.StopMotion(maid);
+                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                        "ポーズ反転", PoseSnapshot.GetAllBodyBones(maid));
+                    MaidPoseFlipper.Flip(maid);
+
+                    // IK 固定も左右を入れ替える。ポーズの書き戻し後に記録するのは、
+                    // 先に別スコープの BeforeEdit を挟むとポーズ側が変更前のまま確定してしまうため
+                    // (IK 固定を使っていなければ変化なしとして履歴には積まれない)
+                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.IK, "IK固定反転");
+                    maidManager.ikHoldController.FlipHolds(maid);
+                }
 
                 // 崩したポーズを復帰先 (停止前のモーション / 読み込んだポーズ) で元に戻すリセット
                 if (view.DrawButton("リセット", 60, ROW_HEIGHT,
@@ -275,22 +296,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             view.EndLayout();
-        }
-
-        /// <summary>
-        /// 横並び行の残り幅ぶんの空白を挿入し、以降の要素を右端に寄せる。
-        /// contentWidth には右揃えする要素の幅とその要素間 margin の合計を渡す
-        /// </summary>
-        private void AddRightAlignSpace(GUIView view, float contentWidth)
-        {
-            // viewRect はスクロールビュー中もコンテンツ幅を返す (GetDrawRect の auto-width と同じ式)。
-            // 空白自身の後ろにも margin が入るためそのぶんも差し引く
-            var space = view.viewRect.width - view.padding.x * 2
-                - view.currentPos.x - view.margin - contentWidth;
-            if (space > 0f)
-            {
-                view.AddSpace(space, ROW_HEIGHT);
-            }
         }
 
         /// <summary>

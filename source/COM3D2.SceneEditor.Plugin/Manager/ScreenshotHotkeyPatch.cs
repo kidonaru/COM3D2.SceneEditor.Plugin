@@ -66,7 +66,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _harmony = new Harmony(PluginInfo.PluginFullName + ".ScreenshotHotkey");
                 _harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-                MTEUtils.Log("CameraMain.Update のフックに成功しました");
+                MTEUtils.LogDebug("CameraMain.Update のフックに成功しました");
             }
             catch (Exception e)
             {

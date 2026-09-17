@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -12,14 +13,15 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly BoneTrsMap _bones = new BoneTrsMap();
         private Quaternion _eyeL;
         private Quaternion _eyeR;
-        private bool _headToCam;
-        private bool _eyeToCam;
 
         /// <summary>記録時の視線の向け先。ボーンが動かない切替も履歴に残すために持つ</summary>
         private MaidLookMode _lookMode;
         private float _lookX;
         private float _lookY;
         private Transform _lookTarget;
+        private Maid _lookTargetMaid;
+        private MTEP.MaidPointType _lookMaidPointType;
+        private string _lookTargetModelName;
 
         /// <summary>記録時の胸の揺れもの状態。ボーンが動かないトグル操作も履歴に残すために持つ</summary>
         private bool _muneYureL;
@@ -52,8 +54,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 snapshot._eyeL = body.quaDefEyeL;
                 snapshot._eyeR = body.quaDefEyeR;
-                snapshot._headToCam = body.boHeadToCam;
-                snapshot._eyeToCam = body.boEyeToCam;
             }
 
             var lookController = MaidManipulateManager.instance.lookController;
@@ -61,6 +61,9 @@ namespace COM3D2.SceneEditor.Plugin
             snapshot._lookX = lookController.GetLookX(maid);
             snapshot._lookY = lookController.GetLookY(maid);
             snapshot._lookTarget = lookController.GetTarget(maid);
+            snapshot._lookTargetMaid = lookController.GetTargetMaid(maid);
+            snapshot._lookMaidPointType = lookController.GetMaidPointType(maid);
+            snapshot._lookTargetModelName = lookController.GetTargetModelName(maid);
 
             snapshot._clipName = MaidMotionState.GetCurrentClipName(maid);
             snapshot._isPlaying = MaidMotionState.IsPlaying(maid);
@@ -187,12 +190,19 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 body.quaDefEyeL = _eyeL;
                 body.quaDefEyeR = _eyeR;
-                body.boHeadToCam = _headToCam;
-                body.boEyeToCam = _eyeToCam;
+            }
+
+            // 追従フラグはメイド目線の持ち物なので記録せず、復元後にメイド目線で塗り直す。
+            // 頭ドラッグが切った追従も、ドラッグ前へ戻す Undo ではここで戻る
+            var timeline = MTEP.TimelineManager.instance.timeline;
+            if (timeline != null)
+            {
+                MaidLookBridge.ApplyEyeMoveType(maid, timeline.eyeMoveType);
             }
 
             MaidManipulateManager.instance.lookController.SetState(
-                maid, _lookMode, _lookX, _lookY, _lookTarget);
+                maid, _lookMode, _lookX, _lookY, _lookTarget,
+                _lookTargetMaid, _lookMaidPointType, _lookTargetModelName);
 
             // IK 固定が復元前の位置へ解き直すと undo が打ち消されるため、
             // 復元後のボーン位置を新しい固定ターゲットとして取り直させる
@@ -233,12 +243,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (Quaternion.Angle(_eyeL, o._eyeL) >= 0.01f
                 || Quaternion.Angle(_eyeR, o._eyeR) >= 0.01f
-                || _headToCam != o._headToCam
-                || _eyeToCam != o._eyeToCam
                 || _lookMode != o._lookMode
                 || Mathf.Abs(_lookX - o._lookX) >= 0.001f
                 || Mathf.Abs(_lookY - o._lookY) >= 0.001f
                 || _lookTarget != o._lookTarget
+                || _lookTargetMaid != o._lookTargetMaid
+                || _lookMaidPointType != o._lookMaidPointType
+                || _lookTargetModelName != o._lookTargetModelName
                 || _muneYureL != o._muneYureL
                 || _muneYureR != o._muneYureR)
             {

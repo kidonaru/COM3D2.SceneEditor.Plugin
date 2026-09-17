@@ -71,7 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _isEyeMode ? "目線操作" : "顔向き操作",
                 _isEyeMode ? null : new[] { neckBone });
 
-            // 追従が効いたままだと LateUpdate で上書きされるため切る
+            // 追従が効いたままだと LateUpdate で上書きされるため切る。戻すのは「メイド目線」の選び直し
             maid.body0.boHeadToCam = false;
             maid.body0.boEyeToCam = false;
 
@@ -114,6 +114,7 @@ namespace COM3D2.SceneEditor.Plugin
             var downPos = _mouseDownPos;
             var wasEyeMode = _isEyeMode;
             CancelDrag();
+            MaidDragBoneTracker.NotifyDragCompleted(maid);
 
             // クリック（微小移動）なら首を Inspector の選択対象にする。
             // 目線操作は首を回していないので選択を変えない
@@ -150,6 +151,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void OnMouseDown()
         {
+            // ゲーム画面で見えていない白丸は掴ませない
+            if (!MaidManipulateManager.instance.isGameViewDragPointVisible)
+            {
+                return;
+            }
             BeginDrag(GetGameCamera(), Input.mousePosition);
         }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -15,6 +16,20 @@ namespace COM3D2.SceneEditor.Plugin
 
         private IDockableWindow _activeWindow;
         public IDockableWindow activeWindow => _activeWindow;
+
+        /// <summary>
+        /// タブ列のスクロール位置 (px)。タブバーはグループに 1 本なので位置もグループが持つ。
+        /// 描画するのはアクティブなウィンドウなので、ウィンドウ側に持たせると
+        /// タブを切り替えた瞬間に別の窓が覚えていた位置へ飛ぶ
+        /// </summary>
+        public float tabScrollX;
+
+        /// <summary>
+        /// 最後に push したアクティブウィンドウ。アクティブ切替の検出に使う。
+        /// index で比べると、先頭タブを閉じて次の窓が同じ index 0 に来た場合など
+        /// 「別の窓に切り替わったのに index が一致する」ケースを取りこぼす
+        /// </summary>
+        private IDockableWindow _lastPushedActiveWindow;
 
         public bool Contains(IDockableWindow window)
         {
@@ -51,6 +66,23 @@ namespace COM3D2.SceneEditor.Plugin
                 window.NotifyTabVisibleChanged();
                 PushTabBarState();
             }
+        }
+
+        /// <summary>
+        /// タブの並び順を変更する。アクティブウィンドウは変えず、並びだけ動かして push する
+        /// (タブドラッグ並び替え用。範囲外・非メンバー・同位置は何もしない)
+        /// </summary>
+        public void Move(IDockableWindow window, int newIndex)
+        {
+            var oldIndex = windows.IndexOf(window);
+            if (oldIndex < 0 || newIndex < 0 || newIndex >= windows.Count || newIndex == oldIndex)
+            {
+                return;
+            }
+
+            windows.RemoveAt(oldIndex);
+            windows.Insert(newIndex, window);
+            PushTabBarState();
         }
 
         /// <summary>グループから外す。アクティブタブが抜けたら先頭をアクティブにする</summary>
@@ -115,6 +147,21 @@ namespace COM3D2.SceneEditor.Plugin
                 titles[i] = windows[i].windowTitleForTab;
             }
             var activeIndex = _activeWindow != null ? windows.IndexOf(_activeWindow) : -1;
+
+            if (_activeWindow != _lastPushedActiveWindow)
+            {
+                _lastPushedActiveWindow = _activeWindow;
+                if (_activeWindow != null)
+                {
+                    // アクティブになったタブが見切れていたら見える位置まで寄せる
+                    // (収まっているならスクロール位置は動かさない)
+                    tabScrollX = TabBarLayout.ScrollToShow(
+                        windows.Count,
+                        TabBarLayout.CalcAvailableWidth(_activeWindow.windowRect.width),
+                        tabScrollX, activeIndex);
+                }
+            }
+
             foreach (var window in windows)
             {
                 window.SetTabBarState(titles, activeIndex);

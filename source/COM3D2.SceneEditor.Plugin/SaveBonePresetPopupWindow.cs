@@ -12,7 +12,9 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public class SaveBonePresetPopupWindow : IGUIWindow
     {
-        public static readonly int WINDOW_ID = 8903383;
+        // 8903383 は TimelineWindow と衝突していたため 8903384 へ移動
+        // (TimelineWindow 側はロック/レイアウトが windowId キーで永続化されるため動かさない)
+        public static readonly int WINDOW_ID = 8903384;
 
         private static readonly int WINDOW_WIDTH = 300;
         private static readonly int ROW_HEIGHT = 20;

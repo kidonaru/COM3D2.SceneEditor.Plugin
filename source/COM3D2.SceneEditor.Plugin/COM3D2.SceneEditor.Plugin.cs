@@ -3,6 +3,7 @@ using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityInjector;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 using UnityInjector.Attributes;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -161,6 +162,8 @@ namespace COM3D2.SceneEditor.Plugin
                     UpdateGizmoToolKey();
                     UpdateHistoryKey();
                     UpdateEditModeKey();
+                    UpdateWindowsHiddenKey();
+                    TimelineKeyInput.Update();
                     managerRegistry.Update();
                 }
             }
@@ -218,8 +221,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// キー入力で編集モードを切り替える。
-        /// テキスト入力中 (keyboardControl 保持中) は Tab のフォーカス移動と
-        /// 取り合いになるため無視する
+        /// タイムライン側 (SceneEditorHack.isPoseEditing) を経由すると
+        /// 再生停止も一緒に行えるため、そちらを優先する。
+        /// テキスト入力中 (keyboardControl 保持中) は誤発動を防ぐため無視する
         /// </summary>
         private void UpdateEditModeKey()
         {
@@ -230,8 +234,35 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (config.GetKeyDown(KeyBindType.EditModeToggle))
             {
-                var manager = MaidManipulateManager.instance;
-                manager.isEditMode = !manager.isEditMode;
+                if (MTEP.SceneEditorHack.instance != null)
+                {
+                    MTEP.SceneEditorHack.isPoseEditing = !MTEP.SceneEditorHack.isPoseEditing;
+                }
+                else
+                {
+                    var manager = MaidManipulateManager.instance;
+                    manager.isEditMode = !manager.isEditMode;
+                }
+            }
+        }
+
+        /// <summary>
+        /// キー入力でウィンドウの一時非表示を切り替える。
+        /// 既定キーの Tab は GUI のフォーカス移動にも使われるため、
+        /// テキスト入力中 (keyboardControl 保持中) は無視する
+        /// </summary>
+        private void UpdateWindowsHiddenKey()
+        {
+            if (GUIUtility.keyboardControl != 0)
+            {
+                return;
+            }
+
+            if (config.GetKeyDown(KeyBindType.WindowsHiddenToggle))
+            {
+                // キー操作での切替はゲーム画面だけを見たい場面なのでメニューバーも隠す
+                // (復帰は同じキーで行う)
+                windowManager.SetWindowsHidden(!windowManager.isWindowsHidden, hideMenuBar: true);
             }
         }
 
@@ -286,7 +317,7 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                if (scene.name == "SceneTitle")
+                if (scene.name == MTEP.SceneEditorHack.titleSceneName)
                 {
                     this.isEnable = false;
                 }
@@ -320,13 +351,14 @@ namespace COM3D2.SceneEditor.Plugin
                 windowManager.SavePlacements();
             }
             configManager.SaveConfigXml();
+            COM3D2.MotionTimelineEditor.Plugin.ConfigManager.instance.SaveConfigXml();
         }
 
         private void Initialize()
         {
             try
             {
-                MTEUtils.Log("初期化中...");
+                MTEUtils.LogDebug("初期化中...");
                 MTEUtils.LogDebug("Unity Version: " + Application.unityVersion);
 
                 // GameView表示領域内では Input.mousePosition が RT座標へ変換されるため、
@@ -355,6 +387,9 @@ namespace COM3D2.SceneEditor.Plugin
                 // マネージャの Update ループには乗らない (isEnable は自前で見ている)
                 ScreenshotHotkeyPatch.Init();
 
+                // ゲーム側のスカート物理の累積誤差を抑える。UI の有効状態に関係なく常時効かせる
+                SkirtHookDriftPatch.Init();
+
                 managerRegistry.RegisterManager(ConfigManager.instance);
                 managerRegistry.RegisterManager(InputRemapper.instance);
                 managerRegistry.RegisterManager(WindowManager.instance);
@@ -370,11 +405,19 @@ namespace COM3D2.SceneEditor.Plugin
                 managerRegistry.RegisterManager(MaidManipulateManager.instance);
                 // 操作対象メイドが確定してからボーンツリーを解決するため MaidManipulateManager より後に登録する
                 managerRegistry.RegisterManager(BoneEditManager.instance);
+                managerRegistry.RegisterManager(FaceEditManager.instance);
+                managerRegistry.RegisterManager(ModelShapeKeyEditManager.instance);
+                managerRegistry.RegisterManager(MaidShapeKeyEditManager.instance);
+                managerRegistry.RegisterManager(MaidMaterialEditManager.instance);
+                managerRegistry.RegisterManager(ModelMaterialEditManager.instance);
                 // 各操作の BeforeEdit を受けてマウス解放で確定するだけなので登録順は問わない
                 managerRegistry.RegisterManager(HistoryManager.instance);
                 // 各ウィンドウの状態更新後にドラッグ判定を行うため WindowManager より後に登録する
                 managerRegistry.RegisterManager(TabGroupManager.instance);
                 managerRegistry.RegisterManager(WindowConnectManager.instance);
+
+                // タイムライン (MTE 移植) の登録。ウィンドウ更新後に状態を反映するため後段に置く
+                TimelineIntegration.Initialize(managerRegistry);
 
                 AddGearMenu();
             }
@@ -446,6 +489,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             MTEUtils.Log("プラグインが有効になりました");
             OnLoad();
+            // ウィンドウの復元より先に、各マネージャへ有効化を通知する
+            managerRegistry.OnPluginEnable();
 
             GameViewWindow.instance.isShowWnd = true;
             MenuBarWindow.instance.isShowWnd = true;

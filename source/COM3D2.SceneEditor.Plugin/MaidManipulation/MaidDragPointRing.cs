@@ -134,6 +134,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // ゲーム画面側は編集モード外では白丸を出さない (SceneView はボーン表示 ON なら常に出す)
+            if (isMainCamera && !MaidManipulateManager.instance.isGameViewDragPointVisible)
+            {
+                return;
+            }
+
             // 掴めない修飾キーの間は隠す。掴める点だけ残った方が探しやすい
             if (_dragPoint != null && !_dragPoint.canDrag)
             {

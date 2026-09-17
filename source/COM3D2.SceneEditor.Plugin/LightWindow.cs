@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -19,19 +23,29 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
-        private static readonly int TYPE_BUTTON_WIDTH = 70;
 
-        // メインライトのリセット既定値（LightMain.Reset と同じ）
-        private static readonly Vector3 DefaultMainRotation = new Vector3(40f, 180f, 18f);
-        private const float DefaultMainIntensity = 0.95f;
-        private const float DefaultMainShadowStrength = 0.098f;
+        /// <summary>追加・削除ボタンの幅</summary>
+        private const float BUTTON_WIDTH = 60f;
 
-        /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
-        private static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
+        // ライト名タブ 1 つぶんの寸法。幅に収まらない長い名前は末尾が切れる
+        private const float TAB_WIDTH = 100f;
+        private const float TAB_MARGIN = 2f;
 
-        /// <summary>編集中のライト（メイン / 追加）。破棄・削除で null になりうる</summary>
+        /// <summary>
+        /// 編集中のライト（メイン / 追加）。
+        /// null は未選択で、描画時はメインライトを選んだ状態として扱う
+        /// </summary>
         private Light _selectedLight = null;
 
+        // タブの見出しと対応するライト。毎フレーム作り直さないよう使い回す
+        private readonly List<Light> _tabLights = new List<Light>();
+        private readonly List<string> _tabLabels = new List<string>();
+
+        // 編集欄は常に 1 灯ぶんなので、行ドロワーも 1 つで足りる
+        private readonly LightRowDrawer _rowDrawer = new LightRowDrawer();
+
+        // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
+        private readonly GUIView _rootView = new GUIView();
         private readonly GUIView _view = new GUIView();
 
         private static LightWindow _instance = null;
@@ -52,16 +66,6 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private static StudioLightManager lightManager => StudioLightManager.instance;
-
-        /// <summary>メインライトの Light。シーンによっては取得できず null になる</summary>
-        private static Light mainLightComponent
-        {
-            get
-            {
-                var lightMain = lightManager.mainLight;
-                return lightMain != null ? lightMain.GetComponent<Light>() : null;
-            }
-        }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
@@ -87,57 +91,117 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void DrawContent()
         {
+            _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
+            _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
 
             _view.DrawHorizontalLine(Color.gray);
             _view.AddSpace(5);
 
+            try
+            {
+                TimelineLayerGate.Begin(_view, typeof(MTEP.LightTimelineLayer), ROW_HEIGHT);
+                DrawBody();
+            }
+            finally
+            {
+                // 強制無効のまま抜けると ComboBoxPopupWindow まで操作できなくなるため必ず戻す
+                TimelineLayerGate.End(_view);
+            }
+
+            // ボタン押下で _rootView に登録されたフォーカスをポップアップへ引き渡す
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
+        }
+
+        private void DrawBody()
+        {
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             // GetComponent を挟むため 1 描画につき 1 回だけ引いて使い回す
-            var mainLight = mainLightComponent;
+            var mainLight = LightRowDrawer.MainLightComponent;
+            // 未選択・選択中のライトが消えた場合はメインライトを既定の編集対象にする
+            var selectedLight = _selectedLight != null ? _selectedLight : mainLight;
 
-            DrawLightListSection(mainLight);
+            DrawLightListSection(mainLight, selectedLight);
 
-            if (_selectedLight != null)
+            // 一覧での追加・削除を待たずに編集欄へ反映する（同じフレームで対象が変わる）
+            selectedLight = _selectedLight != null ? _selectedLight : mainLight;
+
+            if (selectedLight != null)
             {
                 _view.DrawHorizontalLine();
-                DrawLightEditSection(_selectedLight, mainLight);
+                DrawLightEditSection(selectedLight, mainLight);
             }
 
             _view.EndScrollView();
         }
 
         /// <summary>ライト一覧（メインライト + 追加ライト）と、追加ライトの追加・削除</summary>
-        private void DrawLightListSection(Light mainLight)
+        private void DrawLightListSection(Light mainLight, Light selectedLight)
         {
-            _view.DrawLabel("ライト一覧", -1, ROW_HEIGHT);
-
             _view.BeginHorizontal();
             {
-                if (_view.DrawButton("追加", 60, ROW_HEIGHT))
+                _view.DrawLabel("ライト一覧", LABEL_WIDTH, ROW_HEIGHT);
+
+                // 追加・削除は行の右端へ寄せる（ボタン 2 つとその間の margin ぶん）
+                _view.AddRightAlignSpace(BUTTON_WIDTH * 2 + _view.margin, ROW_HEIGHT);
+
+                if (_view.DrawButton("追加", BUTTON_WIDTH, ROW_HEIGHT))
                 {
-                    RecordLightEdit("追加");
+                    LightRowDrawer.RecordLightEdit("追加");
                     SelectLight(lightManager.AddLight(), mainLight);
                 }
 
                 // メインライトはゲーム側の実体なので削除させない
-                if (_view.DrawButton("削除", 60, ROW_HEIGHT,
-                    _selectedLight != null && _selectedLight != mainLight))
+                if (_view.DrawButton("削除", BUTTON_WIDTH, ROW_HEIGHT,
+                    selectedLight != null && selectedLight != mainLight))
                 {
-                    RemoveSelectedLight();
+                    RemoveSelectedLight(selectedLight);
                 }
             }
             _view.EndLayout();
 
-            if (mainLight != null)
-            {
-                DrawLightRow(mainLight, "メインライト", mainLight);
-            }
-            else
+            if (mainLight == null)
             {
                 _view.DrawLabel("メインライトが見つかりません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
+            }
+
+            DrawLightTabs(mainLight, selectedLight);
+        }
+
+        /// <summary>ライト 1 灯 1 タブの切替。選んだライトが編集対象になる</summary>
+        private void DrawLightTabs(Light mainLight, Light selectedLight)
+        {
+            CollectLights(mainLight, _tabLights, _tabLabels);
+            if (_tabLights.Count == 0)
+            {
+                return;
+            }
+
+            // 編集対象が一覧に無い（メインライトも取れず未選択）場合は -1 になり、
+            // どのタブも強調されない
+            var currentIndex = _tabLights.IndexOf(selectedLight);
+
+            var newIndex = _view.DrawTabs(
+                _tabLabels, currentIndex, TAB_WIDTH, ROW_HEIGHT, TAB_MARGIN);
+            if (newIndex != currentIndex)
+            {
+                SelectLight(_tabLights[newIndex], mainLight);
+            }
+        }
+
+        /// <summary>タブに並べるライトと見出しを集める。破棄済みのライトは除く</summary>
+        private static void CollectLights(
+            Light mainLight, List<Light> lights, List<string> labels)
+        {
+            lights.Clear();
+            labels.Clear();
+
+            if (mainLight != null)
+            {
+                lights.Add(mainLight);
+                labels.Add("メイン");
             }
 
             foreach (var light in lightManager.lights)
@@ -146,18 +210,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                DrawLightRow(light, light.gameObject.name, mainLight);
-            }
-        }
-
-        /// <summary>一覧の 1 行。クリックで編集対象にする</summary>
-        private void DrawLightRow(Light light, string label, Light mainLight)
-        {
-            var isSelected = light == _selectedLight;
-            if (_view.DrawButton(label, -1, ROW_HEIGHT, true,
-                isSelected ? Color.cyan : Color.white))
-            {
-                SelectLight(light, mainLight);
+                lights.Add(light);
+                labels.Add(light.gameObject.name);
             }
         }
 
@@ -173,22 +227,24 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>選択中の追加ライトを削除する</summary>
-        private void RemoveSelectedLight()
+        private void RemoveSelectedLight(Light light)
         {
             // 呼び出し元のボタン活性だけに安全性を委ねない
-            if (_selectedLight == null)
+            if (light == null)
             {
                 return;
             }
 
-            RecordLightEdit("削除");
+            LightRowDrawer.RecordLightEdit("削除");
 
             // 消したライトを Inspector に残さない
-            if (SelectionManager.instance.selectedObject == _selectedLight.gameObject)
+            if (SelectionManager.instance.selectedObject == light.gameObject)
             {
                 SelectionManager.instance.Select(null);
             }
-            lightManager.RemoveLight(_selectedLight);
+            lightManager.RemoveLight(light);
+
+            // 未選択に戻し、次の描画でメインライトを選んだ状態にする
             _selectedLight = null;
         }
 
@@ -199,163 +255,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (light == mainLight)
             {
-                DrawMainLightParams(light);
+                _rowDrawer.DrawMainLightParams(_view, light, LABEL_WIDTH, ROW_HEIGHT);
             }
             else
             {
-                DrawAdditionalLightParams(light);
+                _rowDrawer.DrawAdditionalLightParams(_view, light, LABEL_WIDTH, ROW_HEIGHT);
             }
-        }
-
-        /// <summary>メインライトのパラメータ（回転・強度・影の濃さ・色・リセット）</summary>
-        private void DrawMainLightParams(Light light)
-        {
-            var lightMain = lightManager.mainLight;
-
-            // 既定の横回転 180 度はスライダー範囲の両端どちらでも同じ向きになる。
-            // 正規化表示 (-180, 180] と符号を揃えるため -180 側を既定値にする
-            DrawRotationSliders(
-                light.transform.eulerAngles,
-                new Vector3(DefaultMainRotation.x, DefaultMainRotation.y - 360f),
-                lightMain.SetRotation);
-
-            DrawAxisSlider("強度", light.intensity, 0f, 5f, 0.01f, DefaultMainIntensity,
-                value => lightMain.SetIntensity(value));
-            DrawAxisSlider("影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
-                DefaultMainShadowStrength, value => lightMain.SetShadowStrength(value));
-
-            // ColorPickerWindow はラベル文字列で編集対象を識別するため、
-            // 追加ライト側の色行とラベルを重複させないこと
-            DrawColorRow("メイン色", light, Color.white);
-
-            if (_view.DrawButton("リセット", 100, ROW_HEIGHT))
-            {
-                RecordLightEdit("リセット");
-                lightMain.Reset();
-            }
-        }
-
-        /// <summary>
-        /// 追加ライトのパラメータ
-        /// （種別・有効・回転・強度・範囲・スポット角度・色）
-        /// </summary>
-        private void DrawAdditionalLightParams(Light light)
-        {
-            _view.BeginHorizontal();
-            {
-                _view.DrawLabel("種別", LABEL_WIDTH, ROW_HEIGHT);
-                DrawLightTypeButton(light, LightType.Point, "ポイント");
-                DrawLightTypeButton(light, LightType.Spot, "スポット");
-                DrawLightTypeButton(light, LightType.Directional, "平行");
-            }
-            _view.EndLayout();
-
-            _view.DrawToggle("有効", light.enabled, -1, ROW_HEIGHT,
-                value =>
-                {
-                    RecordLightEdit("有効");
-                    light.enabled = value;
-                });
-
-            // ポイントライトは全方位へ照らすため向きを持たない
-            if (light.type != LightType.Point)
-            {
-                DrawRotationSliders(
-                    light.transform.eulerAngles,
-                    DefaultAdditionalRotation,
-                    value => light.transform.eulerAngles = value);
-            }
-
-            DrawAxisSlider("強度", light.intensity, 0f, 5f, 0.01f,
-                StudioLightManager.DefaultIntensity, value => light.intensity = value);
-
-            // 平行光源は位置・減衰を持たないため範囲は編集させない
-            if (light.type != LightType.Directional)
-            {
-                DrawAxisSlider("範囲", light.range, 0f, 30f, 0.01f,
-                    StudioLightManager.DefaultRange, value => light.range = value);
-            }
-
-            if (light.type == LightType.Spot)
-            {
-                DrawAxisSlider("角度", light.spotAngle, 1f, 179f, 0.1f,
-                    StudioLightManager.DefaultSpotAngle, value => light.spotAngle = value);
-            }
-
-            DrawColorRow("追加色", light, Color.white);
-        }
-
-        /// <summary>ライトの向き（縦回転・横回転）。ロールは扱わず元の値を保つ</summary>
-        private void DrawRotationSliders(
-            Vector3 eulerAngles, Vector3 defaultRotation, System.Action<Vector3> onChanged)
-        {
-            var pitch = NormalizeAngle(eulerAngles.x);
-            var yaw = NormalizeAngle(eulerAngles.y);
-
-            DrawAxisSlider("縦回転", pitch, -90f, 90f, 0.1f, defaultRotation.x,
-                value => onChanged(new Vector3(value, yaw, eulerAngles.z)));
-            DrawAxisSlider("横回転", yaw, -180f, 180f, 0.1f, defaultRotation.y,
-                value => onChanged(new Vector3(pitch, value, eulerAngles.z)));
-        }
-
-        /// <summary>種別切替ボタン 1 つ。選択中はアクセント色で示す</summary>
-        private void DrawLightTypeButton(Light light, LightType type, string label)
-        {
-            var isCurrent = light.type == type;
-            if (_view.DrawButton(label, TYPE_BUTTON_WIDTH, ROW_HEIGHT, true,
-                isCurrent ? Color.cyan : Color.white) && !isCurrent)
-            {
-                RecordLightEdit("種別");
-                lightManager.SetLightType(light, type);
-            }
-        }
-
-        /// <summary>ライトの色を DrawColor（ColorPickerWindow 連携）で編集する 1 行</summary>
-        private void DrawColorRow(string label, Light light, Color resetColor)
-        {
-            var fieldCache = _view.GetColorFieldCache(label, false);
-            _view.DrawColor(fieldCache, light.color, resetColor,
-                value =>
-                {
-                    RecordLightEdit(label);
-                    light.color = value;
-                });
-        }
-
-        /// <summary>共通書式のスライダー 1 行（CameraWindow と同形式）</summary>
-        private void DrawAxisSlider(
-            string label, float value, float min, float max, float step,
-            float defaultValue, System.Action<float> onChanged)
-        {
-            _view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = label,
-                labelWidth = LABEL_WIDTH,
-                width = -1,
-                min = min,
-                max = max,
-                step = step,
-                defaultValue = defaultValue,
-                value = value,
-                onChanged = newValue =>
-                {
-                    RecordLightEdit(label);
-                    onChanged(newValue);
-                },
-            });
-        }
-
-        /// <summary>ライト操作を履歴へ記録する。ドラッグ中の連続変更は 1 件に集約される</summary>
-        private static void RecordLightEdit(string label)
-        {
-            HistoryManager.instance.BeforeEdit(null, HistoryScope.Light, "ライト: " + label);
-        }
-
-        /// <summary>角度を (-180, 180] へ正規化する</summary>
-        private static float NormalizeAngle(float angle)
-        {
-            angle = Mathf.Repeat(angle, 360f);
-            return angle > 180f ? angle - 360f : angle;
         }
     }
 }

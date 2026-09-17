@@ -69,7 +69,37 @@ namespace COM3D2.SceneEditor.Plugin
             var adapter = new ExternalWindowAdapter(
                 windowId, title ?? "", getRect, setRect, isVisible, setTabVisible);
             _externals.Add(adapter);
+            // 一時非表示中に登録された窓 (非表示中に開き直したゲスト) も隠しておく。
+            // アダプタの初期値は表示なので、ここで押し込まないと 1 つだけ出たままになる
+            adapter.NotifyTabVisibleChanged();
             return adapter;
+        }
+
+        /// <summary>
+        /// ホスト側のウィンドウ一時非表示 (WindowManager.isWindowsHidden) に外部窓も追従させるか。
+        /// プラグイン無効化中は追従させない。無効化時はホストが管理を手放してゲストが
+        /// 独立ウィンドウへ戻る契機なので、隠したまま取り残すと復帰手段が無くなる。
+        /// WindowManager の生フラグとは条件が違うため、別名にして取り違えを防ぐ
+        /// </summary>
+        internal static bool shouldHideExternalWindows
+        {
+            get
+            {
+                var plugin = SceneEditorPlugin.instance;
+                return plugin != null && plugin.isEnable && WindowManager.instance.isWindowsHidden;
+            }
+        }
+
+        /// <summary>
+        /// 全外部窓へタブ表示状態を配り直す。一時非表示の切り替えはタブグループの
+        /// 増減を伴わず NotifyTabVisibleChanged が自然発火しないため、明示的に押し出す
+        /// </summary>
+        internal static void RefreshExternalTabVisible()
+        {
+            foreach (var adapter in _externals)
+            {
+                adapter.NotifyTabVisibleChanged();
+            }
         }
 
         public static void Unregister(object handle)
@@ -162,6 +192,44 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             group.SetActive(adapter);
+        }
+
+        /// <summary>
+        /// タブ列のスクロール位置 (px) を読む。スクロール位置はグループの状態なので、
+        /// ゲストが自前で持つとタブ切替のたびに位置が飛ぶ。
+        /// 未所属なら fallback をそのまま返す
+        /// </summary>
+        public static float GetTabScrollX(object handle, float fallback)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            var group = adapter != null ? adapter.group : null;
+            return group != null ? group.tabScrollX : fallback;
+        }
+
+        /// <summary>ゲストが操作した結果のスクロール位置 (px) を書き戻す</summary>
+        public static void SetTabScrollX(object handle, float scrollX)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            var group = adapter != null ? adapter.group : null;
+            if (group != null)
+            {
+                group.tabScrollX = scrollX;
+            }
+        }
+
+        /// <summary>
+        /// ゲストのメニュー選択によるタブアクティブ化。tabIndex はグループ内 index。
+        /// ActivateTab と違い自窓以外も指定でき、NotifyTabMouseDown と違い
+        /// つまみドラッグ候補は記録しない (メニュー選択はドラッグではない)
+        /// </summary>
+        public static void ActivateTabIndex(object handle, int tabIndex)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            if (adapter == null)
+            {
+                return;
+            }
+            TabGroupManager.instance.ActivateTabIndex(adapter, tabIndex);
         }
 
         /// <summary>
@@ -281,13 +349,19 @@ namespace COM3D2.SceneEditor.Plugin
                     // アダプタを作り直さず同じ登録のまま再表示するゲストにも自動再ドッキングを効かせる
                     adapter.ResetAutoDockRetry();
                 }
-                // 表示直後の一定フレーム、ヘッダー位置がほぼ一致する窓があれば自動再ドッキング。
-                // 外部窓のドッキング構成は復元されないが位置はゲストが保持しているため、
-                // 同じ位置に出てきたものはドッキングへ復帰させる (設計判断は autoDockRetryFrames 参照)
+                // 表示直後の一定フレーム、自動再ドッキングを試みる (猶予は autoDockRetryFrames 参照)。
+                // まず config の保存構成による ID ベース復元 (TryRestoreExternal) を試し、
+                // 保存エントリの無い窓は位置をゲストが保持していることを利用して、
+                // ヘッダー位置がほぼ一致する窓のグループへ復帰させる
                 else if (adapter.group == null && adapter.autoDockRetryFrames > 0)
                 {
                     adapter.autoDockRetryFrames--;
-                    TabGroupManager.instance.MergeIfHeaderMatches(adapter);
+                    // まず config の保存構成による確実な復元を試し、
+                    // 保存エントリの無い窓は従来どおりヘッダー位置一致で復帰させる
+                    if (!TabGroupManager.instance.TryRestoreExternal(adapter))
+                    {
+                        TabGroupManager.instance.MergeIfHeaderMatches(adapter);
+                    }
                     if (adapter.group != null)
                     {
                         // 成立したら残りフレームを捨てる。残したままだと直後に手動で
@@ -353,6 +427,11 @@ namespace COM3D2.SceneEditor.Plugin
                     adapter.ResetAutoDockRetry();
                 }
             }
+
+            // 一時非表示のまま無効化された場合、グループ未所属だった窓は上の解除で
+            // 通知が発火しない。無効化後は isWindowsHidden が false になるので、
+            // ここで配り直して隠れたままの窓を確実に復帰させる
+            RefreshExternalTabVisible();
         }
     }
 
@@ -487,11 +566,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void NotifyTabVisibleChanged()
         {
-            if (_lastTabVisible == isTabVisible)
+            // ゲストへ渡す「描くべきか」はタブの畳み状態と一時非表示の合成。
+            // isTabVisible 自体はタブの畳み状態だけを表す契約 (ITabVisibleWindow) なので
+            // 一時非表示を混ぜず、内部ウィンドウが isWndVisible で合成しているのと同じ形にする
+            var visible = !DockingHost.shouldHideExternalWindows && isTabVisible;
+            if (_lastTabVisible == visible)
             {
                 return;
             }
-            _lastTabVisible = isTabVisible;
+            _lastTabVisible = visible;
             try
             {
                 _setTabVisible(_lastTabVisible);

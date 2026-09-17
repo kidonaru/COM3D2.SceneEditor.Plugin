@@ -8,7 +8,10 @@ namespace COM3D2.SceneEditor.Plugin
     /// カメラの OnPostRender で編集用のグリッドを GL 描画する。
     /// 床の XZ 平面グリッド + XYZ 軸線 (ワールドグリッド) と、
     /// 画面を等分する構図用のオーバーレイ (画面分割グリッド) を持つ。
-    /// 描画・座標変換の作法は BoneLineRenderer に揃えている
+    /// 描画・座標変換の作法は BoneLineRenderer に揃えている。
+    /// GameView では 2 つに分けて使う。床グリッドはシーンのオブジェクトに隠れる必要があり
+    /// 深度が要るためメインカメラへ、画面分割グリッドはポストエフェクトを避けたいため
+    /// gizmo カメラへ付け、後者は行列を viewCamera (メインカメラ) から取る
     /// </summary>
     public class GridRenderer : MonoBehaviour
     {
@@ -35,6 +38,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ホスト側の表示切替。既定は SceneView で、GameView 側は生成時に差し替える</summary>
         public Func<bool> isHostActive = () => SceneViewWindow.instance.isShowWnd;
 
+        /// <summary>
+        /// 床グリッドを描くか。GameView では深度テストのためメインカメラ側のインスタンスが
+        /// 描くので、gizmo カメラ側 (画面分割グリッド担当) では false にする
+        /// </summary>
+        public bool drawWorldGrid = true;
+
         /// <summary>画面分割グリッドを描くか。構図用なので GameView 側でのみ有効にする</summary>
         public bool drawDisplayGrid = false;
 
@@ -45,6 +54,17 @@ namespace COM3D2.SceneEditor.Plugin
         private Material _overlayMaterial;
 
         private Camera _camera;
+
+        /// <summary>
+        /// 行列・線幅計算の基準になるカメラ。既定は自分が付いているカメラ。
+        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする。
+        /// null を代入すると未設定ではなく自身の Camera へ戻る
+        /// </summary>
+        public Camera viewCamera
+        {
+            get => _camera;
+            set => _camera = value != null ? value : GetComponent<Camera>();
+        }
 
         private static Config config => ConfigManager.instance.config;
 
@@ -90,11 +110,15 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private bool isActive
+        /// <summary>
+        /// 全グリッド共通の表示条件 (全体スイッチ・プラグイン有効・編集中のみ)。
+        /// 動画面グリッドと動画プレビューも同じ条件で出すため公開している
+        /// </summary>
+        public static bool isGridEnabled
         {
             get
             {
-                if (!config.isGridVisible || !SceneEditorPlugin.instance.isEnable || !isHostActive())
+                if (!config.isGridVisible || !SceneEditorPlugin.instance.isEnable)
                 {
                     return false;
                 }
@@ -104,6 +128,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        private bool isActive => isGridEnabled && isHostActive();
+
         private void OnPostRender()
         {
             if (!isActive)
@@ -111,7 +137,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (_worldMaterial != null && config.isGridVisibleInWorld)
+            if (_worldMaterial != null && drawWorldGrid && config.isGridVisibleInWorld)
             {
                 DrawWorldGrid();
             }

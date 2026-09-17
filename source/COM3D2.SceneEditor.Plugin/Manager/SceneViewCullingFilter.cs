@@ -4,7 +4,7 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// SceneView カメラの描画中だけ背景/メイドのレンダラーを無効化するフィルタ。
+    /// SceneView カメラの描画中だけ背景/メイド/モデルのレンダラーを無効化するフィルタ。
     /// OnPreCull/OnPostRender はアタッチ先カメラの描画時にのみ呼ばれるため、
     /// ゲーム本体の画面には影響しない。
     /// GameObject の非アクティブ化やレイヤー変更はゲーム側の挙動を壊すため行わない
@@ -14,6 +14,7 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public bool hideBg = false;
         public bool hideMaid = false;
+        public bool hideModel = false;
 
         // 列挙コストを抑えるためキャッシュし、破棄済み参照を見つけたら作り直す。
         // メイド追加・衣装変更等の「レンダラーが増える」変化は null 検出では捕捉できないため、
@@ -22,8 +23,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly List<Renderer> _bgRenderers = new List<Renderer>();
         private readonly List<Renderer> _maidRenderers = new List<Renderer>();
+        private readonly List<Renderer> _modelRenderers = new List<Renderer>();
         private bool _bgCacheValid = false;
         private bool _maidCacheValid = false;
+        private bool _modelCacheValid = false;
         private int _lastRefreshFrame = -1;
 
         // OnPreCull で無効化したレンダラー (OnPostRender で復元する)
@@ -34,6 +37,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _bgCacheValid = false;
             _maidCacheValid = false;
+            _modelCacheValid = false;
         }
 
         private void OnPreCull()
@@ -53,6 +57,10 @@ namespace COM3D2.SceneEditor.Plugin
             if (hideMaid)
             {
                 DisableRenderers(_maidRenderers, ref _maidCacheValid, CollectMaidRenderers);
+            }
+            if (hideModel)
+            {
+                DisableRenderers(_modelRenderers, ref _modelCacheValid, CollectModelRenderers);
             }
         }
 
@@ -130,6 +138,24 @@ namespace COM3D2.SceneEditor.Plugin
                 if (maid != null)
                 {
                     results.AddRange(maid.gameObject.GetComponentsInChildren<Renderer>(true));
+                }
+            }
+        }
+
+        /// <summary>MTE のモデル管理が持つ StudioModel 配下のレンダラーを集める</summary>
+        private static void CollectModelRenderers(List<Renderer> results)
+        {
+            var modelManager = COM3D2.MotionTimelineEditor.Plugin.StudioModelManager.instance;
+            if (modelManager == null)
+            {
+                return;
+            }
+
+            foreach (var model in modelManager.models)
+            {
+                if (model != null && model.transform != null)
+                {
+                    results.AddRange(model.transform.GetComponentsInChildren<Renderer>(true));
                 }
             }
         }

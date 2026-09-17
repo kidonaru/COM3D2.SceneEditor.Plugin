@@ -76,8 +76,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static bool IsGameViewActiveAt(Vector2 guiPos)
         {
-            // 最大化中は全画面が3Dシーン。IMGUIウィンドウ上とギアメニュー上だけUIとして除外する
-            if (GameViewManager.instance.isMaximized)
+            // 直接描画中は全画面が3Dシーン。IMGUIウィンドウ上とギアメニュー上だけUIとして除外する
+            if (GameViewManager.instance.isDirectRender)
             {
                 return !GuiWindowTracker.IsOverWindowExcept(GameViewWindow.WINDOW_ID, guiPos) &&
                     !GameViewManager.instance.IsOverSystemUI(guiPos);
@@ -114,7 +114,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var original = AccessTools.PropertyGetter(typeof(Input), "mousePosition");
                 var postfix = AccessTools.Method(typeof(InputRemapper), nameof(MousePositionPostfix));
                 _harmony.Patch(original, postfix: new HarmonyMethod(postfix));
-                MTEUtils.Log("Input.mousePosition のフックに成功しました");
+                MTEUtils.LogDebug("Input.mousePosition のフックに成功しました");
             }
             catch (System.Exception e)
             {
@@ -144,7 +144,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var original = AccessTools.Method(type, "DoSendMouseEvents");
                 var prefix = AccessTools.Method(typeof(InputRemapper), nameof(DoSendMouseEventsPrefix));
                 _harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-                MTEUtils.Log("SendMouseEvents のフックに成功しました");
+                MTEUtils.LogDebug("SendMouseEvents のフックに成功しました");
             }
             catch (System.Exception e)
             {

@@ -195,6 +195,7 @@ namespace COM3D2.SceneEditor.Plugin
                 (HEADER_HEIGHT - HEADER_BUTTON_HEIGHT) * 0.5f,
                 MAXIMIZE_BUTTON_WIDTH,
                 HEADER_BUTTON_HEIGHT);
+            TooltipDrawer.RegisterIfHovered(maximizeRect, "最大化");
             if (GUI.Button(maximizeRect, "□"))
             {
                 gameViewManager.SetMaximized(true);
@@ -212,6 +213,7 @@ namespace COM3D2.SceneEditor.Plugin
             var oldColor = GUI.color;
             // ロック中はアクセントカラーで塗って状態を示す
             GUI.color = isLocked ? EditorSubWindow.ACCENT_COLOR : Color.white;
+            TooltipDrawer.RegisterIfHovered(lockRect, DockableWindowBase.GetLockTooltip(isLocked));
             if (GUI.Button(lockRect, isLocked ? "◆" : "◇"))
             {
                 ToggleLock();
@@ -291,9 +293,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public Vector2 GuiToRtPoint(Vector2 guiPos)
         {
-            // 最大化中は直接描画のため、画面ピクセル座標がそのままカメラのスクリーン座標。
+            // 直接描画中は画面ピクセル座標がそのままカメラのスクリーン座標。
             // GUI座標 (左上原点) → スクリーン座標 (左下原点) のY反転のみ行う
-            if (gameViewManager.isMaximized)
+            if (gameViewManager.isDirectRender)
             {
                 return new Vector2(guiPos.x, Screen.height - guiPos.y);
             }

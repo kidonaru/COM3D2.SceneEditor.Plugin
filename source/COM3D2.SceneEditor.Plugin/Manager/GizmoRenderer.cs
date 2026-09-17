@@ -97,6 +97,56 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Vector3[] _boundsCorners = new Vector3[8];
 
         private Camera _camera;
+
+        /// <summary>
+        /// 行列・ピッキング・サイズ計算の基準になるカメラ。既定は自分が付いているカメラ。
+        /// GameView ではポストエフェクトを避けるため gizmo カメラに付け、視点はメインカメラにする。
+        /// null を代入すると未設定ではなく自身の Camera へ戻る
+        /// </summary>
+        public Camera viewCamera
+        {
+            get => _camera;
+            set => _camera = value != null ? value : GetComponent<Camera>();
+        }
+
+        /// <summary>有効な GizmoRenderer。GizmoHost が視点カメラから逆引きするのに使う</summary>
+        private static readonly List<GizmoRenderer> _activeRenderers = new List<GizmoRenderer>();
+
+        /// <summary>
+        /// 視点カメラが camera の GizmoRenderer を返す。
+        /// メインカメラは GizmoRenderer を持たない (gizmo カメラに付く) ため、
+        /// GetComponent では引けない GameView 側のレンダラをここで解決する
+        /// </summary>
+        public static GizmoRenderer FindByViewCamera(Camera camera)
+        {
+            if (camera == null)
+            {
+                return null;
+            }
+            for (var i = 0; i < _activeRenderers.Count; i++)
+            {
+                var renderer = _activeRenderers[i];
+                if (renderer != null && renderer._camera == camera)
+                {
+                    return renderer;
+                }
+            }
+            return null;
+        }
+
+        private void OnEnable()
+        {
+            if (!_activeRenderers.Contains(this))
+            {
+                _activeRenderers.Add(this);
+            }
+        }
+
+        private void OnDisable()
+        {
+            _activeRenderers.Remove(this);
+        }
+
         private Material _lineMaterial;
 
         /// <summary>ギズモ本体。描画・ヒット判定・ドラッグ解決はすべてここが持つ</summary>
@@ -117,8 +167,63 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ドラッグ中のギズモ。_gizmo か _maidGizmos のいずれか</summary>
         private TransformGizmo _activeDragGizmo;
 
+        /// <summary>
+        /// ボーン回転ギズモの表示倍率。
+        /// ゲーム側 GizmoRender のボーンギズモは generalLens (= 0.5 * tan(fov/2) * 距離) に
+        /// offsetScale 0.25 を掛けた長さで、FoV 45 度では距離の 0.0518 倍だった。
+        /// TransformGizmo は基準画角 (45 度) で距離の 0.15 倍 * sizeScale なので、そこへ合わせた値。
+        /// どちらも tan(fov/2) で正規化するようになったため、この比はどの画角でも保たれる
+        /// </summary>
+        private const float BoneGizmoSizeScale = 0.345f;
+
+        /// <summary>
+        /// ボーン回転ギズモの対象を供給する外部フック (MaidBoneGizmoController が設定する)。
+        /// 修飾キーで表示グループが変わるため毎フレーム引き直す。
+        /// GizmoRenderer をメイド操作のコードから切り離すため、
+        /// externalTargetProvider と同じくデリゲート経由にしている
+        /// </summary>
+        public static Func<IList<Transform>> boneGizmoTargetsProvider;
+
+        /// <summary>
+        /// ボーンギズモを掴んだ直後に 1 回だけ呼ばれる。
+        /// モーション停止と履歴記録は「どのボーンを掴んだか」を知っている側の責務なので外へ出す
+        /// </summary>
+        public static Action<Transform> onBoneGizmoDragBegin;
+
+        /// <summary>
+        /// ボーン回転ギズモ。非選択メイド用と同じく List は縮めず、有効件数だけ持ち回す
+        /// </summary>
+        private readonly List<TransformGizmo> _boneGizmos = new List<TransformGizmo>();
+
+        /// <summary>_boneGizmos と同じ添字で対象ボーンを保持する</summary>
+        private readonly List<Transform> _boneGizmoTargets = new List<Transform>();
+
+        /// <summary>現在有効な要素数</summary>
+        private int _boneGizmoCount;
+
+        /// <summary>ドラッグ中のボーン。ボーンギズモを掴んでいなければ null</summary>
+        public Transform draggingBoneTarget { get; private set; }
+
         /// <summary>SceneView ツールバーからのギズモ表示切替。false の間は描画もドラッグ開始もしない</summary>
         public bool drawEnabled = true;
+
+        /// <summary>
+        /// メニューバーの編集モード・「ボーン表示」トグルにギズモ表示を連動させるか。
+        /// GameView はゲーム本来の見え方を保つため true にし、編集モード外や
+        /// ボーン表示 OFF ではオブジェクト・メイドルートのギズモも消す。
+        /// SceneView は常時編集用のビューなので false のまま、ツールバーのギズモ表示 (drawEnabled) だけに従う
+        /// </summary>
+        public bool followsBoneVisibility;
+
+        /// <summary>
+        /// 実際に描画・ドラッグを許すか。ツールバーのギズモ表示 (drawEnabled) に、
+        /// followsBoneVisibility のビューでは編集モード＋「ボーン表示」(isBoneEditing) を AND する。
+        /// ボーン表示は編集モード外でも既定で ON のため、isBoneVisible 単独では編集モード外で
+        /// 外部プラグインのギズモ (GizmoHost.IsGizmoVisible) まで出てしまう
+        /// </summary>
+        public bool isDrawEnabled =>
+            drawEnabled
+            && (!followsBoneVisibility || MaidManipulateManager.instance.isBoneEditing);
 
         public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
@@ -191,7 +296,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ギズモ本体の対象。抑止中は選択オブジェクトを対象にしない
+        /// ギズモ本体の対象。抑止中・メイドルートの非表示中は選択オブジェクトを対象にしない
         /// （選択バウンズ・ライトギズモは target を使い続けるので抑止の影響を受けない）
         /// </summary>
         private GameObject gizmoTarget
@@ -203,8 +308,35 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return external;
                 }
-                return selectionManager.gizmoSuppressed ? null : selectionManager.selectedObject;
+                if (selectionManager.gizmoSuppressed)
+                {
+                    return null;
+                }
+
+                var selected = selectionManager.selectedObject;
+                return ShouldHideMaidRoot(selected) ? null : selected;
             }
+        }
+
+        /// <summary>
+        /// メイドルートのギズモを出してよいか。
+        /// followsBoneVisibility のビュー (GameView) ではボーンギズモ・白丸ドラッグ点と同じく
+        /// 編集モード＋ボーン表示 (isBoneEditing) 中だけ出す。
+        /// SceneView では常に出す。編集モード外で掴んでも RecordGizmoDragHistory 経由の
+        /// HistoryManager.BeforeEdit が AutoEditMode.Enter を呼ぶため、レイヤーの書き戻しで巻き戻ることはない
+        /// </summary>
+        private bool canShowMaidRoot =>
+            !followsBoneVisibility || MaidManipulateManager.instance.isBoneEditing;
+
+        /// <summary>
+        /// メイドルートのギズモを隠すか (canShowMaidRoot の対象判定つき)。
+        /// ライト等その他のオブジェクトはレイヤー管理外なのでこの制限をかけない
+        /// </summary>
+        private bool ShouldHideMaidRoot(GameObject go)
+        {
+            return go != null
+                && !canShowMaidRoot
+                && go.GetComponent<Maid>() != null;
         }
 
         /// <summary>static な UI 設定と選択対象をギズモ本体へ反映する</summary>
@@ -220,17 +352,78 @@ namespace COM3D2.SceneEditor.Plugin
             _gizmo.tool = currentTool;
             _gizmo.useLocalSpace = useLocalSpace;
 
-            // ドラッグ中に組み直すと、掴んでいるインスタンスが別のメイドへ
+            // ドラッグ中に組み直すと、掴んでいるインスタンスが別のメイド・別のボーンへ
             // 使い回されて操作対象がすり替わる
             if (_activeDragGizmo == null)
             {
+                RebuildBoneGizmos();
                 RebuildMaidGizmos();
             }
         }
 
         /// <summary>
+        /// プールから添字 index のギズモを取り出す。足りなければ 1 件だけ伸ばす。
+        /// List を縮めずに使い回す方針の単一の窓口 (伸長はここでしか行わない)
+        /// </summary>
+        private static TransformGizmo AcquirePooledGizmo<T>(
+            List<TransformGizmo> gizmos, List<T> targets, int index)
+        {
+            if (index >= gizmos.Count)
+            {
+                gizmos.Add(new TransformGizmo());
+                targets.Add(default(T));
+            }
+            return gizmos[index];
+        }
+
+        /// <summary>
+        /// ボーン回転ギズモの対象を組み直す。
+        /// _gizmo が担当しているボーン (ボーン編集ウィンドウの選択ボーン) は
+        /// 同じ Transform に 2 個描かれてしまうため除く。
+        /// 呼び出し元の SyncGizmo がドラッグ中は呼ばないよう抑止しているため、
+        /// _gizmo.target は「ドラッグ中でない現在の選択」として読んでよい
+        /// </summary>
+        private void RebuildBoneGizmos()
+        {
+            _boneGizmoCount = 0;
+
+            var provider = boneGizmoTargetsProvider;
+            if (provider == null)
+            {
+                return;
+            }
+
+            var targets = provider();
+            if (targets == null)
+            {
+                return;
+            }
+
+            var selectedBone = _gizmo.target;
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var bone = targets[i];
+                if (bone == null || bone == selectedBone)
+                {
+                    continue;
+                }
+
+                var gizmo = AcquirePooledGizmo(_boneGizmos, _boneGizmoTargets, _boneGizmoCount);
+                gizmo.target = bone;
+                // ボーンギズモは回転専用・ローカル軸固定。共有 UI 設定には追従させない
+                // (Alt を押した瞬間に移動ギズモが出てボーンが平行移動できてしまうため)
+                gizmo.tool = GizmoTool.Rotate;
+                gizmo.useLocalSpace = true;
+                gizmo.sizeScale = BoneGizmoSizeScale;
+
+                _boneGizmoTargets[_boneGizmoCount] = bone;
+                _boneGizmoCount++;
+            }
+        }
+
+        /// <summary>
         /// メイドルート用ギズモの対象を組み直す。
-        /// ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
+        /// 出せる状態 (canShowMaidRoot) なら、ボーン編集中・ポーズボーン選択中でもメイドルートのギズモは出す
         /// (ボーンを触っている間に他のメイドを動かせなくなるのを避ける)。
         /// ボーン用ギズモと重なった場合は TryBeginDrag が _gizmo を先に試すので
         /// ボーン側が優先され、掴み間違いにはならない
@@ -240,6 +433,12 @@ namespace COM3D2.SceneEditor.Plugin
             _maidGizmoCount = 0;
 
             if (gizmoTargetType != GizmoTargetType.All)
+            {
+                return;
+            }
+
+            // 選択中メイドと同じ条件でメイドルートのギズモを出す
+            if (!canShowMaidRoot)
             {
                 return;
             }
@@ -270,13 +469,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ギズモを 1 件ぶん確保して対象と表示設定を反映する</summary>
         private void AddMaidGizmo(GameObject go)
         {
-            if (_maidGizmoCount >= _maidGizmos.Count)
-            {
-                _maidGizmos.Add(new TransformGizmo());
-                _maidGizmoTargets.Add(null);
-            }
-
-            var gizmo = _maidGizmos[_maidGizmoCount];
+            var gizmo = AcquirePooledGizmo(_maidGizmos, _maidGizmoTargets, _maidGizmoCount);
             gizmo.target = go.transform;
             gizmo.tool = currentTool;
             gizmo.useLocalSpace = useLocalSpace;
@@ -303,7 +496,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 自前マテリアルの成否に依存せず描く
             GizmoHost.DrawExternals(_camera);
 
-            if (_lineMaterial == null || !drawEnabled)
+            if (_lineMaterial == null || !isDrawEnabled)
             {
                 return;
             }
@@ -331,6 +524,11 @@ namespace COM3D2.SceneEditor.Plugin
             SyncGizmo();
             _gizmo.Draw(_camera);
 
+            for (var i = 0; i < _boneGizmoCount; i++)
+            {
+                _boneGizmos[i].Draw(_camera);
+            }
+
             for (var i = 0; i < _maidGizmoCount; i++)
             {
                 _maidGizmos[i].Draw(_camera);
@@ -346,6 +544,7 @@ namespace COM3D2.SceneEditor.Plugin
             var gameMain = GameMain.Instance;
             var mainCameraMain = gameMain != null ? gameMain.MainCamera : null;
             var mainCamera = mainCameraMain != null ? mainCameraMain.camera : null;
+            // 視点がメインカメラそのもの (GameView) なら自分の視錐台は描かない
             if (mainCamera == null || mainCamera == _camera)
             {
                 return;
@@ -601,7 +800,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool TryBeginDrag(Vector2 rtPoint)
         {
             // 非表示のギズモは掴めない (呼び出し側は通常のオブジェクト選択へフォールバックする)
-            if (!drawEnabled)
+            if (!isDrawEnabled)
             {
                 return false;
             }
@@ -618,6 +817,25 @@ namespace COM3D2.SceneEditor.Plugin
                 if (externalTargetProvider?.Invoke() == null)
                 {
                     RecordGizmoDragHistory(gizmoTarget);
+                }
+                return true;
+            }
+
+            // ボーンはメイドルートより小さく重なりやすいので、メイドルートより先に試す
+            for (var i = 0; i < _boneGizmoCount; i++)
+            {
+                if (!_boneGizmos[i].TryBeginDrag(_camera, rtPoint))
+                {
+                    continue;
+                }
+
+                _activeDragGizmo = _boneGizmos[i];
+                draggingBoneTarget = _boneGizmoTargets[i];
+
+                // 最初の UpdateDrag より前に呼ぶ。履歴は変更前の姿勢を記録する必要がある
+                if (onBoneGizmoDragBegin != null)
+                {
+                    onBoneGizmoDragBegin(draggingBoneTarget);
                 }
                 return true;
             }
@@ -678,8 +896,15 @@ namespace COM3D2.SceneEditor.Plugin
             // 掴んだ側をここで外さないと SyncGizmo がドラッグ中と誤認したまま復帰しない
             if (!_activeDragGizmo.isDragging)
             {
-                _activeDragGizmo = null;
+                ClearActiveDrag();
             }
+        }
+
+        /// <summary>掴んでいる状態を落とす。掴んだボーンの持ち回しも一緒に切る</summary>
+        private void ClearActiveDrag()
+        {
+            _activeDragGizmo = null;
+            draggingBoneTarget = null;
         }
 
         public void EndDrag()
@@ -690,7 +915,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _activeDragGizmo.EndDrag();
-            _activeDragGizmo = null;
+            ClearActiveDrag();
         }
     }
 }

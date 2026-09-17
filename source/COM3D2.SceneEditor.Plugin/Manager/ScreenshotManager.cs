@@ -1,15 +1,21 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// スクリーンショットの撮影。
-    /// メインカメラを一時 RenderTexture へ描画するため、プラグイン UI や NGUI は写らず、
-    /// 撮影中だけギズモ・骨格線・ドラッグ点の描画を止めることでゲーム画面だけを保存する
+    /// メインカメラを一時 RenderTexture へ描画するため、プラグイン UI や NGUI は写らない。
+    /// 手動描画では画面表示との差を 2 方向から埋める必要があり、
+    /// 撮影から外すもの (ギズモ・骨格線・ドラッグ点) は HideOverlays で止め、
+    /// メインカメラが描かないもの (レターボックス・動画・字幕) は
+    /// AddExtraCameras の重ね描きカメラとして足す。
+    /// 後者は連番画像出力も同じ事情を抱えるため、両方から共有している
     /// </summary>
     public static class ScreenshotManager
     {
@@ -79,20 +85,33 @@ namespace COM3D2.SceneEditor.Plugin
             // 途中で例外が起きても enabled=false にした分だけは確実に復元できるよう、
             // リストは先に作って HideOverlays には詰めてもらう
             var hiddenOverlays = new List<Behaviour>();
+            // 重ね描きカメラもゲームビューの RT を targetTexture に持つため、
+            // メインカメラと同様に退避してから一時 RT へ向ける
+            var extraCameras = new List<Camera>();
+            AddExtraCameras(extraCameras);
+            var savedExtraTargets = extraCameras.Select(extra => extra.targetTexture).ToList();
             Texture2D texture = null;
             try
             {
                 int captureWidth, captureHeight;
                 GetCaptureSize(out captureWidth, out captureHeight);
-                renderTexture = RenderTexture.GetTemporary(captureWidth, captureHeight, 24);
+                // RT 描画には QualitySettings の MSAA が反映されないため、画面と同じ段数を明示する
+                renderTexture = RenderTexture.GetTemporary(
+                    captureWidth, captureHeight, 24,
+                    RenderTextureFormat.Default, RenderTextureReadWrite.Default,
+                    Mathf.Max(1, QualitySettings.antiAliasing));
                 HideOverlays(hiddenOverlays);
 
                 camera.targetTexture = renderTexture;
+                foreach (var extra in extraCameras)
+                {
+                    extra.targetTexture = renderTexture;
+                }
 
                 var bgColor = BackgroundUtils.bgColor;
                 texture = bgColor.a < 1f
-                    ? CaptureTransparent(camera, renderTexture, bgColor)
-                    : CaptureOpaque(camera, renderTexture);
+                    ? CaptureTransparent(camera, renderTexture, extraCameras, bgColor)
+                    : CaptureOpaque(camera, renderTexture, extraCameras);
 
                 // UTY.SaveImage(Texture2D) は内部で Blit して ReadPixels し直すため、
                 // 読み込み済みのピクセルをそのまま書き出して GPU リードバックの往復を避ける
@@ -108,6 +127,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 RestoreOverlays(hiddenOverlays);
                 camera.targetTexture = savedTargetTexture;
+                for (var i = 0; i < extraCameras.Count; i++)
+                {
+                    extraCameras[i].targetTexture = savedExtraTargets[i];
+                }
                 camera.clearFlags = savedClearFlags;
                 camera.backgroundColor = savedBackgroundColor;
                 RenderTexture.active = savedActive;
@@ -129,9 +152,11 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>不透明な撮影。カメラをそのまま 1 回描画して読み出す</summary>
-        private static Texture2D CaptureOpaque(Camera camera, RenderTexture renderTexture)
+        private static Texture2D CaptureOpaque(
+            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras)
         {
             camera.Render();
+            RenderExtras(extraCameras);
 
             RenderTexture.active = renderTexture;
             var texture = new Texture2D(renderTexture.width, renderTexture.height,
@@ -149,10 +174,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// 両者の差がそのまま「背景の透け量」(1-c) になる
         /// </summary>
         private static Texture2D CaptureTransparent(
-            Camera camera, RenderTexture renderTexture, Color bgColor)
+            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras, Color bgColor)
         {
-            var onBlack = RenderAndRead(camera, renderTexture, Color.black);
-            var onWhite = RenderAndRead(camera, renderTexture, Color.white);
+            var onBlack = RenderAndRead(camera, renderTexture, extraCameras, Color.black);
+            var onWhite = RenderAndRead(camera, renderTexture, extraCameras, Color.white);
 
             // 高解像度 (最大 4 倍) では 1 本で数百 MB になるため、結果は onBlack へ上書きして
             // 巨大な配列を 3 本同時に抱えないようにする (同じ添字を読んでから書くので安全)
@@ -195,11 +220,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>クリア色を指定してカメラを 1 回描画し、ピクセルを読み出す</summary>
         private static Color[] RenderAndRead(
-            Camera camera, RenderTexture renderTexture, Color clearColor)
+            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras,
+            Color clearColor)
         {
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = clearColor;
             camera.Render();
+            RenderExtras(extraCameras);
 
             RenderTexture.active = renderTexture;
             var texture = new Texture2D(renderTexture.width, renderTexture.height,
@@ -230,30 +257,49 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// メインカメラの後に重ね描きするカメラ (最前面動画・字幕・ギズモ) を cameras へ足す。
+        /// どれもメインカメラのカリング対象外の専用カメラで描かれるため、
+        /// 手動描画の経路がこれらを描かないと撮影結果に写らない。
+        /// 列挙と depth 順は所有者の CameraManager に任せ、カメラが増えてもここは変えない
+        /// </summary>
+        internal static void AddExtraCameras(List<Camera> cameras)
+        {
+            MTEP.CameraManager.instance.GetOverlayCameras(cameras);
+        }
+
+        /// <summary>
+        /// 重ね描きカメラを順に描く。
+        /// いずれも clearFlags が Depth のため、メインカメラの描画結果の上に重なる。
+        /// 通常描画と重なって撮影フレームだけ OnPostRender が 2 回走るが、一時的なコストなので許容する。
+        /// ギズモ系は撮影に写したくないので HideOverlays が事前に止めており、gizmo カメラは実質何も描かない
+        /// </summary>
+        private static void RenderExtras(List<Camera> extraCameras)
+        {
+            foreach (var extra in extraCameras)
+            {
+                extra.Render();
+            }
+        }
+
+        /// <summary>
         /// 撮影に写したくないプラグインの描画要素 (ギズモ・骨格線・グリッド・ドラッグ点の円) を
         /// 一時的に無効化し、復元用のリストを返す。
         /// GizmoRenderer は OnPostRender、MaidDragPointRing は OnRenderObject で描くため、
         /// コンポーネントを無効化すれば手動の camera.Render() でも描かれない
         /// </summary>
-        private static void HideOverlays(List<Behaviour> hidden)
+        internal static void HideOverlays(List<Behaviour> hidden)
         {
             // 撮影対象はメインカメラのため、そこに紐づく GameViewManager 側だけを止める
             // (SceneViewManager のギズモ・骨格線は別カメラなので写らない)
             var gameViewManager = GameViewManager.instance;
             HideOverlay(hidden, gameViewManager.gizmoRenderer);
             HideOverlay(hidden, gameViewManager.boneLineRenderer);
-            HideOverlay(hidden, gameViewManager.gridRenderer);
+            HideOverlay(hidden, gameViewManager.worldGridRenderer);
+            HideOverlay(hidden, gameViewManager.displayGridRenderer);
 
             foreach (var ring in UnityEngine.Object.FindObjectsOfType<MaidDragPointRing>())
             {
                 HideOverlay(hidden, ring);
-            }
-
-            // ボーン編集の回転ギズモは Alt 押下中だけ出る。Alt を押したままメニューを
-            // クリックされると写り込むため、これも止める
-            foreach (var gizmo in UnityEngine.Object.FindObjectsOfType<ModelGizmoRender>())
-            {
-                HideOverlay(hidden, gizmo);
             }
         }
 
@@ -266,7 +312,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static void RestoreOverlays(List<Behaviour> hidden)
+        internal static void RestoreOverlays(List<Behaviour> hidden)
         {
             foreach (var behaviour in hidden)
             {

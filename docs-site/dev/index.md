@@ -17,6 +17,7 @@ SceneEditor が不在・旧バージョンの環境では該当機能だけが�
 | [操作履歴（undo/redo）連携](./history-guest-guide) | `HistoryAPI` | `HistoryClient` | 外部の操作を SceneEditor の履歴に積み、undo/redo・履歴ジャンプの対象にする |
 | [シーンプリセット連携](./scene-preset-provider-guide) | `ScenePresetProviderRegistry` | （属性ベースの自動発見） | 外部プラグインの状態をシーンプリセットに相乗りさせる |
 | [SceneCapture プリセット取り込み](./scenecapture-import-guide) | 同上 | 同上 | SceneCapture プリセットの担当セクション（Models / Effects）を外部側で適用する |
+| [モデル配置プロバイダ連携](./model-placer-guest-guide) | `ModelPlacerProviderRegistry` | （属性ベースの自動発見） | タイムラインが扱うモデルの配置・削除・アタッチを外部側で受け持つ |
 | [ギズモ連携](./gizmo-guest-guide) | `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の描画・入力に参加させる |
 | [Inspector 描画の委譲](./inspector-guest-guide) | `InspectorHost` | `InspectorHostClient` | 自分の管理オブジェクト選択時に Inspector の内容描画を受け取る |
 | [有効/無効の連動](./editor-state-guest-guide) | `EditorStateHost` | `EditorStateClient` | SceneEditor の ON/OFF に自プラグインを追従させる |

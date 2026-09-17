@@ -21,13 +21,10 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly int MENU_BUTTON_MARGIN = 2;
         // 最長ラベル (「ウィンドウ表示」) が収まる幅
         public static readonly int TOGGLE_BUTTON_WIDTH = 110;
-        public static readonly int ITEM_HEIGHT = 22;
+        // 行高・枠幅はコンボボックスのドロップダウンと共通にする (バー上のボタンも同じ高さ)
+        public static readonly int ITEM_HEIGHT = GUIView.POPUP_ITEM_HEIGHT;
+        public static readonly int FRAME = GUIView.POPUP_FRAME;
         public static readonly int POPUP_WIDTH = 140;
-        public static readonly int FRAME = 2;
-        /// <summary>IMGUI 既定の縦スクロールバー幅。項目幅の差し引きに使う</summary>
-        public static readonly int SCROLLBAR_WIDTH = 16;
-        // ポップアップ項目のホバー色。label スタイルはホバー反応を持たないため自前で塗る
-        private static readonly Color ITEM_HOVER_COLOR = new Color(1f, 1f, 1f, 0.15f);
 
         private static Config config => ConfigManager.instance.config;
 
@@ -42,6 +39,8 @@ namespace COM3D2.SceneEditor.Plugin
             public Action toggle;
             /// <summary>表示条件。null は常時表示</summary>
             public Func<bool> visible;
+            /// <summary>操作可否。null は常時操作可 (バートグルのみ参照する)</summary>
+            public Func<bool> enabled;
             /// <summary>
             /// サブメニューの項目構築。設定した項目はクリックで横にサブポップアップを開く。
             /// 設定した場合 toggle は呼ばれない（クリックは開閉専用になる）
@@ -125,10 +124,24 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("Inspector", InspectorWindow.instance),
                         CreateWindowItem("Camera", CameraWindow.instance),
                         CreateWindowItem("背景", BackgroundWindow.instance),
-                        CreateWindowItem("BGM", BgmWindow.instance),
+                        CreateWindowItem("サウンド", SoundWindow.instance),
+                        CreateWindowItem("ライブ演出", LiveEffectWindow.instance),
+                        CreateWindowItem("テキスト", TextWindow.instance),
+                        CreateWindowItem("動画", VideoWindow.instance),
+                        new MenuItem
+                        {
+                            label = "動画プレビュー",
+                            isOn = () => false,
+                            buildSubItems = BuildVideoPreviewItems,
+                        },
                         CreateWindowItem("ライト", LightWindow.instance),
                         CreateWindowItem("PNG配置", PngPlacementWindow.instance),
                         CreateWindowItem("プリセット", PresetWindow.instance),
+                        CreateWindowItem("タイムライン", TimelineWindow.instance),
+                        CreateWindowItem("タイムライン操作", TimelineControlWindow.instance),
+                        CreateWindowItem("タイムライン設定", TimelineSettingWindow.instance),
+                        CreateWindowItem("タイムラインロード", TimelineLoadWindow.instance),
+                        CreateWindowItem("テンプレート", TimelineTemplateWindow.instance),
                         CreateWindowItem("操作履歴", HistoryWindow.instance),
                         CreateWindowItem("設定", SettingWindow.instance),
                     },
@@ -146,6 +159,8 @@ namespace COM3D2.SceneEditor.Plugin
                         CreateWindowItem("脱衣", MaidUndressWindow.instance),
                         CreateWindowItem("重力", MaidGravityWindow.instance),
                         CreateWindowItem("ボーン", BoneEditWindow.instance),
+                        CreateWindowItem("シェイプキー", ShapeKeyEditWindow.instance),
+                        CreateWindowItem("マテリアル", MaterialEditWindow.instance),
                     },
                 },
                 new MenuDef
@@ -225,7 +240,7 @@ namespace COM3D2.SceneEditor.Plugin
                     toggle = () =>
                     {
                         var manager = WindowManager.instance;
-                        manager.isWindowsHidden = !manager.isWindowsHidden;
+                        manager.SetWindowsHidden(!manager.isWindowsHidden);
                     },
                 },
             };
@@ -316,24 +331,25 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 label = label,
                 isOn = () => window.isShowWnd,
-                toggle = () =>
-                {
-                    window.isShowWnd = !window.isShowWnd;
-
-                    if (window.isShowWnd)
-                    {
-                        // 表示位置のヘッダーが他ウィンドウと重なっていればそのままドッキングする
-                        TabGroupManager.instance.MergeIfHeaderOverlaps(window);
-                    }
-                    else
-                    {
-                        // 非表示にしたウィンドウをグループへ残すとタブバーに出続けるため、
-                        // ウィンドウ自身の x ボタンと同様にグループからも外す
-                        TabGroupManager.instance.RemoveFromGroup(window);
-                        WindowConnectManager.instance.OnWindowHidden(window);
-                    }
-                },
+                toggle = () => WindowManager.ToggleWindowVisible(window),
             };
+        }
+
+        /// <summary>
+        /// 動画プレビューのサブメニュー項目を組み立てる。
+        /// プレビューは動画 1 本につき 1 枚あるため、Window メニュー直下ではなく
+        /// 番号付きのサブメニューにまとめる
+        /// </summary>
+        private MenuItem[] BuildVideoPreviewItems()
+        {
+            var windows = VideoPreviewWindow.instances;
+            var items = new MenuItem[windows.Length];
+
+            for (var i = 0; i < windows.Length; i++)
+            {
+                items[i] = CreateWindowItem("動画" + (i + 1), windows[i]);
+            }
+            return items;
         }
 
         /// <summary>
@@ -390,13 +406,13 @@ namespace COM3D2.SceneEditor.Plugin
             if (_openMenuIndex >= 0)
             {
                 var popupRect = GetPopupRect(_openMenuIndex);
-                GUI.Window(POPUP_WINDOW_ID, popupRect, DrawPopup, "", GUIView.gsWin);
+                GUI.Window(POPUP_WINDOW_ID, popupRect, DrawPopup, "", GUIView.gsPopupWin);
                 // GameView 以外のウィンドウにも隠されないよう最前面へ
                 GUI.BringWindowToFront(POPUP_WINDOW_ID);
 
                 if (_openSubItemIndex >= 0)
                 {
-                    GUI.Window(SUB_POPUP_WINDOW_ID, GetSubPopupRect(), DrawSubPopup, "", GUIView.gsWin);
+                    GUI.Window(SUB_POPUP_WINDOW_ID, GetSubPopupRect(), DrawSubPopup, "", GUIView.gsPopupWin);
                     GUI.BringWindowToFront(SUB_POPUP_WINDOW_ID);
                 }
             }
@@ -446,7 +462,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 view.DrawToggle(toggle.label, toggle.isOn(), TOGGLE_BUTTON_WIDTH, ITEM_HEIGHT,
-                    _ => toggle.toggle());
+                    toggle.enabled == null || toggle.enabled(), _ => toggle.toggle());
             }
 
             view.EndLayout();
@@ -495,7 +511,7 @@ namespace COM3D2.SceneEditor.Plugin
             var y = _windowRect.y + BAR_HEIGHT;
 
             // 項目数が画面高を超えた分はスクロールで辿れるため、ここでは画面内に収める
-            var height = Mathf.Min(GetPopupContentHeight(menuIndex) + FRAME * 2, Screen.height);
+            var height = Mathf.Min(GetPopupHeight(_menus[menuIndex].items), Screen.height);
 
             // バーが画面端にあってもポップアップが画面外へ出ないようクランプ
             x = Mathf.Clamp(x, 0, Screen.width - POPUP_WIDTH);
@@ -504,16 +520,10 @@ namespace COM3D2.SceneEditor.Plugin
             return new Rect(x, y, POPUP_WIDTH, height);
         }
 
-        /// <summary>枠を除いた項目リスト全体の高さ</summary>
-        private float GetPopupContentHeight(int menuIndex)
+        /// <summary>枠込みのポップアップ高さ (ポップアップ・サブポップアップ共通)</summary>
+        private static float GetPopupHeight(MenuItem[] items)
         {
-            return GetContentHeight(_menus[menuIndex].items);
-        }
-
-        /// <summary>枠を除いた項目リスト全体の高さ (ポップアップ・サブポップアップ共通)</summary>
-        private static float GetContentHeight(MenuItem[] items)
-        {
-            return ITEM_HEIGHT * CountVisibleItems(items);
+            return GUIView.GetPopupHeight(CountVisibleItems(items));
         }
 
         private void DrawPopup(int id)
@@ -566,21 +576,8 @@ namespace COM3D2.SceneEditor.Plugin
             Action<int, MenuItem> onClick, Action<int, MenuItem> onHover = null)
         {
             view.Init(0, 0, POPUP_WIDTH, windowHeight);
-            // 枠の内側からスクロール領域を始める。padding だとスクロール内の
-            // 項目座標にも加算されてずれるため、currentPos で位置だけ寄せる
-            view.currentPos = new Vector2(FRAME, FRAME);
 
-            var viewWidth = POPUP_WIDTH - FRAME * 2;
-            var viewHeight = view.viewRect.height - FRAME * 2;
-            var contentHeight = GetContentHeight(items);
-
-            // 収まらないときはスクロールバーが出る分だけ項目を狭め、横スクロールを出さない
-            var itemWidth = contentHeight > viewHeight
-                ? viewWidth - SCROLLBAR_WIDTH
-                : viewWidth;
-
-            view.BeginScrollView(viewWidth, viewHeight,
-                new Rect(0, 0, itemWidth, contentHeight), false, false);
+            var itemWidth = view.BeginPopupList(CountVisibleItems(items));
             {
                 var row = 0;
                 foreach (var item in items)
@@ -590,40 +587,29 @@ namespace COM3D2.SceneEditor.Plugin
                         continue;
                     }
 
-                    // label スタイルはホバー反応を持たないため自前で塗る。
-                    // GetDrawRect は currentPos を進めないので直後のボタンと同じ矩形になる
-                    var rect = view.GetDrawRect(itemWidth, ITEM_HEIGHT);
-                    if (rect.Contains(Event.current.mousePosition))
-                    {
-                        view.BeginColor(ITEM_HOVER_COLOR);
-                        GUI.DrawTexture(rect, Texture2D.whiteTexture);
-                        view.EndColor();
-
-                        if (onHover != null)
-                        {
-                            onHover(row, item);
-                        }
-                    }
-
+                    var name = item.label + (item.buildSubItems != null ? " ▸" : "");
+                    bool isHover;
                     // 連続で切り替えられるよう、クリックしてもメニューは閉じない
-                    var label = (item.isOn() ? "✓ " : "    ") + item.label
-                        + (item.buildSubItems != null ? " ▸" : "");
-                    if (view.DrawButton(label, itemWidth, ITEM_HEIGHT, true, null, GUIView.gsLabel))
+                    if (view.DrawPopupRow(name, item.isOn(), itemWidth, out isHover))
                     {
                         onClick(row, item);
+                    }
+                    else if (isHover && onHover != null)
+                    {
+                        onHover(row, item);
                     }
 
                     row++;
                 }
             }
-            view.EndScrollView();
+            view.EndPopupList();
         }
 
         /// <summary>サブポップアップの矩形。親項目の右横に出し、入り切らなければ左側へ出す</summary>
         private Rect GetSubPopupRect()
         {
             var popupRect = GetPopupRect(_openMenuIndex);
-            var height = Mathf.Min(GetContentHeight(_subItems) + FRAME * 2, Screen.height);
+            var height = Mathf.Min(GetPopupHeight(_subItems), Screen.height);
 
             var x = popupRect.x + POPUP_WIDTH;
             var y = popupRect.y + FRAME

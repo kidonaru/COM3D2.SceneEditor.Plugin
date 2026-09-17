@@ -28,6 +28,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool isEmpty => _entries.Values.All(d => d.Count == 0);
 
+        /// <summary>
+        /// エントリ集合 (slotName + boneName) の変更検知用。
+        /// タイムライン側の追跡集合を再構築するかの判定に使うため、
+        /// 既存エントリの値だけを更新した場合は進めない
+        /// </summary>
+        public int version { get; private set; }
+
         /// <summary>現在の Transform 値を編集値として記録する。初回だけ元値を控える</summary>
         public void RecordEdit(string slotName, string itemFileName, Transform bone)
         {
@@ -56,6 +63,7 @@ namespace COM3D2.SceneEditor.Plugin
                     origScale = bone.localScale,
                 };
                 slotDic[bone.name] = entry;
+                version++;
             }
 
             entry.position = bone.localPosition;
@@ -104,7 +112,10 @@ namespace COM3D2.SceneEditor.Plugin
             bone.localPosition = entry.origPosition;
             bone.localRotation = entry.origRotation;
             bone.localScale = entry.origScale;
-            _entries[slotName].Remove(entry.boneName);
+            if (_entries[slotName].Remove(entry.boneName))
+            {
+                version++;
+            }
         }
 
         public void ResetSlot(string slotName, GameObject slotObj)
@@ -113,8 +124,13 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ResetBone(slotName, SlotBoneManager.FindBone(slotObj, entry.boneName));
             }
-            // ボーンが見つからず戻せなかった分も含めて記録を捨てる
-            _entries.Remove(slotName);
+            // ボーンが見つからず戻せなかった分も含めて記録を捨てる。
+            // ループ内の ResetBone でも version は進むため 1 回のリセットで複数回進むが、
+            // version は「集合が変わったか」のシグナルであり変更回数ではないので問題ない
+            if (_entries.Remove(slotName))
+            {
+                version++;
+            }
         }
 
         /// <summary>装着アイテムが変わっていたら記録を破棄する（Transform には触らない）</summary>
@@ -130,6 +146,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (slotDic.Values.First().itemFileName != currentFileName)
             {
                 _entries.Remove(slotName);
+                version++;
             }
         }
 
@@ -173,6 +190,9 @@ namespace COM3D2.SceneEditor.Plugin
         public void RestoreEntries(List<BoneEditEntry> entries)
         {
             _entries.Clear();
+            // スナップショット復元では同一集合かの判定が高くつくため常に進める。
+            // 集約側の EditTargetStore.SetNames が集合比較で無駄な再構築を止める
+            version++;
             if (entries == null)
             {
                 return;
@@ -208,7 +228,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void Clear()
         {
-            _entries.Clear();
+            if (_entries.Count > 0)
+            {
+                _entries.Clear();
+                version++;
+            }
         }
     }
 }

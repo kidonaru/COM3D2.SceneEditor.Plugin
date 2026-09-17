@@ -123,7 +123,8 @@
 |---|---|---|
 | `scenePresetSaveCamera` | `true` | 保存ダイアログの「カメラ」の既定状態 |
 | `scenePresetSaveMaids` | `true` | 保存ダイアログの「メイド」の既定状態 |
-| `scenePresetSaveBackground` | `true` | 保存ダイアログの「背景」（背景・ライト・PNG 配置）の既定状態 |
+| `scenePresetSaveBackground` | `true` | 保存ダイアログの「背景」（背景・ライト・PNG 配置・背景モデル）の既定状態 |
+| `scenePresetSaveEffects` | `true` | 保存ダイアログの「演出」（テキスト・サブカメラ・サウンド・動画・ライブ演出）の既定状態 |
 | `scenePresetDisabledProviders` | 空 | 保存ダイアログで OFF にした連携プラグイン項目（id のカンマ区切り） |
 | `scenePresetAutoLoadKey` | 空 | 事務所シーンで自動ロードするプリセット |
 | `scenePresetAutoLoadOnceOnly` | `false` | 自動ロードをセッション中 1 回のみにする |
@@ -135,9 +136,21 @@
 | キー名 | 既定値 | 内容 |
 |---|---|---|
 | `PluginToggle` | `F10` | モード切替 |
-| `EditModeToggle` | `Tab` | 編集モード切替 |
+| `EditModeToggle` | `F1` | 編集モード切替 |
+| `WindowsHiddenToggle` | `Tab` | ウィンドウの一括非表示 |
 | `GizmoMove` | `Z` | ギズモを移動モードにする |
 | `GizmoRotate` | `X` | ギズモを回転モードにする |
 | `GizmoScale` | `C` | ギズモを拡縮モードにする |
 | `Undo` | `Ctrl+Z` | 操作を戻す |
 | `Redo` | `Ctrl+X` | 操作を進める |
+| `AddKeyFrame` | `Enter` | キーフレームを登録 |
+| `AddKeyFrameAll` | `Shift+Enter` | 全ボーンのキーフレームを登録 |
+| `RemoveKeyFrame` | `Backspace` | 選択中のキーフレームを削除 |
+| `Play` | `Space` | 再生 / 停止 |
+| `PrevFrame` / `NextFrame` | `A` / `D` | 1 フレーム前後へ移動 |
+| `PrevKeyFrame` / `NextKeyFrame` | `Ctrl+A` / `Ctrl+D` | 前後のキーフレームへ移動 |
+| `Copy` / `Paste` / `FlipPaste` | `Ctrl+C` / `Ctrl+V` / `Ctrl+Shift+V` | キーフレームのコピー / 貼り付け / 反転貼り付け |
+| `PoseCopy` / `PosePaste` | `Ctrl+Alt+C` / `Ctrl+Alt+V` | ポーズのコピー / 貼り付け |
+| `MultiSelect` | `Shift` | グリッドの複数選択 |
+
+`AddKeyFrame` 以降はタイムライン操作のキーです（[ショートカット](/timeline/shortcuts)）。

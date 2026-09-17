@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メインカメラの構図スナップショット。
+    /// メインカメラの構図スナップショット (メイド追従設定を含む)。
     /// SceneView カメラは「見え方」であり履歴の対象にしない
     /// </summary>
     public class CameraSnapshot : IStateSnapshot
@@ -27,7 +28,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var aroundAngle = mainCamera.GetAroundAngle();
-            return new ScenePresetCamera
+            var state = new ScenePresetCamera
             {
                 targetPos = mainCamera.GetTargetPos(),
                 yaw = aroundAngle.x,
@@ -36,6 +37,25 @@ namespace COM3D2.SceneEditor.Plugin
                 distance = mainCamera.GetDistance(),
                 fov = camera.fieldOfView,
             };
+
+            // 追従中は注視点の代わりにオフセットを記録する (CameraTimelineLayer.UpdateFrame と同じ)
+            var follow = MTEP.MaidFollowMainCamera.instance;
+            if (follow != null)
+            {
+                state.maidSlotNo = follow.state.maidSlotNo;
+                state.maidPointType = (int)follow.state.maidPointType;
+                state.followRotation = follow.state.followRotation;
+
+                if (follow.isFollow)
+                {
+                    state.targetPos = follow.state.offset;
+                    if (follow.state.followRotation)
+                    {
+                        state.yaw = follow.state.yawOffset;
+                    }
+                }
+            }
+            return state;
         }
 
         public static void ApplyState(ScenePresetCamera state)
@@ -52,8 +72,35 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            mainCamera.SetTargetPos(state.targetPos);
-            mainCamera.SetAroundAngle(new Vector2(state.yaw, state.pitch));
+            // 追従設定はカメラより先に復元する。追従付きデータの targetPos / yaw はオフセットなので、
+            // 追従先がまだロード中 (シーンプリセットはメイド呼び出し完了前にカメラを適用する) でも
+            // オフセットだけは控えておき、ロード完了後の MaidFollowMainCamera.LateUpdate に反映を任せる。
+            // プリセットは追従状態込みの完全な断面として扱うため、旧形式 (未追従) の適用は追従解除になる
+            var follow = MTEP.MaidFollowMainCamera.instance;
+            var hasFollow = follow != null && state.hasFollow;
+            var hasYawOffset = hasFollow && state.followRotation;
+            if (follow != null)
+            {
+                follow.state.maidSlotNo = state.maidSlotNo;
+                follow.state.maidPointType = MTEP.MaidFollowState.ToMaidPointType(state.maidPointType);
+                follow.state.followRotation = state.followRotation;
+                if (hasFollow)
+                {
+                    follow.state.offset = state.targetPos;
+                }
+                if (hasYawOffset)
+                {
+                    follow.state.yawOffset = state.yaw;
+                }
+            }
+
+            // オフセット扱いの値は世界座標として書かない (現在の注視点・ヨーを保つ)
+            var aroundAngle = mainCamera.GetAroundAngle();
+            if (!hasFollow)
+            {
+                mainCamera.SetTargetPos(state.targetPos);
+            }
+            mainCamera.SetAroundAngle(new Vector2(hasYawOffset ? aroundAngle.x : state.yaw, state.pitch));
             mainCamera.SetDistance(state.distance);
             camera.fieldOfView = state.fov;
 
@@ -61,6 +108,12 @@ namespace COM3D2.SceneEditor.Plugin
             var eulerAngles = camera.transform.eulerAngles;
             eulerAngles.z = state.roll;
             camera.transform.eulerAngles = eulerAngles;
+
+            if (hasFollow)
+            {
+                // ロード済みなら即座に追従点基準へ置き直す (未ロードなら何もしない)
+                follow.Apply();
+            }
         }
 
         public void AddBones(IEnumerable<Transform> targetBones)
@@ -84,7 +137,10 @@ namespace COM3D2.SceneEditor.Plugin
                 && Mathf.Approximately(_state.pitch, o._state.pitch)
                 && Mathf.Approximately(_state.roll, o._state.roll)
                 && Mathf.Approximately(_state.distance, o._state.distance)
-                && Mathf.Approximately(_state.fov, o._state.fov);
+                && Mathf.Approximately(_state.fov, o._state.fov)
+                && _state.maidSlotNo == o._state.maidSlotNo
+                && _state.maidPointType == o._state.maidPointType
+                && _state.followRotation == o._state.followRotation;
         }
 
         public bool CanApply(Maid maid) => _state != null;

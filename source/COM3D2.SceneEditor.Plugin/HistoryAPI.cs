@@ -10,6 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// 契約:
     /// - Register は「確定済み」の操作 1 件を登録する。ドラッグ中の連続変更を
     ///   1 件へまとめるのは呼び出し側の責務 (操作確定時に 1 回だけ呼ぶ)
+    /// - BeforeEdit は確定前の操作向け。値を書く直前に毎回呼び、確定 (マウス解放) は本体に任せる
     /// - undo/redo クロージャは冪等であり、他エントリとの順序に依存しないこと
     ///   (履歴ウィンドウのジャンプで連続適用される)
     /// - undo/redo/canApply の中から Register/Undo/Redo を呼び返さないこと。
@@ -25,7 +26,8 @@ namespace COM3D2.SceneEditor.Plugin
     public static class HistoryAPI
     {
         /// <summary>
-        /// 確定済みの操作を 1 件登録する
+        /// 確定済みの操作を 1 件登録する。
+        /// タイムライン読み込み中 (タイムラインモード) はシーン操作を履歴に残さないため登録は無視される
         /// </summary>
         /// <param name="description">履歴ウィンドウに表示する操作名</param>
         /// <param name="undo">操作前の状態へ書き戻す処理</param>
@@ -42,6 +44,33 @@ namespace COM3D2.SceneEditor.Plugin
 
             HistoryManager.instance.AddEntry(
                 new DelegateHistoryEntry(description, undo, redo, canApply));
+        }
+
+        /// <summary>
+        /// 変更前の状態を控える (SceneEditor 内部の BeforeEdit と同じ経路)。
+        /// 値を書き換える操作の直前に毎回呼んでよく、同じ targetKey の連続変更は
+        /// マウス解放時に 1 件へまとめて確定する。編集モードへの自動移行も伴う。
+        /// シーンモードでは undo/redo に積まれ、タイムラインモードでは履歴には積まれず
+        /// 自動キーフレーム登録の契機になる (内部の編集と同じ扱い)
+        /// </summary>
+        /// <param name="description">履歴ウィンドウに表示する操作名</param>
+        /// <param name="targetKey">確定待ちを区別するキー (エフェクト名等)。null なら区別しない</param>
+        /// <param name="capture">現在の状態を文字列で返す。記録できないときは null を返す</param>
+        /// <param name="apply">文字列の状態を書き戻す (undo/redo)</param>
+        /// <param name="canApply">対象消滅等で今は適用できないとき false。null なら常に適用可</param>
+        public static void BeforeEdit(
+            string description, string targetKey,
+            Func<string> capture, Action<string> apply, Func<bool> canApply)
+        {
+            if (capture == null || apply == null)
+            {
+                MTEUtils.LogError("HistoryAPI.BeforeEdit: capture/apply は必須です: {0}", description);
+                return;
+            }
+
+            HistoryManager.instance.BeforeEdit(
+                null, HistoryScope.External, description, targetKey,
+                () => ExternalStateSnapshot.Capture(capture, apply, canApply));
         }
 
         public static void Undo() => HistoryManager.instance.Undo();

@@ -27,6 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
         private enum SettingTabType
         {
             撮影,
+            ビュー,
             グリッド,
             履歴,
             プリセット,
@@ -96,6 +97,9 @@ namespace COM3D2.SceneEditor.Plugin
                 case SettingTabType.撮影:
                     DrawScreenshotSection();
                     break;
+                case SettingTabType.ビュー:
+                    DrawSceneViewSection();
+                    break;
                 case SettingTabType.グリッド:
                     DrawGridSection();
                     break;
@@ -150,6 +154,20 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ScreenshotManager.Capture();
             }
+        }
+
+        /// <summary>SceneView のカメラ挙動の設定</summary>
+        private void DrawSceneViewSection()
+        {
+            _view.DrawToggle("フォーカス時に距離を自動調整", config.sceneViewFocusAdjustDistance,
+                -1, ROW_HEIGHT, newValue =>
+                {
+                    config.sceneViewFocusAdjustDistance = newValue;
+                    config.dirty = true;
+                });
+
+            _view.DrawLabel("OFF なら注視点だけ移し、カメラ距離は保つ", -1, ROW_HEIGHT,
+                textColor: Color.gray);
         }
 
         /// <summary>グリッド表示の詳細設定。反映は GridRenderer が毎フレーム config を見るだけで済む</summary>
@@ -207,6 +225,21 @@ namespace COM3D2.SceneEditor.Plugin
             DrawGridColor("分割線の色", config.gridColorInDisplay, value => config.gridColorInDisplay = value);
 
             _view.DrawLabel("ゲーム画面にのみ表示", -1, ROW_HEIGHT, textColor: Color.gray);
+
+            _view.AddSpace(5);
+            _view.DrawLabel("動画グリッド", -1, ROW_HEIGHT);
+
+            DrawGridToggle("動画面の分割線を表示", config.isGridVisibleInVideo,
+                value => config.isGridVisibleInVideo = value);
+            DrawGridSlider("分割数", config.gridCountInVideo, 1f, GridRenderer.MaxDisplayGridCount, 1f,
+                Config.DefaultGridCountInVideo,
+                value => config.gridCountInVideo = Mathf.RoundToInt(value));
+            DrawGridSlider("不透明度", config.gridAlphaInVideo, 0f, 1f, 0.01f,
+                Config.DefaultGridAlphaInVideo,
+                value => config.gridAlphaInVideo = value);
+            DrawGridColor("動画グリッド色", config.gridColorInVideo, value => config.gridColorInVideo = value);
+
+            _view.DrawLabel("3D表示の動画面と動画プレビューに表示", -1, ROW_HEIGHT, textColor: Color.gray);
         }
 
         private void DrawGridToggle(string label, bool value, Action<bool> onChanged, float width = -1)
