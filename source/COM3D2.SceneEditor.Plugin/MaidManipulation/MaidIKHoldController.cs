@@ -462,7 +462,19 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void LateUpdate()
         {
-            // 消滅したメイドのエントリを片づける
+            Solve();
+        }
+
+        /// <summary>
+        /// 全メイドの固定を今すぐ解く。通常は LateUpdate から呼ぶが、タイムラインの
+        /// 編集開始スナップショットは Update 中に取られるため、固定が効く前のポーズを
+        /// 基準にしてしまう。スナップショット直前にここで解いておき、固定・接地で動く
+        /// 腕脚が「触っていないのに差分あり」にならないようにする。
+        /// 1 フレームに複数回呼ばれても目標は同じなので冪等
+        /// </summary>
+        public void Solve()
+        {
+            // 消滅したメイドのエントリを片づける。破棄済みボーンへ触らないよう、解く前に必ず通す
             List<Maid> deadMaids = null;
             foreach (var pair in _entries)
             {

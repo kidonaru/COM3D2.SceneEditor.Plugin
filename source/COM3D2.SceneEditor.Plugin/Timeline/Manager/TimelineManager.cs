@@ -2543,6 +2543,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             OnPoseEditEnd();
 
+            // 固定 IK・接地は LateUpdate で解かれるため、ここ (Update 中) でボーンを読むと
+            // 固定が効く前のポーズがスナップショットになり、腕脚が触っていないのに差分扱いになる。
+            // 先に解いて「固定が効いた後」を基準にする
+            SE.MaidManipulateManager.instance.ikHoldController.Solve();
+
             // MotionTimelineLayer.UpdateFrame は initialEditFrame の有無で挙動を変えるため、
             // 全レイヤーのスナップショットを取り終えてから initialEditFrame を設定する
             foreach (var layer in editTargetLayers)
