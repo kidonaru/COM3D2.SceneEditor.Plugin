@@ -6,7 +6,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// ボーン回転ギズモ。修飾キーで表示対象グループを切り替える（MultipleMaids 準拠）。
-    /// Alt=手首/足首/頭、Alt+Ctrl=肘/膝、Alt+Shift=肩/腿/鎖骨。
+    /// Alt=手首/足首/頭/中心、Alt+Ctrl=肘/膝、Alt+Shift=肩/腿/鎖骨。
     ///
     /// ギズモの実体はカメラごとの GizmoRenderer が持つ TransformGizmo で、
     /// ここは「どのボーンに出すか」を供給するだけ。
@@ -17,7 +17,7 @@ namespace COM3D2.SceneEditor.Plugin
     {
         public enum BoneGroup
         {
-            Tip,    // 手首/足首/頭（Alt）
+            Tip,    // 手首/足首/頭/中心（Alt）
             Mid,    // 肘/膝（Alt+Ctrl）
             Root,   // 肩/腿/鎖骨（Alt+Shift）
         }
@@ -25,18 +25,22 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Dictionary<BoneGroup, string> GroupDisplayNames
             = new Dictionary<BoneGroup, string>
         {
-            { BoneGroup.Tip, "手首/足首/頭" },
+            { BoneGroup.Tip, "手首/足首/頭/中心" },
             { BoneGroup.Mid, "肘/膝" },
             { BoneGroup.Root, "肩/腿/鎖骨" },
         };
 
         private const string HeadBoneName = "Bip01 Head";
 
+        /// <summary>中心ボーン。骨盤ドラッグ点と同じ位置にあり、Shift ドラッグの移動対象でもある</summary>
+        private const string CenterBoneName = "Bip01";
+
         private static readonly Dictionary<BoneGroup, string[]> BoneNames
             = new Dictionary<BoneGroup, string[]>
         {
+            // 中心は全身の向きを決めるため、最もよく使う Alt グループに同居させる
             { BoneGroup.Tip, new[] { "Bip01 L Hand", "Bip01 R Hand", "Bip01 L Foot", "Bip01 R Foot",
-                HeadBoneName } },
+                HeadBoneName, CenterBoneName } },
             { BoneGroup.Mid, new[] { "Bip01 L Forearm", "Bip01 R Forearm", "Bip01 L Calf", "Bip01 R Calf" } },
             // 鎖骨は肩と同時に整えることが多いため Root グループに同居させる
             { BoneGroup.Root, new[] { "Bip01 L UpperArm", "Bip01 R UpperArm", "Bip01 L Thigh", "Bip01 R Thigh",
