@@ -193,7 +193,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
 
                 var sourceBone = sourceFrame.GetBone(name);
-                if (sourceBone == null || !bone.transform.Equals(sourceBone.transform))
+                // 固定 IK の解き直しで乗る符号反転・ノイズを差分と誤認しないよう許容誤差つきで比べる
+                if (sourceBone == null
+                    || !TransformDataDiff.IsApproximatelyEqual(bone.transform, sourceBone.transform))
                 {
                     diffBones.Add(bone);
                 }

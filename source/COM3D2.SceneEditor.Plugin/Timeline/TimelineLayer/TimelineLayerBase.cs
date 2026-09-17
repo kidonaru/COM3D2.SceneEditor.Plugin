@@ -542,7 +542,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 diffBones.RemoveAll(bone =>
                 {
                     var existingBone = existingFrame.GetBone(bone.name);
-                    return existingBone != null && bone.transform.Equals(existingBone.transform);
+                    return existingBone != null
+                        && TransformDataDiff.IsApproximatelyEqual(bone.transform, existingBone.transform);
                 });
             }
 
