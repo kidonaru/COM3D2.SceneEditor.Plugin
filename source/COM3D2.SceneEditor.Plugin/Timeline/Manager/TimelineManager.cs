@@ -2530,6 +2530,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>レイヤーの編集開始時スナップショット。編集対象外か編集モード外なら null</summary>
         public FrameData GetInitialEditFrame(ITimelineLayer layer)
         {
+            // アクティブレイヤーは無いことがある。Dictionary は null キーで
+            // ArgumentNullException を投げるため、引く前に弾く
+            if (layer == null)
+            {
+                return null;
+            }
+
             FrameData frame;
             return _initialEditFrames.TryGetValue(layer, out frame) ? frame : null;
         }
@@ -2720,16 +2727,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void UpdateMotionEditing()
         {
-            if (SceneEditorHack.isPoseEditing)
-            {
-                if (currentLayer.layerType == typeof(MotionTimelineLayer))
-                {
-                    isMotionEditing = true;
-                    return;
-                }
-            }
+            isMotionEditing = IsMotionEditingState(SceneEditorHack.isPoseEditing, currentLayer);
+        }
 
-            isMotionEditing = false;
+        /// <summary>
+        /// モーション編集中か。アクティブレイヤーは無いことがある
+        /// (タイムライン未作成のままライト等を触ると AutoEditMode.Enter が
+        ///  IsValidData のガードを通らずにここまで来る) ので null を許す
+        /// </summary>
+        public static bool IsMotionEditingState(bool isPoseEditing, ITimelineLayer currentLayer)
+        {
+            return isPoseEditing
+                && currentLayer != null
+                && currentLayer.layerType == typeof(MotionTimelineLayer);
         }
 
         /// <summary>
