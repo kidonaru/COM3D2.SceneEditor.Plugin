@@ -119,15 +119,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 end.eulerAnglesValues,
                 t);
 
-            var tempScale = PluginUtils.HermiteVector3(
+            distance = PluginUtils.HermiteValue(
                 t0,
                 t1,
-                start.scaleValues,
-                end.scaleValues,
+                start.distanceValue,
+                end.distanceValue,
                 t);
 
-            distance = tempScale.x;
-            viewAngle = tempScale.y;
+            viewAngle = PluginUtils.HermiteValue(
+                t0,
+                t1,
+                start.fovValue,
+                end.fovValue,
+                t);
 
             if (config.isFixedFoV && !isCurrent && SceneEditorHack.isPoseEditing)
             {
@@ -221,7 +225,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var trans = CreateTransformData<TransformDataCamera>(CameraBoneName);
             trans.position = target.position;
             trans.eulerAngles = new Vector3(angle.y, angle.x, rotZ);
-            trans.scale = new Vector3(uoCamera.distance, camera.fieldOfView, 0);
+            trans.distance = uoCamera.distance;
+            trans.fov = camera.fieldOfView;
 
             // 追従中は注視点の代わりにオフセットを保存する (ApplyMotion と対称)
             var follow = mainFollow;

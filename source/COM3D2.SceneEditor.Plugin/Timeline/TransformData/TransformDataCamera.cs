@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -9,6 +8,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public enum Index
         {
+            // 距離と FoV は旧「拡縮」の X/Y。旧データを無変換で読むため添字は動かさない
+            // (旧 Z にあたる values[9] はダミーで、現在は未使用)
+            Distance = 7,
+            Fov = 8,
             MaidSlotNo = 10,
             MaidPointType = 11,
             FollowRotation = 12,
@@ -21,7 +24,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasPosition => true;
         public override bool hasEulerAngles => true;
-        public override bool hasScale => true;
+        public override bool hasScale => false;
         // Tangent 統一により常に Tangent 補間 (isTangentCamera は XML 互換で残るのみ)
         public override bool hasTangent => true;
 
@@ -35,22 +38,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => new ValueData[] { values[3], values[4], values[5] };
         }
 
-        public override ValueData[] scaleValues
-        {
-            get => new ValueData[] { values[7], values[8], values[9] };
-        }
-
         public override ValueData easingValue => values[6];
 
         public override ValueData[] tangentValues => values;
 
-        public override Vector3 initialScale
-        {
-            get => new Vector3(1f, 35f, 0f); // 距離, FoV, ダミー
-        }
-
         private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
         {
+            {
+                "distance", new CustomValueInfo
+                {
+                    index = (int)Index.Distance,
+                    name = "距離",
+                    defaultValue = 1f,
+                }
+            },
+            {
+                "fov", new CustomValueInfo
+                {
+                    index = (int)Index.Fov,
+                    name = "FoV",
+                    defaultValue = 35f,
+                }
+            },
             {
                 "maidSlotNo", new CustomValueInfo
                 {
@@ -89,9 +98,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
+        public ValueData distanceValue => values[(int)Index.Distance];
+        public ValueData fovValue => values[(int)Index.Fov];
         public ValueData maidSlotNoValue => values[(int)Index.MaidSlotNo];
         public ValueData maidPointTypeValue => values[(int)Index.MaidPointType];
         public ValueData followRotationValue => values[(int)Index.FollowRotation];
+
+        public float distance
+        {
+            get => distanceValue.value;
+            set => distanceValue.value = value;
+        }
+
+        public float fov
+        {
+            get => fovValue.value;
+            set => fovValue.value = value;
+        }
 
         public int maidSlotNo
         {
