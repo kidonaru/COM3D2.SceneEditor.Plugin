@@ -116,9 +116,6 @@ namespace COM3D2.SceneEditor.Plugin
         public int maidPoseHeight = 450;
         public bool maidPoseVisible = false;
 
-        /// <summary>モーションウィンドウのアニメブレンド区間を開いているか</summary>
-        public bool maidPoseBlendVisible = false;
-
         public int maidFacePosX = -1;
         public int maidFacePosY = -1;
         public int maidFaceWidth = 300;

@@ -15,6 +15,21 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class AutoEditMode
     {
+        /// <summary>
+        /// 編集モードを抜ける。モーションを流し始めるときに呼ぶ
+        /// (止めたポーズを基準にする編集モードと、再生は両立しない)。
+        /// Enter と同じく、タイムライン側が生きていればそちら経由で抜ける
+        /// </summary>
+        public static void Exit()
+        {
+            if (MTEP.SceneEditorHack.instance == null)
+            {
+                MaidManipulateManager.instance.isEditMode = false;
+                return;
+            }
+            MTEP.SceneEditorHack.isPoseEditing = false;
+        }
+
         public static void Enter()
         {
             // 値を書く直前に必ず通る場所なので、どのレイヤーのゲート内で

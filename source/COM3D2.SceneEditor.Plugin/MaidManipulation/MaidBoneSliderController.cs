@@ -221,6 +221,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            if (MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                // レイヤー調整中はボーンを書かせない (行自体も無効化されている)
+                return;
+            }
+
             // スライダーもボーンを書く操作なのでブレンドを落とす
             MaidAnimationBlendController.ReleaseForBoneEdit(maid);
 

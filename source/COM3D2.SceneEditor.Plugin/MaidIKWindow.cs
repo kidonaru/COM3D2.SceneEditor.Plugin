@@ -76,6 +76,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
+            DrawBlendLayerGate();
 
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 

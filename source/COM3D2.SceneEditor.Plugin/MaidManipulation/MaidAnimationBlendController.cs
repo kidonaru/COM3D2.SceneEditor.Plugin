@@ -13,8 +13,28 @@ namespace COM3D2.SceneEditor.Plugin
     /// ベースモーション (レイヤー 0) の停止・再開は MaidMotionState の責務で、
     /// そちらから CaptureTimesBeforeStop / ResumeAfterPlay を呼んでもらう
     /// </summary>
+    /// <summary>層への適用結果。呼び出し元が理由に応じた案内を出すために種類で返す</summary>
+    public enum BlendApplyResult
+    {
+        Success,
+        /// <summary>スクリプト経由 (エディット系) か読み込み失敗で層へ載せられない</summary>
+        NotBlendable,
+        /// <summary>ベースが今使っているアニメ。載せるとベースの state を奪ってしまう</summary>
+        SameAsBase,
+    }
+
     public static class MaidAnimationBlendController
     {
+        /// <summary>
+        /// モーションウィンドウの適用先がブレンド層か。層を調整している間だけ true。
+        /// この間は停止中も層を有効なまま残して結果を見せ、代わりにボーン / IK の編集を止める
+        /// (層の寄与が乗ったポーズを基準に編集すると、寄与を分離できなくなるため)
+        /// </summary>
+        public static bool isBlendLayerSelected { get; private set; }
+
+        /// <summary>レイヤー調整中にボーン / IK を触れないことを伝える文言</summary>
+        public const string BlendLayerGateMessage = "アニメブレンドのレイヤー選択中は編集できません";
+
         public static int MinLayer => MTEP.MaidCache.MinLayerIndex;
         public static int MaxLayer => MTEP.MaidCache.MaxLayerIndex;
 
@@ -28,6 +48,7 @@ namespace COM3D2.SceneEditor.Plugin
             public float speed;
             public bool loop;
             public bool playing;
+            public bool overrideTime;
 
             public bool Approximately(LayerState other)
             {
@@ -36,6 +57,7 @@ namespace COM3D2.SceneEditor.Plugin
                     || anmName != other.anmName
                     || loop != other.loop
                     || playing != other.playing
+                    || overrideTime != other.overrideTime
                     || Mathf.Abs(weight - other.weight) >= 1e-4f
                     || Mathf.Abs(speed - other.speed) >= 1e-4f)
                 {
@@ -174,11 +196,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// 一覧のモーションをレイヤーへ載せる。スクリプト経由や読込失敗は false
         /// (呼び出し元がダイアログを出す)
         /// </summary>
-        public static bool ApplyMotion(Maid maid, int layer, PhotoMotionData data)
+        public static BlendApplyResult ApplyMotion(Maid maid, int layer, PhotoMotionData data)
         {
             if (data == null)
             {
-                return false;
+                return BlendApplyResult.NotBlendable;
             }
             // PhotoMotionData.Apply と同じ判定で crc_ を前置する (2.0 には新ボディ男の概念が無い)
 #if COM3D25
@@ -189,21 +211,21 @@ namespace COM3D2.SceneEditor.Plugin
             var anmName = AnimationBlendNameResolver.ResolveMotion(data.direct_file, data.is_mod, applyCrc);
             if (anmName == null)
             {
-                return false;
+                return BlendApplyResult.NotBlendable;
             }
             return ApplyAnmName(maid, layer, anmName, data.is_loop);
         }
 
-        public static bool ApplyMyPose(Maid maid, int layer, string relativePath)
+        public static BlendApplyResult ApplyMyPose(Maid maid, int layer, string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath))
             {
-                return false;
+                return BlendApplyResult.NotBlendable;
             }
             return ApplyAnmName(maid, layer, AnimationBlendNameResolver.ResolveMyPose(relativePath), true);
         }
 
-        private static bool ApplyAnmName(Maid maid, int layer, string anmName, bool loop)
+        private static BlendApplyResult ApplyAnmName(Maid maid, int layer, string anmName, bool loop)
         {
             var cache = GetMaidCache(maid);
             var anim = GetAnimation(maid);
@@ -211,8 +233,23 @@ namespace COM3D2.SceneEditor.Plugin
             if (anim == null || info == null || layer < MinLayer || layer > MaxLayer)
             {
                 MTEUtils.LogWarning("アニメレイヤーの情報が見つかりません。layer=" + layer);
-                return false;
+                return BlendApplyResult.NotBlendable;
             }
+
+            // Animation はクリップ名で 1 つの AnimationState を共有し、
+            // CrossFadeLayer は読み込んだ state の layer を無条件で書き換える
+            // (MTEUtils/Extensions.cs)。ベースと同じアニメを載せるとベースの state ごと
+            // 層へ移り、ベースが再生も判定もできなくなるため先に弾く
+            if (IsBaseClipName(maid, anmName))
+            {
+                MTEUtils.LogWarning(
+                    "ベースと同じモーションはレイヤーへ載せられません。anmName=" + anmName);
+                return BlendApplyResult.SameAsBase;
+            }
+
+            // ベースの再生状態は層を読み込む前に控える。
+            // 読み込み後は上記の layer 書き換えで判定が狂うことがある
+            var basePlaying = MaidMotionState.IsPlaying(maid);
 
             // クリップ名は Animation 全体で一意なため同じ名前は他層と共存できない
             // (詳細は ReleaseDuplicatedLayers 参照)。先に他層を解放しておく
@@ -228,14 +265,14 @@ namespace COM3D2.SceneEditor.Plugin
             if (state == null)
             {
                 info.Reset();
-                return false;
+                return BlendApplyResult.NotBlendable;
             }
 
             state.wrapMode = loop ? WrapMode.Loop : WrapMode.Once;
             state.weight = info.weight;
             state.time = 0f;
 
-            if (MaidMotionState.IsPlaying(maid))
+            if (basePlaying)
             {
                 state.enabled = true;
                 state.speed = info.speed;
@@ -246,7 +283,7 @@ namespace COM3D2.SceneEditor.Plugin
                 state.speed = 0f;
                 SampleStopped(maid, anim);
             }
-            return true;
+            return BlendApplyResult.Success;
         }
 
         /// <summary>
@@ -287,8 +324,40 @@ namespace COM3D2.SceneEditor.Plugin
                 info.state = null;
                 return;
             }
-            maid.body0.StopAndDestroy(info.state.name);
+
+            var stateName = info.state.name;
+            if (IsBaseClipName(maid, stateName))
+            {
+                // クリップ名は Animation 全体で一意なので、ベースが同じアニメを
+                // 使っているとクリップごと破棄してベースの再生先を消してしまう。
+                // 破棄せず寄与を止め、CrossFadeLayer が書き換えた layer もベースへ返す
+                // (戻さないとベース側の判定がこの state を拾えなくなる)
+                info.state.enabled = false;
+                info.state.weight = 0f;
+                info.state.layer = 0;
+                info.state = null;
+                return;
+            }
+
+            maid.body0.StopAndDestroy(stateName);
             info.state = null;
+        }
+
+        /// <summary>
+        /// そのクリップ名をベース (レイヤー 0) が使っているか。
+        /// TBody.LastAnimeFN が最後にベースへ読ませたファイル名を持っている。
+        /// 同名の MaidMotionState.IsBaseClip とは判定材料が違う (あちらは state.layer を見る)
+        /// </summary>
+        private static bool IsBaseClipName(Maid maid, string stateName)
+        {
+            var body = maid != null ? maid.body0 : null;
+            if (body == null || string.IsNullOrEmpty(stateName))
+            {
+                return false;
+            }
+            var baseTag = AnimationBlendNameResolver.GetStateTag(body.LastAnimeFN);
+            return !string.IsNullOrEmpty(baseTag)
+                && baseTag == AnimationBlendNameResolver.GetStateTag(stateName);
         }
 
         /// <summary>
@@ -395,10 +464,11 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 停止中にベースのみで 1 フレームぶんサンプルする。
-        /// ブレンド層は乗せない: 乗せるとボーンの Transform に寄与が焼き込まれ、
+        /// 停止中に 1 フレームぶんサンプルする。
+        /// 既定ではベースのみ: 層を乗せるとボーンの Transform に寄与が焼き込まれ、
         /// ポーズ保存・履歴・タイムラインのキーが汚染される (MTE の OnPoseEditEnd と同じ考え方)。
-        /// このためベース停止中はブレンドの結果が画面に出ない。再生を再開すると混ざる
+        /// 適用先がレイヤーの間 (isBlendLayerSelected) は層を有効なままにしてあるので、
+        /// ブレンドの結果も一緒に写る
         /// </summary>
         private static void SampleStopped(Maid maid, Animation anim)
         {
@@ -411,7 +481,13 @@ namespace COM3D2.SceneEditor.Plugin
             anim.Sample();
             if (baseState != null)
             {
-                baseState.enabled = false;
+                // 層を残す間はベースも有効なまま (速度 0) にする。
+                // 層だけ有効だと Unity の自動サンプルがベース抜きで走り、ポーズが崩れる
+                baseState.enabled = isBlendLayerSelected;
+                if (isBlendLayerSelected)
+                {
+                    baseState.speed = 0f;
+                }
             }
             MaidBoneSliderController.CaptureBasePose(maid);
         }
@@ -484,6 +560,20 @@ namespace COM3D2.SceneEditor.Plugin
             info.state.wrapMode = loop ? WrapMode.Loop : WrapMode.Once;
         }
 
+        /// <summary>
+        /// タイムライン再生時に層の時間をフレームで上書きするか (MTE の「時間上書き」)。
+        /// 実 AnimationState には反映しない。タイムラインの CalcAnimationTime だけが見る値
+        /// </summary>
+        public static void SetOverrideTime(Maid maid, int layer, bool overrideTime)
+        {
+            var info = GetLayerInfo(maid, layer);
+            if (info == null)
+            {
+                return;
+            }
+            info.overrideTime = overrideTime;
+        }
+
         /// <summary>層が動いているか。ベースが止まっていれば層も止まっている扱い</summary>
         public static bool IsLayerPlaying(Maid maid, int layer)
         {
@@ -501,6 +591,11 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             info.state.enabled = true;
+            // 外部から止められた層は weight まで 0 にされていることがある
+            // (エディット系の @MotionLayerStop など)。控えた値へ戻さないと
+            // 有効にしても見た目が戻らない
+            info.state.weight = info.weight;
+            info.state.time = info.startTime;
             // 速度 0 のまま流すと ▶ が効かないように見えるため等速へ戻す
             // (速度 0 で止めたいときは ■ を使う)
             info.state.speed = info.speed > 0f ? info.speed : 1f;
@@ -517,8 +612,6 @@ namespace COM3D2.SceneEditor.Plugin
             info.startTime = info.state.GetPlayingTime();
             info.state.speed = 0f;
         }
-
-        // ---- anim.Stop() は全 state を巻き戻すため、その前後で層の位置と有効状態を保つ ----
 
         /// <summary>
         /// Animation.Stop() は全 state を巻き戻すため、直前の再生位置を info.startTime に控える。
@@ -566,6 +659,77 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 適用先がブレンド層かを切り替える。モーションウィンドウが毎フレーム呼ぶ。
+        /// 切り替わった瞬間だけ、停止中のポーズを層ありなしで取り直す
+        /// </summary>
+        public static void SetBlendLayerSelected(Maid maid, bool isSelected)
+        {
+            if (isBlendLayerSelected == isSelected)
+            {
+                return;
+            }
+            isBlendLayerSelected = isSelected;
+
+            var anim = GetAnimation(maid);
+            if (anim == null || MaidMotionState.IsPlaying(maid))
+            {
+                // 再生中は層の有効状態を再生側が持っているので触らない
+                return;
+            }
+
+            if (isSelected)
+            {
+                KeepLayersAfterStop(maid);
+            }
+            else
+            {
+                DisableLayers(maid, anim);
+            }
+            SampleStopped(maid, anim);
+        }
+
+        /// <summary>
+        /// 停止後に層を有効へ戻す (速度 0 で止めた位置を保つ)。
+        /// anim.Stop() が全 state を無効化した直後に呼ぶこと
+        /// </summary>
+        public static void KeepLayersAfterStop(Maid maid)
+        {
+            var anim = GetAnimation(maid);
+            var infos = GetLayerInfos(maid);
+            if (anim == null || infos == null)
+            {
+                return;
+            }
+            foreach (var info in infos)
+            {
+                if (info.layer < MinLayer || !IsStateAlive(anim, info))
+                {
+                    continue;
+                }
+                info.state.enabled = true;
+                info.state.weight = info.weight;
+                info.state.time = info.startTime;
+                info.state.speed = 0f;
+            }
+        }
+
+        private static void DisableLayers(Maid maid, Animation anim)
+        {
+            var infos = GetLayerInfos(maid);
+            if (infos == null)
+            {
+                return;
+            }
+            foreach (var info in infos)
+            {
+                if (info.layer >= MinLayer && IsStateAlive(anim, info))
+                {
+                    info.state.enabled = false;
+                }
+            }
+        }
+
         /// <summary>層の状態を控える。何も載っていなければ空リスト</summary>
         public static List<LayerState> Capture(Maid maid)
         {
@@ -592,6 +756,7 @@ namespace COM3D2.SceneEditor.Plugin
                     speed = info.speed,
                     loop = info.loop,
                     playing = alive && info.state.enabled && info.state.speed > 0f,
+                    overrideTime = info.overrideTime,
                 });
             }
             return result;
@@ -658,6 +823,7 @@ namespace COM3D2.SceneEditor.Plugin
                 info.weight = target.weight;
                 info.speed = target.speed;
                 info.loop = target.loop;
+                info.overrideTime = target.overrideTime;
                 info.state.wrapMode = target.loop ? WrapMode.Loop : WrapMode.Once;
                 info.state.weight = target.weight;
                 info.state.time = target.time;

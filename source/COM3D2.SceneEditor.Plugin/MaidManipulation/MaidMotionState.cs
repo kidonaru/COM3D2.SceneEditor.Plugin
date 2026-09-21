@@ -134,17 +134,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            string playingClipName = null;
-            AnimationState playingState = null;
-            foreach (AnimationState state in anim)
-            {
-                if (anim.IsPlaying(state.name))
-                {
-                    playingClipName = state.name;
-                    playingState = state;
-                    break;
-                }
-            }
+            var playingState = FindPlayingBaseState(anim);
+            var playingClipName = playingState != null ? playingState.name : null;
 
             if (playingClipName != null)
             {
@@ -166,6 +157,12 @@ namespace COM3D2.SceneEditor.Plugin
             MaidAnimationBlendController.CaptureTimesBeforeStop(maid);
             anim.Stop();
             InvalidateIsPlayingCache(maid);
+            if (MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                // 適用先がレイヤーのときは止めても層を残す。
+                // サンプルより先に戻しておくと、停止直後のポーズにも寄与が写る
+                MaidAnimationBlendController.KeepLayersAfterStop(maid);
+            }
             SampleWhileStopped(anim, playingState, stoppedTime);
 
             // 停止直後のポーズをボーンスライダーの基準として記録する
@@ -189,6 +186,29 @@ namespace COM3D2.SceneEditor.Plugin
             state.weight = 1f;
             state.time = time;
             anim.Sample();
+            RestoreBaseAfterSample(state);
+        }
+
+        /// <summary>
+        /// 停止サンプル後のベース state の後始末。
+        /// ブレンド層を残している間はベースも有効なまま (速度 0) にする。
+        /// 層だけ有効だと anim.isPlaying が立って Unity が毎フレーム自動サンプルし、
+        /// ベース抜きのポーズで上書きされて崩れていくため
+        /// </summary>
+        private static void RestoreBaseAfterSample(AnimationState state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            if (MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                state.enabled = true;
+                state.weight = 1f;
+                state.speed = 0f;
+                return;
+            }
             state.enabled = false;
         }
 
@@ -209,20 +229,15 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
 
-            if (anim.isPlaying)
+            var playingState = FindPlayingBaseState(anim);
+            if (playingState != null)
             {
-                foreach (AnimationState state in anim)
-                {
-                    if (anim.IsPlaying(state.name))
-                    {
-                        return state.name;
-                    }
-                }
+                return playingState.name;
             }
 
             string clipName;
             _resumeClipNames.TryGetValue(maid, out clipName);
-            return clipName;
+            return IsBaseClip(anim, clipName) ? clipName : null;
         }
 
         /// <summary>
@@ -291,7 +306,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (!wasPlaying)
             {
-                state.enabled = false;
+                RestoreBaseAfterSample(state);
                 // シーク後のポーズをボーンスライダーの基準に取り直す
                 MaidBoneSliderController.CaptureBasePose(maid);
             }
@@ -321,6 +336,27 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// ベース側で再生中の state。無ければ null。
+        /// ブレンド層 (アニメレイヤー 2 以上) は対象外にする。
+        /// 層を拾うと復帰先・再生位置・再生判定がベースではなく層のクリップを指してしまう
+        /// </summary>
+        private static AnimationState FindPlayingBaseState(Animation anim)
+        {
+            foreach (AnimationState state in anim)
+            {
+                if (state.layer >= MaidAnimationBlendController.MinLayer)
+                {
+                    continue;
+                }
+                if (anim.IsPlaying(state.name))
+                {
+                    return state;
+                }
+            }
+            return null;
+        }
+
         public static bool IsPlaying(Maid maid)
         {
             var anim = GetAnimation(maid);
@@ -341,17 +377,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return cached;
             }
 
-            // StopMotion と同じく最初に見つかった再生中クリップで判定する (単一クリップ運用が前提)。
-            // 再生中クリップが特定できない場合は安全側に倒して再生中扱いにする
-            var result = true;
-            foreach (AnimationState state in anim)
-            {
-                if (anim.IsPlaying(state.name))
-                {
-                    result = state.speed > 0f;
-                    break;
-                }
-            }
+            // anim.isPlaying はブレンド層だけが動いていても true になるため、
+            // ベース側の state を明示的に探して判定する
+            var playingState = FindPlayingBaseState(anim);
+            var result = playingState != null && playingState.speed > 0f;
 
             _isPlayingCache[maid] = result;
             return result;
@@ -364,13 +393,46 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return false;
             }
+            var anim = GetAnimation(maid);
+            return anim != null && GetPlayableClipName(maid, anim) != null;
+        }
+
+        /// <summary>
+        /// 再生を始められるクリップ名。無ければ null。
+        /// 復帰先の記録が失われていても、ベースに当たっているアニメが残っていれば流せる
+        /// (記録はモーション適用時の Discard で消えるため、これが無いと再生できなくなる)
+        /// </summary>
+        private static string GetPlayableClipName(Maid maid, Animation anim)
+        {
             string clipName;
-            if (!_resumeClipNames.TryGetValue(maid, out clipName))
+            if (_resumeClipNames.TryGetValue(maid, out clipName)
+                && anim.GetClip(clipName) != null && IsBaseClip(anim, clipName))
+            {
+                return clipName;
+            }
+
+            var lastName = maid != null && maid.body0 != null ? maid.body0.LastAnimeFN : null;
+            if (!string.IsNullOrEmpty(lastName) && anim.GetClip(lastName) != null)
+            {
+                return lastName;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// そのクリップがベース側のものか。ブレンド層のクリップなら false。
+        /// 記録に層のクリップが紛れ込んでいても、ベースの操作へ使わないための防波堤。
+        /// 同名の MaidAnimationBlendController.IsBaseClipName とは判定材料が違う
+        /// (あちらは TBody.LastAnimeFN を見る)
+        /// </summary>
+        private static bool IsBaseClip(Animation anim, string clipName)
+        {
+            if (string.IsNullOrEmpty(clipName))
             {
                 return false;
             }
-            var anim = GetAnimation(maid);
-            return anim != null && anim.GetClip(clipName) != null;
+            var state = anim[clipName];
+            return state != null && state.layer < MaidAnimationBlendController.MinLayer;
         }
 
         /// <summary>
@@ -386,9 +448,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            string clipName;
-            if (!_resumeClipNames.TryGetValue(maid, out clipName)
-                || anim.GetClip(clipName) == null)
+            var clipName = GetPlayableClipName(maid, anim);
+            if (clipName == null)
             {
                 return;
             }
@@ -396,6 +457,12 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 anim.Play(clipName);
+                var state = anim[clipName];
+                if (state != null)
+                {
+                    // 層を残す停止では速度を 0 にしてあるので等速へ戻す
+                    state.speed = 1f;
+                }
                 InvalidateIsPlayingCache(maid);
                 MaidAnimationBlendController.ResumeAfterPlay(maid);
                 MaidBoneSliderController.ClearBasePose(maid);

@@ -365,6 +365,15 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            if (MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                // レイヤー調整中はボーンを触らせない (モーションウィンドウの適用先を戻してから)。
+                // MaidWindowBase.DrawBlendLayerGate と違いスライダー行だけを止める
+                // (基底クラスが違い forceDisabled の解除経路を共有できないため)
+                _view.DrawLabel(MaidAnimationBlendController.BlendLayerGateMessage, -1, RowHeight,
+                    textColor: Color.yellow);
+                return;
+            }
             BoneSliderRowDrawer.Draw(_view, maid, selectedDef, LabelWidth);
         }
 

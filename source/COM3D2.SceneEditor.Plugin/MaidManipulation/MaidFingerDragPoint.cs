@@ -124,6 +124,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool BeginDrag(Camera camera, Vector3 pointerPos)
         {
+            if (MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                // レイヤー調整中は掴ませない。点の実体は作らせていないが、
+                // 破棄前のフレームに掴まれても書き込ませないための 2 段目
+                return false;
+            }
+
             if (_isDragging || !IsReady() || camera == null || !canDrag)
             {
                 return false;

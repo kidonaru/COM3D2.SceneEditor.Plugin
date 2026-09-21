@@ -12,12 +12,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     {
         private static MaidAnimationBlendController.LayerState Create(
             int layer = 2, string anmName = "a.anm", float time = 0.5f,
-            float weight = 1f, float speed = 1f, bool loop = true, bool playing = false)
+            float weight = 1f, float speed = 1f, bool loop = true, bool playing = false,
+            bool overrideTime = false)
         {
             return new MaidAnimationBlendController.LayerState
             {
                 layer = layer, anmName = anmName, time = time,
                 weight = weight, speed = speed, loop = loop, playing = playing,
+                overrideTime = overrideTime,
             };
         }
 
@@ -46,6 +48,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.False(Create().Approximately(Create(anmName: "b.anm")));
             Assert.False(Create().Approximately(Create(loop: false)));
             Assert.False(Create().Approximately(Create(playing: true)));
+            Assert.False(Create().Approximately(Create(overrideTime: true)));
         }
 
         [Fact]

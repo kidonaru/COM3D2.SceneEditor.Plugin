@@ -172,6 +172,25 @@ namespace COM3D2.SceneEditor.Plugin
             return result;
         }
 
+        /// <summary>
+        /// アニメブレンドのレイヤー調整中は、ボーン / IK を触る項目を無効化する。
+        /// 無効化したら true。解除は DrawContent の finally が呼ぶ TimelineLayerGate.End が行う
+        /// (forceDisabled を戻す経路を 1 つに保つ)
+        /// </summary>
+        protected bool DrawBlendLayerGate()
+        {
+            if (!MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                return false;
+            }
+
+            view.DrawLabel(MaidAnimationBlendController.BlendLayerGateMessage, -1, ROW_HEIGHT,
+                textColor: Color.yellow);
+            view.forceDisabled = true;
+            view.SetEnabled(false);
+            return true;
+        }
+
         protected override void DrawContent()
         {
             _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));

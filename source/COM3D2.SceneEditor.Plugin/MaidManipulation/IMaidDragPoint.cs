@@ -58,6 +58,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static void BeginDrag(Maid maid, string boneName)
         {
+            if (MaidAnimationBlendController.isBlendLayerSelected)
+            {
+                // レイヤー調整中はボーンを書かせない (点も出していないが念のため)
+                return;
+            }
             MaidAnimationBlendController.ReleaseForBoneEdit(maid);
             draggingBoneName = boneName;
             isDragging = true;

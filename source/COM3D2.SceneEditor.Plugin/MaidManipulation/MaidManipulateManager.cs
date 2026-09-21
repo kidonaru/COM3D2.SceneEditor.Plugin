@@ -288,10 +288,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ボーンギズモ・骨格線を実際に出すか。
-        /// 編集モード外はポーズを触れない (レイヤーが値を書き戻す) ため、ボーン表示が ON でも出さない
+        /// アニメブレンドのレイヤーを調整中か。この間はボーン / IK を触らせない
+        /// (理由は MaidAnimationBlendController.isBlendLayerSelected を参照)
         /// </summary>
-        public bool isBoneEditing => isEditMode && isBoneVisible;
+        public bool isBlendLayerSelected => MaidAnimationBlendController.isBlendLayerSelected;
+
+        /// <summary>
+        /// ボーンギズモ・骨格線を実際に出すか。
+        /// 編集モード外はポーズを触れない (レイヤーが値を書き戻す) ため、ボーン表示が ON でも出さない。
+        /// ブレンドのレイヤー調整中も同じく触れないので出さない
+        /// </summary>
+        public bool isBoneEditing => isEditMode && isBoneVisible && !isBlendLayerSelected;
 
         /// <summary>
         /// ゲーム画面 (GameView) 上で白丸ドラッグ点を描画・操作してよいか。
@@ -309,7 +316,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// 見せるビュー (編集モード中の GameView か、表示中の SceneView) があるときだけ作る
         /// </summary>
         private bool isDragPointActive =>
-            isBoneVisible && (isEditMode || SceneViewWindow.instance.isShowWnd);
+            isBoneVisible && !isBlendLayerSelected
+            && (isEditMode || SceneViewWindow.instance.isShowWnd);
 
         /// <summary>操作対象として扱える状態か（実体が残っているか）。非表示中も操作対象に残す</summary>
         private static bool IsAlive(Maid maid)
@@ -322,6 +330,15 @@ namespace COM3D2.SceneEditor.Plugin
             UpdateMaidLoading();
 
             var activeMaid = targetMaid;
+
+            // 適用先の同期はモーションウィンドウの描画でしか走らない。
+            // 閉じた・タブの裏へ回った・Tab で一括非表示にした場合は描画が止まるため、
+            // レイヤー調整中のまま固着してボーン / IK を出せなくなる。
+            // 毎フレーム走るここで、見えていない間は必ず解除する
+            if (!MaidPoseWindow.instance.isWndVisible)
+            {
+                MaidAnimationBlendController.SetBlendLayerSelected(activeMaid, false);
+            }
 
             // 退避中のメイドは画面外に居るうえ、動かしても表示に戻す際に戻り先へ
             // 上書きされて編集が消えるため、座標を触る操作の対象から外す

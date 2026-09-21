@@ -163,6 +163,7 @@ namespace COM3D2.SceneEditor.Plugin
                     UpdateHistoryKey();
                     UpdateEditModeKey();
                     UpdateWindowsHiddenKey();
+                    UpdateMotionPlayKey();
                     TimelineKeyInput.Update();
                     managerRegistry.Update();
                 }
@@ -243,6 +244,46 @@ namespace COM3D2.SceneEditor.Plugin
                     var manager = MaidManipulateManager.instance;
                     manager.isEditMode = !manager.isEditMode;
                 }
+            }
+        }
+
+        /// <summary>
+        /// シーンモード (タイムライン未読込) では再生キーでモーションの再生/停止を切り替える。
+        /// タイムライン読込中は同じキーを TimelineKeyInput がタイムライン再生に使うため触らない。
+        /// テキスト入力中 (keyboardControl 保持中) は誤発動を防ぐため無視する
+        /// </summary>
+        private void UpdateMotionPlayKey()
+        {
+            if (!config.isTimelineKeyInputEnabled || GUIUtility.keyboardControl != 0)
+            {
+                return;
+            }
+
+            if (MTEP.TimelineManager.instance.IsValidData())
+            {
+                return;
+            }
+
+            if (!config.GetKeyDown(KeyBindType.Play))
+            {
+                return;
+            }
+
+            var maid = MaidManipulateManager.instance.targetMaid;
+            if (maid == null)
+            {
+                return;
+            }
+
+            if (MaidMotionState.IsPlaying(maid))
+            {
+                MaidMotionState.StopMotion(maid);
+            }
+            else if (MaidMotionState.CanPlayMotion(maid))
+            {
+                // 再生するなら編集モードは畳む (ウィンドウの ▶ と同じ扱い)
+                AutoEditMode.Exit();
+                MaidMotionState.PlayMotion(maid);
             }
         }
 

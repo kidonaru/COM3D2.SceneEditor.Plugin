@@ -146,7 +146,7 @@
 | `AddKeyFrame` | `Enter` | キーフレームを登録 |
 | `AddKeyFrameAll` | `Shift+Enter` | 全ボーンのキーフレームを登録 |
 | `RemoveKeyFrame` | `Backspace` | 選択中のキーフレームを削除 |
-| `Play` | `Space` | 再生 / 停止 |
+| `Play` | `Space` | 再生 / 停止（タイムライン読込中はタイムライン、シーンモードでは操作対象メイドのモーション） |
 | `PrevFrame` / `NextFrame` | `A` / `D` | 1 フレーム前後へ移動 |
 | `PrevKeyFrame` / `NextKeyFrame` | `Ctrl+A` / `Ctrl+D` | 前後のキーフレームへ移動 |
 | `Copy` / `Paste` / `FlipPaste` | `Ctrl+C` / `Ctrl+V` / `Ctrl+Shift+V` | キーフレームのコピー / 貼り付け / 反転貼り付け |

@@ -7,7 +7,7 @@
 | `Enter` | キーフレーム登録（差分） | `AddKeyFrame` |
 | `Shift` + `Enter` | 全登録 | `AddKeyFrameAll` |
 | `Backspace` | 選択キーの削除 | `RemoveKeyFrame` |
-| `Space` | 再生 / 停止 | `Play` |
+| `Space` | 再生 / 停止（タイムライン未読込のシーンモードでは操作対象メイドのモーション） | `Play` |
 | `A` / `D` | 前 / 次のフレーム（押しっぱなしで連続） | `PrevFrame` / `NextFrame` |
 | `Ctrl` + `A` / `Ctrl` + `D` | 前 / 次のキーフレーム | `PrevKeyFrame` / `NextKeyFrame` |
 | `Ctrl` + `C` / `Ctrl` + `V` | キーのコピー / ペースト | `Copy` / `Paste` |

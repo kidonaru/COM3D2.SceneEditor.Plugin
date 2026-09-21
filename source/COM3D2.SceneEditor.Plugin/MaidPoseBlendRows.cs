@@ -6,140 +6,119 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// モーションウィンドウのアニメブレンド区間。適用先レイヤーの選択と、
-    /// 載っている層ごとの再生時間 / 重み / 速度 / ループ / 削除の行を描く。
+    /// モーションウィンドウの適用先タブと、レイヤーを選んでいるときの値の行
+    /// (再生時間 / 重み / 速度 / ループ / 時間上書き)。
+    /// 名前・前後送り・再生・削除の行は送り先一覧の状態を持つ MaidPoseWindow 側が描く。
     /// 値の書き込みは全て MaidAnimationBlendController 経由で、履歴は HistoryScope.Pose に積む
     /// </summary>
     public static class MaidPoseBlendRows
     {
-        /// <summary>適用先コンボの先頭は「通常」(レイヤー 0 = 従来経路)</summary>
+        /// <summary>適用先タブの先頭は「ベース」(レイヤー 0 = 従来のベースモーション)</summary>
         public const int BaseLayer = 0;
 
-        /// <summary>
-        /// 適用先コンボ。GUIComboBox の生成は GUIView の静的初期化 (Unity ネイティブ) を
-        /// 引くため、描画時まで遅らせて GetVisibleLayers を pure に保つ
-        /// </summary>
-        private static GUIComboBox<int> _targetComboBox;
+        /// <summary>適用先タブ 1 つぶんの幅と間隔。「ベース」が収まる幅に合わせる</summary>
+        private const float TAB_WIDTH = 44f;
+        private const float TAB_MARGIN = 2f;
 
-        private static List<int> _targetItems;
+        /// <summary>載っている層の目印。番号だけだとどこに何があるか分からないため添える</summary>
+        private const string LOADED_MARK = "*";
+
+        // 描画は IMGUI で 1 フレームに複数回走るため、作業用リストは使い回す
+        // (一覧側の _motions 等と同じくガベージを出さない方針に揃える)
+        private static readonly List<string> _nameBuffer = new List<string>();
+        private static readonly List<string> _labelBuffer = new List<string>();
 
         /// <summary>
-        /// 描く層の番号。名前が入っている層と、空でも適用先に選ばれている層を昇順で返す
-        /// (全 7 段を常に並べると 300px 幅のウィンドウでは一覧が押し出されるため)
+        /// 適用先タブの見出し。先頭が「ベース」で、以降がレイヤー番号。
+        /// アニメが載っている層には目印を付ける
+        /// (選択中の層しか中身を出さないので、タブ側で載り具合が分かるようにする)
         /// </summary>
-        public static List<int> GetVisibleLayers(IList<string> anmNamesByLayer, int targetLayer, int minLayer, int maxLayer)
+        public static List<string> BuildTargetLabels(
+            IList<string> anmNamesByLayer, int minLayer, int maxLayer)
         {
-            var result = new List<int>();
+            return BuildTargetLabels(anmNamesByLayer, minLayer, maxLayer, new List<string>());
+        }
+
+        /// <summary>見出しの書き出し先を渡す版。描画からは使い回しのバッファを渡す</summary>
+        private static List<string> BuildTargetLabels(
+            IList<string> anmNamesByLayer, int minLayer, int maxLayer, List<string> result)
+        {
+            result.Clear();
+            result.Add("ベース");
             for (var layer = minLayer; layer <= maxLayer; layer++)
             {
                 var name = layer < anmNamesByLayer.Count ? anmNamesByLayer[layer] : null;
-                if (!string.IsNullOrEmpty(name) || layer == targetLayer)
-                {
-                    result.Add(layer);
-                }
+                result.Add(string.IsNullOrEmpty(name)
+                    ? layer.ToString()
+                    : layer + LOADED_MARK);
             }
             return result;
         }
 
-        public static void Draw(GUIView view, Maid maid, int targetLayer, Action<int> setTargetLayer,
-            float rowHeight, float labelWidth)
+        /// <summary>適用先タブの並び順 (index) とレイヤー番号の相互変換</summary>
+        public static int ToTabIndex(int targetLayer, int minLayer)
+        {
+            return targetLayer == BaseLayer ? 0 : targetLayer - minLayer + 1;
+        }
+
+        public static int ToTargetLayer(int tabIndex, int minLayer)
+        {
+            return tabIndex == 0 ? BaseLayer : tabIndex - 1 + minLayer;
+        }
+
+        /// <summary>
+        /// 適用先タブを描く。レイヤー情報が取れないときは false を返すので、
+        /// 呼び出し側はベース扱いで続けること
+        /// </summary>
+        public static bool DrawTargetTabs(GUIView view, Maid maid, int targetLayer,
+            Action<int> setTargetLayer, float rowHeight, float labelWidth)
         {
             var infos = MaidAnimationBlendController.GetLayerInfos(maid);
             if (infos == null)
             {
-                view.DrawLabel("アニメレイヤーの情報がありません", -1, rowHeight, textColor: Color.gray);
-                return;
+                return false;
             }
 
-            if (_targetComboBox == null)
-            {
-                _targetComboBox = new GUIComboBox<int>
-                {
-                    getName = (layer, _) => layer == BaseLayer ? "通常" : "レイヤー" + layer,
-                    buttonSize = new Vector2(110, 20),
-                    contentSize = new Vector2(110, 200),
-                };
-            }
+            var minLayer = MaidAnimationBlendController.MinLayer;
 
-            if (_targetItems == null)
+            _nameBuffer.Clear();
+            foreach (var info in infos)
             {
-                _targetItems = new List<int> { BaseLayer };
-                for (var layer = MaidAnimationBlendController.MinLayer; layer <= MaidAnimationBlendController.MaxLayer; layer++)
-                {
-                    _targetItems.Add(layer);
-                }
+                _nameBuffer.Add(info.anmName);
             }
 
             view.BeginHorizontal();
             {
                 view.DrawLabel("適用先", labelWidth, rowHeight, style: GUIView.gsLabelRight);
-                _targetComboBox.items = _targetItems;
-                _targetComboBox.currentIndex = Mathf.Max(0, _targetItems.IndexOf(targetLayer));
-                _targetComboBox.onSelected = (layer, _) => setTargetLayer(layer);
-                _targetComboBox.DrawButton(view);
+
+                var labels = BuildTargetLabels(
+                    _nameBuffer, minLayer, MaidAnimationBlendController.MaxLayer, _labelBuffer);
+                var currentIndex = Mathf.Clamp(
+                    ToTabIndex(targetLayer, minLayer), 0, labels.Count - 1);
+                var newIndex = view.DrawTabs(labels, currentIndex, TAB_WIDTH, rowHeight, TAB_MARGIN);
+                if (newIndex != currentIndex)
+                {
+                    setTargetLayer(ToTargetLayer(newIndex, minLayer));
+                }
             }
             view.EndLayout();
-
-            var names = new List<string>(infos.Count);
-            foreach (var info in infos)
-            {
-                names.Add(info.anmName);
-            }
-
-            foreach (var layer in GetVisibleLayers(names, targetLayer,
-                MaidAnimationBlendController.MinLayer, MaidAnimationBlendController.MaxLayer))
-            {
-                DrawLayer(view, maid, infos[layer], rowHeight, labelWidth);
-            }
+            return true;
         }
 
-        private static void DrawLayer(GUIView view, Maid maid, AnimationLayerInfo info,
+        /// <summary>
+        /// レイヤーの値の行。アニメが載っていない段では何も描かない
+        /// (名前と 削除 の行は呼び出し側が描く)
+        /// </summary>
+        public static void DrawLayerValues(GUIView view, Maid maid, AnimationLayerInfo info,
             float rowHeight, float labelWidth)
         {
-            var layer = info.layer;
-            var hasState = info.state != null && !string.IsNullOrEmpty(info.anmName);
-            var length = hasState ? Mathf.Max(info.state.length, 0.01f) : 1f;
-
-            view.DrawHorizontalLine(Color.gray);
-
-            view.BeginHorizontal();
-            {
-                var title = "レイヤー" + layer + ": " + (hasState
-                    ? System.IO.Path.GetFileNameWithoutExtension(info.anmName)
-                    : "(未設定)");
-                view.DrawLabel(title, -1, rowHeight);
-
-                view.AddRightAlignSpace(30 + 50 + view.margin, rowHeight);
-
-                var playing = MaidAnimationBlendController.IsLayerPlaying(maid, layer);
-                // 層の ▶ はベース再生中しか効かない (停止編集を崩さない)
-                if (view.DrawButton(playing ? "■" : "▶", 30, rowHeight,
-                    enabled: hasState && (playing || MaidMotionState.IsPlaying(maid))))
-                {
-                    if (playing)
-                    {
-                        MaidAnimationBlendController.Stop(maid, layer);
-                    }
-                    else
-                    {
-                        MaidAnimationBlendController.Play(maid, layer);
-                    }
-                }
-
-                if (view.DrawButton("削除", 50, rowHeight, enabled: hasState))
-                {
-                    AutoEditMode.Enter();
-                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                        "ブレンド削除: レイヤー" + layer, () => PoseSnapshot.GetAllBodyBones(maid));
-                    MaidAnimationBlendController.RemoveLayer(maid, layer);
-                }
-            }
-            view.EndLayout();
-
-            if (!hasState)
+            if (info == null || info.state == null || string.IsNullOrEmpty(info.anmName))
             {
                 return;
             }
+
+            var layer = info.layer;
+            var length = Mathf.Max(info.state.length, 0.01f);
 
             view.BeginAutoEditMode();
 
@@ -163,32 +142,35 @@ namespace COM3D2.SceneEditor.Plugin
                 },
             });
 
-            view.DrawSliderValue(new GUIView.SliderOption
-            {
-                label = "重み",
-                labelWidth = labelWidth,
-                width = -1,
-                fieldType = FloatFieldType.Float,
-                min = 0f,
-                max = 1f,
-                step = 0.01f,
-                defaultValue = 1f,
-                value = info.weight,
-                onChanged = value =>
-                {
-                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                        "ブレンド重み", () => PoseSnapshot.GetAllBodyBones(maid));
-                    MaidAnimationBlendController.SetWeight(maid, layer, value);
-                },
-            });
+            // 2 つ並べるぶん、スライダーは行幅を等分する
+            var halfWidth = (view.viewRect.width - view.padding.x * 2 - view.margin) * 0.5f;
 
             view.BeginHorizontal();
             {
                 view.DrawSliderValue(new GUIView.SliderOption
                 {
+                    label = "重み",
+                    labelWidth = labelWidth,
+                    width = halfWidth,
+                    fieldType = FloatFieldType.Float,
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = 1f,
+                    value = info.weight,
+                    onChanged = value =>
+                    {
+                        HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                            "ブレンド重み", () => PoseSnapshot.GetAllBodyBones(maid));
+                        MaidAnimationBlendController.SetWeight(maid, layer, value);
+                    },
+                });
+
+                view.DrawSliderValue(new GUIView.SliderOption
+                {
                     label = "速度",
                     labelWidth = labelWidth,
-                    width = view.viewRect.width - 70 - view.margin,
+                    width = halfWidth,
                     fieldType = FloatFieldType.Float,
                     min = 0f,
                     max = 2f,
@@ -202,17 +184,30 @@ namespace COM3D2.SceneEditor.Plugin
                         MaidAnimationBlendController.SetSpeed(maid, layer, value);
                     },
                 });
+            }
+            view.EndLayout();
 
-                view.DrawToggle("ループ", info.loop, 70, rowHeight, value =>
+            view.BeginHorizontal();
+            {
+                view.DrawToggle("ループ", info.loop, halfWidth, rowHeight, value =>
                 {
                     HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                         "ブレンドループ", () => PoseSnapshot.GetAllBodyBones(maid));
                     MaidAnimationBlendController.SetLoop(maid, layer, value);
+                });
+
+                // タイムライン再生時だけ効く値なので、実 AnimationState は触らない
+                view.DrawToggle("時間上書き", info.overrideTime, halfWidth, rowHeight, value =>
+                {
+                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                        "ブレンド時間上書き", () => PoseSnapshot.GetAllBodyBones(maid));
+                    MaidAnimationBlendController.SetOverrideTime(maid, layer, value);
                 });
             }
             view.EndLayout();
 
             view.EndAutoEditMode();
         }
+
     }
 }
