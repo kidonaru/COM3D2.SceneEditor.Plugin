@@ -28,6 +28,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private string _searchText = "";
 
+        /// <summary>ピッカー要求。非 null の間は一覧クリックが層への適用になる</summary>
+        private MotionPickRequest _pickRequest;
+
+        public bool isPicking => _pickRequest != null;
+
         private readonly GUIComboBox<string> _categoryComboBox = new GUIComboBox<string>
         {
             getName = (name, _) => name,
@@ -132,6 +137,30 @@ namespace COM3D2.SceneEditor.Plugin
                 InvalidateMyPoseLists();
                 InvalidateNavEntries();
             }
+            else
+            {
+                // 閉じたらピッカーも畳む (帯だけ残って見えなくならないように)
+                CancelPick();
+            }
+        }
+
+        /// <summary>
+        /// 一覧から 1 件選ばせるモードへ入る。ウィンドウが閉じていれば開く
+        /// (アニメブレンドウィンドウから呼ばれる)
+        /// </summary>
+        public void BeginPick(MotionPickRequest request)
+        {
+            _pickRequest = request;
+            if (request != null && !isShowWnd)
+            {
+                // ヘッダーの重なり判定込みで開く (メニューバーのトグルと同じ経路)
+                WindowManager.ToggleWindowVisible(this);
+            }
+        }
+
+        public void CancelPick()
+        {
+            _pickRequest = null;
         }
 
         protected override void DrawMaidContent(Maid target)
@@ -147,6 +176,26 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel("非表示中はモーションを操作できません", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
                 return;
+            }
+
+            // ピッカーモードの帯。対象メイドが変わったら畳む
+            if (_pickRequest != null && !_pickRequest.IsValidFor(target))
+            {
+                CancelPick();
+            }
+            if (_pickRequest != null)
+            {
+                view.BeginHorizontal();
+                {
+                    view.DrawLabel("▶ レイヤー" + _pickRequest.layer + " へ載せる", -1, ROW_HEIGHT,
+                        textColor: Color.yellow);
+                    if (view.DrawButton("キャンセル", 90, ROW_HEIGHT))
+                    {
+                        CancelPick();
+                    }
+                }
+                view.EndLayout();
+                view.DrawHorizontalLine();
             }
 
             // 直前のガードと違い、レイヤー未登録では return しない（項目は見せたまま無効化する）
@@ -196,14 +245,14 @@ namespace COM3D2.SceneEditor.Plugin
                 // 1 件しかない一覧では送り先が自分自身になるだけなので無効にする
                 var canNavigate = _navIndex >= 0 && GetNavCount() > 1;
 
-                if (view.DrawButton("<", 25, ROW_HEIGHT, enabled: canNavigate))
+                if (view.DrawButton("<", 25, ROW_HEIGHT, enabled: canNavigate && !isPicking))
                 {
                     ApplyNavEntry(maid, -1);
                 }
 
                 view.DrawLabel(displayName ?? "なし", 150, ROW_HEIGHT);
 
-                if (view.DrawButton(">", 25, ROW_HEIGHT, enabled: canNavigate))
+                if (view.DrawButton(">", 25, ROW_HEIGHT, enabled: canNavigate && !isPicking))
                 {
                     ApplyNavEntry(maid, 1);
                 }
@@ -253,7 +302,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // 現在のポーズをマイポーズへ保存。名前はポップアップで入力させる。
                 // 保存先は表示中サブディレクトリで、ポップアップの上書き判定と
                 // 実保存が同じ場所を指すよう表示時点の値を控えて渡す
-                if (view.DrawButton("ポーズ保存", 90, ROW_HEIGHT))
+                if (view.DrawButton("ポーズ保存", 90, ROW_HEIGHT, enabled: !isPicking))
                 {
                     var saveDir = _myPoseDir;
                     SavePosePopupWindow.Show(poseName => SavePose(maid, saveDir, poseName), saveDir);
@@ -272,7 +321,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // 現在のポーズを左右反転する。再生中は書き戻しが翌フレームに
                 // 上書きされるため、他の編集操作と同じく先に停止させる
                 // (停止操作を内包するので、リセットと違い再生中でも押せる)
-                if (view.DrawButton("反転", 60, ROW_HEIGHT))
+                if (view.DrawButton("反転", 60, ROW_HEIGHT, enabled: !isPicking))
                 {
                     MaidMotionState.StopMotion(maid);
                     HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
@@ -288,7 +337,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 崩したポーズを復帰先 (停止前のモーション / 読み込んだポーズ) で元に戻すリセット
                 if (view.DrawButton("リセット", 60, ROW_HEIGHT,
-                    enabled: MaidMotionState.IsMotionStopped(maid)))
+                    enabled: MaidMotionState.IsMotionStopped(maid) && !isPicking))
                 {
                     HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                         "ポーズリセット", PoseSnapshot.GetAllBodyBones(maid));
@@ -519,7 +568,16 @@ namespace COM3D2.SceneEditor.Plugin
                 if (view.DrawButton(data.name, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
-                    ApplyMotionEntry(maid, data);
+                    if (_pickRequest != null)
+                    {
+                        var request = _pickRequest;
+                        CancelPick();
+                        request.onMotionPicked?.Invoke(data);
+                    }
+                    else
+                    {
+                        ApplyMotionEntry(maid, data);
+                    }
                 }
             }
 
@@ -667,7 +725,16 @@ namespace COM3D2.SceneEditor.Plugin
                 if (view.DrawButton(poseName, -1, ROW_HEIGHT,
                     color: isCurrent ? (Color?)EditorSubWindow.ACCENT_COLOR : null))
                 {
-                    LoadMyPoseEntry(maid, myPoseDir, poseName);
+                    if (_pickRequest != null)
+                    {
+                        var request = _pickRequest;
+                        CancelPick();
+                        request.onMyPosePicked?.Invoke(myPoseDir, poseName);
+                    }
+                    else
+                    {
+                        LoadMyPoseEntry(maid, myPoseDir, poseName);
+                    }
                 }
             }
             return drawn;

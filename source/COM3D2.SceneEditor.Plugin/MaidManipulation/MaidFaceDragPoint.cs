@@ -77,10 +77,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             _isDragging = true;
 
-            // 瞳モードはボーンを回さないので追従させない
+            // 瞳モードはボーンを回さないので追従させない。
+            // 書き換えるのは quaDefEye だけでアニメがサンプルするボーンには触れないため、
+            // アニメブレンドの解除も要らない
             if (!_isEyeMode)
             {
-                MaidDragBoneTracker.BeginDrag(neckBone.name);
+                MaidDragBoneTracker.BeginDrag(maid, neckBone.name);
             }
             return true;
         }

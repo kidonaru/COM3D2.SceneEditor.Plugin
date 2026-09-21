@@ -168,6 +168,8 @@
     <Compile Include="MTEUtils\TransformGizmo.cs" />
     <Compile Include="MTEUtils\WindowManagerBase.cs" />
     <Compile Include="MTEUtils\WindowResizeController.cs" />
+    <Compile Include="MaidManipulation\AnimationBlendNameResolver.cs" />
+    <Compile Include="MaidManipulation\MaidAnimationBlendController.cs" />
     <Compile Include="MaidManipulation\EulerOffsetCache.cs" />
     <Compile Include="MaidManipulation\IMaidDragPoint.cs" />
     <Compile Include="MaidManipulation\MaidBoneGizmoController.cs" />
@@ -301,6 +303,8 @@
     <Compile Include="LightWindow.cs" />
     <Compile Include="MaidWindowBase.cs" />
     <Compile Include="MaidCallWindow.cs" />
+    <Compile Include="MaidPoseBlendRows.cs" />
+    <Compile Include="MotionPickRequest.cs" />
     <Compile Include="MaidPoseWindow.cs" />
     <Compile Include="BoneSliderRowDrawer.cs" />
     <Compile Include="HiddenMaidGuard.cs" />

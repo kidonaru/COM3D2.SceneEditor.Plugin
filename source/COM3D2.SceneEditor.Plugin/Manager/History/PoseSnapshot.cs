@@ -38,6 +38,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>記録時の適用中モーションの記録。undo/redo で表示とハイライトを揃える</summary>
         private MaidMotionState.AppliedMotionInfo _appliedMotion;
 
+        /// <summary>記録時のアニメブレンド層。undo/redo で層の載せ替え・重みも戻す</summary>
+        private List<MaidAnimationBlendController.LayerState> _blendLayers;
+
         /// <summary>記録時の指ブレンド状態。コントローラの対象が一致するときだけ復元する</summary>
         private List<FingerUnitState> _fingerStates;
 
@@ -71,6 +74,7 @@ namespace COM3D2.SceneEditor.Plugin
             snapshot._playbackTime = animState != null
                 ? MaidMotionState.GetWrappedTime(animState) : 0f;
             snapshot._appliedMotion = MaidMotionState.GetAppliedMotion(maid);
+            snapshot._blendLayers = MaidAnimationBlendController.Capture(maid);
 
             var muneYureController = MaidManipulateManager.instance.muneYureController;
             snapshot._muneYureL = muneYureController.GetYure(maid, true);
@@ -217,6 +221,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 再生の復元は最後。ボーンを書き戻す前に再生するとポーズが上書きされる
             RestoreMotion(maid);
+
+            // ベースの再生状態を戻してから層を戻す (層の enabled/speed はベースの再生中かで決まる)
+            MaidAnimationBlendController.Restore(maid, _blendLayers);
         }
 
         /// <summary>
@@ -259,6 +266,10 @@ namespace COM3D2.SceneEditor.Plugin
             // 再生位置は比較しない。再生中は毎フレーム進むため、含めると
             // 実質的な変更のない操作まで差分ありと判定してしまう
             if (_isPlaying != o._isPlaying || _clipName != o._clipName)
+            {
+                return false;
+            }
+            if (!MaidAnimationBlendController.LayerStatesApproximately(_blendLayers, o._blendLayers))
             {
                 return false;
             }

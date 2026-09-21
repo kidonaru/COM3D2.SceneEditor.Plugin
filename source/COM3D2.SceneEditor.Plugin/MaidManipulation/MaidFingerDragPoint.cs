@@ -175,7 +175,7 @@ namespace COM3D2.SceneEditor.Plugin
                 "指編集: " + followBone.name, targetBones);
 
             _isDragging = true;
-            MaidDragBoneTracker.BeginDrag(followBone.name);
+            MaidDragBoneTracker.BeginDrag(maid, followBone.name);
             return true;
         }
 

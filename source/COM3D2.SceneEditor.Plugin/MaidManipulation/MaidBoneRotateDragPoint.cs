@@ -132,7 +132,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _isDragging = true;
-            MaidDragBoneTracker.BeginDrag(GetTrackedBoneName());
+            MaidDragBoneTracker.BeginDrag(maid, GetTrackedBoneName());
             return true;
         }
 

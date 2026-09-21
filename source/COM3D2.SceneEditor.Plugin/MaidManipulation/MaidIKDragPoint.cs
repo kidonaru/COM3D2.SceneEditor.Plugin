@@ -135,7 +135,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 固定するかは掴んだ時点で決める。途中で Ctrl を離してもモードは変えない
             chain.BeginDrag(pointType, IsCtrlHeld(), transform);
             _isDragging = true;
-            MaidDragBoneTracker.BeginDrag(sliderBoneName ?? followBone.name);
+            MaidDragBoneTracker.BeginDrag(maid, sliderBoneName ?? followBone.name);
             _mouseDownPos = pointerPos;
             return true;
         }

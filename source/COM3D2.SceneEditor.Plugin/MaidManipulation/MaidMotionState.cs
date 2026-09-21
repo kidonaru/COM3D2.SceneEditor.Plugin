@@ -109,7 +109,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private static Animation GetAnimation(Maid maid)
+        /// <summary>
+        /// メイドの Animation。ボディ未ロード時は null。
+        /// ブレンド層側 (MaidAnimationBlendController) も同じガードを使うため internal
+        /// </summary>
+        internal static Animation GetAnimation(Maid maid)
         {
             if (maid == null || maid.body0 == null || maid.body0.m_Bones == null)
             {
@@ -158,7 +162,10 @@ namespace COM3D2.SceneEditor.Plugin
             // 止めた瞬間のポーズを保つ。anim.Stop() は再生位置を 0 へ巻き戻すため、
             // 止める直前の位置を控えて反映し直す
             var stoppedTime = playingState != null ? GetWrappedTime(playingState) : 0f;
+            // ブレンド層は anim.Stop() で巻き戻るため、先に位置を控える
+            MaidAnimationBlendController.CaptureTimesBeforeStop(maid);
             anim.Stop();
+            InvalidateIsPlayingCache(maid);
             SampleWhileStopped(anim, playingState, stoppedTime);
 
             // 停止直後のポーズをボーンスライダーの基準として記録する
@@ -300,6 +307,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// Animation.isPlaying だけでなく「実際に動いているか」で判定する。
         /// GUI からボーン行ごとに毎フレーム呼ばれるため、クリップ列挙の結果はフレーム内でキャッシュする
         /// </summary>
+        /// <summary>
+        /// 再生状態を変えた直後にフレーム内キャッシュを捨てる。
+        /// キャッシュはフレーム境界でしか消えないため、同じフレーム内で GUI が先に
+        /// IsPlaying を呼んでいると、停止・再開の直後に古い値が返ってしまう
+        /// (undo/redo はポーズ復元と再生再開を 1 フレームで行うため実際に踏む)
+        /// </summary>
+        private static void InvalidateIsPlayingCache(Maid maid)
+        {
+            if (maid != null)
+            {
+                _isPlayingCache.Remove(maid);
+            }
+        }
+
         public static bool IsPlaying(Maid maid)
         {
             var anim = GetAnimation(maid);
@@ -375,6 +396,8 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 anim.Play(clipName);
+                InvalidateIsPlayingCache(maid);
+                MaidAnimationBlendController.ResumeAfterPlay(maid);
                 MaidBoneSliderController.ClearBasePose(maid);
             }
             catch (Exception e)
@@ -398,11 +421,13 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 anim.Play(clipName);
+                InvalidateIsPlayingCache(maid);
                 var state = anim[clipName];
                 if (state != null)
                 {
                     state.time = time;
                 }
+                MaidAnimationBlendController.ResumeAfterPlay(maid);
                 _resumeClipNames[maid] = clipName;
                 MaidBoneSliderController.ClearBasePose(maid);
             }
@@ -501,6 +526,8 @@ namespace COM3D2.SceneEditor.Plugin
                 if (hasResetTarget)
                 {
                     anim.Play(clipName);
+                    InvalidateIsPlayingCache(maid);
+                    MaidAnimationBlendController.ResumeAfterPlay(maid);
                     _resetClipNames.Remove(maid);
                     // 戻したモーションの適用記録も対で戻す (スクリプト経由エントリの
                     // ハイライトはクリップ名から再現できないため)
@@ -520,6 +547,8 @@ namespace COM3D2.SceneEditor.Plugin
                 // 復帰先が不定なので適用記録も破棄する
                 anim.Rewind();
                 anim.Play();
+                InvalidateIsPlayingCache(maid);
+                MaidAnimationBlendController.ResumeAfterPlay(maid);
                 _resetClipNames.Remove(maid);
                 _resumeClipNames.Remove(maid);
                 _appliedMotions.Remove(maid);

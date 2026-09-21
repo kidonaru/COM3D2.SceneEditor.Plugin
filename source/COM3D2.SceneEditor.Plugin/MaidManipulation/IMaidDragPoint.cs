@@ -52,8 +52,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static bool isDragging { get; private set; }
 
-        public static void BeginDrag(string boneName)
+        /// <summary>
+        /// 掴み開始。ボーンを書く操作なので、ここでアニメブレンドを解除する
+        /// (ブレンド込みのポーズを基準にすると寄与が分離できなくなるため)
+        /// </summary>
+        public static void BeginDrag(Maid maid, string boneName)
         {
+            MaidAnimationBlendController.ReleaseForBoneEdit(maid);
             draggingBoneName = boneName;
             isDragging = true;
         }

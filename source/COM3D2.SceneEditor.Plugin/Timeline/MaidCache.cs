@@ -1078,44 +1078,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            if (info.state == null || info.state.name != info.anmTag)
+            // state 名はファイル名部分 (CrossFadeLayerByFullPath の仕様)。
+            // サブフォルダ入りマイポーズや絶対パスを anmTag と直接比べると毎フレーム再ロードしてしまう
+            if (info.state == null
+                || info.state.name != SEP.AnimationBlendNameResolver.GetStateTag(info.anmTag))
             {
-                if (string.IsNullOrEmpty(info.anmName))
-                {
-                    if (info.state != null)
-                    {
-                        info.state.enabled = false;
-                        info.state = null;
-                    }
-                }
-                else if (GameUty.IsExistFile(info.anmName))
-                {
-                    info.state = maid.body0.CrossFadeLayer(
-                        info.anmName,
-                        GameUty.FileSystem,
-                        info.layer,
-                        false,
-                        info.loop,
-                        false,
-                        0f,
-                        info.weight);
-                }
-                else
-                {
-                    // マイポーズを検索
-                    var path = MTEUtils.CombinePaths(PhotoModePoseSave.folder_path, info.anmName);
-                    if (File.Exists(path))
-                    {
-                        info.state = maid.body0.CrossFadeLayerByFullPath(
-                            path,
-                            info.layer,
-                            false,
-                            info.loop,
-                            false,
-                            0f,
-                            info.weight);
-                    }
-                }
+                LoadAnimationLayer(info);
             }
 
             if (info.state == null)
@@ -1128,6 +1096,64 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             info.state.time = t;
             info.state.speed = 0f;
+        }
+
+        /// <summary>
+        /// info.anmName をロードしてそのレイヤーへ載せ、info.state を更新して返す。
+        /// 名前解決の順: ゲーム内ファイル → 絶対パス (Mod モーション) → マイポーズ保存フォルダ。
+        /// 空名なら既存 state を無効化して null。
+        /// タイムラインの再生とモーションウィンドウのブレンド操作で共用する
+        /// </summary>
+        public AnimationState LoadAnimationLayer(AnimationLayerInfo info)
+        {
+            if (animation == null)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(info.anmName))
+            {
+                if (info.state != null)
+                {
+                    info.state.enabled = false;
+                    info.state = null;
+                }
+                return null;
+            }
+
+            if (GameUty.IsExistFile(info.anmName))
+            {
+                info.state = maid.body0.CrossFadeLayer(
+                    info.anmName,
+                    GameUty.FileSystem,
+                    info.layer,
+                    false,
+                    info.loop,
+                    false,
+                    0f,
+                    info.weight);
+                return info.state;
+            }
+
+            // Mod モーションは一覧の direct_file (絶対パス) をそのまま anmName にしている
+            var path = File.Exists(info.anmName)
+                ? info.anmName
+                : MTEUtils.CombinePaths(PhotoModePoseSave.folder_path, info.anmName);
+            if (!File.Exists(path))
+            {
+                MTEUtils.LogWarning("アニメレイヤーのファイルが見つかりません: " + info.anmName);
+                return null;
+            }
+
+            info.state = maid.body0.CrossFadeLayerByFullPath(
+                path,
+                info.layer,
+                false,
+                info.loop,
+                false,
+                0f,
+                info.weight);
+            return info.state;
         }
 
         private void OnAnmChanged(string anmName)

@@ -221,6 +221,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // スライダーもボーンを書く操作なのでブレンドを落とす
+            MaidAnimationBlendController.ReleaseForBoneEdit(maid);
+
             var baseRot = GetBaseRotation(maid, def, bone);
             _offsetCache.SetOffsetAxisFromLocalBase(bone, baseRot, axisIndex, value, true);
         }

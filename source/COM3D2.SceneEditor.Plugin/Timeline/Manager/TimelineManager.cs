@@ -2736,13 +2736,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// モーション編集中か。アクティブレイヤーは無いことがある
         /// (タイムライン未作成のままライト等を触ると AutoEditMode.Enter が
-        ///  IsValidData のガードを通らずにここまで来る) ので null を許す
+        ///  IsValidData のガードを通らずにここまで来る) ので null を許す。
+        /// 移動レイヤーもボーンを書くため、MTE と同じくモーションレイヤーと同じ扱いにする
         /// </summary>
         public static bool IsMotionEditingState(bool isPoseEditing, ITimelineLayer currentLayer)
         {
-            return isPoseEditing
-                && currentLayer != null
-                && currentLayer.layerType == typeof(MotionTimelineLayer);
+            if (!isPoseEditing || currentLayer == null)
+            {
+                return false;
+            }
+            return currentLayer.layerType == typeof(MotionTimelineLayer)
+                || currentLayer.layerType == typeof(MoveTimelineLayer);
         }
 
         /// <summary>

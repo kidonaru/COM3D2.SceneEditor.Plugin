@@ -39,5 +39,15 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             // ガードが無いと OnPoseEditUpdated がここで落ちる
             Assert.Null(TimelineManager.instance.GetInitialEditFrame(null));
         }
+
+        [Fact]
+        public void ポーズ編集中の移動レイヤーもモーション編集中になる()
+        {
+            // MTE の UpdateMotionEditing は MotionTimelineLayer と MoveTimelineLayer を
+            // 同じ扱いにしている。どちらもボーンを書くレイヤーなのでブレンドを無効化する
+            var layer = MoveTimelineLayer.Create(0);
+
+            Assert.True(TimelineManager.IsMotionEditingState(true, layer));
+        }
     }
 }
