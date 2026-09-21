@@ -68,6 +68,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         BoolValue,
     }
 
+    /// <summary>
+    /// カスタム値の入力 UI。既定は CustomValueType 任せの数値入力で、
+    /// 値の意味が決まっているものだけ専用のコンボへ差し替える
+    /// </summary>
+    public enum CustomValueUIType
+    {
+        /// <summary>CustomValueType に従った数値入力</summary>
+        Default,
+        /// <summary>追従メイドのスロット番号 (-1 は「なし」)</summary>
+        MaidSlot,
+        /// <summary>メイドの部位 (MaidPointType)</summary>
+        MaidPoint,
+    }
+
     public class CustomValueInfo
     {
         public int index;
@@ -76,6 +90,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float max;
         public float step;
         public float defaultValue;
+        public CustomValueUIType uiType;
 
         public CustomValueType type
         {

@@ -45,6 +45,10 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Dictionary<MTEP.TransformType, Group> _groupMap =
             new Dictionary<MTEP.TransformType, Group>();
 
+        /// <summary>追従メイド / 追従点のコンボ (グループごとに実体を分ける)</summary>
+        private readonly MaidFollowCustomValueDrawer _followValueDrawer =
+            new MaidFollowCustomValueDrawer();
+
         /// <summary>Apply でレイヤーを重複なく反映するためのバッファ</summary>
         private readonly HashSet<MTEP.ITimelineLayer> _applyLayers = new HashSet<MTEP.ITimelineLayer>();
 
@@ -66,11 +70,19 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             ProcessPendingToggle();
+            EndFrame();
+        }
+
+        /// <summary>選択や開閉で描かれなくなった行のコンボを捨てる (描画しないフレームも呼ぶ)</summary>
+        public void EndFrame()
+        {
+            _followValueDrawer.EndFrame();
         }
 
         public void Clear()
         {
             _collapsedTypes.Clear();
+            _followValueDrawer.Clear();
         }
 
         private void BuildGroups(List<MTEP.BoneData> sortedBones)
@@ -332,6 +344,16 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 Apply(group);
             };
+
+            if (MaidFollowCustomValueDrawer.IsComboValue(info))
+            {
+                // owner はフレームをまたいで同じ必要があるが Group は毎フレーム作り直すため、
+                // グループを一意にする型を渡す
+                _followValueDrawer.Draw(
+                    view, group.type, customKey, info, value, CustomLabelWidth, RowHeight,
+                    setAll);
+                return;
+            }
 
             switch (info.type)
             {

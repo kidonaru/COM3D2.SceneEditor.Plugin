@@ -115,6 +115,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     index = (int)Index.MaidSlotNo,
                     name = "追従",
                     defaultValue = -1f,
+                    uiType = CustomValueUIType.MaidSlot,
                 }
             },
             {

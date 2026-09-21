@@ -17,18 +17,41 @@ namespace COM3D2.SceneEditor.Plugin
     {
         private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
 
+        /// <summary>追従メイドのコンボの表示名 ("なし" は未追従)</summary>
+        public static string GetFollowMaidName(MTEP.MaidCache maidCache, int index)
+        {
+            return maidCache == null ? "なし" : maidCache.fullName;
+        }
+
+        /// <summary>追従ポイントのコンボの選択肢 (MaidPointType の全列挙)</summary>
+        public static readonly List<MTEP.MaidPointType> followPointItems =
+            Enum.GetValues(typeof(MTEP.MaidPointType)).Cast<MTEP.MaidPointType>().ToList();
+
+        /// <summary>追従ポイントのコンボの表示名</summary>
+        public static string GetFollowPointName(MTEP.MaidPointType type, int index)
+        {
+            return MTEP.MaidCache.GetMaidPointTypeName(type);
+        }
+
+        /// <summary>追従メイドのコンボの選択肢を詰め直す。先頭は未追従の「なし」(null)</summary>
+        public static void FillFollowMaidItems(List<MTEP.MaidCache> items)
+        {
+            items.Clear();
+            items.Add(null);
+            items.AddRange(maidManager.maidCaches);
+        }
+
         private readonly GUIComboBox<MTEP.MaidCache> _followMaidComboBox =
             new GUIComboBox<MTEP.MaidCache>
             {
-                getName = (maidCache, _) => maidCache == null ? "なし" : maidCache.fullName,
+                getName = GetFollowMaidName,
             };
 
         private readonly GUIComboBox<MTEP.MaidPointType> _followPointComboBox =
             new GUIComboBox<MTEP.MaidPointType>
             {
-                items = Enum.GetValues(typeof(MTEP.MaidPointType))
-                    .Cast<MTEP.MaidPointType>().ToList(),
-                getName = (type, _) => MTEP.MaidCache.GetMaidPointTypeName(type),
+                items = followPointItems,
+                getName = GetFollowPointName,
             };
 
         /// <summary>先頭に「なし」(null) を含む追従メイドの選択肢</summary>
@@ -68,9 +91,7 @@ namespace COM3D2.SceneEditor.Plugin
             GUIView view, MTEP.MaidFollowState follow, float labelWidth, float rowHeight,
             Action onBeforeChange)
         {
-            _followMaidItems.Clear();
-            _followMaidItems.Add(null);
-            _followMaidItems.AddRange(maidManager.maidCaches);
+            FillFollowMaidItems(_followMaidItems);
 
             _followMaidComboBox.items = _followMaidItems;
             _followMaidComboBox.currentIndex =

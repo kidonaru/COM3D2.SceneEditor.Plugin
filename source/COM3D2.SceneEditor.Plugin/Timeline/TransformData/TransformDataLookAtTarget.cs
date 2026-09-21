@@ -55,6 +55,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     index = (int)Index.MaidPointType,
                     name = "ポイント",
                     defaultValue = 0,
+                    uiType = CustomValueUIType.MaidPoint,
                 }
             },
         };

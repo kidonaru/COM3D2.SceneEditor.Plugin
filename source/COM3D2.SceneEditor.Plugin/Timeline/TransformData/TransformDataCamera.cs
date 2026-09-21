@@ -66,6 +66,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     index = (int)Index.MaidSlotNo,
                     name = "追従",
                     defaultValue = -1f,
+                    uiType = CustomValueUIType.MaidSlot,
                 }
             },
             {
@@ -78,6 +79,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     step = 1f,
                     // サブカメラと同じ既定値 (股) に合わせる
                     defaultValue = (float)MaidPointType.Crotch,
+                    uiType = CustomValueUIType.MaidPoint,
                 }
             },
             {

@@ -89,6 +89,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly KeyFrameBatchDrawer _batchDrawer = new KeyFrameBatchDrawer();
 
+        /// <summary>追従メイド / 追従点のコンボ (キーフレームごとに実体を分ける)</summary>
+        private readonly MaidFollowCustomValueDrawer _followValueDrawer =
+            new MaidFollowCustomValueDrawer();
+
         /// <summary>削除時にレイヤーを重複なく整理するためのバッファ</summary>
         private readonly HashSet<MTEP.ITimelineLayer> _deleteLayers = new HashSet<MTEP.ITimelineLayer>();
 
@@ -132,6 +136,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _collapsedBones.Clear();
                 _batchDrawer.Clear();
+                _followValueDrawer.Clear();
                 KeyFrameTangentDrawer.instance.CancelDrag();
                 view.DrawLabel("キーフレームが選択されていません", -1, RowHeight);
                 return;
@@ -148,6 +153,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (_tabType == TabType.補間曲線)
             {
+                // 値タブを離れている間もコンボを抱え込まないよう掃除する
+                _followValueDrawer.EndFrame();
+                _batchDrawer.EndFrame();
+
                 if (!KeyFrameTangentDrawer.instance.Draw(view))
                 {
                     view.DrawLabel("補間曲線を持つキーフレームが選択されていません", -1, RowHeight);
@@ -199,6 +208,9 @@ namespace COM3D2.SceneEditor.Plugin
             _sortedBones.Clear();
 
             ProcessPendingDelete();
+
+            // 選択や開閉で描かれなくなった行のコンボを捨てる
+            _followValueDrawer.EndFrame();
         }
 
         private static int CompareBone(MTEP.BoneData a, MTEP.BoneData b)
@@ -509,6 +521,18 @@ namespace COM3D2.SceneEditor.Plugin
             MTEP.CustomValueInfo info)
         {
             var value = transform.GetCustomValue(customKey).value;
+
+            if (MaidFollowCustomValueDrawer.IsComboValue(info))
+            {
+                _followValueDrawer.Draw(
+                    view, bone, customKey, info, value, CustomLabelWidth, RowHeight,
+                    newValue =>
+                    {
+                        transform.GetCustomValue(customKey).value = newValue;
+                        Apply(bone);
+                    });
+                return;
+            }
 
             switch (info.type)
             {

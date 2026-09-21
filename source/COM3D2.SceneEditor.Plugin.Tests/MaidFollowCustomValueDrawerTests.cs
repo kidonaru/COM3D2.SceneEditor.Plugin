@@ -1,0 +1,61 @@
+using COM3D2.MotionTimelineEditor.Plugin;
+using Xunit;
+using RowKey = COM3D2.SceneEditor.Plugin.MaidFollowCustomValueDrawer.RowKey;
+
+namespace COM3D2.SceneEditor.Plugin.Tests
+{
+    /// <summary>
+    /// 行キーの等価性。キーフレーム詳細は BoneData の参照、一括は boxing した
+    /// TransformType を owner に渡すため、両方の比較が成り立つ必要がある
+    /// </summary>
+    public class MaidFollowCustomValueDrawerTests
+    {
+        [Fact]
+        public void 同じ参照と同じキーなら等しい()
+        {
+            var owner = new object();
+
+            Assert.Equal(new RowKey(owner, "maidSlotNo"), new RowKey(owner, "maidSlotNo"));
+            Assert.Equal(
+                new RowKey(owner, "maidSlotNo").GetHashCode(),
+                new RowKey(owner, "maidSlotNo").GetHashCode());
+        }
+
+        [Fact]
+        public void 同じ参照でもキーが違えば等しくない()
+        {
+            var owner = new object();
+
+            Assert.NotEqual(new RowKey(owner, "maidSlotNo"), new RowKey(owner, "maidPointType"));
+        }
+
+        [Fact]
+        public void 別の参照なら等しくない()
+        {
+            Assert.NotEqual(new RowKey(new object(), "maidSlotNo"), new RowKey(new object(), "maidSlotNo"));
+        }
+
+        [Fact]
+        public void boxingした列挙は値が同じなら等しい()
+        {
+            // 一括編集は毎フレーム boxing し直した TransformType を owner に渡す
+            object a = TransformType.Camera;
+            object b = TransformType.Camera;
+
+            Assert.NotSame(a, b);
+            Assert.Equal(new RowKey(a, "maidSlotNo"), new RowKey(b, "maidSlotNo"));
+            Assert.Equal(
+                new RowKey(a, "maidSlotNo").GetHashCode(),
+                new RowKey(b, "maidSlotNo").GetHashCode());
+        }
+
+        [Fact]
+        public void boxingした列挙は値が違えば等しくない()
+        {
+            object camera = TransformType.Camera;
+            object subCamera = TransformType.SubCamera;
+
+            Assert.NotEqual(new RowKey(camera, "maidSlotNo"), new RowKey(subCamera, "maidSlotNo"));
+        }
+    }
+}

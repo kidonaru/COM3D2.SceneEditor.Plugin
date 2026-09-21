@@ -318,6 +318,7 @@
     <Compile Include="CameraShakeRowDrawer.cs" />
     <Compile Include="MainCameraRowDrawer.cs" />
     <Compile Include="SubCameraRowDrawer.cs" />
+    <Compile Include="MaidFollowCustomValueDrawer.cs" />
     <Compile Include="MaidFollowRowDrawer.cs" />
     <Compile Include="LightRowDrawer.cs" />
     <Compile Include="LightTarget.cs" />
