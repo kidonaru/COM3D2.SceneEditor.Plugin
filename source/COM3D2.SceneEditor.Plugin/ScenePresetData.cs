@@ -635,6 +635,47 @@ namespace COM3D2.SceneEditor.Plugin
         public string name;
     }
 
+    /// <summary>
+    /// アニメブレンド層 1 段 (v35)。停止中・再生中を問わず、載っている層だけ記録する。
+    /// anmName はタイムライン XML と同じ AnimationLayerInfo.anmName (Mod は絶対パス)
+    /// </summary>
+    public class ScenePresetAnimationLayer
+    {
+        [XmlAttribute] public int layer;
+        [XmlAttribute] public string anmName;
+        [XmlAttribute] public float startTime;
+        [XmlAttribute] public float weight = 1f;
+        [XmlAttribute] public float speed = 1f;
+        [XmlAttribute] public bool loop = true;
+
+        public static ScenePresetAnimationLayer FromLayerState(MaidAnimationBlendController.LayerState state)
+        {
+            return new ScenePresetAnimationLayer
+            {
+                layer = state.layer,
+                anmName = state.anmName,
+                startTime = state.time,
+                weight = state.weight,
+                speed = state.speed,
+                loop = state.loop,
+            };
+        }
+
+        /// <summary>playing はベースの再生状態から決まり、overrideTime はタイムライン専用なので既定値</summary>
+        public MaidAnimationBlendController.LayerState ToLayerState()
+        {
+            return new MaidAnimationBlendController.LayerState
+            {
+                layer = layer,
+                anmName = anmName,
+                time = startTime,
+                weight = weight,
+                speed = speed,
+                loop = loop,
+            };
+        }
+    }
+
     /// <summary>メイド 1 人分の状態。呼出順の並びで保存し、適用時は guid で割り当てる</summary>
     public class ScenePresetMaid
     {
@@ -670,6 +711,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         [XmlIgnore]
         public byte[] poseAnmBinary;
+
+        /// <summary>アニメブレンド層 (v35)。旧プリセットは null になり、適用時に層へ触らない</summary>
+        [XmlElement("animationLayer")]
+        public List<ScenePresetAnimationLayer> animationLayers;
+
         /// <summary>値が 0 でない表情モーフだけ持つ。適用時は未記録のモーフを 0 に戻す</summary>
         [XmlElement("morph")]
         public List<ScenePresetMorph> morphs = new List<ScenePresetMorph>();
@@ -1014,7 +1060,7 @@ namespace COM3D2.SceneEditor.Plugin
         // v34: effects に liveEffect (ステージライト / レーザー / サイリウム) と、
         //      ルートに bgModels (背景モデルの表示・transform・複製) を追加。
         //      旧形式はどちらも null で読め、適用時に触らない
-        public static readonly int CurrentVersion = 34;
+        public static readonly int CurrentVersion = 35;
 
         [XmlAttribute]
         public int version = CurrentVersion;

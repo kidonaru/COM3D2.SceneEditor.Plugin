@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -177,9 +177,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// 無効化したら true。解除は DrawContent の finally が呼ぶ TimelineLayerGate.End が行う
         /// (forceDisabled を戻す経路を 1 つに保つ)
         /// </summary>
-        protected bool DrawBlendLayerGate()
+        protected bool DrawBlendLayerGate(Maid maid)
         {
-            if (!MaidAnimationBlendController.isBlendLayerSelected)
+            if (!MaidAnimationBlendController.IsLayerSelected(maid))
             {
                 return false;
             }

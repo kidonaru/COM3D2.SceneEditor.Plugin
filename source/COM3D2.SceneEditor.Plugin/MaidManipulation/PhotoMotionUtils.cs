@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
@@ -119,21 +119,37 @@ namespace COM3D2.SceneEditor.Plugin
         /// モーションを適用する。ポーズ編集用の停止状態は破棄して再生を始める
         /// (適用はスタジオモードと同じ PhotoMotionData.Apply 経路)
         /// </summary>
-        public static void Apply(Maid maid, PhotoMotionData data)
+        public static bool Apply(Maid maid, PhotoMotionData data)
         {
+            if (maid == null || data == null)
+            {
+                return false;
+            }
+            // ゲーム側の PhotoMotionData.Apply は maid.IsBusy (着替え等の AllProcProp 中) だと
+            // 何もせず戻る。ここで弾かないと、当たっていないのに停止や適用記録だけ進んでしまう
+            if (maid.IsBusy)
+            {
+                MTEUtils.LogWarning("メイドの処理中はモーションを適用できません");
+                return false;
+            }
+
             try
             {
                 // 編集中ポーズの停止状態が残っていると、リセットや基準ポーズが
                 // 適用前のモーションを指したままになるため先に破棄する
                 MaidMotionState.Discard(maid);
+                // 同じアニメを載せた層が残っているとベースが層の state を掴んで当たらない
+                MaidAnimationBlendController.ReleaseLayersUsingMotion(maid, data);
                 data.Apply(maid);
                 // スクリプト経由エントリはクリップ名から特定できないため、何を当てたかを記録する
                 MaidMotionState.RecordAppliedMotion(maid, data);
+                return true;
             }
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
                 DialogPopupWindow.ShowDialog("モーションの適用に失敗しました");
+                return false;
             }
         }
 

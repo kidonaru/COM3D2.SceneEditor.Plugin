@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -41,6 +41,12 @@ namespace COM3D2.SceneEditor.Plugin
             public string displayName;
             /// <summary>マイポーズの保存フォルダからの相対パス。モーション適用時は null</summary>
             public string myPosePath;
+            /// <summary>
+            /// 常駐ポーズ枠を直接差し替えて作った記録か (編集ポーズの anm 化・シーンプリセット復元)。
+            /// 一覧のどのエントリでもないので motionFile も myPosePath も無いが、
+            /// エディット系のスクリプトモーションとは別物なのでここで区別する
+            /// </summary>
+            public bool isResidentPose;
         }
 
         /// <summary>メイドごとの適用中モーションの記録</summary>
@@ -157,16 +163,26 @@ namespace COM3D2.SceneEditor.Plugin
             MaidAnimationBlendController.CaptureTimesBeforeStop(maid);
             anim.Stop();
             InvalidateIsPlayingCache(maid);
-            if (MaidAnimationBlendController.isBlendLayerSelected)
+            if (MaidAnimationBlendController.ShouldKeepLayersWhileStopped(maid))
             {
-                // 適用先がレイヤーのときは止めても層を残す。
+                // 層を残す条件を満たすときは止めても層を残す。
                 // サンプルより先に戻しておくと、停止直後のポーズにも寄与が写る
                 MaidAnimationBlendController.KeepLayersAfterStop(maid);
             }
-            SampleWhileStopped(anim, playingState, stoppedTime);
+            SampleWhileStopped(maid, anim, playingState, stoppedTime);
 
             // 停止直後のポーズをボーンスライダーの基準として記録する
             MaidBoneSliderController.CaptureBasePose(maid);
+        }
+
+        /// <summary>
+        /// 先頭フレームで停止した状態にする。編集モード中にベースを差し替えたときに使う。
+        /// 編集モードは「止めてポーズを触れる」状態が前提なので、差し替えで再生を始めさせない
+        /// </summary>
+        public static void StopAtStart(Maid maid)
+        {
+            StopMotion(maid);
+            SetPlaybackTime(maid, 0f);
         }
 
         /// <summary>
@@ -175,7 +191,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// (スタジオモードの MotionWindow と同じ流儀)。
         /// 呼び出し元が停止済みであることを保証すること
         /// </summary>
-        private static void SampleWhileStopped(Animation anim, AnimationState state, float time)
+        private static void SampleWhileStopped(Maid maid, Animation anim, AnimationState state, float time)
         {
             if (state == null)
             {
@@ -186,7 +202,7 @@ namespace COM3D2.SceneEditor.Plugin
             state.weight = 1f;
             state.time = time;
             anim.Sample();
-            RestoreBaseAfterSample(state);
+            RestoreBaseAfterSample(maid, state);
         }
 
         /// <summary>
@@ -195,14 +211,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// 層だけ有効だと anim.isPlaying が立って Unity が毎フレーム自動サンプルし、
         /// ベース抜きのポーズで上書きされて崩れていくため
         /// </summary>
-        private static void RestoreBaseAfterSample(AnimationState state)
+        private static void RestoreBaseAfterSample(Maid maid, AnimationState state)
         {
             if (state == null)
             {
                 return;
             }
 
-            if (MaidAnimationBlendController.isBlendLayerSelected)
+            if (MaidAnimationBlendController.ShouldKeepLayersWhileStopped(maid))
             {
                 state.enabled = true;
                 state.weight = 1f;
@@ -306,7 +322,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (!wasPlaying)
             {
-                RestoreBaseAfterSample(state);
+                RestoreBaseAfterSample(maid, state);
                 // シーク後のポーズをボーンスライダーの基準に取り直す
                 MaidBoneSliderController.CaptureBasePose(maid);
             }
@@ -457,6 +473,8 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 anim.Play(clipName);
+                // ベースが流れ出すので手編集の anm 化対象から外す
+                MaidAnimationBlendController.ClearBoneEdit(maid);
                 var state = anim[clipName];
                 if (state != null)
                 {
@@ -488,6 +506,8 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 anim.Play(clipName);
+                // ベースが差し替わるので手編集の anm 化対象から外す
+                MaidAnimationBlendController.ClearBoneEdit(maid);
                 InvalidateIsPlayingCache(maid);
                 var state = anim[clipName];
                 if (state != null)
@@ -642,7 +662,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 再生位置は動かさず、今のフレームのポーズへ戻す
-            SampleWhileStopped(anim, state, state.time);
+            SampleWhileStopped(maid, anim, state, state.time);
 
             // 戻した先が「今当たっているアニメ」になるので再開先も揃える
             _resumeClipNames[maid] = clipName;
@@ -680,6 +700,8 @@ namespace COM3D2.SceneEditor.Plugin
                 // 当たっているアニメ自体は変わらないため _appliedMotions は保持する
                 _resetAppliedMotions.Remove(maid);
                 MaidBoneSliderController.ClearBasePose(maid);
+                // ベースそのものが差し替わった後なので手編集の anm 化対象から外す
+                MaidAnimationBlendController.ClearBoneEdit(maid);
             }
         }
 

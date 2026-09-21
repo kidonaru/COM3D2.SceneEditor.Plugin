@@ -1,4 +1,4 @@
-using COM3D2.MotionTimelineEditor;
+﻿using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -365,7 +365,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (MaidAnimationBlendController.isBlendLayerSelected)
+            if (MaidAnimationBlendController.IsLayerSelected(maid))
             {
                 // レイヤー調整中はボーンを触らせない (モーションウィンドウの適用先を戻してから)。
                 // MaidWindowBase.DrawBlendLayerGate と違いスライダー行だけを止める

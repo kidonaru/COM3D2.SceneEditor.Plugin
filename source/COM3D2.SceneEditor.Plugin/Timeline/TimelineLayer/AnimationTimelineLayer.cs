@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using UnityEngine;
 using COM3D2.SceneEditor.Plugin;   // BeginAutoEditMode / EndAutoEditMode
+using SE = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -214,12 +215,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var stateUpdated = false;
                 foreach (var info in maidCache.animationLayerInfos)
                 {
-                    if (info.state != null && info.state.enabled && info.layer > 0)
+                    if (info.state == null || !info.state.enabled || info.layer <= 0)
                     {
-                        info.state.enabled = false;
-                        info.state = null;
-                        stateUpdated = true;
+                        continue;
                     }
+                    if (!stateUpdated)
+                    {
+                        // 外す層が実際にあったときだけ履歴を積む (フレーム移動やレイヤー切替でも
+                        // 来るため)。確定待ちの編集があればそこへマージされる
+                        var maid = this.maid;
+                        SE.HistoryManager.instance.BeforeEdit(maid, SE.HistoryScope.Pose,
+                            "ブレンド解除", () => SE.PoseSnapshot.GetAllBodyBones(maid));
+                    }
+                    info.state.enabled = false;
+                    info.state = null;
+                    stateUpdated = true;
                 }
 
                 // 更新した場合デフォルトレイヤーのみで再サンプル

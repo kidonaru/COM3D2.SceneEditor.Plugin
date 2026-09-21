@@ -1,5 +1,8 @@
 # アニメブレンド 再設計メモ (MTE 準拠)
 
+> **2026-09-21: このメモの「別ウィンドウ化」「ピッカーモード」「停止中はブレンドを見せない」は
+> 65f3019 / 67481b7 で撤回され、`2026-09-21-anime-blend-per-maid-bake-design.md` に置き換えられた。**
+
 2026-09-19 に実装したアニメブレンド（`2026-09-19-maid-pose-anime-blend.md`）が
 MTE (`W:\COM3D2_5\work\COM3D2.MotionTimelineEditor.Plugin`) の前提と矛盾していたため、
 MTE 側の実装を正として作り直す。

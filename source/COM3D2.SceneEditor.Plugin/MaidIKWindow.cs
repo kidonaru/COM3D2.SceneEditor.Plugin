@@ -1,4 +1,4 @@
-using COM3D2.MotionTimelineEditor;
+﻿using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -76,7 +76,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
-            DrawBlendLayerGate();
+            DrawBlendLayerGate(target);
 
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 

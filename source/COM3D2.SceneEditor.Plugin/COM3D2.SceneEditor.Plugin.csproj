@@ -176,6 +176,7 @@
     <Compile Include="MaidManipulation\MaidBoneRotateDragPoint.cs" />
     <Compile Include="MaidManipulation\MaidBoneSliderController.cs" />
     <Compile Include="MaidManipulation\MaidDragPointController.cs" />
+    <Compile Include="MaidManipulation\MaidEditPoseBaker.cs" />
     <Compile Include="MaidManipulation\MaidDragPointRing.cs" />
     <Compile Include="MaidManipulation\MaidFaceDragPoint.cs" />
     <Compile Include="MaidManipulation\MaidFaceMorphController.cs" />

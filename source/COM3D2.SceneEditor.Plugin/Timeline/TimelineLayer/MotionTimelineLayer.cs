@@ -605,6 +605,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             maidCache.PlayAnm(id, anmData);
             maidManager.OnMotionUpdated(maid);
 
+            // ベースをタイムラインの anm へ差し替えたので、SE 側の再開先・リセット先の記録を捨てる。
+            // 残しておくと isMotionEditing の切替で走る PlayMotion が、anm 化した編集ポーズや
+            // 停止読込したマイポーズ (常駐クリップ) を重み 1 で流し直し、
+            // タイムラインの anm が重み 0 のまま制御を失う (実機で確認)。
+            // 適用記録も一覧のどのエントリでもなくなるので消す (「再生中」はクリップ名表示に落ちる)
+            MaidMotionState.Discard(maid);
+            MaidMotionState.SetAppliedMotion(maid, null);
+
             this.isAnmPlaying = isAnmPlaying;
 
             // 編集モード中に anm を作り直しても停止状態を保つ。PlayAnm が有効化した anm を

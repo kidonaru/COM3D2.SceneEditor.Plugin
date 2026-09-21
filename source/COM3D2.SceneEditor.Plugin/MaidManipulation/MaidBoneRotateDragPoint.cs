@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -109,7 +109,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool BeginDrag(Camera camera, Vector3 pointerPos)
         {
-            if (MaidAnimationBlendController.isBlendLayerSelected)
+            if (MaidAnimationBlendController.IsLayerSelected(maid))
             {
                 // レイヤー調整中は掴ませない。点の実体は作らせていないが、
                 // 破棄前のフレームに掴まれても書き込ませないための 2 段目

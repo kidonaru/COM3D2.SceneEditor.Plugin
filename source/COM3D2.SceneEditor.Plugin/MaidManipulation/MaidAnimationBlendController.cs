@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -26,11 +26,113 @@ namespace COM3D2.SceneEditor.Plugin
     public static class MaidAnimationBlendController
     {
         /// <summary>
-        /// モーションウィンドウの適用先がブレンド層か。層を調整している間だけ true。
-        /// この間は停止中も層を有効なまま残して結果を見せ、代わりにボーン / IK の編集を止める
-        /// (層の寄与が乗ったポーズを基準に編集すると、寄与を分離できなくなるため)
+        /// モーションウィンドウの適用先とボーン編集の有無。メイドごとに持つ
+        /// (静的フラグ 1 つだとメイド切替で前のメイドの層が取り残される)
         /// </summary>
-        public static bool isBlendLayerSelected { get; private set; }
+        public sealed class BlendEditState
+        {
+            /// <summary>適用先タブ。BaseLayer はベース</summary>
+            public int selectedLayer = MaidPoseBlendRows.BaseLayer;
+            /// <summary>この編集セッションでドラッグ点・ボーンスライダー・反転がボーンを書いたか</summary>
+            public bool hasBoneEdit;
+        }
+
+        private static readonly Dictionary<Maid, BlendEditState> _editStates
+            = new Dictionary<Maid, BlendEditState>();
+
+        /// <summary>メイドの状態。無ければ作る。maid が null なら既定値の使い捨てを返す</summary>
+        public static BlendEditState GetEditState(Maid maid)
+        {
+            if (maid == null)
+            {
+                return new BlendEditState();
+            }
+            BlendEditState state;
+            if (!_editStates.TryGetValue(maid, out state))
+            {
+                state = new BlendEditState();
+                _editStates[maid] = state;
+            }
+            return state;
+        }
+
+        public static bool IsLayerSelected(Maid maid)
+        {
+            return GetSelectedLayer(maid) != MaidPoseBlendRows.BaseLayer;
+        }
+
+        public static int GetSelectedLayer(Maid maid)
+        {
+            BlendEditState state;
+            return maid != null && _editStates.TryGetValue(maid, out state)
+                ? state.selectedLayer
+                : MaidPoseBlendRows.BaseLayer;
+        }
+
+        public static bool HasBoneEdit(Maid maid)
+        {
+            BlendEditState state;
+            return maid != null && _editStates.TryGetValue(maid, out state) && state.hasBoneEdit;
+        }
+
+        /// <summary>ボーンを書く操作の開始時に呼ぶ。編集を抜けるときの anm 化の要否になる</summary>
+        public static void MarkBoneEdit(Maid maid)
+        {
+            if (maid != null)
+            {
+                GetEditState(maid).hasBoneEdit = true;
+            }
+        }
+
+        /// <summary>ベースを差し替えたとき・anm 化したときに呼ぶ</summary>
+        public static void ClearBoneEdit(Maid maid)
+        {
+            BlendEditState state;
+            if (maid != null && _editStates.TryGetValue(maid, out state))
+            {
+                state.hasBoneEdit = false;
+            }
+        }
+
+        /// <summary>メイドの解除・消滅時に呼ぶ</summary>
+        public static void ForgetEditState(Maid maid)
+        {
+            if (maid != null)
+            {
+                _editStates.Remove(maid);
+            }
+        }
+
+        /// <summary>
+        /// 停止中に層 (とベース) を有効 / 速度 0 のまま残してブレンドを見せるか。
+        /// レイヤータブ選択中は常に残す。ベースタブでは編集モード外だけ残す
+        /// (編集モード中に残すと、ブレンド込みのポーズがボーン編集の基準になり寄与を分離できない)
+        /// </summary>
+        public static bool ShouldKeepLayersWhileStopped(bool isLayerSelected, bool isEditMode)
+        {
+            return isLayerSelected || !isEditMode;
+        }
+
+        public static bool ShouldKeepLayersWhileStopped(Maid maid)
+        {
+            return ShouldKeepLayersWhileStopped(
+                IsLayerSelected(maid), MaidManipulateManager.instance.isEditMode);
+        }
+
+        /// <summary>
+        /// そのレイヤーへキーを登録すると、ブレンドの寄与が焼き込まれてしまうか。
+        /// 適用先がブレンド層の間はボーンを触れない代わりに層が有効なままで、
+        /// 実ボーンにはブレンドが乗っている。この状態でボーン由来のレイヤーへ登録すると
+        /// 「触れないはずのボーン」がブレンド込みの値でキー化される。
+        /// 対象はメイドアニメ (MotionTimelineLayer) だけ。メイド移動 (MoveTimelineLayer) は
+        /// ブレンドの乗らないメイドルートの値で、レイヤー選択中もルートのギズモで動かせるため
+        /// 外すと動かした分がキーにならず消える。
+        /// ブレンド層自身 (AnimationTimelineLayer) はボーンではなく層の値を記録するので対象外
+        /// </summary>
+        public static bool ShouldSkipBoneKeyFrame(Type layerType, bool isLayerSelected)
+        {
+            return isLayerSelected && layerType == typeof(MTEP.MotionTimelineLayer);
+        }
 
         /// <summary>レイヤー調整中にボーン / IK を触れないことを伝える文言</summary>
         public const string BlendLayerGateMessage = "アニメブレンドのレイヤー選択中は編集できません";
@@ -137,10 +239,77 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 段に記録したアニメ名と Animation 上の state 名が同じアニメを指すか。
+        /// info.anmName は Mod だと絶対パス、state 名はゲームが小文字化したファイル名になる
+        /// </summary>
+        public static bool IsSameAnm(string anmName, string stateName)
+        {
+            if (string.IsNullOrEmpty(anmName) || string.IsNullOrEmpty(stateName))
+            {
+                return false;
+            }
+            // 正規化 (ファイル名だけ取り出して小文字化) は層の読み込みと同じ規則を使う
+            return AnimationBlendNameResolver.GetStateTag(anmName)
+                == AnimationBlendNameResolver.GetStateTag(stateName);
+        }
+
+        /// <summary>
+        /// 層の state を今の再生状態へ合わせる。再生中は info の速度で流し、
+        /// 停止中は層を残す条件のときだけ速度 0 で見せる。
+        /// ベース差し替えで無効化された層を 1 段ぶん戻すためのもので、
+        /// 全段に対して行う ResumeAfterPlay / KeepLayersAfterStop と規則を揃えてある
+        /// </summary>
+        private static void ApplyLayerToCurrentPlayback(Maid maid, AnimationLayerInfo info)
+        {
+            if (info.state == null)
+            {
+                return;
+            }
+            // 引き当て直した段は wrapMode も崩れているので戻す
+            info.state.wrapMode = info.loop ? WrapMode.Loop : WrapMode.Once;
+            if (MaidMotionState.IsPlaying(maid))
+            {
+                ApplyLayerValues(info, true, info.speed);
+                return;
+            }
+            ApplyLayerValues(info, ShouldKeepLayersWhileStopped(maid), 0f);
+        }
+
+        /// <summary>
+        /// 層 1 段の state へ info の値を書き込む。有効かどうかと速度だけ呼び出し側が決める
+        /// (再生中は info の速度で流し、停止中は速度 0 で止めた位置を保つ)
+        /// </summary>
+        private static void ApplyLayerValues(AnimationLayerInfo info, bool enabled, float speed)
+        {
+            var state = info.state;
+            if (state == null)
+            {
+                return;
+            }
+            state.enabled = enabled;
+            state.weight = info.weight;
+            state.time = info.startTime;
+            state.speed = speed;
+        }
+
+        /// <summary>
+        /// ベース差し替えで無効になった層の state だけ落とす。
+        /// 載せているアニメ名・重み・速度は残し、SyncFromAnimation が名前で拾い直せるようにする
+        /// (Reset() まですると適用先タブから層ごと消えてしまう)
+        /// </summary>
+        public static void DetachStateKeepSettings(AnimationLayerInfo info)
+        {
+            if (info != null)
+            {
+                info.state = null;
+            }
+        }
+
+        /// <summary>
         /// 実 AnimationState から info を同期する。毎フレーム (ウィンドウ表示中) 呼ぶ。
-        /// ベースアニメが変わると MaidCache.ResetAnm が info を空にするが state は残るため、
-        /// enabled な state を拾い直す (ModItemExplorer の UpdateAnimationLayerInfos と同じ)。
-        /// 逆に state が破棄されていれば info を空へ戻す
+        /// まず記録済みの anmName で state を引き当て直し、名前の記録が無い段だけ
+        /// enabled な state から拾う (タイムライン等がこのクラスを通さず載せた層)。
+        /// どちらにも該当しなければ info を空へ戻す
         /// </summary>
         public static void SyncFromAnimation(Maid maid)
         {
@@ -164,13 +333,32 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
+                // 記録しているアニメ名で引き当てる。enabled は条件にしない
+                // (編集モード中のベースタブでは層を意図的に無効化しているため、enabled だけで探すと
+                //  生きている層を空と誤判定して捨ててしまう。同じ層に残骸があると誤結合もする)
                 AnimationState found = null;
+                var rebound = false;
                 foreach (AnimationState state in anim)
                 {
-                    if (state != null && state.layer == layer && state.enabled)
+                    if (state != null && state.layer == layer && IsSameAnm(info.anmName, state.name))
                     {
                         found = state;
+                        rebound = true;
                         break;
+                    }
+                }
+
+                // 名前の記録が無い段だけ、有効な state から拾い直す
+                // (タイムラインなど、このクラスを通さずに載せられた層)
+                if (found == null && string.IsNullOrEmpty(info.anmName))
+                {
+                    foreach (AnimationState state in anim)
+                    {
+                        if (state != null && state.layer == layer && state.enabled)
+                        {
+                            found = state;
+                            break;
+                        }
                     }
                 }
 
@@ -179,13 +367,28 @@ namespace COM3D2.SceneEditor.Plugin
                     if (info.state != null || !string.IsNullOrEmpty(info.anmName))
                     {
                         info.Reset();
+                        // 空になった段を選び続ける意味は無いのでベースへ戻す
+                        if (GetSelectedLayer(maid) == layer)
+                        {
+                            GetEditState(maid).selectedLayer = MaidPoseBlendRows.BaseLayer;
+                        }
                     }
                     continue;
                 }
 
-                // 名前しか復元できない (絶対パス等は失われる)。重み・速度は state から取る
-                info.anmName = found.name;
                 info.state = found;
+                if (rebound)
+                {
+                    // 記録済みの段を引き当て直した場合、設定の持ち主は info 側。
+                    // ベース差し替えで state の重み・有効状態は潰れているので info から書き戻す
+                    // (anmName も残す。state 名は小文字化されたファイル名で、
+                    //  上書きすると Mod の絶対パスが失われて再読込できなくなる)
+                    ApplyLayerToCurrentPlayback(maid, info);
+                    continue;
+                }
+
+                // 名前の記録が無かった段は state 側が持ち主 (タイムラインが載せた層)
+                info.anmName = found.name;
                 info.weight = found.weight;
                 info.speed = found.speed > 0f ? found.speed : info.speed;
                 info.loop = found.wrapMode == WrapMode.Loop;
@@ -198,9 +401,23 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static BlendApplyResult ApplyMotion(Maid maid, int layer, PhotoMotionData data)
         {
-            if (data == null)
+            var anmName = ResolveMotionAnmName(maid, data);
+            if (anmName == null)
             {
                 return BlendApplyResult.NotBlendable;
+            }
+            // 一覧の is_loop (ベース向けの設定) は使わず、層は常にループで載せる。
+            // 非ループだと再生し終わった段を Unity が無効化し、ブレンドが消えたように見える。
+            // 止めたいときは行の「ループ」トグルで切る
+            return ApplyAnmName(maid, layer, anmName, loop: true);
+        }
+
+        /// <summary>一覧のモーションが層に載るときの anmName。スクリプト経由や不正なデータは null</summary>
+        private static string ResolveMotionAnmName(Maid maid, PhotoMotionData data)
+        {
+            if (maid == null || data == null)
+            {
+                return null;
             }
             // PhotoMotionData.Apply と同じ判定で crc_ を前置する (2.0 には新ボディ男の概念が無い)
 #if COM3D25
@@ -208,12 +425,30 @@ namespace COM3D2.SceneEditor.Plugin
 #else
             var applyCrc = false;
 #endif
-            var anmName = AnimationBlendNameResolver.ResolveMotion(data.direct_file, data.is_mod, applyCrc);
+            return AnimationBlendNameResolver.ResolveMotion(data.direct_file, data.is_mod, applyCrc);
+        }
+
+        /// <summary>
+        /// ベースへ当てるモーションと同じアニメを載せている層を外す。ベース適用の直前に呼ぶ。
+        /// Animation はクリップ名で AnimationState を 1 つしか持たないため、層に載ったまま
+        /// ベースへ当てるとゲーム側の CrossFade が層の state を掴み、ベースは元のアニメを
+        /// 流し続けたまま適用記録だけが進む (実機で確認済み)。層側の SameAsBase の裏返し
+        /// </summary>
+        public static void ReleaseLayersUsingMotion(Maid maid, PhotoMotionData data)
+        {
+            var cache = GetMaidCache(maid);
+            var anim = GetAnimation(maid);
+            if (cache == null || anim == null || !HasAnyLayer(maid))
+            {
+                return;
+            }
+            var anmName = ResolveMotionAnmName(maid, data);
             if (anmName == null)
             {
-                return BlendApplyResult.NotBlendable;
+                return;
             }
-            return ApplyAnmName(maid, layer, anmName, data.is_loop);
+            // BaseLayer (0) は層番号 MinLayer〜MaxLayer の範囲外なので除外対象に当たらず、全段が対象になる
+            ReleaseDuplicatedLayers(maid, anim, cache, MaidPoseBlendRows.BaseLayer, anmName);
         }
 
         public static BlendApplyResult ApplyMyPose(Maid maid, int layer, string relativePath)
@@ -430,23 +665,6 @@ namespace COM3D2.SceneEditor.Plugin
             return released;
         }
 
-        /// <summary>
-        /// ボーンを触る操作の直前に呼ぶ解除。載っている層があるときだけ履歴を積んでから外す。
-        /// ブレンド中のポーズをボーン編集の基準にすると寄与が分離できなくなるため、
-        /// 先に落としてベースだけのポーズへ戻す。誤操作は Ctrl+Z で戻せる
-        /// </summary>
-        public static void ReleaseForBoneEdit(Maid maid)
-        {
-            if (!HasAnyLayer(maid))
-            {
-                return;
-            }
-            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                "ブレンド解除", PoseSnapshot.GetAllBodyBones(maid));
-            ReleaseAll(maid);
-            MTEUtils.LogDebug("ボーン編集開始のためアニメブレンドを解除しました");
-        }
-
         public static void RemoveLayer(Maid maid, int layer)
         {
             var anim = GetAnimation(maid);
@@ -467,7 +685,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// 停止中に 1 フレームぶんサンプルする。
         /// 既定ではベースのみ: 層を乗せるとボーンの Transform に寄与が焼き込まれ、
         /// ポーズ保存・履歴・タイムラインのキーが汚染される (MTE の OnPoseEditEnd と同じ考え方)。
-        /// 適用先がレイヤーの間 (isBlendLayerSelected) は層を有効なままにしてあるので、
+        /// 層を残す間 (ShouldKeepLayersWhileStopped) は層を有効なままにしてあるので、
         /// ブレンドの結果も一緒に写る
         /// </summary>
         private static void SampleStopped(Maid maid, Animation anim)
@@ -483,8 +701,9 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // 層を残す間はベースも有効なまま (速度 0) にする。
                 // 層だけ有効だと Unity の自動サンプルがベース抜きで走り、ポーズが崩れる
-                baseState.enabled = isBlendLayerSelected;
-                if (isBlendLayerSelected)
+                var keep = ShouldKeepLayersWhileStopped(maid);
+                baseState.enabled = keep;
+                if (keep)
                 {
                     baseState.speed = 0f;
                 }
@@ -652,33 +871,106 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                info.state.enabled = true;
-                info.state.weight = info.weight;
-                info.state.time = info.startTime;
-                info.state.speed = info.speed;
+                ApplyLayerValues(info, true, info.speed);
             }
         }
 
         /// <summary>
-        /// 適用先がブレンド層かを切り替える。モーションウィンドウが毎フレーム呼ぶ。
-        /// 切り替わった瞬間だけ、停止中のポーズを層ありなしで取り直す
+        /// 適用先タブの切替。切り替わった瞬間だけ、停止中のポーズを層ありなしで取り直す
+        /// (停止中に層を残すかは ShouldKeepLayersWhileStopped が決める)
         /// </summary>
-        public static void SetBlendLayerSelected(Maid maid, bool isSelected)
+        public static void SetSelectedLayer(Maid maid, int layer)
         {
-            if (isBlendLayerSelected == isSelected)
+            var state = GetEditState(maid);
+            if (state.selectedLayer == layer)
             {
                 return;
             }
-            isBlendLayerSelected = isSelected;
+            if (layer != MaidPoseBlendRows.BaseLayer && MaidManipulateManager.instance.isEditMode)
+            {
+                // 編集モード中にレイヤーへ切り替えると層が有効に戻る。先に手編集を固める
+                MaidEditPoseBaker.BakeIfEdited(maid);
+            }
+
+            var wasKeeping = ShouldKeepLayersWhileStopped(maid);
+            state.selectedLayer = layer;
+            var keeping = ShouldKeepLayersWhileStopped(maid);
 
             var anim = GetAnimation(maid);
-            if (anim == null || MaidMotionState.IsPlaying(maid))
+            if (anim == null || MaidMotionState.IsPlaying(maid) || wasKeeping == keeping)
             {
                 // 再生中は層の有効状態を再生側が持っているので触らない
                 return;
             }
 
-            if (isSelected)
+            if (keeping)
+            {
+                KeepLayersAfterStop(maid);
+            }
+            else
+            {
+                DisableLayers(maid, anim);
+            }
+            SampleStopped(maid, anim);
+        }
+
+        /// <summary>
+        /// 層を一時的に外してベースだけのポーズを anm 化する。
+        /// 停止中に層を残している間はボーンにブレンドが乗っているため、
+        /// シーンプリセットのポーズにブレンドを焼き込まないためのもの。取り終えたら元の状態へ戻す
+        /// </summary>
+        public static byte[] CaptureBaseOnlyPoseBinary(Maid maid)
+        {
+            var anim = GetAnimation(maid);
+            if (anim == null || !HasAnyLayer(maid) || MaidMotionState.IsPlaying(maid))
+            {
+                return MaidPoseFileManager.CapturePoseBinary(maid);
+            }
+            var keep = ShouldKeepLayersWhileStopped(maid);
+            DisableLayers(maid, anim);
+            var baseState = MaidMotionState.GetCurrentAnimationState(maid);
+            if (baseState != null)
+            {
+                baseState.enabled = true;
+                baseState.weight = 1f;
+                anim.Sample();
+                baseState.enabled = keep;
+            }
+            var binary = MaidPoseFileManager.CapturePoseBinary(maid);
+            if (keep)
+            {
+                KeepLayersAfterStop(maid);
+                SampleStopped(maid, anim);
+            }
+            return binary;
+        }
+
+        /// <summary>シーンプリセットの復元。履歴の Restore と同じ経路で層を載せ直す</summary>
+        public static void ApplyLayerStates(Maid maid, List<LayerState> states)
+        {
+            Restore(maid, states);
+        }
+
+        /// <summary>
+        /// 編集モードの出入り。MaidManipulateManager.isEditMode の setter が呼出中の全メイドについて呼ぶ。
+        /// ベースタブのメイドは編集モード中だけ層を無効化してベースのみでサンプルし、
+        /// 抜けたら層を戻して再サンプルする。層の名前・重みは保持する (破棄しない)
+        /// </summary>
+        public static void OnEditModeChanged(Maid maid, bool isEditMode)
+        {
+            if (!isEditMode)
+            {
+                // 層を戻す前に手編集を固める (戻すと再サンプルで消えるため)
+                MaidEditPoseBaker.BakeIfEdited(maid);
+            }
+
+            var anim = GetAnimation(maid);
+            if (anim == null || MaidMotionState.IsPlaying(maid) || !HasAnyLayer(maid))
+            {
+                return;
+            }
+            var keep = ShouldKeepLayersWhileStopped(IsLayerSelected(maid), isEditMode);
+            if (keep)
             {
                 KeepLayersAfterStop(maid);
             }
@@ -707,10 +999,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                info.state.enabled = true;
-                info.state.weight = info.weight;
-                info.state.time = info.startTime;
-                info.state.speed = 0f;
+                ApplyLayerValues(info, true, 0f);
             }
         }
 
@@ -834,6 +1123,12 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (!MaidMotionState.IsPlaying(maid))
             {
+                // 上のループは停止中の層を一律 enabled=false にする。
+                // 層を見せる条件 (停止中・レイヤータブ or 編集モード外) なら戻してからサンプルする
+                if (ShouldKeepLayersWhileStopped(maid))
+                {
+                    KeepLayersAfterStop(maid);
+                }
                 SampleStopped(maid, anim);
             }
         }

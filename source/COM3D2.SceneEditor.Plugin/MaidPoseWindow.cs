@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -27,12 +27,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// マイポーズでは表示中フォルダ以下を再帰的に探し、結果をフラットに並べる
         /// </summary>
         private string _searchText = "";
-
-        /// <summary>一覧クリックの適用先。0 (BaseLayer) は従来のベースモーション</summary>
-        private int _blendTargetLayer = MaidPoseBlendRows.BaseLayer;
-
-        /// <summary>適用先を選んだときのメイド。切り替わったら適用先を戻す</summary>
-        private Maid _blendTargetMaid;
 
         private readonly GUIComboBox<string> _categoryComboBox = new GUIComboBox<string>
         {
@@ -87,6 +81,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>送り先を解決したときの再生中エントリと対象メイド。変わったら解決し直す</summary>
         private string _navKey = null;
         private Maid _navMaid = null;
+
+        /// <summary>
+        /// レイヤー行の表示名の控え。一覧の引き当ては全件走査なので、
+        /// 段のアニメ名が変わったときだけ解決し直す
+        /// </summary>
+        private string _layerDisplayAnmName = null;
+        private string _layerDisplayName = null;
 
         private static MaidPoseWindow _instance = null;
         public static MaidPoseWindow instance
@@ -195,15 +196,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawLabel(isLayerTarget ? "レイヤー" + _blendTargetLayer : "再生中",
+                view.DrawLabel(isLayerTarget ? "レイヤー" + MaidAnimationBlendController.GetSelectedLayer(maid) : "再生中",
                     LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
 
                 // 記録があれば表示名、無ければクリップ名から拡張子を除いて出す。
                 // クリップ名は長いと 150px で右端が切れるため、短い表示名を優先する
                 var displayName = isLayerTarget
-                    ? (layerAnmName.Length > 0
-                        ? Path.GetFileNameWithoutExtension(layerAnmName)
-                        : null)
+                    ? GetLayerDisplayName(layerAnmName)
                     : (appliedMotion != null
                         ? appliedMotion.displayName
                         : (currentClipName != null
@@ -258,7 +257,7 @@ namespace COM3D2.SceneEditor.Plugin
                         && !string.IsNullOrEmpty(layerInfo.anmName);
                     if (view.DrawButton("削除", 50, ROW_HEIGHT, enabled: hasState))
                     {
-                        var layer = _blendTargetLayer;
+                        var layer = MaidAnimationBlendController.GetSelectedLayer(maid);
                         AutoEditMode.Enter();
                         HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                             "ブレンド削除: レイヤー" + layer,
@@ -324,6 +323,7 @@ namespace COM3D2.SceneEditor.Plugin
                     HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                         "ポーズ反転", PoseSnapshot.GetAllBodyBones(maid));
                     MaidPoseFlipper.Flip(maid);
+                    MaidAnimationBlendController.MarkBoneEdit(maid);
 
                     // IK 固定も左右を入れ替える。ポーズの書き戻し後に記録するのは、
                     // 先に別スコープの BeforeEdit を挟むとポーズ側が変更前のまま確定してしまうため
@@ -352,6 +352,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var applied = MaidMotionState.GetAppliedMotion(maid);
             return applied != null
+                && !applied.isResidentPose
                 && applied.myPosePath == null
                 && string.IsNullOrEmpty(applied.motionFile);
         }
@@ -365,7 +366,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             appliedMotion = MaidMotionState.GetAppliedMotion(maid);
             clipName = MaidMotionState.GetCurrentClipName(maid);
-            if (_blendTargetLayer == MaidPoseBlendRows.BaseLayer)
+            if (MaidAnimationBlendController.GetSelectedLayer(maid) == MaidPoseBlendRows.BaseLayer)
             {
                 return;
             }
@@ -380,11 +381,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>適用先レイヤーの情報。適用先がベースなら null</summary>
         private AnimationLayerInfo GetTargetLayerInfo(Maid maid)
         {
-            if (_blendTargetLayer == MaidPoseBlendRows.BaseLayer)
+            var layer = MaidAnimationBlendController.GetSelectedLayer(maid);
+            if (layer == MaidPoseBlendRows.BaseLayer)
             {
                 return null;
             }
-            return MaidAnimationBlendController.GetLayerInfo(maid, _blendTargetLayer);
+            return MaidAnimationBlendController.GetLayerInfo(maid, layer);
         }
 
         /// <summary>
@@ -420,7 +422,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // 適用先ごとに基準が変わるので、キーにも含めて切替時に解決し直す
-            var navKey = _blendTargetLayer + "/" + GetNavKey(appliedMotion, currentClipName);
+            var navKey = MaidAnimationBlendController.GetSelectedLayer(maid) + "/" + GetNavKey(appliedMotion, currentClipName);
             if (_navMaid == maid && _navKey == navKey)
             {
                 return;
@@ -629,7 +631,7 @@ namespace COM3D2.SceneEditor.Plugin
             GetHighlightSource(maid, out appliedMotion, out currentClipName);
             // 適用先がレイヤーのときは、スクリプト経由 (エディット系) を選ばせない。
             // 載せられないうえ、ベースへ当たるとアニメレイヤーごと止められてしまう
-            var layerTarget = _blendTargetLayer != MaidPoseBlendRows.BaseLayer;
+            var layerTarget = MaidAnimationBlendController.GetSelectedLayer(maid) != MaidPoseBlendRows.BaseLayer;
 
             var matched = 0;
             foreach (var data in _motions)
@@ -697,14 +699,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawTargetSection(GUIView view, Maid maid)
         {
-            // 別のメイドへ切り替えたら適用先を戻す。前のメイドで選んだレイヤーのまま
-            // 一覧を押すと、ベース適用のつもりが層へ載ってしまう
-            if (_blendTargetMaid != maid)
-            {
-                _blendTargetMaid = maid;
-                _blendTargetLayer = MaidPoseBlendRows.BaseLayer;
-            }
-
             MaidAnimationBlendController.SyncFromAnimation(maid);
 
             // エディット系はスクリプト再生で、スクリプトが冒頭で
@@ -712,23 +706,20 @@ namespace COM3D2.SceneEditor.Plugin
             // 併用できないので適用先そのものを出さない
             if (IsScriptMotionApplied(maid))
             {
-                _blendTargetLayer = MaidPoseBlendRows.BaseLayer;
+                MaidAnimationBlendController.SetSelectedLayer(maid, MaidPoseBlendRows.BaseLayer);
                 view.DrawLabel("エディット系はブレンド非対応", -1, ROW_HEIGHT,
                     textColor: Color.yellow);
             }
-            else if (!MaidPoseBlendRows.DrawTargetTabs(view, maid, _blendTargetLayer,
-                layer => _blendTargetLayer = layer, ROW_HEIGHT, LABEL_WIDTH))
+            else if (!MaidPoseBlendRows.DrawTargetTabs(view, maid,
+                MaidAnimationBlendController.GetSelectedLayer(maid),
+                layer => MaidAnimationBlendController.SetSelectedLayer(maid, layer),
+                ROW_HEIGHT, LABEL_WIDTH))
             {
                 // レイヤー情報が取れない (呼出直後など) ときはベースだけ操作させる
-                _blendTargetLayer = MaidPoseBlendRows.BaseLayer;
+                MaidAnimationBlendController.SetSelectedLayer(maid, MaidPoseBlendRows.BaseLayer);
             }
 
-            // 適用先が確定してから同期する。先に呼ぶと、上のフォールバックで
-            // ベースへ戻す場面でも 1 フレームだけレイヤー扱いになる
-            MaidAnimationBlendController.SetBlendLayerSelected(
-                maid, _blendTargetLayer != MaidPoseBlendRows.BaseLayer);
-
-            var isLayerTarget = _blendTargetLayer != MaidPoseBlendRows.BaseLayer;
+            var isLayerTarget = MaidAnimationBlendController.GetSelectedLayer(maid) != MaidPoseBlendRows.BaseLayer;
             if (!isLayerTarget)
             {
                 DrawTargetRow(view, maid, null, false);
@@ -738,11 +729,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             TimelineLayerGate.End(view);
-            TimelineLayerGate.Begin(view, typeof(MTEP.AnimationTimelineLayer), maid, ROW_HEIGHT);
+            var gateState = TimelineLayerGate.Begin(
+                view, typeof(MTEP.AnimationTimelineLayer), maid, ROW_HEIGHT);
 
             var layerInfo = GetTargetLayerInfo(maid);
             DrawTargetRow(view, maid, layerInfo, true);
-            MaidPoseBlendRows.DrawLayerValues(view, maid, layerInfo, ROW_HEIGHT, LABEL_WIDTH);
+            MaidPoseBlendRows.DrawLayerValues(view, maid, layerInfo, ROW_HEIGHT, LABEL_WIDTH,
+                gateState == TimelineLayerGateState.Ready);
 
             TimelineLayerGate.End(view);
             TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), maid, ROW_HEIGHT);
@@ -756,7 +749,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void ApplyMotionEntryToTarget(Maid maid, PhotoMotionData data)
         {
-            if (_blendTargetLayer == MaidPoseBlendRows.BaseLayer)
+            var layer = MaidAnimationBlendController.GetSelectedLayer(maid);
+            if (layer == MaidPoseBlendRows.BaseLayer)
             {
                 ApplyMotionEntry(maid, data);
                 return;
@@ -766,14 +760,15 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 "ブレンド適用: " + data.name, PoseSnapshot.GetAllBodyBones(maid));
             ShowBlendApplyError(
-                MaidAnimationBlendController.ApplyMotion(maid, _blendTargetLayer, data),
+                MaidAnimationBlendController.ApplyMotion(maid, layer, data),
                 "このモーションはブレンドできません (スクリプト経由か読み込みに失敗)");
         }
 
         /// <summary>マイポーズ版の適用先振り分け。ApplyMotionEntryToTarget と同じ分岐</summary>
         private void LoadMyPoseEntryToTarget(Maid maid, string myPoseDir, string poseName)
         {
-            if (_blendTargetLayer == MaidPoseBlendRows.BaseLayer)
+            var layer = MaidAnimationBlendController.GetSelectedLayer(maid);
+            if (layer == MaidPoseBlendRows.BaseLayer)
             {
                 LoadMyPoseEntry(maid, myPoseDir, poseName);
                 return;
@@ -783,7 +778,7 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 "ブレンド適用: " + poseName, PoseSnapshot.GetAllBodyBones(maid));
             ShowBlendApplyError(
-                MaidAnimationBlendController.ApplyMyPose(maid, _blendTargetLayer,
+                MaidAnimationBlendController.ApplyMyPose(maid, layer,
                     Path.Combine(myPoseDir, poseName)),
                 "ポーズの読み込みに失敗しました");
         }
@@ -807,9 +802,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>履歴を残してモーションを適用する</summary>
         private static void ApplyMotionEntry(Maid maid, PhotoMotionData data)
         {
+            // BeforeEdit が AutoEditMode.Enter で編集モードへ入れてしまうので、その前に控える
+            var wasEditMode = MaidManipulateManager.instance.isEditMode;
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 "モーション: " + data.name, PoseSnapshot.GetAllBodyBones(maid));
-            PhotoMotionUtils.Apply(maid, data);
+            if (!PhotoMotionUtils.Apply(maid, data))
+            {
+                // 当たっていないので停止もしない (無関係な再生中モーションを止めてしまう)
+                return;
+            }
+            if (wasEditMode)
+            {
+                // 編集モード中の差し替えは止めたまま当てる (▶ で再生できる)
+                MaidMotionState.StopAtStart(maid);
+            }
         }
 
         /// <summary>
@@ -939,9 +945,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>履歴を残してマイポーズを読み込む。フォルダは呼び出し元が控えたものを渡す</summary>
         private static void LoadMyPoseEntry(Maid maid, string myPoseDir, string poseName)
         {
+            // BeforeEdit が AutoEditMode.Enter で編集モードへ入れてしまうので、その前に控える
+            var wasEditMode = MaidManipulateManager.instance.isEditMode;
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 "ポーズ読込: " + poseName, PoseSnapshot.GetAllBodyBones(maid));
-            MaidPoseFileManager.LoadPose(maid, Path.Combine(myPoseDir, poseName));
+            MaidPoseFileManager.LoadPose(maid, Path.Combine(myPoseDir, poseName),
+                startPlaying: !wasEditMode);
         }
 
         /// <summary>マイポーズ一覧のキャッシュを捨て、次の描画で取り直させる</summary>
@@ -985,6 +994,39 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _navMaid = null;
             _navKey = null;
+        }
+
+        /// <summary>
+        /// レイヤー行に出す名前。層が持つのは anmName (ファイル名や絶対パス) だけなので、
+        /// 一覧のモーションならベース側と同じ表示名 (PhotoMotionData.name) へ引き直す。
+        /// 一覧に無いもの (マイポーズ等) はファイル名から拡張子を除いて出す。
+        /// 空文字 (未設定の段) は null
+        /// </summary>
+        private string GetLayerDisplayName(string layerAnmName)
+        {
+            if (string.IsNullOrEmpty(layerAnmName))
+            {
+                return null;
+            }
+            if (_layerDisplayAnmName == layerAnmName)
+            {
+                return _layerDisplayName;
+            }
+
+            var fallback = Path.GetFileNameWithoutExtension(layerAnmName);
+            // 一覧が未構築 (遅延構築中) の間はファイル名で出すが、控えには残さない。
+            // 残すと構築が終わっても同じ段はファイル名のまま固定される
+            if (!PhotoMotionUtils.EnsureMotionDataLoaded())
+            {
+                return fallback;
+            }
+
+            var data = PhotoMotionUtils.FindByClipName(Path.GetFileName(layerAnmName));
+            _layerDisplayAnmName = layerAnmName;
+            _layerDisplayName = data != null && !string.IsNullOrEmpty(data.name)
+                ? data.name
+                : fallback;
+            return _layerDisplayName;
         }
     }
 }

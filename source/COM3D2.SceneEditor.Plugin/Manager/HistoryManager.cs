@@ -118,11 +118,15 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         private void BeforeEditCore(Maid maid, HistoryScope scope, string description,
-            object targetKey, Func<IStateSnapshot> capture, IEnumerable<Transform> targetBones)
+            object targetKey, Func<IStateSnapshot> capture, IEnumerable<Transform> targetBones,
+            bool enterEditMode = true)
         {
             // 値を書き換える操作の直前に必ず通る場所なので、ここで編集モードへ入る。
             // 履歴が無効 (historyLimit <= 0) でも自動移行は必要なため、早期 return より前に置く
-            AutoEditMode.Enter();
+            if (enterEditMode)
+            {
+                AutoEditMode.Enter();
+            }
 
             if ((maid == null && HistoryScopeUtils.RequiresMaid(scope))
                 || config.historyLimit <= 0)
@@ -175,6 +179,27 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             BeforeEdit(maid, scope, description, targetBonesProvider());
+        }
+
+        /// <summary>
+        /// 編集モードへの自動移行をしない BeforeEdit。編集モードを**抜ける**処理の途中から呼ぶ用。
+        /// 通常版は AutoEditMode.Enter() を通るが、抜ける途中だと
+        /// SceneEditorHack.isPoseEditing を立て直して停止したベースの再生まで再開させてしまう
+        /// (抜ける操作そのものが打ち消される)。
+        /// 呼び出し元は既に編集モードの中で起きた編集を記録するので、移行は不要
+        /// </summary>
+        public void BeforeEditWhileLeavingEditMode(Maid maid, HistoryScope scope, string description,
+            Func<IEnumerable<Transform>> targetBonesProvider)
+        {
+            if (_pending != null && _pending.maid == maid && _pending.scope == scope)
+            {
+                return;
+            }
+            // provider は全身ボーンの走査が重いので 1 回だけ評価する
+            var targetBones = targetBonesProvider();
+            BeforeEditCore(maid, scope, description, null,
+                () => SnapshotFactory.Capture(maid, scope, targetBones),
+                targetBones, enterEditMode: false);
         }
 
         /// <summary>

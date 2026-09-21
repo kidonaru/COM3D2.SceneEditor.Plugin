@@ -425,7 +425,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ResetAnm();
         }
 
-        public void ResetAnm()
+        /// <summary>
+        /// keepLayers はベースのアニメが変わっただけのとき用。
+        /// SceneEditor のアニメブレンドは層をユーザーが載せたまま保つので、
+        /// ベース差し替えで層ごと捨てない (死んだ state だけ落とす)
+        /// </summary>
+        public void ResetAnm(bool keepLayers = false)
         {
             annName = "";
             anmId = 0;
@@ -433,7 +438,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             foreach (var info in animationLayerInfos)
             {
-                info.Reset();
+                if (keepLayers)
+                {
+                    SEP.MaidAnimationBlendController.DetachStateKeepSettings(info);
+                }
+                else
+                {
+                    info.Reset();
+                }
             }
         }
 
@@ -1160,7 +1172,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             MTEUtils.LogDebug("Animation changed: " + anmName);
 
-            ResetAnm();
+            // ベースが変わっただけなので層は残す (載せ替えは利用者の操作でしか起きない)
+            ResetAnm(keepLayers: true);
 
             this.annName = anmName;
             if (string.IsNullOrEmpty(annName))

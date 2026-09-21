@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -177,9 +177,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// anm を読み込んでアニメとして再生する。静止ポーズなら見た目は静止したまま。
-        /// ボーン編集に入るには停止 (■ またはボーンドラッグで自動停止) する
+        /// ボーン編集に入るには停止 (■ またはボーンドラッグで自動停止) する。
+        /// startPlaying=false は再生を始めず先頭フレームで止める (編集モード中の差し替え用)
         /// </summary>
-        public static void LoadPose(Maid maid, string poseName)
+        public static void LoadPose(Maid maid, string poseName, bool startPlaying = true)
         {
             try
             {
@@ -191,7 +192,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var binary = File.ReadAllBytes(filePath);
-                ApplyPoseBinary(maid, binary, startPlaying: true);
+                ApplyPoseBinary(maid, binary, startPlaying);
                 MaidMotionState.RecordAppliedMyPose(maid, poseName);
             }
             catch (Exception e)
@@ -221,6 +222,20 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>ポーズ/アニメ用の常駐クリップの内部タグ。ゲーム側のクリップ名と衝突させない</summary>
         private const string POSE_CLIP_TAG = "_scene_editor_pose";
+        public static string PoseClipTag => POSE_CLIP_TAG;
+
+        /// <summary>
+        /// メイドごとに最後に常駐枠へ適用したバイナリ。
+        /// 常駐枠は 1 メイド 1 クリップで差し替えると中身が失われるため、
+        /// 履歴 (PoseSnapshot) が差し替え前の中身へ戻すのに使う
+        /// </summary>
+        private static readonly Dictionary<Maid, byte[]> _residentBinaries = new Dictionary<Maid, byte[]>();
+
+        public static byte[] GetResidentBinary(Maid maid)
+        {
+            byte[] binary;
+            return maid != null && _residentBinaries.TryGetValue(maid, out binary) ? binary : null;
+        }
 
         /// <summary>
         /// メイドごとの常駐クリップの native ロード分。AddClip は複製を登録するため、
@@ -289,6 +304,8 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            _residentBinaries.Remove(maid);
+
             AnimationClip oldNative;
             if (_residentNativeClips.TryGetValue(maid, out oldNative))
             {
@@ -327,6 +344,38 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _residentNativeClips.Clear();
+            _residentBinaries.Clear();
+        }
+
+        /// <summary>
+        /// 常駐クリップの差し替えだけを行う。編集ポーズの anm 化と履歴の復元が使う。
+        /// ApplyPoseBinary と違い、停止・ゲーム側 IK の解除・バストキー反映・ダイアログ・サンプルはしない
+        /// (▶ / Space / Ctrl+Z の裏で走るため、ユーザー操作向けの副作用を持ち込まない)。
+        /// 失敗時は警告ログだけ出して null を返す
+        /// </summary>
+        public static AnimationState ReplaceResidentClip(Maid maid, byte[] binary)
+        {
+            var anim = maid != null ? maid.GetAnimation() : null;
+            if (anim == null || binary == null)
+            {
+                MTEUtils.LogWarning("常駐クリップを差し替えられません (Animation かバイナリが無い)");
+                return null;
+            }
+            var nativeClip = ImportCM.LoadAniClipNative(binary,
+                load_l_mune_anime: true, load_r_mune_anime: true);
+            if (nativeClip == null)
+            {
+                MTEUtils.LogWarning("常駐クリップの読み込みに失敗しました");
+                return null;
+            }
+            var state = RegisterResidentClip(maid, anim, nativeClip);
+            if (state == null)
+            {
+                MTEUtils.LogWarning("常駐クリップの登録に失敗しました");
+                return null;
+            }
+            _residentBinaries[maid] = binary;
+            return state;
         }
 
         /// <summary>
@@ -381,6 +430,7 @@ namespace COM3D2.SceneEditor.Plugin
                 DialogPopupWindow.ShowDialog("ポーズの適用に失敗しました");
                 return;
             }
+            _residentBinaries[maid] = binary;
 
             if (startPlaying)
             {

@@ -203,6 +203,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private bool _isEditMode;
 
+        /// <summary>isEditMode の遷移処理を実行中か。遷移中の再入を弾くために持つ</summary>
+        private bool _isChangingEditMode;
+
         /// <summary>編集モード。メニューバーのトグルと連動する。パラメータを変更すると自動で ON になる (AutoEditMode.Enter)</summary>
         public bool isEditMode
         {
@@ -213,25 +216,44 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return;
                 }
-                _isEditMode = value;
-
-                // IK 固定はモーション停止中しか効かないため、モードへ入った時点で
-                // 固定中のメイドを停止させてすぐ効くようにする
-                if (value)
+                if (_isChangingEditMode)
                 {
-                    // 編集開始時点のポーズを基準にできるよう、呼出中の全メイドのモーションを止める
-                    foreach (var maid in calledMaids)
-                    {
-                        MaidMotionState.StopMotion(maid);
-                    }
-                    ikHoldController.OnEditModeStarted();
+                    // 遷移処理の中から呼び戻された (抜けるときの anm 化が履歴へ積む
+                    // BeforeEdit → AutoEditMode.Enter が編集モードを立て直そうとする)。
+                    // 通すと外側の遷移を打ち消してしまうので無視する
+                    return;
                 }
-                else
+                _isEditMode = value;
+                _isChangingEditMode = true;
+                try
                 {
-                    // モードを抜けた瞬間はメイドルートのギズモも消えるため、
-                    // ボーン表示 OFF と同じく見えないギズモを掴んだままにしない
-                    EndGizmoDrag(SceneViewManager.instance.gizmoRenderer);
-                    EndGizmoDrag(GameViewManager.instance.gizmoRenderer);
+                    // IK 固定はモーション停止中しか効かないため、モードへ入った時点で
+                    // 固定中のメイドを停止させてすぐ効くようにする
+                    if (value)
+                    {
+                        // 編集開始時点のポーズを基準にできるよう、呼出中の全メイドのモーションを止める
+                        foreach (var maid in calledMaids)
+                        {
+                            MaidMotionState.StopMotion(maid);
+                            MaidAnimationBlendController.OnEditModeChanged(maid, true);
+                        }
+                        ikHoldController.OnEditModeStarted();
+                    }
+                    else
+                    {
+                        // モードを抜けた瞬間はメイドルートのギズモも消えるため、
+                        // ボーン表示 OFF と同じく見えないギズモを掴んだままにしない
+                        EndGizmoDrag(SceneViewManager.instance.gizmoRenderer);
+                        EndGizmoDrag(GameViewManager.instance.gizmoRenderer);
+                        foreach (var maid in calledMaids)
+                        {
+                            MaidAnimationBlendController.OnEditModeChanged(maid, false);
+                        }
+                    }
+                }
+                finally
+                {
+                    _isChangingEditMode = false;
                 }
             }
         }
@@ -288,10 +310,10 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// アニメブレンドのレイヤーを調整中か。この間はボーン / IK を触らせない
-        /// (理由は MaidAnimationBlendController.isBlendLayerSelected を参照)
+        /// 操作対象メイドがアニメブレンドのレイヤーを調整中か。この間はそのメイドのボーン / IK を触らせない
+        /// (理由は MaidAnimationBlendController.ShouldKeepLayersWhileStopped を参照)
         /// </summary>
-        public bool isBlendLayerSelected => MaidAnimationBlendController.isBlendLayerSelected;
+        public bool isBlendLayerSelected => MaidAnimationBlendController.IsLayerSelected(targetMaid);
 
         /// <summary>
         /// ボーンギズモ・骨格線を実際に出すか。
@@ -331,15 +353,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             var activeMaid = targetMaid;
 
-            // 適用先の同期はモーションウィンドウの描画でしか走らない。
-            // 閉じた・タブの裏へ回った・Tab で一括非表示にした場合は描画が止まるため、
-            // レイヤー調整中のまま固着してボーン / IK を出せなくなる。
-            // 毎フレーム走るここで、見えていない間は必ず解除する
-            if (!MaidPoseWindow.instance.isWndVisible)
-            {
-                MaidAnimationBlendController.SetBlendLayerSelected(activeMaid, false);
-            }
-
             // 退避中のメイドは画面外に居るうえ、動かしても表示に戻す際に戻り先へ
             // 上書きされて編集が消えるため、座標を触る操作の対象から外す
             var movableMaid = IsVisible(activeMaid) ? activeMaid : null;
@@ -374,7 +387,15 @@ namespace COM3D2.SceneEditor.Plugin
         public void UpdateMaidLoading()
         {
             // 消滅したメイドを追跡リストから外す（シーン遷移や外部プラグインでの解除に追従）
-            calledMaids.RemoveAll(m => !IsAlive(m));
+            calledMaids.RemoveAll(m =>
+            {
+                if (IsAlive(m))
+                {
+                    return false;
+                }
+                MaidAnimationBlendController.ForgetEditState(m);
+                return true;
+            });
 
             AdoptActiveMaids();
 
@@ -614,6 +635,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 targetMaid = null;
             }
+            MaidAnimationBlendController.ForgetEditState(maid);
             calledMaids.Remove(maid);
             _loadingMaids.Remove(maid);
             ClearPendingFocus(maid);

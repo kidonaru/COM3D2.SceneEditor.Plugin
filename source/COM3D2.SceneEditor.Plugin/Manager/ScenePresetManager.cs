@@ -1066,7 +1066,17 @@ namespace COM3D2.SceneEditor.Plugin
                 state.motion = CaptureMotion(maid);
                 if (state.motion == null)
                 {
-                    state.poseAnmBinary = MaidPoseFileManager.CapturePoseBinary(maid);
+                    // 停止中に層を残していてもブレンドは焼き込まない (層は animationLayers で別に持つ)
+                    state.poseAnmBinary = MaidAnimationBlendController.CaptureBaseOnlyPoseBinary(maid);
+                }
+                var layerStates = MaidAnimationBlendController.Capture(maid);
+                if (layerStates.Count > 0)
+                {
+                    state.animationLayers = new List<ScenePresetAnimationLayer>();
+                    foreach (var layerState in layerStates)
+                    {
+                        state.animationLayers.Add(ScenePresetAnimationLayer.FromLayerState(layerState));
+                    }
                 }
             }
             catch (Exception e)
@@ -2072,11 +2082,28 @@ namespace COM3D2.SceneEditor.Plugin
                         MaidMotionState.SetAppliedMotion(maid, new MaidMotionState.AppliedMotionInfo
                         {
                             displayName = "シーンプリセット",
+                            isResidentPose = true,
                         });
                         // リセットは復元したポーズ自身に戻す (マイポーズと同じ扱い)。
                         // 復元前のモーションへ戻すと、常駐枠の中身が差し替わっている分
                         // 無関係なアニメが流れてしまう
                         MaidPoseFileManager.MarkPoseAsResetTarget(maid);
+                    }
+
+                    if (state.animationLayers != null)
+                    {
+                        // ベースの適用後に載せる (層の enabled/speed はベースの再生中かで決まる)。
+                        // 停止中なら層は速度 0 で残り、編集モード外なのでブレンドが見える
+                        var layerStates = new List<MaidAnimationBlendController.LayerState>();
+                        foreach (var layer in state.animationLayers)
+                        {
+                            var layerState = layer.ToLayerState();
+                            // プリセットは層ごとの停止を持たない。ベースが再生中なら層も流す
+                            // (Restore は basePlaying && playing で速度を決める。履歴と共有なので Restore 側は変えない)
+                            layerState.playing = true;
+                            layerStates.Add(layerState);
+                        }
+                        MaidAnimationBlendController.ApplyLayerStates(maid, layerStates);
                     }
                 }
             }

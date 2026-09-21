@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -53,17 +53,16 @@ namespace COM3D2.SceneEditor.Plugin
         public static bool isDragging { get; private set; }
 
         /// <summary>
-        /// 掴み開始。ボーンを書く操作なので、ここでアニメブレンドを解除する
-        /// (ブレンド込みのポーズを基準にすると寄与が分離できなくなるため)
+        /// 掴み開始。ボーンを書く操作なので、編集を抜けるときに anm 化する対象として控える
         /// </summary>
         public static void BeginDrag(Maid maid, string boneName)
         {
-            if (MaidAnimationBlendController.isBlendLayerSelected)
+            if (MaidAnimationBlendController.IsLayerSelected(maid))
             {
                 // レイヤー調整中はボーンを書かせない (点も出していないが念のため)
                 return;
             }
-            MaidAnimationBlendController.ReleaseForBoneEdit(maid);
+            MaidAnimationBlendController.MarkBoneEdit(maid);
             draggingBoneName = boneName;
             isDragging = true;
         }

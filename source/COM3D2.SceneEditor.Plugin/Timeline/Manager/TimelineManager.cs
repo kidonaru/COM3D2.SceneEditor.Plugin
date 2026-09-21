@@ -2605,6 +2605,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
+                // 適用先がブレンド層のメイドは、ボーンを触れない代わりに層が有効なままで
+                // 実ボーンにブレンドが乗っている。ボーン由来のレイヤーへ登録すると
+                // 触っていないボーンがブレンド込みで焼き込まれるため外す
+                if (SceneEditor.Plugin.MaidAnimationBlendController.ShouldSkipBoneKeyFrame(
+                        layer.layerType,
+                        SceneEditor.Plugin.MaidAnimationBlendController.IsLayerSelected(layer.maid)))
+                {
+                    continue;
+                }
+
                 try
                 {
                     if (layer.AddKeyFrameDiffBones() > 0)

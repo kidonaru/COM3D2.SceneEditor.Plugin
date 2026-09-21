@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -110,7 +110,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// (名前と 削除 の行は呼び出し側が描く)
         /// </summary>
         public static void DrawLayerValues(GUIView view, Maid maid, AnimationLayerInfo info,
-            float rowHeight, float labelWidth)
+            float rowHeight, float labelWidth, bool overrideTimeEnabled)
         {
             if (info == null || info.state == null || string.IsNullOrEmpty(info.anmName))
             {
@@ -196,8 +196,10 @@ namespace COM3D2.SceneEditor.Plugin
                     MaidAnimationBlendController.SetLoop(maid, layer, value);
                 });
 
-                // タイムライン再生時だけ効く値なので、実 AnimationState は触らない
-                view.DrawToggle("時間上書き", info.overrideTime, halfWidth, rowHeight, value =>
+                // タイムライン再生時だけ効く値なので、実 AnimationState は触らない。
+                // タイムラインが無ければ効かないので触らせない
+                view.DrawToggle("時間上書き", info.overrideTime, halfWidth, rowHeight,
+                    overrideTimeEnabled, value =>
                 {
                     HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                         "ブレンド時間上書き", () => PoseSnapshot.GetAllBodyBones(maid));

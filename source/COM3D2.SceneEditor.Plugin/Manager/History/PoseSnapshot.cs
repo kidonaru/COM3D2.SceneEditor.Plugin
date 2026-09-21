@@ -35,6 +35,12 @@ namespace COM3D2.SceneEditor.Plugin
         private bool _isPlaying;
         private float _playbackTime;
 
+        /// <summary>
+        /// 記録時のベースが常駐ポーズクリップだったときの中身。
+        /// 常駐枠は 1 つで anm 化やポーズ読込のたびに差し替わるため、名前だけでは戻せない
+        /// </summary>
+        private byte[] _residentBinary;
+
         /// <summary>記録時の適用中モーションの記録。undo/redo で表示とハイライトを揃える</summary>
         private MaidMotionState.AppliedMotionInfo _appliedMotion;
 
@@ -69,6 +75,8 @@ namespace COM3D2.SceneEditor.Plugin
             snapshot._lookTargetModelName = lookController.GetTargetModelName(maid);
 
             snapshot._clipName = MaidMotionState.GetCurrentClipName(maid);
+            snapshot._residentBinary = snapshot._clipName == MaidPoseFileManager.PoseClipTag
+                ? MaidPoseFileManager.GetResidentBinary(maid) : null;
             snapshot._isPlaying = MaidMotionState.IsPlaying(maid);
             var animState = MaidMotionState.GetCurrentAnimationState(maid);
             snapshot._playbackTime = animState != null
@@ -145,6 +153,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void RestoreMotion(Maid maid)
         {
+            // 常駐枠の中身が差し替わっていれば先に戻す (参照比較で足りる。同じ配列なら差し替わっていない)。
+            // ボーンは _bones.Apply() で戻し済みなのでクリップの差し替えだけでよい
+            // (ApplyPoseBinary は IK 解除やダイアログを伴うため使わない)
+            if (_residentBinary != null
+                && !ReferenceEquals(_residentBinary, MaidPoseFileManager.GetResidentBinary(maid)))
+            {
+                var state = MaidPoseFileManager.ReplaceResidentClip(maid, _residentBinary);
+                if (state != null)
+                {
+                    state.enabled = false;
+                    state.weight = 1f;
+                    state.time = 0f;
+                }
+            }
+
             MaidMotionState.SetAppliedMotion(maid, _appliedMotion);
             if (_isPlaying)
             {

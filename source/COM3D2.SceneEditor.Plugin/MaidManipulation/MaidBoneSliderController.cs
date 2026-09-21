@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -221,14 +221,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (MaidAnimationBlendController.isBlendLayerSelected)
+            if (MaidAnimationBlendController.IsLayerSelected(maid))
             {
                 // レイヤー調整中はボーンを書かせない (行自体も無効化されている)
                 return;
             }
 
-            // スライダーもボーンを書く操作なのでブレンドを落とす
-            MaidAnimationBlendController.ReleaseForBoneEdit(maid);
+            // スライダーもボーンを書く操作なので、編集を抜けるときに anm 化する対象として控える
+            MaidAnimationBlendController.MarkBoneEdit(maid);
 
             var baseRot = GetBaseRotation(maid, def, bone);
             _offsetCache.SetOffsetAxisFromLocalBase(bone, baseRot, axisIndex, value, true);
