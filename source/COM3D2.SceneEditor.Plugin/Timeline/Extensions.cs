@@ -9,22 +9,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>カスタム値 (float) の数値欄の幅 (ラベルを含まない)</summary>
         private const float CustomFloatFieldWidth = 90f;
 
-        /// <summary>スライダーのラベルドラッグでレンジ端から端まで動かすのに要する px</summary>
-        private const float SliderDragRangePixels = 200f;
-
-        /// <summary>
-        /// スライダー行のラベルドラッグ感度。レンジ幅基準で、Int は 1 段ずつ動かせるよう下限を設ける
-        /// </summary>
-        public static float SliderDragSensitivity(float min, float max, bool isInt)
-        {
-            var sensitivity = Mathf.Abs(max - min) / SliderDragRangePixels;
-            if (isInt)
-            {
-                return Mathf.Max(sensitivity, GUIView.DefaultIntDragSensitivity);
-            }
-            return sensitivity > 0f ? sensitivity : GUIView.DefaultFloatDragSensitivity;
-        }
-
         public static Vector2 ToVector2(this ValueData[] values)
         {
             if (values.Length != 2)
@@ -252,7 +236,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     label = info.name,
                     labelWidth = labelWidth,
-                    dragSensitivity = SliderDragSensitivity(info.min, info.max, isInt: false),
                     width = sliderWidth,
                     fieldType = FloatFieldType.Float,
                     min = info.min,
@@ -299,7 +282,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 label = info.name,
                 labelWidth = labelWidth,
-                dragSensitivity = SliderDragSensitivity(info.min, info.max, isInt: true),
                 width = sliderWidth,
                 fieldType = FloatFieldType.Int,
                 min = info.min,
