@@ -379,10 +379,18 @@ namespace COM3D2.SceneEditor.Plugin
         /// 外部プラグインの編集は履歴確定 (OnEditCommitted) を経由しないため、
         /// AutoEditModeHost が値を書く直前にここを直接呼ぶ
         /// </summary>
-        public static void FocusLayerKeepingEdit(Type layerType, int slotNo)
+        public static void FocusLayerKeepingEdit(
+            Type layerType, int slotNo, bool allowCameraLayer = false)
         {
             var layer = timelineManager.GetLayer(layerType, slotNo);
-            if (layer == null || layer == timelineManager.currentLayer || layer.isCameraLayer)
+            if (layer == null || layer == timelineManager.currentLayer)
+            {
+                return;
+            }
+
+            // カメラ系はアクティブな間カメラ同期などの操作が塞がるため既定では切り替えない。
+            // 構図を操作しない項目 (手ブレ) だけが例外を要求する
+            if (layer.isCameraLayer && !allowCameraLayer)
             {
                 return;
             }

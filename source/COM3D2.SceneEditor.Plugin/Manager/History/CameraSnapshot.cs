@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -33,9 +33,12 @@ namespace COM3D2.SceneEditor.Plugin
                 targetPos = mainCamera.GetTargetPos(),
                 yaw = aroundAngle.x,
                 pitch = aroundAngle.y,
-                roll = camera.transform.eulerAngles.z,
+                // 手ブレ適用中は揺れ込みの値になるため、揺れ前のロールを記録する
+                roll = CameraShakeManager.instance.GetCleanRotationZ(camera),
                 distance = mainCamera.GetDistance(),
                 fov = camera.fieldOfView,
+                // 揺れは Transform ではなく CameraShakeManager のライブ値が真の値
+                shakeParams = CameraShakeManager.instance.shakeParams,
             };
 
             // 追従中は注視点の代わりにオフセットを記録する (CameraTimelineLayer.UpdateFrame と同じ)
@@ -104,10 +107,12 @@ namespace COM3D2.SceneEditor.Plugin
             mainCamera.SetDistance(state.distance);
             camera.fieldOfView = state.fov;
 
-            // ロールはオービットモデル外なので、旋回角を確定させた後に Transform へ直接書く
-            var eulerAngles = camera.transform.eulerAngles;
-            eulerAngles.z = state.roll;
-            camera.transform.eulerAngles = eulerAngles;
+            // ロールはオービットモデル外なので、旋回角を確定させた後に Transform へ書く。
+            // 手ブレ適用中でも復元値に揺れ分が混ざらないよう CameraShakeManager を経由する
+            CameraShakeManager.instance.SetCleanRotationZ(camera, state.roll);
+
+            // 揺れ自体は CameraShakeManager の LateUpdate が反映する (ここでは値を戻すだけ)
+            CameraShakeManager.instance.shakeParams = state.shakeParams;
 
             if (hasFollow)
             {
@@ -140,7 +145,24 @@ namespace COM3D2.SceneEditor.Plugin
                 && Mathf.Approximately(_state.fov, o._state.fov)
                 && _state.maidSlotNo == o._state.maidSlotNo
                 && _state.maidPointType == o._state.maidPointType
-                && _state.followRotation == o._state.followRotation;
+                && _state.followRotation == o._state.followRotation
+                && ApproximatelyVector3(
+                    _state.shakePositionAmplitude, o._state.shakePositionAmplitude)
+                && ApproximatelyVector3(
+                    _state.shakeRotationAmplitude, o._state.shakeRotationAmplitude)
+                && Mathf.Approximately(_state.shakeFrequencyScale, o._state.shakeFrequencyScale)
+                && _state.shakeSeed == o._state.shakeSeed;
+        }
+
+        /// <summary>
+        /// 成分ごとの近似比較。Vector3 の == は Mathf.Approximately と許容誤差が違うため、
+        /// 揺れの判定基準をスカラー値と揃える
+        /// </summary>
+        private static bool ApproximatelyVector3(Vector3 a, Vector3 b)
+        {
+            return Mathf.Approximately(a.x, b.x)
+                && Mathf.Approximately(a.y, b.y)
+                && Mathf.Approximately(a.z, b.z);
         }
 
         public bool CanApply(Maid maid) => _state != null;

@@ -101,6 +101,8 @@ namespace COM3D2.SceneEditor.Plugin
                     RenderTextureFormat.Default, RenderTextureReadWrite.Default,
                     Mathf.Max(1, QualitySettings.antiAliasing));
                 HideOverlays(hiddenOverlays);
+                // 手動描画は復元コルーチンと前後しうるので、揺れを明示的に乗せる
+                CameraShakeManager.instance.BeginCapture();
 
                 camera.targetTexture = renderTexture;
                 foreach (var extra in extraCameras)
@@ -125,6 +127,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             finally
             {
+                CameraShakeManager.instance.EndCapture();
                 RestoreOverlays(hiddenOverlays);
                 camera.targetTexture = savedTargetTexture;
                 for (var i = 0; i < extraCameras.Count; i++)

@@ -1,10 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using SE = SceneEditor.Plugin;
+
     [TimelineLayerDesc("カメラ", 20, TimelineLayerCategory.Camera)]
     public class CameraTimelineLayer : TimelineLayerBase
     {
@@ -18,8 +20,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static string CameraBoneName = "camera";
         public static string CameraDisplayName = "カメラ";
+        public static string ShakeBoneName = "shake";
+        public static string ShakeDisplayName = "手ブレ";
 
-        private List<string> _allBoneNames = new List<string> { CameraBoneName };
+        private List<string> _allBoneNames = new List<string> { CameraBoneName, ShakeBoneName };
         public override List<string> allBoneNames => _allBoneNames;
 
         private CameraTimelineLayer(int slotNo) : base(slotNo)
@@ -40,8 +44,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             allMenuItems.Clear();
 
-            var menuItem = new BoneMenuItem(CameraBoneName, CameraDisplayName);
-            allMenuItems.Add(menuItem);
+            allMenuItems.Add(new BoneMenuItem(CameraBoneName, CameraDisplayName));
+            allMenuItems.Add(new BoneMenuItem(ShakeBoneName, ShakeDisplayName));
         }
 
         public override bool IsValidData()
@@ -54,15 +58,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             base.Update();
 
+            // 手ブレの位相はキーの有無に関わらず再生位置に従わせる。
+            // キーを適用したフレームだけ渡すと、最初のキーより手前へシークしたときに
+            // 実時間へ切り替わって位相が飛び、動画出力も再現しなくなる
+            SE.CameraShakeManager.instance.SetTimelineSeconds(playingTime);
+
             if (!SceneEditorHack.isPoseEditing)
             {
                 ApplyPlayData();
             }
-        }
-
-        public override void LateUpdate()
-        {
-            base.LateUpdate();
         }
 
         protected override void ApplyPlayData()
@@ -72,11 +76,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            base.ApplyPlayData();
+            // 基底の ApplyPlayData を呼ばなくなるため、同じメイド未ロードのガードを引き継ぐ
+            var maid = this.maid;
+            if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+            {
+                return;
+            }
+
+            // 手ブレ → カメラの順に適用する (依存の向きを明示するため順序を固定する)
+            ApplyPlayDataByType(TransformType.CameraShake);
+            ApplyPlayDataByType(TransformType.Camera);
         }
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
+            if (motion.start.type == TransformType.CameraShake)
+            {
+                ApplyShakeMotion(motion, t);
+                return;
+            }
+
             Vector3 position, eulerAngles;
             float distance, viewAngle;
 
@@ -160,6 +179,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             //MTEUtils.LogDebug("ApplyMotion: position={0}, rotation={1}, distance={2}, viewAngle={3}", position, rotation, distance, viewAngle);
         }
 
+        /// <summary>
+        /// 補間済みの揺れパラメータをライブ値へ書き戻す。
+        /// ノイズの算出と Transform への適用は CameraShakeManager が行う
+        /// (適用は描画直前なので、ゲームロジックからは揺れが見えない)。
+        /// キーが無いフレームは何もしないので、ライブ値の振幅がそのまま使われる
+        /// (経過秒は Update が毎フレーム渡しているので位相は連続したまま)
+        /// </summary>
+        private void ApplyShakeMotion(MotionData motion, float t)
+        {
+            var scratch = LerpScratch<TransformDataCameraShake>(motion, t);
+            var shakeParams = scratch.shakeParams;
+            shakeParams.seed = ResolveShakeSeed(motion.start as TransformDataCameraShake);
+
+            SE.CameraShakeManager.instance.shakeParams = shakeParams;
+        }
+
+        /// <summary>
+        /// 使用するシード。補間すると毎フレーム値が変わり、ハッシュのカオス性で周波数・位相が
+        /// 不連続にジャンプして波形が壊れるため、区間の始点の値をそのまま使う
+        /// (追従設定を補間しないのと同じ方針)
+        /// </summary>
+        public static int ResolveShakeSeed(TransformDataCameraShake start)
+        {
+            return start != null ? start.shakeParams.seed : 0;
+        }
+
         public static UltimateOrbitCamera GetUOCamera()
         {
             return camera.GetComponent<UltimateOrbitCamera>();
@@ -170,7 +215,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var uoCamera = GetUOCamera();
             var target = uoCamera.target;
             var angle = uoCamera.GetAroundAngle();
-            var rotZ = camera.GetRotationZ();
+            // 手ブレ適用中は揺れ込みの値になるため、揺れ前のロールを読む
+            var rotZ = SE.CameraShakeManager.instance.GetCleanRotationZ(camera);
 
             var trans = CreateTransformData<TransformDataCamera>(CameraBoneName);
             trans.position = target.position;
@@ -198,6 +244,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var bone = frame.CreateBone(trans);
             frame.UpdateBone(bone);
 
+            var shakeTrans = CreateTransformData<TransformDataCameraShake>(ShakeBoneName);
+            shakeTrans.shakeParams = SE.CameraShakeManager.instance.shakeParams;
+
+            var shakeBone = frame.CreateBone(shakeTrans);
+            frame.UpdateBone(shakeBone);
+
             //MTEUtils.LogDebug("UpdateFromCurrentPose: position={0}, rotation={1}", _cameraManager.CurrentPosition,_cameraManager.CurrentRotation);
         }
 
@@ -208,6 +260,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override TransformType GetTransformType(string name)
         {
+            if (name == ShakeBoneName)
+            {
+                return TransformType.CameraShake;
+            }
             return TransformType.Camera;
         }
     }

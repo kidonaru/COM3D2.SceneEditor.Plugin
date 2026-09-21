@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -32,9 +33,50 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public bool followRotation;
 
+        /// <summary>
+        /// 手ブレの位置振幅 (m)。
+        /// 手ブレ非対応の旧形式は 4 項目とも既定値で読まれるが、振幅 zero なら
+        /// 周波数倍率・シードは参照されないので揺れなしとして成立する
+        /// </summary>
+        public Vector3 shakePositionAmplitude;
+
+        /// <summary>手ブレの回転振幅 (度)</summary>
+        public Vector3 shakeRotationAmplitude;
+
+        /// <summary>手ブレのノイズ周波数倍率</summary>
+        [XmlAttribute]
+        public float shakeFrequencyScale;
+
+        [XmlAttribute]
+        public int shakeSeed;
+
         /// <summary>追従設定を持っているか (追従先が未ロードでも true)</summary>
         [XmlIgnore]
         public bool hasFollow => maidSlotNo >= 0;
+
+        /// <summary>
+        /// 手ブレ 4 項目とパラメータ構造体の相互変換。
+        /// XmlSerializer が扱えるよう項目は平置きにしてあるので、
+        /// CameraShakeParams にフィールドを足したらここと上のフィールド定義も併せて直すこと
+        /// </summary>
+        [XmlIgnore]
+        public MTEP.CameraShakeParams shakeParams
+        {
+            get => new MTEP.CameraShakeParams
+            {
+                positionAmplitude = shakePositionAmplitude,
+                rotationAmplitude = shakeRotationAmplitude,
+                frequencyScale = shakeFrequencyScale,
+                seed = shakeSeed,
+            };
+            set
+            {
+                shakePositionAmplitude = value.positionAmplitude;
+                shakeRotationAmplitude = value.rotationAmplitude;
+                shakeFrequencyScale = value.frequencyScale;
+                shakeSeed = value.seed;
+            }
+        }
     }
 
     /// <summary>背景の状態。id はフォトモードの PhotoBGData.id</summary>

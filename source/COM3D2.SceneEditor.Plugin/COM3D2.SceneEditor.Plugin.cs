@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -418,6 +418,10 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // タイムライン (MTE 移植) の登録。ウィンドウ更新後に状態を反映するため後段に置く
                 TimelineIntegration.Initialize(managerRegistry);
+
+                // 手ブレの揺れ幅はカメラレイヤーが書いたパラメータから決まるため、
+                // タイムラインより後に登録する (Transform への適用は描画直前に行う)
+                managerRegistry.RegisterManager(CameraShakeManager.instance);
 
                 AddGearMenu();
             }

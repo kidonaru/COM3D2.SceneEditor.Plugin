@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -57,7 +57,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 回転。GetAroundAngle は x がヨー (水平旋回)、y がピッチ (仰俯角)。
         /// 向き反映中のヨーはメイドの向きからのオフセットを編集する。
-        /// ロールは UltimateOrbitCamera が管理しないため Transform へ直接書く
+        /// ロールは UltimateOrbitCamera が管理しないため Transform へ直接書くが、
+        /// 手ブレの揺れが値に混ざらないよう読み書きは CameraShakeManager を経由する
         /// </summary>
         public static void DrawAngleSliders(
             GUIView view, CameraMain mainCamera, Camera camera, MTEP.MaidFollowMainCamera follow,
@@ -68,7 +69,8 @@ namespace COM3D2.SceneEditor.Plugin
             // 旋回中は値が際限なく積み上がるため、表示は ±180 度へ正規化する
             var yaw = AngleUtils.NormalizeAngle(aroundAngle.x);
             var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
-            var roll = AngleUtils.NormalizeAngle(camera.transform.eulerAngles.z);
+            // 手ブレ適用中は揺れ込みの値になるため、揺れ前のロールを読む
+            var roll = AngleUtils.NormalizeAngle(CameraShakeManager.instance.GetCleanRotationZ(camera));
 
             if (follow != null && follow.isFollow && follow.state.followRotation)
             {
@@ -95,9 +97,7 @@ namespace COM3D2.SceneEditor.Plugin
                 labelWidth, rowHeight, value =>
                 {
                     RecordCameraEdit("ロール");
-                    var eulerAngles = camera.transform.eulerAngles;
-                    eulerAngles.z = value;
-                    camera.transform.eulerAngles = eulerAngles;
+                    CameraShakeManager.instance.SetCleanRotationZ(camera, value);
                 });
         }
 

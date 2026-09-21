@@ -1412,6 +1412,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             try
             {
                 SE.ScreenshotManager.HideOverlays(hiddenOverlays);
+                // 手動描画は復元コルーチンと前後しうるので、揺れを明示的に乗せる
+                SE.CameraShakeManager.instance.BeginCapture();
 
                 foreach (var camera in cameras)
                 {
@@ -1425,6 +1427,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             finally
             {
+                SE.CameraShakeManager.instance.EndCapture();
                 SE.ScreenshotManager.RestoreOverlays(hiddenOverlays);
                 RenderTexture.active = savedActive;
                 for (var i = 0; i < cameras.Count; i++)

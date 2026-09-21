@@ -10,7 +10,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// カメラの構図を数値/スライダーで確認・編集するウィンドウ。
-    /// 操作対象は Main (CameraMain) / SceneView 用カメラ / サブカメラから選べる。
+    /// 操作対象は Main (CameraMain) / SceneView 用カメラ / サブカメラ / 手ブレから選べる。
     /// Main は注視点・距離・回転・FOV を UltimateOrbitCamera の API で編集し、
     /// SceneView も同じ構図モデルを SceneViewCameraController の API で編集する。
     /// 値は毎フレーム読み戻すため、マウス操作や他機能による変更もそのまま表示へ反映される
@@ -25,16 +25,20 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int LABEL_WIDTH = 70;
 
-        private static readonly string[] TargetNames = { "Main", "SceneView", "サブカメラ" };
+        private static readonly string[] TargetNames = { "Main", "SceneView", "サブカメラ", "手ブレ" };
         private static readonly int TargetButtonWidth = 90;
 
         // カメラプリセットのスロット数 (ボタン 1〜10)
         private const int PresetCount = 10;
         private static readonly int PresetButtonWidth = 20;
 
-        /// <summary>カメラプリセット文字列の値数。8 値は追従設定を持たない旧形式</summary>
+        /// <summary>
+        /// カメラプリセット文字列の値数。
+        /// 8 値は追従設定を持たない旧形式、11 値は手ブレを持たない旧形式
+        /// </summary>
         private const int LegacyPresetValueCount = 8;
-        private const int PresetValueCount = 11;
+        private const int FollowPresetValueCount = 11;
+        private const int PresetValueCount = 19;
 
         /// <summary>保存済みプリセットの右クリックメニュー項目</summary>
         private enum PresetMenuAction
@@ -53,7 +57,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly Vector2 PresetMenuContentSize = new Vector2(80, 60);
 
-        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView, 2: サブカメラ)</summary>
+        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView, 2: サブカメラ, 3: 手ブレ)</summary>
         private int _targetIndex = 0;
 
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
@@ -174,6 +178,12 @@ namespace COM3D2.SceneEditor.Plugin
                     BeginCameraLayerGate(typeof(MTEP.SubCameraTimelineLayer));
                     DrawSubCameraContent();
                 }
+                else if (_targetIndex == 3)
+                {
+                    // 手ブレはメインカメラのキー (CameraTimelineLayer の shake ボーン) に載る
+                    BeginCameraLayerGate(typeof(MTEP.CameraTimelineLayer));
+                    DrawShakeContent();
+                }
             }
             finally
             {
@@ -184,10 +194,13 @@ namespace COM3D2.SceneEditor.Plugin
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
-        /// <summary>操作対象カメラの切り替え行</summary>
+        /// <summary>
+        /// 操作対象の切り替え行。対象が 4 つになりボタン幅の合計が既定幅を超えるため、
+        /// BeginHorizontal(true) で次の行へ折り返す
+        /// </summary>
         private void DrawTargetRow()
         {
-            _view.BeginHorizontal();
+            _view.BeginHorizontal(true);
             {
                 _view.DrawLabel("対象", LABEL_WIDTH, ROW_HEIGHT);
                 for (var i = 0; i < TargetNames.Length; i++)
@@ -335,6 +348,9 @@ namespace COM3D2.SceneEditor.Plugin
             var state = ParseCameraPreset(stored);
             if (state == null)
             {
+                // 黙って何も起きないと原因が分からないので理由を出す
+                // (新しい版で保存したプリセットを古い版で読むとここに来る)
+                MTEUtils.LogError("カメラプリセット " + slot + " を読めませんでした: " + stored);
                 return;
             }
 
@@ -343,29 +359,45 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// カメラ状態を "tx,ty,tz,dist,yaw,pitch,roll,fov,maidSlotNo,maidPointType,followRotation"
-        /// 形式へ変換する (追従中は tx〜tz がオフセット、向き反映中は yaw がヨーオフセット)
+        /// カメラ状態を
+        /// "tx,ty,tz,dist,yaw,pitch,roll,fov,maidSlotNo,maidPointType,followRotation,
+        ///  shakePosX,shakePosY,shakePosZ,shakeRotX,shakeRotY,shakeRotZ,shakeFreq,shakeSeed"
+        /// 形式へ変換する (追従中は tx〜tz がオフセット、向き反映中は yaw がヨーオフセット)。
+        /// CameraPresetStringTests から往復を直接検証するため public にしてある
         /// </summary>
-        private static string SerializeCameraPreset(ScenePresetCamera state)
+        public static string SerializeCameraPreset(ScenePresetCamera state)
         {
             return string.Format(CultureInfo.InvariantCulture,
-                "{0:F4},{1:F4},{2:F4},{3:F4},{4:F2},{5:F2},{6:F2},{7:F2},{8},{9},{10}",
+                "{0:F4},{1:F4},{2:F4},{3:F4},{4:F2},{5:F2},{6:F2},{7:F2},{8},{9},{10}," +
+                "{11:F4},{12:F4},{13:F4},{14:F3},{15:F3},{16:F3},{17:F3},{18}",
                 state.targetPos.x, state.targetPos.y, state.targetPos.z,
                 state.distance,
                 state.yaw, state.pitch,
                 state.roll,
                 state.fov,
-                state.maidSlotNo, state.maidPointType, state.followRotation ? 1 : 0);
+                state.maidSlotNo, state.maidPointType, state.followRotation ? 1 : 0,
+                state.shakePositionAmplitude.x,
+                state.shakePositionAmplitude.y,
+                state.shakePositionAmplitude.z,
+                state.shakeRotationAmplitude.x,
+                state.shakeRotationAmplitude.y,
+                state.shakeRotationAmplitude.z,
+                state.shakeFrequencyScale,
+                state.shakeSeed);
         }
 
         /// <summary>
         /// プリセット文字列を構図へ戻す。不正な文字列は null。
-        /// 追従設定を持たない旧形式 (8 値) は未追従として読む
+        /// 追従設定を持たない旧形式 (8 値) は未追従、
+        /// 手ブレを持たない旧形式 (11 値) は揺れなしとして読む。
+        /// CameraPresetStringTests から旧形式の読み込みを直接検証するため public にしてある
         /// </summary>
-        private static ScenePresetCamera ParseCameraPreset(string value)
+        public static ScenePresetCamera ParseCameraPreset(string value)
         {
             var parts = value.Split(',');
-            if (parts.Length != LegacyPresetValueCount && parts.Length != PresetValueCount)
+            if (parts.Length != LegacyPresetValueCount &&
+                parts.Length != FollowPresetValueCount &&
+                parts.Length != PresetValueCount)
             {
                 return null;
             }
@@ -395,13 +427,38 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 手編集で範囲外になった値は、スロットは MaidManager.GetMaidCache 側、
             // 追従点は ToMaidPointType が適用時にガードする
-            if (parts.Length == PresetValueCount)
+            if (parts.Length >= FollowPresetValueCount)
             {
                 state.maidSlotNo = (int)values[8];
                 state.maidPointType = (int)values[9];
                 state.followRotation = values[10] != 0f;
             }
+
+            // 位置振幅は 11〜13、回転振幅は 14〜16、周波数 17、シード 18。
+            // 範囲外は CameraShakeNoise が値をそのまま使うため、ここで丸める
+            if (parts.Length == PresetValueCount)
+            {
+                state.shakePositionAmplitude = ClampAmplitude(
+                    values[11], values[12], values[13],
+                    MTEP.TransformDataCameraShake.MaxPositionAmplitude);
+                state.shakeRotationAmplitude = ClampAmplitude(
+                    values[14], values[15], values[16],
+                    MTEP.TransformDataCameraShake.MaxRotationAmplitude);
+                state.shakeFrequencyScale = Mathf.Clamp(values[17],
+                    MTEP.TransformDataCameraShake.MinFrequencyScale,
+                    MTEP.TransformDataCameraShake.MaxFrequencyScale);
+                state.shakeSeed = (int)Mathf.Clamp(
+                    values[18], 0f, MTEP.TransformDataCameraShake.MaxSeed);
+            }
             return state;
+        }
+
+        private static Vector3 ClampAmplitude(float x, float y, float z, float max)
+        {
+            return new Vector3(
+                Mathf.Clamp(x, 0f, max),
+                Mathf.Clamp(y, 0f, max),
+                Mathf.Clamp(z, 0f, max));
         }
 
         /// <summary>
@@ -448,6 +505,22 @@ namespace COM3D2.SceneEditor.Plugin
             MainCameraRowDrawer.DrawDistanceFovSliders(_view, mainCamera, camera, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();
             DrawResetAndMatchSceneViewRow(mainCamera, camera);
+
+            _view.EndScrollView();
+        }
+
+        /// <summary>
+        /// メインカメラの手ブレ。編集先は CameraShakeManager のライブ値で、
+        /// カメラキーを打つと同じフレームの shake ボーンへ書き出される
+        /// </summary>
+        private void DrawShakeContent()
+        {
+            _view.DrawHorizontalLine(Color.gray);
+            _view.AddSpace(5);
+
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            CameraShakeRowDrawer.Draw(_view, ROW_HEIGHT);
 
             _view.EndScrollView();
         }

@@ -7,8 +7,8 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// カメラレイヤー (CameraTimelineLayer) のメニュー項目 → メインカメラの構図編集UI。
-    /// キー化されるのは追従設定・注視点・回転・距離・FOV で、項目は「カメラ」1 つだけのため
-    /// 選択内容によらず CameraWindow と同じ行を出す。
+    /// キー化されるのは追従設定・注視点・回転・距離・FOV で、「カメラ」項目では
+    /// CameraWindow と同じ行を出す。「手ブレ」項目だけを選んだときは揺れパラメータの行に切り替える。
     /// 逆方向: カメラに対応する SelectionManager の選択概念が無いため無し
     /// </summary>
     public class CameraItemInspector : ITimelineItemInspector
@@ -22,6 +22,13 @@ namespace COM3D2.SceneEditor.Plugin
         public void DrawItems(
             GUIView view, MTEP.ITimelineLayer layer, IList<MTEP.IBoneMenuItem> items)
         {
+            // 手ブレ項目だけが選ばれているときは揺れパラメータの行を出す
+            if (items.Count > 0 && IsShakeOnly(items))
+            {
+                CameraShakeRowDrawer.Draw(view, RowHeight);
+                return;
+            }
+
             // ウィンドウと違い項目選択中は毎フレーム呼ばれるため、
             // シーン遷移で GameMain が居ない瞬間も NRE にならないようにする
             var gameMain = GameMain.Instance;
@@ -47,6 +54,18 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawHorizontalLine();
             MainCameraRowDrawer.DrawDistanceFovSliders(
                 view, mainCamera, camera, LabelWidth, RowHeight);
+        }
+
+        private static bool IsShakeOnly(IList<MTEP.IBoneMenuItem> items)
+        {
+            foreach (var item in items)
+            {
+                if (item.name != MTEP.CameraTimelineLayer.ShakeBoneName)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)

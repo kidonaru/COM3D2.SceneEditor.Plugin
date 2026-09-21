@@ -213,6 +213,7 @@
     <Compile Include="MaidManipulation\BoneEditManager.cs" />
     <Compile Include="MaidManipulation\SlotYureUtil.cs" />
     <Compile Include="Manager\CameraControlArbiter.cs" />
+    <Compile Include="Manager\CameraShakeManager.cs" />
     <Compile Include="Manager\ConfigManager.cs" />
     <Compile Include="Manager\GameViewManager.cs" />
     <Compile Include="Manager\BoneLineRenderer.cs" />
@@ -314,6 +315,7 @@
     <Compile Include="ScaleRowDrawer.cs" />
     <Compile Include="Vector3RowDrawer.cs" />
     <Compile Include="MaidShapeKeyRowDrawer.cs" />
+    <Compile Include="CameraShakeRowDrawer.cs" />
     <Compile Include="MainCameraRowDrawer.cs" />
     <Compile Include="SubCameraRowDrawer.cs" />
     <Compile Include="MaidFollowRowDrawer.cs" />
@@ -452,6 +454,8 @@
     <Compile Include="Timeline\BoneMenu\ModelBoneMenuItem.cs" />
     <Compile Include="Timeline\BoneXml.cs" />
     <Compile Include="Timeline\Config.cs" />
+    <Compile Include="Timeline\CameraShakeNoise.cs" />
+    <Compile Include="Timeline\CameraShakeParams.cs" />
     <Compile Include="Timeline\CurveViewMapping.cs" />
     <Compile Include="Timeline\DressUtils.cs" />
     <Compile Include="Timeline\EasingFunctions.cs" />
@@ -599,6 +603,7 @@
     <Compile Include="Timeline\TransformData\TransformDataBGGroundColor.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBGModel.cs" />
     <Compile Include="Timeline\TransformData\TransformDataCamera.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataCameraShake.cs" />
     <Compile Include="Timeline\TransformData\TransformDataDress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataExtendBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataEyes.cs" />
