@@ -413,6 +413,7 @@
     <Compile Include="MTEUtils\MaidPartType.cs" />
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
     <Compile Include="MTEUtils\MPNUtils.cs" />
+    <Compile Include="Timeline\AnmSingleFrameAdjuster.cs" />
     <Compile Include="Timeline\BoneData.cs" />
     <Compile Include="Timeline\TransformDataDiff.cs" />
     <Compile Include="MaidManipulation\MaidIKHoldResetGate.cs" />
