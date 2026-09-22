@@ -35,6 +35,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 isLoopAnm = false,
                 isGroundLinkedToBackground = true,
                 singleFrameType = SingleFrameType.Advance,
+                isSingleFrameAnm = true,
                 isEasingAppliedToNextKeyframe = true,
                 isTangentCamera = true,
                 isTangentLight = true,
@@ -54,6 +55,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.False(dst.isLoopAnm);
             Assert.True(dst.isGroundLinkedToBackground);
             Assert.Equal(SingleFrameType.Advance, dst.singleFrameType);
+            Assert.True(dst.isSingleFrameAnm);
             Assert.True(dst.isEasingAppliedToNextKeyframe);
             Assert.True(dst.isTangentCamera);
             Assert.True(dst.isTangentLight);
@@ -61,6 +63,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(dst.isTangentModel);
             Assert.True(dst.isTangentModelBone);
             Assert.True(dst.isTangentModelShapeKey);
+        }
+
+        [Fact]
+        public void IsSingleFrameAnmを持たない旧XMLは無効として読める()
+        {
+            var src = new TimelineXml();
+            var dst = RoundTrip(src);
+            Assert.False(dst.isSingleFrameAnm);
         }
 
         [Fact]

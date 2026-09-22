@@ -227,6 +227,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             _singleFrameTypeComboBox.currentIndex = (int)timeline.singleFrameType;
             _singleFrameTypeComboBox.DrawButton("1フレーム調整", view);
+            view.DrawToggle("1フレーム調整を anm にも適用", timeline.isSingleFrameAnm, -1, ROW_HEIGHT, newValue =>
+            {
+                timeline.isSingleFrameAnm = newValue;
+                timelineManager.ApplyCurrentFrame(true);
+            });
 
             view.BeginHorizontal();
             {

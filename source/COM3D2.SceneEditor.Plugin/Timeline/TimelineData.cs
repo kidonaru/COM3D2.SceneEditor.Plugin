@@ -384,6 +384,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         public SingleFrameType singleFrameType = SingleFrameType.Delay;
+
+        /// <summary>1 フレーム調整をボーンの anm 出力にも適用するか</summary>
+        public bool isSingleFrameAnm = false;
+
         public bool isEasingAppliedToNextKeyframe = false;
 
         // Tangent 統一により補間経路はこれらを参照しない。XML 互換のためフィールドのみ残す
@@ -786,6 +790,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isGroundLinkedToBackground = xml.isGroundLinkedToBackground;
             startOffsetTime = xml.startOffsetTime;
             singleFrameType = xml.singleFrameType;
+            isSingleFrameAnm = xml.isSingleFrameAnm;
             isEasingAppliedToNextKeyframe = xml.isEasingAppliedToNextKeyframe;
             isTangentUnified = xml.isTangentUnified;
             isTangentCamera = xml.isTangentCamera;
@@ -934,6 +939,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.isGroundLinkedToBackground = isGroundLinkedToBackground;
             xml.startOffsetTime = startOffsetTime;
             xml.singleFrameType = singleFrameType;
+            xml.isSingleFrameAnm = isSingleFrameAnm;
             xml.isEasingAppliedToNextKeyframe = isEasingAppliedToNextKeyframe;
             xml.isTangentUnified = isTangentUnified;
             xml.isTangentCamera = isTangentCamera;

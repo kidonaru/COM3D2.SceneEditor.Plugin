@@ -223,6 +223,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("SingleFrameType")]
         public SingleFrameType singleFrameType = SingleFrameType.Delay;
 
+        /// <summary>1 フレーム調整をボーンの anm 出力にも適用するか。旧 XML には無いので既定 false</summary>
+        [XmlElement("IsSingleFrameAnm")]
+        public bool isSingleFrameAnm = false;
+
         [XmlElement("IsEasingAfterFrame")]
         public bool isEasingAppliedToNextKeyframe = false;
 
