@@ -33,12 +33,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// EW 側ギズモを抑止中か。外部プラグイン起点の選択 (外部側が自前ギズモを持つ場合の
-        /// 二重表示・二重掴み防止) に加え、ポーズボーン選択中も抑止する
-        /// (selectedObject はメイドルートなので、掴むとボーンではなくメイドごと動いてしまう)。
-        /// 後者はフラグに焼かず選択状態から導く。ボーン選択の解除経路は複数あり、
+        /// 二重表示・二重掴み防止) に加え、ポーズボーン選択中・IK 選択中も抑止する
+        /// (selectedObject はメイドルートなので、掴むとボーン・IK ではなくメイドごと動いてしまう)。
+        /// 後者はフラグに焼かず選択状態から導く。ボーン・IK 選択の解除経路は複数あり、
         /// フラグだと解除し損ねてギズモが出ないまま戻らなくなるため
         /// </summary>
-        public bool gizmoSuppressed => _gizmoSuppressed || hasBoneSelection;
+        public bool gizmoSuppressed => _gizmoSuppressed || hasBoneSelection || hasIKSelection;
 
         /// <summary>ボーン選択中の対象メイド。ボーン未選択なら null</summary>
         public Maid selectedBoneMaid => _selectedBoneMaid;
