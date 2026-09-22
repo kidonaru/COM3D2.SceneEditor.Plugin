@@ -28,6 +28,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         public SeekState _seekState = SeekState.None;
+        private int _adjustingFrames = 0;
+
+        /// <summary>停止中に Adjusting が収束しないと判断するまでのフレーム数</summary>
+        private const int AdjustingTimeoutFrames = 60;
 
         /// <summary>
         /// プレビューウィンドウにだけ映す表示形式か。
@@ -111,8 +115,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public float targetSeekTimeMs
         {
-            // 未読込時はタイムラインのオフセットが無いため 0 として扱う
-            get => (currentTime + (timeline != null ? timeline.startOffsetTime : 0f) + video.startTime) * 1000f;
+            // 未読込時はタイムラインのオフセットが無いため 0 として扱う。
+            // startTime が負だと再生開始前の区間で負値になるが、負の位置へシークすると
+            // メディア側が 0 へ丸めて overTime が開きっぱなしになるため先頭で止める
+            get
+            {
+                var timeMs = (currentTime + (timeline != null ? timeline.startOffsetTime : 0f) + video.startTime) * 1000f;
+                return Mathf.Max(timeMs, 0f);
+            }
         }
 
         public float playingTimeMs
@@ -251,6 +261,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (overTime < 10f)
                 {
                     _seekState = SeekState.None;
+                    _adjustingFrames = 0;
+                    UpdateSpeed();
+                }
+                else if (!_isAnmPlaying && ++_adjustingFrames > AdjustingTimeoutFrames)
+                {
+                    // 停止中は target が進まないので、追い越した分の overTime は待っても縮まらない。
+                    // Adjusting へ居座ると isSeeking が立ちっぱなしになり速度指示ごと効かなくなるため、
+                    // 一定フレーム収束しなければ再シークで位置と速度を取り直す
+                    _adjustingFrames = 0;
+                    _seekState = SeekState.None;
+                    UpdateSeekTime();
                     UpdateSpeed();
                 }
             }
@@ -265,6 +286,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_isAnmPlaying != newIsAnmPlaying)
             {
                 _isAnmPlaying = newIsAnmPlaying;
+                // 再生を挟むと停止が途切れるので、タイムアウトは連続した停止だけを数える
+                _adjustingFrames = 0;
                 UpdateSpeed();
             }
         }
@@ -637,6 +660,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (et == MediaPlayerEvent.EventType.FinishedSeeking)
             {
                 _seekState = SeekState.Adjusting;
+                _adjustingFrames = 0;
                 UpdateSpeed();
                 return;
             }
