@@ -214,12 +214,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void LoadMovie(string videoPath)
         {
             //_mediaPlayer.PlatformOptionsWindows.videoApi = Windows.VideoApi.MediaFoundation;
+            // ループ設定はオープン時にしかネイティブへ渡らないため、開く前に立てる。
+            // 後から立てるとネイティブ側はループせず末尾で「終了」状態に入り、
+            // その状態からのシークは再生レート 0 を無視して 1 倍速で動き出す
+            _mediaPlayer.m_Loop = true;
             _mediaPlayer.OpenVideoFromFile(
                 MediaPlayer.FileLocation.AbsolutePathOrURL,
                 videoPath,
                 true);
 
-            _mediaPlayer.m_Loop = true;
             _isStarted = false;
             _seekState = SeekState.None;
 
@@ -414,6 +417,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (mediaControl != null)
             {
                 var playbackRate = (_isAnmPlaying && !isSeeking) ? timelineManager.anmSpeed : 0f;
+
+                // 停止はレート 0 だけでは表現しない。MF-MediaEngine は終了状態からのシークで
+                // レート 0 を無視して動き出すため、Pause/Play でネイティブ側の状態も切り替える
+                if (playbackRate == 0f)
+                {
+                    mediaControl.Pause();
+                }
+                else if (!mediaControl.IsPlaying())
+                {
+                    mediaControl.Play();
+                }
                 mediaControl.SetPlaybackRate(playbackRate);
             }
         }
