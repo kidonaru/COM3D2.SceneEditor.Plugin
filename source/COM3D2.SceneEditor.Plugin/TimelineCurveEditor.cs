@@ -979,19 +979,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>1フレーム調整で潰される区間か
-        /// (キーが 1 フレーム差で並び、かつ最後の区間ではない)。
-        /// 区間添字は始端キーの添字と同じ。
-        /// 判定は KeyFrameTangentDrawer.IsSingleFrameInterval と同じ内容にすること</summary>
+        /// <summary>1フレーム調整で潰される区間か。区間添字は始端キーの添字と同じ</summary>
         private static bool IsSingleFrameSegment(CurveChannel channel, int segmentIndex)
         {
-            // 最後の区間は Setup の走査対象外なので潰れない
-            if (channel.singleFrameType == MTEP.SingleFrameType.None
-                || segmentIndex >= channel.segmentStFrames.Count - 1)
-            {
-                return false;
-            }
-            return channel.frameNos[segmentIndex] + 1 == channel.frameNos[segmentIndex + 1];
+            return MTEP.SingleFrameInterval.IsCollapsed(
+                channel.singleFrameType, channel.frameNos, segmentIndex);
         }
 
         /// <summary>フレーム位置 frameNo を含む区間の添字。

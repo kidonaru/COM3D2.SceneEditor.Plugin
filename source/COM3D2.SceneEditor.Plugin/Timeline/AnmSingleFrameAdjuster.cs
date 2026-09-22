@@ -32,9 +32,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     /// <summary>
     /// anm 出力向けの 1 フレーム調整。PlayDataBase.Setup と同じ手順で区間表を作り、
-    /// その再生結果を AnimationCurve のキー列で再現する。
-    /// 区間を潰す判定は PlayDataBase.Setup / TimelineLayerBase.UpdateTangent /
-    /// TimelineCurveEditor.BuildSegmentFrames / KeyFrameTangentDrawer.IsSingleFrameInterval と揃えること
+    /// その再生結果を AnimationCurve のキー列で再現する
     /// </summary>
     public static class AnmSingleFrameAdjuster
     {
@@ -123,8 +121,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 var a = keys[i];
                 var b = keys[i + 1];
-                // 最後の区間 (B がボーン全体の最後のキー) は Setup の走査対象外なので潰さない
-                if (a.isSynthetic || b.isSynthetic || b.isLast || b.frameNo - a.frameNo != 1)
+                if (a.isSynthetic || b.isSynthetic
+                    || !SingleFrameInterval.IsCollapsed(type, a.frameNo, b.frameNo, b.isLast))
                 {
                     continue;
                 }

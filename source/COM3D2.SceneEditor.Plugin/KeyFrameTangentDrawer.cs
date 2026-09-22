@@ -190,16 +190,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>1フレーム調整で潰される区間か。
         /// 潰れた区間は再生時に補間されず値が瞬間的に切り替わるため、タンジェントが効かない。
-        /// 最後の区間は調整の対象外 (MotionPlayData.Setup) なので、次キーの有無を判定に加える。
-        /// 判定は TimelineCurveEditor.IsSingleFrameSegment と同じ内容にすること</summary>
+        /// 最後の区間は調整の対象外なので、次キーの有無を判定に加える</summary>
         private static bool IsSingleFrameInterval(MTEP.BoneData prevBone, MTEP.BoneData bone)
         {
-            if (bone.frameNo - prevBone.frameNo != 1)
-            {
-                return false;
-            }
             var layer = bone.parentLayer;
-            if (layer.GetSingleFrameType(bone.transform.type) == MTEP.SingleFrameType.None)
+            var type = layer.GetSingleFrameType(bone.transform.type);
+            // 次キーの検索は重いので、最後の区間かどうかは 1 フレーム差のときだけ後で調べる
+            if (!MTEP.SingleFrameInterval.IsCollapsed(
+                type, prevBone.frameNo, bone.frameNo, isLastInterval: false))
             {
                 return false;
             }

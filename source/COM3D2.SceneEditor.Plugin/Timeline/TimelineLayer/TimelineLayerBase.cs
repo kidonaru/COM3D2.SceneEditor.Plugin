@@ -658,8 +658,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                foreach (var bone in bones)
+                for (var boneIndex = 0; boneIndex < bones.Count; boneIndex++)
                 {
+                    var bone = bones[boneIndex];
                     if (bone.frameNo < startFrameNo || bone.frameNo > endFrameNo)
                     {
                         continue;
@@ -689,23 +690,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
 
                     // 1 フレーム調整で潰れる区間は再生時に補間されないので、隣キーではなく自身を使う。
-                    // 判定は再生側 (PlayDataBase.Setup) と同じくレイヤーの GetSingleFrameType に従い、
-                    // 別ループへ回り込んだキーと最後の区間 (Setup の走査対象外) は潰さない
-                    // (AnmSingleFrameAdjuster / TimelineCurveEditor.BuildSegmentFrames と揃えること)
-                    if (GetSingleFrameType(bone.transform.type) != SingleFrameType.None)
+                    // 区間はボーン内の添字で引くので、別ループへ回り込んだキーとの間は対象にならない
+                    var singleFrameType = GetSingleFrameType(bone.transform.type);
+                    var lastIndex = bones.Count - 1;
+                    if (boneIndex > 0 && SingleFrameInterval.IsCollapsed(
+                        singleFrameType, bones[boneIndex - 1].frameNo, bone.frameNo,
+                        isLastInterval: boneIndex == lastIndex))
                     {
-                        var lastBone = bones[bones.Count - 1];
-                        var isPrevSameLoop = prevFrameNo == prevBone.frameNo;
-                        var isNextSameLoop = nextFrameNo == nextBone.frameNo;
-                        // bone が最後のキーなら prev→bone が、nextBone が最後のキーなら bone→next が最後の区間
-                        if (bone.frameNo - prevFrameNo == 1 && isPrevSameLoop && bone != lastBone)
-                        {
-                            prevBone = bone;
-                        }
-                        if (nextFrameNo - bone.frameNo == 1 && isNextSameLoop && nextBone != lastBone)
-                        {
-                            nextBone = bone;
-                        }
+                        prevBone = bone;
+                    }
+                    if (boneIndex < lastIndex && SingleFrameInterval.IsCollapsed(
+                        singleFrameType, bone.frameNo, bones[boneIndex + 1].frameNo,
+                        isLastInterval: boneIndex + 1 == lastIndex))
+                    {
+                        nextBone = bone;
                     }
 
                     var prevTrans = prevBone.transform;

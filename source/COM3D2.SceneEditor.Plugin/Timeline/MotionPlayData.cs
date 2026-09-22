@@ -122,7 +122,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var current = motions[i];
                 var next = motions[i + 1];
 
-                if (current.stFrameInEdit + 1 == next.stFrameInEdit)
+                // 最後の区間はループ範囲外
+                if (SingleFrameInterval.IsCollapsed(
+                    singleFrameType, current.stFrameInEdit, next.stFrameInEdit, isLastInterval: false))
                 {
                     if (singleFrameType == SingleFrameType.Delay)
                     {
