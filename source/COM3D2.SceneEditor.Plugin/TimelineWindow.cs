@@ -1255,8 +1255,12 @@ namespace COM3D2.SceneEditor.Plugin
 
                         var keyFrameColor = isSelected ? Color.red : Color.white;
 
-                        // ヘッダー行の集約表示は「全ボーン揃い」の判定対象が定まらないため常に通常色
-                        if (!isHeader && !menuItem.IsFullBones(frame))
+                        // グループの集約表示 (BoneSetMenuItem.IsFullBones) と同様に、
+                        // ボーンが欠けているフレームは灰色にする
+                        var isFullBones = isHeader
+                            ? MTEP.BoneMenuManager.IsLayerFullBones(row.layer, frame)
+                            : menuItem.IsFullBones(frame);
+                        if (!isFullBones)
                         {
                             keyFrameColor *= Color.gray;
                         }

@@ -96,6 +96,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
+        /// 指定フレームにレイヤーの全メニュー項目のボーンが揃っているか。
+        /// 折りたたみ中のレイヤー行が BoneSetMenuItem.IsFullBones と同じ基準で灰色表示するために使う。
+        /// 項目を持たないレイヤーは true (通常色) を返す (IsLayerMenuSelected とは逆)。
+        /// 描画ループから毎フレーム呼ばれるため LINQ (デリゲート生成) を避けている
+        /// </summary>
+        public static bool IsLayerFullBones(ITimelineLayer layer, FrameData frame)
+        {
+            foreach (var menuItem in layer.allMenuItems)
+            {
+                if (!menuItem.IsFullBones(frame))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// 指定レイヤーの可視メニュー項目を result へ追記する。
         /// 複数レイヤー表示の行リスト構築用
         /// </summary>
