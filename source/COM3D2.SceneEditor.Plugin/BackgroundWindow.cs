@@ -161,6 +161,30 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.backgroundVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(MTEP.BGTimelineLayer))
+            {
+                _tabType = BgTabType.背景;
+                return true;
+            }
+            if (layerType == typeof(MTEP.BGColorTimelineLayer))
+            {
+                // 背景色は背景タブと地面タブの両方から記録するので、どちらかにいるなら動かさない
+                if (_tabType == BgTabType.モデル)
+                {
+                    _tabType = BgTabType.背景;
+                }
+                return true;
+            }
+            if (layerType == typeof(MTEP.BGModelTimelineLayer))
+            {
+                _tabType = BgTabType.モデル;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// 開いたときに一覧を作り直す。マイルームは本プラグイン起動後に
         /// 新規保存されうるため、開くたびに取り直さないと一覧に出てこない

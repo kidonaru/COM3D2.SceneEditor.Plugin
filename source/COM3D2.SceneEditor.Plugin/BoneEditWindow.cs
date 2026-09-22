@@ -202,6 +202,16 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.boneEditVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType != typeof(MTEP.ModelBoneTimelineLayer))
+            {
+                return false;
+            }
+            SwitchTargetType(BoneEditTargetType.Model);
+            return true;
+        }
+
         protected override void OnShowChanged(bool visible)
         {
             // 表示中だけ骨格線とボーンピックを有効化する
@@ -222,25 +232,35 @@ namespace COM3D2.SceneEditor.Plugin
             _presetNames = PartsEditPresetIO.GetPresetNames(!boneEditManager.isModelMode);
         }
 
+        /// <summary>
+        /// 対象種別 (メイド / モデル) を切り替える。同じ種別なら何もしない。
+        /// タブ操作とタイムラインからのレイヤー追従の両方が通る
+        /// </summary>
+        private void SwitchTargetType(BoneEditTargetType targetType)
+        {
+            if (boneEditManager.targetType == targetType)
+            {
+                return;
+            }
+            boneEditManager.targetType = targetType;
+
+            // 選択ボーンだけ落とす。targetModel / targetSlotName はタブを往復しても
+            // 復帰できるよう意図的に保持する
+            boneEditManager.ClearBoneSelection();
+
+            // プリセット一覧は対象種別で中身が変わる。絞り込み語も持ち越さない
+            _presetSearchText = "";
+            RefreshPresetList();
+        }
+
         protected override void DrawMaidContent(Maid target)
         {
-            var prevType = boneEditManager.targetType;
             var tab = DrawInnerTabs(
-                prevType == BoneEditTargetType.Model ? TargetTabType.モデル : TargetTabType.メイド,
+                boneEditManager.isModelMode ? TargetTabType.モデル : TargetTabType.メイド,
                 TAB_WIDTH);
-            boneEditManager.targetType = tab == TargetTabType.モデル
+            SwitchTargetType(tab == TargetTabType.モデル
                 ? BoneEditTargetType.Model
-                : BoneEditTargetType.Maid;
-            if (boneEditManager.targetType != prevType)
-            {
-                // 選択ボーンだけ落とす。targetModel / targetSlotName はタブを往復しても
-                // 復帰できるよう意図的に保持する
-                boneEditManager.ClearBoneSelection();
-
-                // プリセット一覧は対象種別で中身が変わる。絞り込み語も持ち越さない
-                _presetSearchText = "";
-                RefreshPresetList();
-            }
+                : BoneEditTargetType.Maid);
 
             if (boneEditManager.isModelMode)
             {

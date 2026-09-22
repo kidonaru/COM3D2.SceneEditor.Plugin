@@ -121,6 +121,25 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.maidFaceVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(MTEP.EyesTimelineLayer))
+            {
+                _tab = FaceTab.視線;
+                return true;
+            }
+            if (layerType == typeof(MTEP.MorphTimelineLayer))
+            {
+                // 表情レイヤーへ記録するタブは複数あるので、視線タブから戻すときだけ先頭へ移す
+                if (_tab == FaceTab.視線)
+                {
+                    _tab = FaceTab.目;
+                }
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// 開いたときにユーザー保存表情の一覧を取り直す。
         /// フォルダを直接編集された場合も開き直せば一覧に反映される。

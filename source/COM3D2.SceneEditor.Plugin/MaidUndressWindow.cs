@@ -56,6 +56,11 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.maidUndressVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            return layerType == typeof(MTEP.UndressTimelineLayer);
+        }
+
         protected override void DrawMaidContent(Maid target)
         {
             if (target == null)

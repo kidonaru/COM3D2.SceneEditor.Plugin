@@ -69,6 +69,21 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.soundVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(MTEP.VoiceTimelineLayer))
+            {
+                _tabType = TabType.ボイス;
+                return true;
+            }
+            if (layerType == typeof(MTEP.SeTimelineLayer))
+            {
+                _tabType = TabType.効果音;
+                return true;
+            }
+            return false;
+        }
+
         private enum TabType
         {
             BGM,

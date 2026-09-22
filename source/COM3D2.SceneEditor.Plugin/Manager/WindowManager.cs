@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -202,6 +203,38 @@ namespace COM3D2.SceneEditor.Plugin
                 // ウィンドウ自身の x ボタンと同様にグループからも外す
                 TabGroupManager.instance.RemoveFromGroup(window);
                 WindowConnectManager.instance.OnWindowHidden(window);
+            }
+        }
+
+        /// <summary>
+        /// タイムラインのアクティブレイヤー切替に合わせ、そのレイヤーを編集するウィンドウを
+        /// タブグループ内でアクティブにして前面へ出す。
+        /// 閉じているウィンドウは開かない (レイヤー選択のたびに窓が増えるのを避ける)
+        /// </summary>
+        public void FocusWindowsForTimelineLayer(Type layerType)
+        {
+            if (layerType == null)
+            {
+                return;
+            }
+
+            foreach (var window in windows)
+            {
+                var subWindow = window as EditorSubWindow;
+                if (subWindow == null || !subWindow.isShowWnd)
+                {
+                    continue;
+                }
+                if (!subWindow.TryFocusTimelineLayer(layerType))
+                {
+                    continue;
+                }
+
+                if (subWindow.group != null)
+                {
+                    subWindow.group.SetActive(subWindow);
+                }
+                subWindow.RequestBringToFront();
             }
         }
 

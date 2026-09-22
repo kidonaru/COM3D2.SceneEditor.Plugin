@@ -264,13 +264,7 @@ namespace COM3D2.SceneEditor.Plugin
             // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
             // ドロップダウンは操作対象で絞った一覧なのでメイド名は省く
             _layerComboBox.getName = (layer, _) => GetLayerDisplayName(layer, false);
-            _layerComboBox.onSelected = (layer, _) =>
-            {
-                if (layer != timelineManager.currentLayer)
-                {
-                    timelineManager.SetCurrentLayer(layer);
-                }
-            };
+            _layerComboBox.onSelected = (layer, _) => SelectLayer(layer);
 
             _categoryComboBox.getName = (category, _) => GetCategoryLabel(category);
             _categoryComboBox.onSelected = (category, _) =>
@@ -406,6 +400,24 @@ namespace COM3D2.SceneEditor.Plugin
             // SetCurrentLayer だと編集セッションが張り直され、
             // まだ登録していない編集値が保存済みキー値で上書きされる
             timelineManager.SetCurrentLayerKeepingEdit(layer);
+        }
+
+        /// <summary>
+        /// レイヤー名の選択 (ヘッダー行クリック / レイヤードロップダウン) でアクティブレイヤーを切り替える。
+        /// キーフレームや項目行のクリックと違い、そのレイヤーを編集するウィンドウも前面へ出す
+        /// (レイヤー名は「これを編集したい」という明示的な指定のため)
+        /// </summary>
+        private void SelectLayer(MTEP.ITimelineLayer layer)
+        {
+            if (layer == null)
+            {
+                return;
+            }
+            if (layer != timelineManager.currentLayer)
+            {
+                timelineManager.SetCurrentLayer(layer);
+            }
+            windowManager.FocusWindowsForTimelineLayer(layer.GetType());
         }
 
         private bool _syncingSelection = false;
@@ -1923,10 +1935,7 @@ namespace COM3D2.SceneEditor.Plugin
                                 return;
                             }
                             // クリックしたレイヤーを編集基準 (アクティブ) にしてから全項目を選択する
-                            if (headerLayer != timelineManager.currentLayer)
-                            {
-                                timelineManager.SetCurrentLayer(headerLayer);
-                            }
+                            SelectLayer(headerLayer);
                             boneMenuManager.SelectLayerMenuItems(headerLayer, isMultiSelect);
                         });
 

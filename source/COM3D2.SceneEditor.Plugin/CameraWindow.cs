@@ -57,8 +57,14 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly Vector2 PresetMenuContentSize = new Vector2(80, 60);
 
-        /// <summary>操作対象。TargetNames の添字 (0: Main, 1: SceneView, 2: サブカメラ, 3: 手ブレ)</summary>
-        private int _targetIndex = 0;
+        /// <summary>操作対象 (TargetNames の添字)</summary>
+        private const int MAIN_CAMERA_INDEX = 0;
+        private const int SCENE_VIEW_CAMERA_INDEX = 1;
+        private const int SUB_CAMERA_INDEX = 2;
+        private const int SHAKE_INDEX = 3;
+
+        /// <summary>操作対象。TargetNames の添字</summary>
+        private int _targetIndex = MAIN_CAMERA_INDEX;
 
         // コンボのフォーカスはルートビューで共有されるため、内容ビューを子にする
         private readonly GUIView _rootView = new GUIView();
@@ -151,6 +157,25 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.cameraVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(MTEP.CameraTimelineLayer))
+            {
+                // 手ブレタブも同じメインカメラレイヤーへ記録するので、そこにいるなら動かさない
+                if (_targetIndex != MAIN_CAMERA_INDEX && _targetIndex != SHAKE_INDEX)
+                {
+                    _targetIndex = MAIN_CAMERA_INDEX;
+                }
+                return true;
+            }
+            if (layerType == typeof(MTEP.SubCameraTimelineLayer))
+            {
+                _targetIndex = SUB_CAMERA_INDEX;
+                return true;
+            }
+            return false;
+        }
+
         protected override void DrawContent()
         {
             _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
@@ -161,24 +186,24 @@ namespace COM3D2.SceneEditor.Plugin
 
             try
             {
-                if (_targetIndex == 0)
+                if (_targetIndex == MAIN_CAMERA_INDEX)
                 {
                     BeginCameraLayerGate(typeof(MTEP.CameraTimelineLayer));
                     // プリセットは Main カメラ専用のため他タブでは行を出さない
                     DrawPresetRow();
                     DrawMainCameraContent();
                 }
-                else if (_targetIndex == 1)
+                else if (_targetIndex == SCENE_VIEW_CAMERA_INDEX)
                 {
                     // SceneView カメラは対応するレイヤーが無いためゲートを掛けない
                     DrawSceneViewCameraContent();
                 }
-                else if (_targetIndex == 2)
+                else if (_targetIndex == SUB_CAMERA_INDEX)
                 {
                     BeginCameraLayerGate(typeof(MTEP.SubCameraTimelineLayer));
                     DrawSubCameraContent();
                 }
-                else if (_targetIndex == 3)
+                else if (_targetIndex == SHAKE_INDEX)
                 {
                     // 手ブレはメインカメラのキー (CameraTimelineLayer の shake ボーン) に載る
                     BeginCameraLayerGate(typeof(MTEP.CameraTimelineLayer));

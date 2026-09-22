@@ -87,6 +87,26 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.liveEffectVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(StageLightTimelineLayer))
+            {
+                _topTab = TopTab.ライト;
+                return true;
+            }
+            if (layerType == typeof(StageLaserTimelineLayer))
+            {
+                _topTab = TopTab.レーザー;
+                return true;
+            }
+            if (layerType == typeof(PsylliumTimelineLayer))
+            {
+                _topTab = TopTab.サイリウム;
+                return true;
+            }
+            return false;
+        }
+
         private enum TopTab
         {
             ライト,

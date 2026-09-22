@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -63,6 +64,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             get => config.maidGravityVisible;
             set => config.maidGravityVisible = value;
+        }
+
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            return layerType == typeof(MTEP.GravityTimelineLayer);
         }
 
         protected override void DrawMaidContent(Maid target)

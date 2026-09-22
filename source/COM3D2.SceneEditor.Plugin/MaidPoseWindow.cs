@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -126,6 +127,13 @@ namespace COM3D2.SceneEditor.Plugin
         {
             get => config.maidPoseVisible;
             set => config.maidPoseVisible = value;
+        }
+
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            // 指・IK・ボーン編集も同じモーションレイヤーへ記録するが、代表としてポーズウィンドウだけ前面へ出す
+            return layerType == typeof(MTEP.MotionTimelineLayer)
+                || layerType == typeof(MTEP.AnimationTimelineLayer);
         }
 
         /// <summary>

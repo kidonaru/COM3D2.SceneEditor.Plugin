@@ -1,3 +1,4 @@
+using System;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -126,6 +127,28 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>タブの表示状態 (アクティブ⇔非アクティブ) が変わったときに呼ばれる</summary>
         protected virtual void OnTabVisibleChanged(bool visible)
         {
+        }
+
+        /// <summary>
+        /// タイムラインのアクティブレイヤーが layerType へ切り替わったとき、
+        /// そのレイヤーを編集するウィンドウなら内部タブを合わせて true を返す。
+        /// true を返すと WindowManager がタブをアクティブにして前面へ出す。
+        /// 対応関係は各ウィンドウの TimelineLayerGate.Begin と揃えること
+        /// </summary>
+        public virtual bool TryFocusTimelineLayer(Type layerType)
+        {
+            return false;
+        }
+
+        private bool _bringToFrontRequested = false;
+
+        /// <summary>
+        /// 次の描画で前面へ出す。GUI.BringWindowToFront は OnGUI 中にしか効かないため、
+        /// 他ウィンドウのイベント処理からは要求だけ積む
+        /// </summary>
+        public void RequestBringToFront()
+        {
+            _bringToFrontRequested = true;
         }
 
         private bool _isShowWnd = false;
@@ -258,6 +281,12 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 // 描画中に例外が出ても下げた不透明度を残さない (以降の全ウィンドウに波及するため)
                 GUI.color = prevColor;
+            }
+
+            if (_bringToFrontRequested)
+            {
+                _bringToFrontRequested = false;
+                GUI.BringWindowToFront(windowId);
             }
 
             // タブ切替メニューはホスト矩形にクリップされないよう別ウィンドウとして描く

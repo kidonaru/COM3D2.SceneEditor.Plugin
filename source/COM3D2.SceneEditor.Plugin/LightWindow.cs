@@ -89,6 +89,11 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.lightVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            return layerType == typeof(MTEP.LightTimelineLayer);
+        }
+
         protected override void DrawContent()
         {
             _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));

@@ -103,6 +103,21 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.shapeKeyEditVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(MTEP.ShapeKeyTimelineLayer))
+            {
+                _targetTab = TargetTabType.メイド;
+                return true;
+            }
+            if (layerType == typeof(MTEP.ModelShapeKeyTimelineLayer))
+            {
+                _targetTab = TargetTabType.モデル;
+                return true;
+            }
+            return false;
+        }
+
         protected override void DrawMaidContent(Maid target)
         {
             // GUI.enabled の戻しは基底の DrawContent が TimelineLayerGate.End で必ず行う

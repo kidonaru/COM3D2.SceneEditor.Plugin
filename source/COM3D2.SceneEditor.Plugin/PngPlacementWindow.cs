@@ -159,6 +159,11 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.pngPlacementVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            return layerType == typeof(MTEP.PngPlacementTimelineLayer);
+        }
+
         /// <summary>開くたびに画像一覧を取り直す。開いている間に追加されたファイルを拾うため</summary>
         protected override void OnShowChanged(bool visible)
         {

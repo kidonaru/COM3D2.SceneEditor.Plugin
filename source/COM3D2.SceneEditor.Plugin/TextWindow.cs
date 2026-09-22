@@ -1,4 +1,5 @@
-﻿using COM3D2.MotionTimelineEditor;
+﻿using System;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -76,6 +77,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             get => config.textVisible;
             set => config.textVisible = value;
+        }
+
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            return layerType == typeof(MTEP.TextTimelineLayer);
         }
 
         protected override void DrawContent()

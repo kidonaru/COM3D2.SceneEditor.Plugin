@@ -103,6 +103,26 @@ namespace COM3D2.SceneEditor.Plugin
             set => config.materialEditVisible = value;
         }
 
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            if (layerType == typeof(MTEP.MaidMaterialTimelineLayer))
+            {
+                _targetTab = TargetTabType.メイド;
+                return true;
+            }
+            if (layerType == typeof(MTEP.ModelMaterialTimelineLayer))
+            {
+                _targetTab = TargetTabType.モデル;
+                return true;
+            }
+            if (layerType == typeof(MTEP.BGModelMaterialTimelineLayer))
+            {
+                _targetTab = TargetTabType.背景;
+                return true;
+            }
+            return false;
+        }
+
         protected override void DrawMaidContent(Maid target)
         {
             // GUI.enabled の戻しは基底の DrawContent が TimelineLayerGate.End で必ず行う
