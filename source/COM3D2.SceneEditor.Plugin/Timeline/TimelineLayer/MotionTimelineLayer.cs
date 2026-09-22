@@ -667,7 +667,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        List<float> _timesCache = new List<float>(128);
+        List<AnmKeySource> _keysCache = new List<AnmKeySource>(128);
         List<ValueData[]> _valuesListCache = new List<ValueData[]>(128);
 
         protected override byte[] GetAnmBinaryInternal(bool forOutput, int startFrameNo, int endFrameNo)
@@ -692,6 +692,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
 
                 var firstBone = bones[0];
+                var lastBone = bones[bones.Count - 1];
                 var name = firstBone.name;
                 var path = maidCache.GetBonePath(name);
                 if (string.IsNullOrEmpty(path))
@@ -703,7 +704,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 w.Write((byte)1);
                 w.Write(path);
 
-                _timesCache.Clear();
+                _keysCache.Clear();
                 _valuesListCache.Clear();
 
                 BoneData prevBone = null;
@@ -717,9 +718,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
 
                     // 開始フレームにキーフレームがない場合は前のキーフレームを使う
-                    if (_timesCache.Count == 0 && bone.frameNo != _startFrameNo && prevBone != null)
+                    if (_keysCache.Count == 0 && bone.frameNo != _startFrameNo && prevBone != null)
                     {
-                        _timesCache.Add(0f);
+                        _keysCache.Add(new AnmKeySource { frameNo = _startFrameNo, time = 0f, isSynthetic = true });
                         _valuesListCache.Add(prevBone.transform.values);
                     }
 
@@ -728,16 +729,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         // 終了フレームにキーフレームがない場合は後のキーフレームを使う
                         if (prevBone != null && prevBone.frameNo != _endFrameNo)
                         {
-                            _timesCache.Add(endSecond - startSecond);
+                            _keysCache.Add(new AnmKeySource { frameNo = _endFrameNo, time = endSecond - startSecond, isSynthetic = true });
                             _valuesListCache.Add(bone.transform.values);
                         }
                         break;
                     }
 
-                    _timesCache.Add(timeline.GetFrameTimeSeconds(bone.frameNo) - startSecond);
+                    _keysCache.Add(new AnmKeySource
+                    {
+                        frameNo = bone.frameNo,
+                        time = timeline.GetFrameTimeSeconds(bone.frameNo) - startSecond,
+                        isSynthetic = false,
+                        isLast = bone == lastBone,
+                    });
                     _valuesListCache.Add(bone.transform.values);
                     prevBone = bone;
                 }
+
+                // 1 フレーム調整 (設定で anm へ適用したときだけ None 以外) で潰す区間を算出する
+                var singleFrameType = GetSingleFrameType(firstBone.transform.type);
+                var epsilon = timeline.GetFrameTimeSeconds(1) * AnmSingleFrameAdjuster.EpsilonRatio;
+                var timings = AnmSingleFrameAdjuster.Adjust(_keysCache, singleFrameType, epsilon);
 
                 // anmフォーマットのチャンネル107以降はマテリアルUV(_MainTex_ST等)に割り当てられているため、
                 // スケール値は書き出さない (回転4 + 位置3 の最大7チャンネルまで)
@@ -745,13 +757,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 for (int i = 0; i < channelCount; i++)
                 {
                     w.Write((byte)(100 + i));
-                    w.Write(_timesCache.Count);
-                    for (int j = 0; j < _timesCache.Count; j++)
+                    w.Write(timings.Length);
+                    for (int j = 0; j < timings.Length; j++)
                     {
-                        w.Write(_timesCache[j]);
-                        w.Write(_valuesListCache[j][i].value);
-                        w.Write(_valuesListCache[j][i].inTangent.value);
-                        w.Write(_valuesListCache[j][i].outTangent.value);
+                        var value = _valuesListCache[j][i];
+                        // Infinity タンジェントは Unity の AnimationCurve でステップ補間になる
+                        w.Write(timings[j].time);
+                        w.Write(value.value);
+                        w.Write(timings[j].stepIn ? float.PositiveInfinity : value.inTangent.value);
+                        w.Write(timings[j].stepOut ? float.PositiveInfinity : value.outTangent.value);
                     }
                 }
             };
