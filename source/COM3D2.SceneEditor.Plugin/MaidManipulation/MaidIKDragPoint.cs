@@ -216,6 +216,7 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.IK,
                 "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
             holdController.SetHold(maid, holdType, hold);
+            MaidDragBoneTracker.NotifyBoneEdited(maid);
         }
 
         /// <summary>

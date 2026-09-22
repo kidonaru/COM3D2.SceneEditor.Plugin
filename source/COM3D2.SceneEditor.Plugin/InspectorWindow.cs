@@ -254,6 +254,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // レイヤー調整中はボーンを触らせない (IK ウィンドウの DrawBlendLayerGate と同じ扱い)
+            if (MaidAnimationBlendController.IsLayerSelected(maid))
+            {
+                _view.DrawLabel(MaidAnimationBlendController.BlendLayerGateMessage, -1, RowHeight,
+                    textColor: Color.yellow);
+                return;
+            }
+
             DrawVector3Row("位置", PositionSensitivity, point.targetPosition,
                 value => point.ApplyTargetPosition(value),
                 null);
@@ -285,6 +293,7 @@ namespace COM3D2.SceneEditor.Plugin
                         HistoryManager.instance.BeforeEdit(maid, HistoryScope.IK,
                             "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
                         holdController.SetHold(maid, holdType, on);
+                        MaidDragBoneTracker.NotifyBoneEdited(maid);
                     });
             }
             _view.EndLayout();

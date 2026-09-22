@@ -111,6 +111,7 @@ namespace COM3D2.SceneEditor.Plugin
                                 HistoryManager.instance.BeforeEdit(target, HistoryScope.IK,
                                     "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
                                 holdController.SetHold(target, holdType, newValue);
+                                MaidDragBoneTracker.NotifyBoneEdited(target);
                             });
                     }
 
@@ -123,6 +124,7 @@ namespace COM3D2.SceneEditor.Plugin
                         {
                             holdController.SetHold(target, type, !allHold);
                         }
+                        MaidDragBoneTracker.NotifyBoneEdited(target);
                     }
                 }
                 view.EndLayout();

@@ -86,5 +86,22 @@ namespace COM3D2.SceneEditor.Plugin
         {
             onDragCompleted?.Invoke(maid);
         }
+
+        /// <summary>
+        /// ドラッグを伴わないボーン編集 (IK 固定の切り替え等) の通知。
+        /// 値を書いた後に呼ぶ。ドラッグ点と同じく編集済みボーンとして控え、
+        /// 完了通知を出してレイヤー追従と自動キーフレーム登録を働かせる
+        /// (BeginDrag と違い掴み状態は持たないので draggingBoneName は触らない)
+        /// </summary>
+        public static void NotifyBoneEdited(Maid maid)
+        {
+            if (MaidAnimationBlendController.IsLayerSelected(maid))
+            {
+                // レイヤー調整中の UI は無効化済みで届かないはずだが、BeginDrag と同じ 2 段目のガード
+                return;
+            }
+            MaidAnimationBlendController.MarkBoneEdit(maid);
+            NotifyDragCompleted(maid);
+        }
     }
 }
