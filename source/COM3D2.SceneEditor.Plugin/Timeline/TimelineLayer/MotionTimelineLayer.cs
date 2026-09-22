@@ -917,6 +917,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 case TransformType.Grounding:
                 case TransformType.FingerBlend:
                     return SingleFrameType.None;
+                case TransformType.Root:
+                case TransformType.Rotation:
+                case TransformType.ExtendBone:
+                    // ボーンは anm のカーブ補間で再生されるため、設定で有効にしたときだけ潰す
+                    return timeline.isSingleFrameAnm ? timeline.singleFrameType : SingleFrameType.None;
             }
 
             return base.GetSingleFrameType(transformType);

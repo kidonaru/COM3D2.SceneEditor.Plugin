@@ -354,8 +354,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public virtual bool initialVisible => true;
 
-        public virtual SingleFrameType singleFrameType => timeline.singleFrameType;
-
         public ValueData this[string name]
         {
             get => GetCustomValue(name);

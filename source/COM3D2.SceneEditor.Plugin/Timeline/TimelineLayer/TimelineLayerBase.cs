@@ -688,9 +688,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         nextFrameNo = bone.frameNo + 1;
                     }
 
-                    // 1フレーム補間が有効な場合は自身を使用
-                    if (bone.transform.singleFrameType == SingleFrameType.Delay ||
-                        bone.transform.singleFrameType == SingleFrameType.Advance)
+                    // 1 フレーム調整で潰れる区間は再生時に補間されないので、隣キーではなく自身を使う。
+                    // 判定は再生側 (PlayDataBase.Setup) と同じくレイヤーの GetSingleFrameType に従う
+                    if (GetSingleFrameType(bone.transform.type) != SingleFrameType.None)
                     {
                         if (bone.frameNo - prevFrameNo == 1)
                         {

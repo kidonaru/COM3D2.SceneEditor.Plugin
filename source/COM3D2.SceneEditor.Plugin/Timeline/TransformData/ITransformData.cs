@@ -225,8 +225,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Vector3 initialScale { get; }
         bool initialVisible { get; }
 
-        SingleFrameType singleFrameType { get; }
-
         ValueData this[string name] { get; }
 
         void Initialize(string name);
