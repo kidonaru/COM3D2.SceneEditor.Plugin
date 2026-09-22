@@ -315,7 +315,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ボーン選択時の専用表示。ボーンドロップダウン + 軸オフセットスライダー。
-        /// Transform 行は出さない（ボーン操作は停止ポーズ基準のオフセット角で行う）
+        /// Transform 行は出さない（ボーン操作は停止ポーズ基準のオフセット角で行う）。
+        /// 全体 (Bip01) だけは Shift ドラッグと同じ平行移動を数値でも行えるよう位置行を足す
         /// </summary>
         private void DrawBoneContent()
         {
@@ -375,6 +376,39 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             BoneSliderRowDrawer.Draw(_view, maid, selectedDef, LabelWidth);
+
+            if (selectedDef.canMove)
+            {
+                DrawPoseBonePositionRow(maid, selectedDef, selectedBone);
+            }
+        }
+
+        /// <summary>
+        /// ポーズボーンの位置行。座標系はスロットボーンと同じくギズモの Local/Global に従う。
+        /// 位置の基準はポーズ次第で 0 に意味が無いため、リセットは出さない
+        /// </summary>
+        private void DrawPoseBonePositionRow(Maid maid, BoneSliderDef def, Transform bone)
+        {
+            var useLocal = GizmoRenderer.useLocalSpace;
+
+            DrawVector3Row("位置", PositionSensitivity,
+                useLocal ? bone.localPosition : bone.position,
+                value =>
+                {
+                    // 再生中は毎フレーム上書きされるため、ドラッグ点と同じく操作の瞬間に止める
+                    MaidMotionState.StopMotion(maid);
+                    HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
+                        "ボーン移動: " + def.displayName, new[] { bone });
+                    if (useLocal)
+                    {
+                        bone.localPosition = value;
+                    }
+                    else
+                    {
+                        bone.position = value;
+                    }
+                },
+                null);
         }
 
         /// <summary>

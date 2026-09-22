@@ -17,6 +17,8 @@ namespace COM3D2.SceneEditor.Plugin
         public string displayName;
         /// <summary>ローカル X/Y/Z 軸の順。常に 3 要素</summary>
         public BoneSliderAxisDef[] axes;
+        /// <summary>回転に加えて位置も編集できるか (全体 = Bip01 のみ)</summary>
+        public bool canMove;
     }
 
     /// <summary>
@@ -47,13 +49,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static BoneSliderDef Def(
             string boneName, string displayName,
-            BoneSliderAxisDef x, BoneSliderAxisDef y, BoneSliderAxisDef z)
+            BoneSliderAxisDef x, BoneSliderAxisDef y, BoneSliderAxisDef z,
+            bool canMove = false)
         {
             return new BoneSliderDef
             {
                 boneName = boneName,
                 displayName = displayName,
                 axes = new[] { x, y, z },
+                canMove = canMove,
             };
         }
 
@@ -82,7 +86,8 @@ namespace COM3D2.SceneEditor.Plugin
             Def("Mune_R",           "右胸",   Axis("ひねり", -90f, 90f),   Axis("横曲げ", -90f, 90f),   Axis("縦曲げ", -90f, 90f)),
 
             // 下半身
-            Def("Bip01",            "全体",   Axis("X回転", -180f, 180f),  Axis("Y回転", -180f, 180f),  Axis("Z回転", -180f, 180f)),
+            Def("Bip01",            "全体",   Axis("X回転", -180f, 180f),  Axis("Y回転", -180f, 180f),  Axis("Z回転", -180f, 180f),
+                canMove: true),
             Def("Bip01 Pelvis",     "骨盤",   Axis("縦曲げ", -40f, 25f),   Axis("横曲げ", -35f, 35f),   Axis("ひねり", -25f, 25f)),
             Def("Bip01 L Thigh",    "左太腿", Axis("ひねり", -45f, 55f),   Axis("横曲げ", -50f, 35f),   Axis("縦曲げ", -30f, 130f)),
             Def("Bip01 L Calf",     "左すね", Axis("ひねり", -40f, 30f),   Axis("横曲げ", -20f, 20f),   Axis("縦曲げ", -10f, 150f)),
