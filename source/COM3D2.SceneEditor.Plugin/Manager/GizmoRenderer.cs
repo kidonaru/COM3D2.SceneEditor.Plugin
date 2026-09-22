@@ -880,6 +880,9 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.BeforeEdit(
                 go.GetComponent<Maid>(), HistoryScope.Object,
                 "ギズモ操作: " + go.name, new[] { go.transform });
+
+            // 確定時にレイヤーを追従させる (BeforeEdit の後でないと控えが消える)
+            TimelineWindow.RecordEditedObjectLayer(go);
         }
 
         public void UpdateDrag(Vector2 rtPoint)

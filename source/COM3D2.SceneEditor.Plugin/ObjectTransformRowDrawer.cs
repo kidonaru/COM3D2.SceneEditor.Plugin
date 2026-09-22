@@ -75,6 +75,10 @@ namespace COM3D2.SceneEditor.Plugin
             HistoryManager.instance.BeforeEdit(
                 go.GetComponent<Maid>(), HistoryScope.Object,
                 "オブジェクト編集: " + go.name, new[] { go.transform });
+
+            // 確定時にレイヤーを追従させる (BeforeEdit の後でないと控えが消える)。
+            // ヘッダーのアクティブ切替も表示状態の変更なので Transform 行と同じく追従させる
+            TimelineWindow.RecordEditedObjectLayer(go);
         }
 
         private static void SetPosition(Transform t, Vector3 value, bool useLocal)

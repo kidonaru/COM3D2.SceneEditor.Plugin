@@ -2769,25 +2769,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// 既にあるレイヤーへのアクティブ切替。無ければ何もしない。
-        /// Hierarchy の選択追従のように「選んだだけ」の操作から使う
-        /// (ChangeActiveLayer は無ければ作るので、選択追従に使うと空レイヤーが増える)
-        /// </summary>
-        public void ChangeActiveLayerIfExists(Type layerType, int slotNo = 0)
-        {
-            if (!IsValidData())
-            {
-                return;
-            }
-
-            var layer = GetLayer(layerType, slotNo);
-            if (layer != null)
-            {
-                SetCurrentLayer(layer);
-            }
-        }
-
-        /// <summary>
         /// 操作対象メイドが変わったときのアクティブレイヤー切替。レイヤーは作らない。
         /// 操作対象コンボと Hierarchy の選択同期の両方から呼ぶ
         /// (どちらか一方だけを直すと、もう一方から空レイヤーが増え続ける)

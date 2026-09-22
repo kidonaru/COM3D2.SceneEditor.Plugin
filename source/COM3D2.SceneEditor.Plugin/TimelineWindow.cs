@@ -432,7 +432,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        // Hierarchy 等での選択をタイムラインのアクティブメイド/レイヤーへ同期する
+        /// <summary>
+        /// Hierarchy 等でのメイド選択をタイムラインのアクティブメイド/レイヤーへ同期する。
+        /// メイド以外 (モデル・PNG 配置・背景モデル・ライト) は選んだだけでは切り替えず、
+        /// ギズモや Inspector で値を動かして確定した時点で追従する (RecordEditedObjectLayer)。
+        /// 選択のたびにレイヤーが飛ぶと、別レイヤーを見ながら対象を選び直す操作が成り立たないため
+        /// </summary>
         private void OnSelectionChanged(GameObject go)
         {
             if (_syncingSelection || go == null)
@@ -447,75 +452,28 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // メイド（配下ボーン含む）なら該当スロットのレイヤーへ切替
+            var maid = go.GetComponentInParent<Maid>();
+            if (maid == null)
+            {
+                return;
+            }
+
             try
             {
                 _syncingSelection = true;
 
-                // メイド（配下ボーン含む）なら該当スロットのレイヤーへ切替
-                var maid = go.GetComponentInParent<Maid>();
-                if (maid != null)
+                var maidCaches = MTEP.MaidManager.instance.maidCaches;
+                for (var i = 0; i < maidCaches.Count; i++)
                 {
-                    var maidCaches = MTEP.MaidManager.instance.maidCaches;
-                    for (var i = 0; i < maidCaches.Count; i++)
+                    if (maidCaches[i].maid == maid)
                     {
-                        if (maidCaches[i].maid == maid)
+                        if (currentLayer.hasSlotNo && currentLayer.slotNo != i)
                         {
-                            if (currentLayer.hasSlotNo && currentLayer.slotNo != i)
-                            {
-                                // 選択に追従するだけなのでレイヤーは作らない
-                                timelineManager.ChangeActiveLayerForSlot(i);
-                            }
-                            return;
+                            // 選択に追従するだけなのでレイヤーは作らない
+                            timelineManager.ChangeActiveLayerForSlot(i);
                         }
-                    }
-                    return;
-                }
-
-                // 以降はメイド以外の単一レイヤー (slotNo を持たない) への切替。
-                // 対象を扱うレイヤーを既に開いている場合は、同じ対象の別レイヤー
-                // (モデルボーン等) を見ている最中に引き戻さないよう切り替えない。
-                // いずれも選択に追従するだけなのでレイヤーは作らない
-
-                // PNG 配置
-                if (PngPlacementManager.instance.FindByDescendant(go) != null)
-                {
-                    if (currentLayer.layerType != typeof(MTEP.PngPlacementTimelineLayer))
-                    {
-                        timelineManager.ChangeActiveLayerIfExists(
-                            typeof(MTEP.PngPlacementTimelineLayer));
-                    }
-                    return;
-                }
-
-                // 外部プラグインが提供する配置モデル
-                if (ModelSelectHost.ResolveModel(go) != null)
-                {
-                    if (!(currentLayer is MTEP.ModelTimelineLayerBase))
-                    {
-                        timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.ModelTimelineLayer));
-                    }
-                    return;
-                }
-
-                // 背景モデル。入れ子のノードを個別に選ぶ作りなので完全一致で引く。
-                // タイムラインへの登録済み一覧 (models) ではなく背景の実ノード一覧で判定する
-                // (別背景で作られたタイムラインでは登録側の実体が null のまま残るため)
-                if (MTEP.BGModelManager.instance.modelInfoList.Exists(info => info.gameObject == go))
-                {
-                    if (!(currentLayer is MTEP.BGModelTimelineLayerBase))
-                    {
-                        timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.BGModelTimelineLayer));
-                    }
-                    return;
-                }
-
-                // 追加ライトならライトレイヤーへ切替
-                var light = go.GetComponentInChildren<Light>();
-                if (light != null && StudioLightManager.instance.lights.Contains(light))
-                {
-                    if (currentLayer.layerType != typeof(MTEP.LightTimelineLayer))
-                    {
-                        timelineManager.ChangeActiveLayerIfExists(typeof(MTEP.LightTimelineLayer));
+                        return;
                     }
                 }
             }
@@ -523,6 +481,87 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _syncingSelection = false;
             }
+        }
+
+        /// <summary>
+        /// メイド以外のオブジェクトの値を書く直前に、確定時に追従するレイヤーを控える。
+        /// ギズモや Inspector の Transform 行はレイヤーゲートの外で値を書くため、
+        /// HistoryManager.BeforeEdit の後に呼ぶこと
+        /// (BeforeEdit 内の AutoEditMode.Enter が「ゲート外 = 控え無し」で上書きするため、前に呼ぶと消える)。
+        /// 対応するレイヤーが無い・既に同じ対象のレイヤーを開いている場合は何もしない
+        /// </summary>
+        public static void RecordEditedObjectLayer(GameObject go)
+        {
+            var currentLayer = timelineManager.currentLayer;
+            if (go == null || timelineManager.timeline == null || currentLayer == null)
+            {
+                return;
+            }
+
+            var layerType = ResolveEditedObjectLayerType(go, currentLayer);
+            if (layerType != null)
+            {
+                TimelineLayerGate.RecordEditedLayer(layerType, 0);
+            }
+        }
+
+        /// <summary>
+        /// 触ったオブジェクトに対応する、メイド非依存 (slotNo を持たない) レイヤーの型。
+        /// 同じ対象の別レイヤー (モデルボーン等) を見ている最中に引き戻さないよう、
+        /// 対象を扱うレイヤーを既に開いている場合は null を返す
+        /// </summary>
+        private static Type ResolveEditedObjectLayerType(GameObject go, MTEP.ITimelineLayer currentLayer)
+        {
+            // メイド (配下ボーン含む) はドラッグ完了側 (OnDragCompleted) で控えるので対象外
+            if (go.GetComponentInParent<Maid>() != null)
+            {
+                return null;
+            }
+
+            // PNG 配置
+            if (PngPlacementManager.instance.FindByDescendant(go) != null)
+            {
+                if (currentLayer.layerType == typeof(MTEP.PngPlacementTimelineLayer))
+                {
+                    return null;
+                }
+                return typeof(MTEP.PngPlacementTimelineLayer);
+            }
+
+            // 外部プラグインが提供する配置モデル
+            if (ModelSelectHost.ResolveModel(go) != null)
+            {
+                if (currentLayer is MTEP.ModelTimelineLayerBase)
+                {
+                    return null;
+                }
+                return typeof(MTEP.ModelTimelineLayer);
+            }
+
+            // 背景モデル。入れ子のノードを個別に選ぶ作りなので完全一致で引く。
+            // タイムラインへの登録済み一覧 (models) ではなく背景の実ノード一覧で判定する
+            // (別背景で作られたタイムラインでは登録側の実体が null のまま残るため)
+            if (MTEP.BGModelManager.instance.modelInfoList.Exists(info => info.gameObject == go))
+            {
+                if (currentLayer is MTEP.BGModelTimelineLayerBase)
+                {
+                    return null;
+                }
+                return typeof(MTEP.BGModelTimelineLayer);
+            }
+
+            // 追加ライト
+            var light = go.GetComponentInChildren<Light>();
+            if (light != null && StudioLightManager.instance.lights.Contains(light))
+            {
+                if (currentLayer.layerType == typeof(MTEP.LightTimelineLayer))
+                {
+                    return null;
+                }
+                return typeof(MTEP.LightTimelineLayer);
+            }
+
+            return null;
         }
 
         protected override void LoadPlacement(out int x, out int y, out int width, out int height)
