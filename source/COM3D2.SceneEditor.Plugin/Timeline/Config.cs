@@ -15,6 +15,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Layer,
     }
 
+    /// <summary>メイドアニメ (モーション) レイヤーを選択したときに前面へ出すウィンドウ</summary>
+    public enum MotionLayerFocusWindow
+    {
+        Motion,
+        IK,
+    }
+
     // 簡易設定の種類
     public enum EasySettingType
     {
@@ -40,6 +47,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         // 動作設定
         public TimelineLayerViewMode layerViewMode = TimelineLayerViewMode.Category;
+        public MotionLayerFocusWindow motionLayerFocusWindow = MotionLayerFocusWindow.IK;
         public bool isCameraSync = true;
         public bool isFixedFoV = false;
         public bool isFixedFocus = false;

@@ -349,6 +349,7 @@
     <Compile Include="MaidFaceWindow.cs" />
     <Compile Include="MaidFingerWindow.cs" />
     <Compile Include="MaidIKWindow.cs" />
+    <Compile Include="MotionLayerFocusUtils.cs" />
     <Compile Include="MaidUndressWindow.cs" />
     <Compile Include="MaidGravityWindow.cs" />
     <Compile Include="BoneEditWindow.cs" />

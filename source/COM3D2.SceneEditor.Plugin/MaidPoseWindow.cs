@@ -131,9 +131,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override bool TryFocusTimelineLayer(Type layerType)
         {
-            // 指・IK・ボーン編集も同じモーションレイヤーへ記録するが、代表としてポーズウィンドウだけ前面へ出す
-            return layerType == typeof(MTEP.MotionTimelineLayer)
-                || layerType == typeof(MTEP.AnimationTimelineLayer);
+            // 指・IK・ボーン編集も同じモーションレイヤーへ記録するので、
+            // 前面へ出す代表ウィンドウ (モーション / IK) は設定で選ぶ
+            return MotionLayerFocusUtils.ShouldFocus(layerType, MTEP.MotionLayerFocusWindow.Motion);
         }
 
         /// <summary>

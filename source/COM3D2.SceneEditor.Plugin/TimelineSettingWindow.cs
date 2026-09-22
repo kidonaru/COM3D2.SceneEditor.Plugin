@@ -75,6 +75,24 @@ namespace COM3D2.SceneEditor.Plugin
             },
         };
 
+        private static readonly string[] MotionLayerFocusWindowNames =
+        {
+            "モーション",
+            "IK",
+        };
+
+        private readonly GUIComboBox<MTEP.MotionLayerFocusWindow> _motionLayerFocusWindowComboBox
+            = new GUIComboBox<MTEP.MotionLayerFocusWindow>
+        {
+            items = Enum.GetValues(typeof(MTEP.MotionLayerFocusWindow)).Cast<MTEP.MotionLayerFocusWindow>().ToList(),
+            getName = (type, index) => MotionLayerFocusWindowNames[index],
+            onSelected = (type, index) =>
+            {
+                timelineConfig.motionLayerFocusWindow = type;
+                timelineConfig.dirty = true;
+            },
+        };
+
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.TimelineData timeline => timelineManager.timeline;
         private static MTEP.Config timelineConfig => MTEP.ConfigManager.instance.config;
@@ -412,6 +430,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _defaultTangentTypeComboBox.currentIndex = (int)timelineConfig.defaultTangentType;
             _defaultTangentTypeComboBox.DrawButton("初期補間曲線", view);
+
+            // メイドアニメレイヤーの選択で前面へ出すウィンドウ (モーション / IK)
+            _motionLayerFocusWindowComboBox.currentIndex = (int)timelineConfig.motionLayerFocusWindow;
+            _motionLayerFocusWindowComboBox.DrawButton("アニメ選択で前面", view);
 
             view.DrawSliderValue(new GUIView.SliderOption
             {

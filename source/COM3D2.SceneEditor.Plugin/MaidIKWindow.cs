@@ -1,4 +1,5 @@
-﻿using COM3D2.MotionTimelineEditor;
+﻿using System;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -14,6 +15,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "IK";
+
+        public override bool TryFocusTimelineLayer(Type layerType)
+        {
+            return MotionLayerFocusUtils.ShouldFocus(layerType, MTEP.MotionLayerFocusWindow.IK);
+        }
 
         /// <summary>行単位でまとめて操作する左右ペア（MTE と同じ並び）</summary>
         private static readonly MaidIKHoldType[][] HoldTypePairs =
