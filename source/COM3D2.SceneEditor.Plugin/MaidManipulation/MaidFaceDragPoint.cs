@@ -4,6 +4,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// 頭部のドラッグ点。通常ドラッグで顔向き（首ボーンの回転）、
+    /// Ctrl ドラッグで横方向の回転軸を鉛直軸（左右の振り向き）に切り替え、
     /// Alt+Ctrl ドラッグで瞳の向きを操作する（MultipleMaids の gHead 相当）。
     /// 回すのは Bip01 Head ではなく Bip01 Neck で、これは MM と同じ
     /// </summary>
@@ -25,6 +26,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>ドラッグ開始時に瞳モードだったか。途中でキーを離しても切り替わらないよう固定する</summary>
         private bool _isEyeMode = false;
+
+        /// <summary>
+        /// ドラッグ開始時に Ctrl が押されていたか。横ドラッグを鉛直軸まわりの回転にする。
+        /// Alt 併用時は canDrag で掴めない（Alt+Ctrl は瞳モード）ので、有効なのは Ctrl 単独のとき
+        /// </summary>
+        private bool _isYawMode = false;
 
         /// <summary>ドラッグ中の座標変換に使うカメラ。掴んだ側を覚えて二重駆動を防ぐ</summary>
         private Camera _dragCamera = null;
@@ -66,6 +73,7 @@ namespace COM3D2.SceneEditor.Plugin
             _dragCamera = camera;
             _mouseDownPos = pointerPos;
             _isEyeMode = IsEyeModifierHeld();
+            _isYawMode = !_isEyeMode && IsCtrlHeld();
 
             _baseNeckAngles = neckBone.localEulerAngles;
             _baseEyeAnglesL = maid.body0.quaDefEyeL.eulerAngles;
@@ -189,7 +197,10 @@ namespace COM3D2.SceneEditor.Plugin
             EndDrag(Input.mousePosition);
         }
 
-        /// <summary>首ボーンを掴んだカメラ基準の水平軸・前後軸で回す（MouseDrag3 ido==1 と同型）</summary>
+        /// <summary>
+        /// 首ボーンを掴んだカメラ基準の水平軸・前後軸で回す（MouseDrag3 ido==1 と同型）。
+        /// Ctrl モードでは横ドラッグの軸を前後軸から鉛直軸に替え、通常ドラッグでは出せない左右の振り向きにする
+        /// </summary>
         private void ApplyHeadRotation(Vector3 delta)
         {
             if (_dragCamera == null)
@@ -204,8 +215,8 @@ namespace COM3D2.SceneEditor.Plugin
             neckBone.localEulerAngles = _baseNeckAngles;
             neckBone.RotateAround(neckBone.position,
                 new Vector3(right.x, 0f, right.z), delta.y / HeadPitchDivisor);
-            neckBone.RotateAround(neckBone.position,
-                new Vector3(forward.x, 0f, forward.z), -delta.x / HeadYawDivisor);
+            var yawAxis = _isYawMode ? Vector3.up : new Vector3(forward.x, 0f, forward.z);
+            neckBone.RotateAround(neckBone.position, yawAxis, -delta.x / HeadYawDivisor);
         }
 
         /// <summary>左右の瞳を逆向きに振って寄り目にならないようにする（MouseDrag3 ido==7 と同型）</summary>
@@ -225,6 +236,11 @@ namespace COM3D2.SceneEditor.Plugin
             return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
         }
 
+        private static bool IsCtrlHeld()
+        {
+            return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        }
+
         /// <summary>
         /// 頭のボーンギズモ（Alt グループ）と取り合いにならないよう、Alt 中は顔向きを回さない。
         /// 目線は Alt+Ctrl 固定なのでこちらは Alt 中でも受け付ける
@@ -242,9 +258,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static bool IsEyeModifierHeld()
         {
-            var alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-            var ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            return alt && ctrl;
+            return IsAltHeld() && IsCtrlHeld();
         }
 
         private void OnDestroy()
