@@ -35,10 +35,19 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>これ以下の移動量ならドラッグではなくクリックとみなす (px)</summary>
         private const float ClickThresholdPixels = 5f;
 
+        /// <summary>この秒数以内の 2 回目のクリックをダブルクリックとみなす</summary>
+        private const float DoubleClickTime = 0.3f;
+
+        /// <summary>_lastClickTime が未クリック状態であることを示す値</summary>
+        private const float NoClickTime = -1f;
+
         private bool _isDragging = false;
         private Vector3 _screenPoint;
         private Vector3 _offset;
         private Vector3 _mouseDownPos;
+
+        /// <summary>直前のクリック確定時刻。ダブルクリック判定用</summary>
+        private float _lastClickTime = NoClickTime;
 
         /// <summary>
         /// ドラッグ中の座標変換に使うカメラ。ゲーム画面と SceneView で異なるため掴んだ側を覚えておく
@@ -171,10 +180,42 @@ namespace COM3D2.SceneEditor.Plugin
             MaidDragBoneTracker.NotifyDragCompleted(maid);
 
             // 選択自体は BeginDrag 済み。クリック（微小移動）なら Inspector も開く
-            if ((pointerPos - downPos).magnitude <= ClickThresholdPixels)
+            if ((pointerPos - downPos).magnitude > ClickThresholdPixels)
             {
-                InspectorWindow.instance.isShowWnd = true;
+                _lastClickTime = NoClickTime;
+                return;
             }
+
+            InspectorWindow.instance.isShowWnd = true;
+
+            var now = Time.realtimeSinceStartup;
+            if (_lastClickTime >= 0f && now - _lastClickTime < DoubleClickTime)
+            {
+                // 成立直後の 3 回目のクリックで再トグルさせないよう判定状態を戻す
+                _lastClickTime = NoClickTime;
+                ToggleHold();
+                return;
+            }
+            _lastClickTime = now;
+        }
+
+        /// <summary>
+        /// ダブルクリックで IK 固定を切り替える。Inspector のトグルと同じ経路で履歴に残す。
+        /// 肩・胸には対応する固定タイプが無いため何もしない
+        /// </summary>
+        private void ToggleHold()
+        {
+            MaidIKHoldType holdType;
+            if (!MaidIKHoldController.TryGetHoldType(followBone.name, out holdType))
+            {
+                return;
+            }
+
+            var holdController = MaidManipulateManager.instance.ikHoldController;
+            var hold = !holdController.GetHold(maid, holdType);
+            HistoryManager.instance.BeforeEdit(maid, HistoryScope.IK,
+                "IK固定: " + MaidIKHoldController.GetHoldTypeName(holdType));
+            holdController.SetHold(maid, holdType, hold);
         }
 
         /// <summary>
