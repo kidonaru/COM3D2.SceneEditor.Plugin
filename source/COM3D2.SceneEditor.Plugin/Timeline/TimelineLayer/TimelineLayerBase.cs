@@ -689,14 +689,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
 
                     // 1 フレーム調整で潰れる区間は再生時に補間されないので、隣キーではなく自身を使う。
-                    // 判定は再生側 (PlayDataBase.Setup) と同じくレイヤーの GetSingleFrameType に従う
+                    // 判定は再生側 (PlayDataBase.Setup) と同じくレイヤーの GetSingleFrameType に従い、
+                    // 別ループへ回り込んだキーと最後の区間 (Setup の走査対象外) は潰さない
                     if (GetSingleFrameType(bone.transform.type) != SingleFrameType.None)
                     {
-                        if (bone.frameNo - prevFrameNo == 1)
+                        int dummyFrameNo;
+                        var isLastBone = GetNextBone2(bone.frameNo, bones, out dummyFrameNo, false) == null;
+                        var isNextLastBone = nextBone != bone
+                            && GetNextBone2(nextBone.frameNo, bones, out dummyFrameNo, false) == null;
+
+                        if (bone.frameNo - prevFrameNo == 1 && prevFrameNo == prevBone.frameNo && !isLastBone)
                         {
                             prevBone = bone;
                         }
-                        if (nextFrameNo - bone.frameNo == 1)
+                        if (nextFrameNo - bone.frameNo == 1 && nextFrameNo == nextBone.frameNo && !isNextLastBone)
                         {
                             nextBone = bone;
                         }
