@@ -267,18 +267,7 @@ namespace COM3D2.SceneEditor.Plugin
             _layerComboBox.onSelected = (layer, _) => SelectLayer(layer);
 
             _categoryComboBox.getName = (category, _) => GetCategoryLabel(category);
-            _categoryComboBox.onSelected = (category, _) =>
-            {
-                var first = TimelineLayerViewFilter.FindFirstLayer(
-                    _targetLayers, category, GetLayerCategory, GetLayerPriority);
-                if (first != null && first != timelineManager.currentLayer)
-                {
-                    // レイヤー切替は選択を保持するが、カテゴリ切替は編集対象が変わるので解除する
-                    timelineManager.UnselectAll();
-                    requestUpdateTexture = true;
-                    timelineManager.SetCurrentLayer(first);
-                }
-            };
+            _categoryComboBox.onSelected = (category, _) => SelectCategory(category);
 
             _layerMenuComboBox.getEnabled = (action, _) => IsLayerMenuActionEnabled(action);
             _layerMenuComboBox.onSelected = (action, _) => OnLayerMenuSelected(action);
@@ -1677,10 +1666,29 @@ namespace COM3D2.SceneEditor.Plugin
             return info != null ? info.priority : int.MaxValue;
         }
 
-        /// <summary>カテゴリコンボの項目名。カテゴリ名 + 操作対象レイヤー数</summary>
+        /// <summary>
+        /// カテゴリの先頭レイヤーをアクティブ化する (カテゴリコンボとキー入力の共通経路)。
+        /// 操作対象レイヤーが無いカテゴリでは何もしない
+        /// </summary>
+        public void SelectCategory(MTEP.TimelineLayerCategory category)
+        {
+            var first = TimelineLayerViewFilter.FindFirstLayer(
+                _targetLayers, category, GetLayerCategory, GetLayerPriority);
+            if (first != null && first != timelineManager.currentLayer)
+            {
+                // レイヤー切替は選択を保持するが、カテゴリ切替は編集対象が変わるので解除する
+                timelineManager.UnselectAll();
+                requestUpdateTexture = true;
+                timelineManager.SetCurrentLayer(first);
+            }
+        }
+
+        /// <summary>カテゴリコンボの項目名。切替キー + カテゴリ名 + 操作対象レイヤー数</summary>
         private string GetCategoryLabel(MTEP.TimelineLayerCategory category)
         {
-            return MTEP.Extensions.ToDisplayName(category) + " (" + _categoryLayerCounts[(int)category] + ")";
+            var keyLabel = config.GetCategoryKeyLabel(category);
+            var prefix = keyLabel.Length > 0 ? keyLabel + ": " : "";
+            return prefix + MTEP.Extensions.ToDisplayName(category) + " (" + _categoryLayerCounts[(int)category] + ")";
         }
 
         /// <summary>

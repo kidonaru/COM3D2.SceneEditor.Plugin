@@ -31,6 +31,13 @@ namespace COM3D2.SceneEditor.Plugin
         PrevKeyFrame,
         NextKeyFrame,
         MultiSelect,
+        // レイヤーカテゴリ切替。TimelineLayerCategory の定義順に対応させるため連番で並べる
+        SelectCategory1,
+        SelectCategory2,
+        SelectCategory3,
+        SelectCategory4,
+        SelectCategory5,
+        SelectCategory6,
     }
 
     public class Config
@@ -556,6 +563,12 @@ namespace COM3D2.SceneEditor.Plugin
             { KeyBindType.PrevKeyFrame, new KeyBind("Ctrl+A") },
             { KeyBindType.NextKeyFrame, new KeyBind("Ctrl+D") },
             { KeyBindType.MultiSelect, new KeyBind("Shift") },
+            { KeyBindType.SelectCategory1, new KeyBind("Alpha1") },
+            { KeyBindType.SelectCategory2, new KeyBind("Alpha2") },
+            { KeyBindType.SelectCategory3, new KeyBind("Alpha3") },
+            { KeyBindType.SelectCategory4, new KeyBind("Alpha4") },
+            { KeyBindType.SelectCategory5, new KeyBind("Alpha5") },
+            { KeyBindType.SelectCategory6, new KeyBind("Alpha6") },
         };
 
         public struct KeyBindPair
@@ -633,6 +646,25 @@ namespace COM3D2.SceneEditor.Plugin
         public string GetKeyName(KeyBindType keyBindType)
         {
             return keyBinds[keyBindType].ToString();
+        }
+
+        /// <summary>
+        /// レイヤーカテゴリに対応する切替キー。enum 定義順で SelectCategory1 から割り当てる。
+        /// TimelineLayerCategory に値を足すときは SelectCategoryN と既定値も足す (テストで件数を固定)
+        /// </summary>
+        public static KeyBindType GetCategoryKeyBindType(MTEP.TimelineLayerCategory category)
+        {
+            return KeyBindType.SelectCategory1 + (int)category;
+        }
+
+        /// <summary>
+        /// カテゴリ切替キーの表示名。KeyCode の数字キーは "Alpha1" / "Keypad1" と長いため
+        /// 接頭辞を落として数字だけにする。未割り当てなら空文字
+        /// </summary>
+        public string GetCategoryKeyLabel(MTEP.TimelineLayerCategory category)
+        {
+            var name = GetKeyName(GetCategoryKeyBindType(category));
+            return name.Replace("Alpha", "").Replace("Keypad", "");
         }
     }
 }

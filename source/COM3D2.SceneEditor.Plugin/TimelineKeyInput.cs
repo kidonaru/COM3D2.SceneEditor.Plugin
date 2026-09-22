@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -14,6 +16,9 @@ namespace COM3D2.SceneEditor.Plugin
         private static MTEP.MaidManager maidManager => MTEP.MaidManager.instance;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
         private static MTEP.ITimelineLayer currentLayer => timelineManager.currentLayer;
+
+        private static readonly List<MTEP.TimelineLayerCategory> ALL_CATEGORIES =
+            MTEUtils.GetEnumValues<MTEP.TimelineLayerCategory>();
 
         /// <summary>タイムライン操作のキー入力を処理する</summary>
         public static void Update()
@@ -101,6 +106,13 @@ namespace COM3D2.SceneEditor.Plugin
             if (config.GetKeyDown(KeyBindType.PosePaste))
             {
                 timelineManager.PastePoseFromClipboard();
+            }
+            foreach (var category in ALL_CATEGORIES)
+            {
+                if (config.GetKeyDown(Config.GetCategoryKeyBindType(category)))
+                {
+                    TimelineWindow.instance.SelectCategory(category);
+                }
             }
         }
 

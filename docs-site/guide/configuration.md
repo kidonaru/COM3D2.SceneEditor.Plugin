@@ -152,5 +152,6 @@
 | `Copy` / `Paste` / `FlipPaste` | `Ctrl+C` / `Ctrl+V` / `Ctrl+Shift+V` | キーフレームのコピー / 貼り付け / 反転貼り付け |
 | `PoseCopy` / `PosePaste` | `Ctrl+Alt+C` / `Ctrl+Alt+V` | ポーズのコピー / 貼り付け |
 | `MultiSelect` | `Shift` | グリッドの複数選択 |
+| `SelectCategory1` 〜 `SelectCategory6` | `Alpha1` 〜 `Alpha6` | レイヤーカテゴリの切替（1: メイド / 2: カメラ / 3: モデル / 4: 背景 / 5: ライト・演出 / 6: その他） |
 
 `AddKeyFrame` 以降はタイムライン操作のキーです（[ショートカット](/timeline/shortcuts)）。

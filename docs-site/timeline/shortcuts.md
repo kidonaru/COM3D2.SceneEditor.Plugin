@@ -14,6 +14,7 @@
 | `Ctrl` + `Shift` + `V` | 反転ペースト | `FlipPaste` |
 | `Ctrl` + `Alt` + `C` / `Ctrl` + `Alt` + `V` | ポーズのコピー / ペースト | `PoseCopy` / `PosePaste` |
 | `Shift`（押している間） | グリッド・ボーンメニューの複数選択 | `MultiSelect` |
+| `1` 〜 `6` | レイヤーカテゴリの切替（1: メイド / 2: カメラ / 3: モデル / 4: 背景 / 5: ライト・演出 / 6: その他）。そのカテゴリの先頭レイヤーがアクティブになる。設定値は `Alpha1` 〜 `Alpha6` | `SelectCategory1` 〜 `SelectCategory6` |
 
 ## SceneEditor 本体のキー
 
