@@ -341,7 +341,7 @@ Inspector のボーンスライダーも無効になります。ボーンを触�
 対応プラグインを導入していない場合は「対応プラグインの配置モデルがありません」と表示されます。
 
 現在は [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases)
-v2.0.0.0 以降が対応しています（[インストール](/guide/installation#推奨プラグイン-連携対応)も参照）。
+v2.3.0.0 以降が対応しています（[インストール](/guide/installation#推奨プラグイン-連携対応)も参照）。
 
 `対象` の選択は SceneView での選択と双方向に連動します。
 

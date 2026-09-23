@@ -58,8 +58,8 @@ SceneCapture プラグインのプリセット（`Sybaris\UnityInjector\Config\S
 
 | プラグイン | 保存/復元される内容 | 対応バージョン |
 |---|---|---|
-| [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases) | モデル配置 | v2.0.0.0 以降 |
-| [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト設定 | v2.0.0.0 以降 |
+| [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases) | モデル配置 | v2.3.0.0 以降 |
+| [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト設定 | v2.2.1.0 以降 |
 
 開発者向けの詳細は
 [シーンプリセット連携ガイド](/dev/scene-preset-provider-guide)

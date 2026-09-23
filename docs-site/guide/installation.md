@@ -45,8 +45,24 @@ System.Reflection.ReflectionTypeLoadException: The classes in the module cannot 
 
 | プラグイン | 連携内容 | 対応バージョン |
 |---|---|---|
-| [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases) | MOD アイテムの閲覧・モデル配置。配置したモデルをシーンプリセットに保存/復元できます | v2.0.0.0 以降 |
-| [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト。エフェクト設定をシーンプリセットに保存/復元できます | v2.0.0.0 以降 |
+| [COM3D2.ModItemExplorer.Plugin](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases) | MOD アイテムの閲覧・モデル配置。配置したモデルをシーンプリセットに保存/復元できます | v2.3.0.0 以降 |
+| [COM3D25.PostEffects.Plugin](https://github.com/kidonaru/COM3D25.PostEffects.Plugin/releases) | ポストエフェクト。エフェクト設定をシーンプリセットに保存/復元できます | v2.2.1.0 以降 |
+
+## 非対応のプラグイン・モード
+
+以下のプラグインやモードは、エディタウィンドウモード中の同時使用に対応していません。
+使う場合は `F10` でエディタウィンドウモードを解除してください。
+データの互換は表のとおりで、読み込みに対応しているものも保存は SceneEditor 形式のみです。
+
+| プラグイン / モード | 同時使用 | データの読み込み | データの保存 |
+|---|---|---|---|
+| MotionTimelineEditor（MTE） | 非対応 | 可。MTE のタイムライン XML をそのまま開けます | 不可。SceneEditor で保存した XML は MTE で開けません（[MTE 互換と制限事項](/timeline/compatibility)） |
+| SceneCapture | 非対応 | 可。プリセットを読み込み専用で利用できます（[シーンプリセット](/guide/scene-preset#scenecapture-プリセットの読み込み)） | 不可。SceneCapture 形式では保存できません |
+| 複数メイドプラグイン（MultipleMaids） | 非対応 | なし | なし |
+| MeidoPhotoStudio | 非対応 | なし | なし |
+| ゲーム標準のスタジオモード | 非対応 | なし | なし |
+
+カメラ操作を奪い合う仕組みなど、他プラグインと干渉する技術的な条件は[既知の制限](/guide/limitations)を参照してください。
 
 ## アンインストール
 
