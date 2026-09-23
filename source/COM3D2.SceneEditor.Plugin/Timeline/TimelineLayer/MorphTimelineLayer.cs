@@ -280,18 +280,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (start.morphValue != end.morphValue)
             {
-                _applyMorphMap[morphName] = Lerp(start.morphValue, end.morphValue, t, morphName);
+                _applyMorphMap[morphName] = Interpolate(motion, start, end, t, morphName);
             }
         }
 
-        /// <summary>頬・涙などのオプションモーフは中間値を持たないためステップ適用する</summary>
-        private float Lerp(float startValue, float endValue, float lerpFrame, string morphName)
+        /// <summary>
+        /// 頬・涙などのオプションモーフは中間値を持たないためステップ適用する。
+        /// それ以外はタイムライン設定に応じて Hermite (タンジェント) か線形で補間する
+        /// </summary>
+        private float Interpolate(MotionData motion, TransformDataMorph start, TransformDataMorph end, float t, string morphName)
         {
-            if (FaceMorphUtils.IsStepMorph(morphName) && lerpFrame < StepEndThreshold)
+            if (FaceMorphUtils.IsStepMorph(morphName))
             {
-                lerpFrame = 0f;
+                return t < StepEndThreshold ? start.morphValue : end.morphValue;
             }
-            return Mathf.Lerp(startValue, endValue, lerpFrame);
+
+            if (start.hasTangent)
+            {
+                return PluginUtils.HermiteValue(
+                    motion.stFrame * timeline.frameDuration,
+                    motion.edFrame * timeline.frameDuration,
+                    start.morphValueValue,
+                    end.morphValueValue,
+                    t);
+            }
+
+            return Mathf.Lerp(start.morphValue, end.morphValue, t);
         }
 
         private float GetMorphValue(string morphName)
