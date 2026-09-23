@@ -280,7 +280,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (start.morphValue != end.morphValue)
             {
-                _applyMorphMap[morphName] = Interpolate(motion, start, end, t, morphName);
+                var startTime = motion.stFrame * timeline.frameDuration;
+                var endTime = motion.edFrame * timeline.frameDuration;
+                _applyMorphMap[morphName] = Interpolate(startTime, endTime, start, end, t, morphName);
             }
         }
 
@@ -288,7 +290,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// 頬・涙などのオプションモーフは中間値を持たないためステップ適用する。
         /// それ以外はタイムライン設定に応じて Hermite (タンジェント) か線形で補間する
         /// </summary>
-        private float Interpolate(MotionData motion, TransformDataMorph start, TransformDataMorph end, float t, string morphName)
+        private float Interpolate(float startTime, float endTime, TransformDataMorph start, TransformDataMorph end, float t, string morphName)
         {
             if (FaceMorphUtils.IsStepMorph(morphName))
             {
@@ -298,8 +300,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (start.hasTangent)
             {
                 return PluginUtils.HermiteValue(
-                    motion.stFrame * timeline.frameDuration,
-                    motion.edFrame * timeline.frameDuration,
+                    startTime,
+                    endTime,
                     start.morphValueValue,
                     end.morphValueValue,
                     t);

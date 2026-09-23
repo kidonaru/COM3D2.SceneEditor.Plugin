@@ -12,10 +12,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>全キーの in/out が 0 かつ非スムーズなら未編集とみなす。空の列は false</summary>
         public static bool IsUntouched(IEnumerable<ITransformData> transforms)
         {
-            var any = false;
+            var hasAnyTransform = false;
             foreach (var trans in transforms)
             {
-                any = true;
+                hasAnyTransform = true;
                 foreach (var value in trans.tangentValues)
                 {
                     if (value.inTangent.isSmooth || value.inTangent.normalizedValue != 0f
@@ -25,7 +25,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
                 }
             }
-            return any;
+            return hasAnyTransform;
         }
 
         /// <summary>表情レイヤーのタンジェントが未編集なら既定値へ戻す。isTangentFace を true にした後に呼ぶ</summary>
