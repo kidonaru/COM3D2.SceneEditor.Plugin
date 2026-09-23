@@ -233,6 +233,19 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineManager.ApplyCurrentFrame(true);
             });
 
+            view.DrawToggle("表情をタンジェント補間", timeline.isTangentFace, -1, ROW_HEIGHT, newValue =>
+            {
+                timeline.isTangentFace = newValue;
+
+                // OFF で保存された XML はタンジェントを持たないので、未編集のときだけ既定へ戻す
+                // (編集済みのタンジェントは ON/OFF を往復しても保持する)
+                if (newValue)
+                {
+                    MTEP.FaceTangentToggle.ResetIfUntouched(timeline.layers);
+                }
+                timelineManager.ApplyCurrentFrame(true);
+            });
+
             view.BeginHorizontal();
             {
                 view.DrawToggle("胸(左)の物理無効", timeline.useMuneKeyL, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
