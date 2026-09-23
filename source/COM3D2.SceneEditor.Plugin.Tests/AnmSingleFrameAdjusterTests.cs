@@ -90,8 +90,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(5, r.Count);
             AssertKey(r[0], 0, 0f, false, false);
             AssertKey(r[1], 1, 5 * Frame, false, false);
-            AssertKey(r[2], 2, 11 * Frame - Eps, false, true);
-            AssertKey(r[3], 3, 11 * Frame, true, false);
+            // 瞬間切替は公称時刻より ε 手前に置く。シーク位置 (rate * clip.length) が
+            // キー時刻 (frame * fd - start * fd) より丸めで僅かに手前へ落ちても前キーの値を拾わない
+            AssertKey(r[2], 2, 11 * Frame - 2 * Eps, false, true);
+            AssertKey(r[3], 3, 11 * Frame - Eps, true, false);
             AssertKey(r[4], 4, 20 * Frame, false, false);
         }
 
@@ -103,7 +105,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Equal(4, r.Count);
             AssertKey(r[1], 1, 10 * Frame, false, true);
-            AssertKey(r[2], 2, 11 * Frame, true, false);
+            AssertKey(r[2], 2, 11 * Frame - Eps, true, false);
         }
 
         [Fact]
@@ -112,8 +114,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var r = Adjust(Keys(0, 10, 11, 20), SingleFrameType.Advance);
 
             Assert.Equal(4, r.Count);
-            AssertKey(r[1], 1, 10 * Frame - Eps, false, true);
-            AssertKey(r[2], 2, 10 * Frame, true, false);
+            AssertKey(r[1], 1, 10 * Frame - 2 * Eps, false, true);
+            AssertKey(r[2], 2, 10 * Frame - Eps, true, false);
             AssertKey(r[3], 3, 20 * Frame, false, false);
         }
 
@@ -136,13 +138,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var delay = Adjust(keys, SingleFrameType.Delay);
             Assert.Equal(4, delay.Count);
-            AssertKey(delay[2], 2, 11 * Frame - Eps, false, true);
-            AssertKey(delay[3], 3, 11 * Frame, true, false);
+            AssertKey(delay[2], 2, 11 * Frame - 2 * Eps, false, true);
+            AssertKey(delay[3], 3, 11 * Frame - Eps, true, false);
 
             var advance = Adjust(keys, SingleFrameType.Advance);
             Assert.Equal(4, advance.Count);
-            AssertKey(advance[2], 2, 10 * Frame - Eps, false, true);
-            AssertKey(advance[3], 3, 10 * Frame, true, false);
+            AssertKey(advance[2], 2, 10 * Frame - 2 * Eps, false, true);
+            AssertKey(advance[3], 3, 10 * Frame - Eps, true, false);
         }
 
         [Fact]
@@ -153,8 +155,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Equal(6, r.Count);
             AssertKey(r[2], 2, 11 * Frame, false, false);
-            AssertKey(r[3], 3, 12 * Frame - Eps, false, true);
-            AssertKey(r[4], 4, 12 * Frame, true, false);
+            AssertKey(r[3], 3, 12 * Frame - 2 * Eps, false, true);
+            AssertKey(r[4], 4, 12 * Frame - Eps, true, false);
         }
 
         [Fact]
@@ -164,8 +166,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var r = Adjust(Keys(0, 10, 11, 12, 20), SingleFrameType.Advance);
 
             Assert.Equal(new[] { 0, 1, 3, 4 }, r.Select(t => t.source).ToArray());
-            AssertKey(r[1], 1, 10 * Frame - Eps, false, true);
-            AssertKey(r[2], 3, 10 * Frame, true, false);
+            AssertKey(r[1], 1, 10 * Frame - 2 * Eps, false, true);
+            AssertKey(r[2], 3, 10 * Frame - Eps, true, false);
         }
 
         [Fact]
@@ -176,12 +178,12 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(8, r.Count);
             // 2 番目のキー (5) の対は前区間を延ばさないので、5→6 は保持になる
             AssertKey(r[1], 1, 5 * Frame, false, true);
-            AssertKey(r[2], 1, 6 * Frame, true, false);
+            AssertKey(r[2], 1, 6 * Frame - Eps, true, false);
             // 連鎖の途中 (5→6, 6→7) は 1 フレーム遅れで補間される
             AssertKey(r[3], 2, 7 * Frame, false, false);
             AssertKey(r[4], 3, 8 * Frame, false, false);
-            AssertKey(r[5], 4, 9 * Frame - Eps, false, true);
-            AssertKey(r[6], 5, 9 * Frame, true, false);
+            AssertKey(r[5], 4, 9 * Frame - 2 * Eps, false, true);
+            AssertKey(r[6], 5, 9 * Frame - Eps, true, false);
             AssertKey(r[7], 6, 20 * Frame, false, false);
         }
 
@@ -200,7 +202,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Equal(3, r.Count);
             AssertKey(r[0], 0, 0f, false, true);
-            AssertKey(r[1], 1, 1 * Frame, true, false);
+            AssertKey(r[1], 1, 1 * Frame - Eps, true, false);
         }
 
         [Fact]

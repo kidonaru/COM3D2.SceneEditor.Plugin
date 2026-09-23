@@ -159,6 +159,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var lastIndex = result.Count - 1;
             var last = result[lastIndex];
 
+            // 瞬間切替の位置は公称時刻より ε 手前に置く。再生位置は rate * clip.length で求まり、
+            // キー時刻 (frame * fd - start * fd) と丸め方が違うため、公称時刻ちょうどへシークすると
+            // 僅かに手前へ落ちて保持区間 (前キーの値) を拾うことがある (実機で確認)
             if (anchor.time <= last.time)
             {
                 // 区間の終端と次区間の始端が同じキーなら 1 つにまとめる
@@ -167,21 +170,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return;
                 }
 
-                // 同時刻で値が切り替わるので、手前のキーを ε だけ前へずらして瞬間切替にする
-                last.time = anchor.time - epsilon;
+                // 同時刻で値が切り替わるので、次キーを公称 - ε、手前のキーをさらに ε 前 (公称 - 2ε) へ
+                // ずらして瞬間切替にする
+                next.time = anchor.time - epsilon;
+                last.time = next.time - epsilon;
                 if (lastIndex > 0 && last.time <= result[lastIndex - 1].time)
                 {
-                    last.time = (result[lastIndex - 1].time + anchor.time) * 0.5f;
+                    last.time = (result[lastIndex - 1].time + next.time) * 0.5f;
                 }
                 last.stepOut = true;
                 next.stepIn = true;
-                next.time = anchor.time;
             }
             else if (anchor.isSegmentStart)
             {
-                // 区間の間の空白は手前の値を保持する
+                // 区間の間の空白は手前の値を保持し、次区間の始端で瞬間切替する
                 last.stepOut = true;
                 next.stepIn = true;
+                next.time = anchor.time - epsilon;
+                if (next.time <= last.time)
+                {
+                    next.time = (last.time + anchor.time) * 0.5f;
+                }
             }
 
             result[lastIndex] = last;
