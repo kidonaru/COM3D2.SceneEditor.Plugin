@@ -24,6 +24,9 @@ namespace COM3D2.SceneEditor.Plugin
         public const float DefaultMainShadowStrength = 0.098f;
         public const float DefaultMainShadowBias = 0.01f;
 
+        /// <summary>強度スライダーの上限（メイン・追加ライト共通）</summary>
+        public const float MaxIntensity = 20f;
+
         /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
         public static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
 
@@ -98,7 +101,7 @@ namespace COM3D2.SceneEditor.Plugin
                 new Vector3(DefaultMainRotation.x, DefaultMainRotation.y - 360f),
                 lightMain.SetRotation);
 
-            DrawAxisSlider(view, labelWidth, "強度", light.intensity, 0f, 5f, 0.01f,
+            DrawAxisSlider(view, labelWidth, "強度", light.intensity, 0f, MaxIntensity, 0.01f,
                 DefaultMainIntensity, value => lightMain.SetIntensity(value));
             DrawAxisSlider(view, labelWidth, "影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
                 DefaultMainShadowStrength, value => lightMain.SetShadowStrength(value));
@@ -204,7 +207,7 @@ namespace COM3D2.SceneEditor.Plugin
                     value => light.transform.eulerAngles = value);
             }
 
-            DrawAxisSlider(view, labelWidth, "強度", light.intensity, 0f, 5f, 0.01f,
+            DrawAxisSlider(view, labelWidth, "強度", light.intensity, 0f, MaxIntensity, 0.01f,
                 StudioLightManager.DefaultIntensity, value => light.intensity = value);
 
             // 平行光源は位置・減衰を持たないため範囲は編集させない
