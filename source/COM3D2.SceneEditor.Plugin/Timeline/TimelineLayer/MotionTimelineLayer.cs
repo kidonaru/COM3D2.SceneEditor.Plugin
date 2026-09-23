@@ -217,32 +217,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 var menuItem = new BoneMenuItem(
                     boneName, MaidIKHoldController.GetHoldTypeMenuName(holdType));
-                var boneSetType = MaidIKHoldController.GetBoneSetMenuType(holdType);
-
-                BoneSetMenuItem setMenuItem;
-                if (boneSetType != BoneSetMenuType.None &&
-                    setMenuItemMap.TryGetValue(boneSetType, out setMenuItem))
-                {
-                    setMenuItem.AddChild(menuItem);
-                }
-                else
-                {
-                    allMenuItems.Add(menuItem);
-                }
+                AddToBoneSetOrTop(menuItem, MaidIKHoldController.GetBoneSetMenuType(holdType), setMenuItemMap);
             }
 
             var groundingMenuItem = new BoneMenuItem(GroundingBoneName, GroundingDisplayName);
             allMenuItems.Add(groundingMenuItem);
 
-            var fingerBlendSetMenuItem = new BoneSetMenuItem("FingerBlend", "指ブレンド");
-            allMenuItems.Add(fingerBlendSetMenuItem);
-
+            // 指ブレンドも IK 固定と同様、対応する手指/足指グループの末尾に並べる
             foreach (var boneName in FingerBlendBoneNames)
             {
                 var blendType = ConvertToFingerBlendType(boneName);
-                var blendName = FingerBrendNames[(int)blendType];
-                var menuItem = new BoneMenuItem(boneName, blendName);
-                fingerBlendSetMenuItem.AddChild(menuItem);
+                var menuItem = new BoneMenuItem(boneName, FingerBlendMenuName);
+                AddToBoneSetOrTop(menuItem, GetFingerBlendSetMenuType(blendType), setMenuItemMap);
+            }
+        }
+
+        /// <summary>対応するボーングループがあればその末尾へ、無ければトップレベルへ追加する</summary>
+        private void AddToBoneSetOrTop(
+            BoneMenuItem menuItem,
+            BoneSetMenuType boneSetType,
+            Dictionary<BoneSetMenuType, BoneSetMenuItem> setMenuItemMap)
+        {
+            BoneSetMenuItem setMenuItem;
+            if (boneSetType != BoneSetMenuType.None &&
+                setMenuItemMap.TryGetValue(boneSetType, out setMenuItem))
+            {
+                setMenuItem.AddChild(menuItem);
+            }
+            else
+            {
+                allMenuItems.Add(menuItem);
             }
         }
 
@@ -882,13 +886,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 { "LegFingerBlendL", WindowPartsFingerBlend.Type.LeftLeg },
             };
 
-        private static readonly string[] FingerBrendNames = new string[]
+        /// <summary>手指/足指グループ内に置くため部位名は付けない</summary>
+        private const string FingerBlendMenuName = "指ブレンド";
+
+        /// <summary>指ブレンド項目をボーンメニュー上で置く手指/足指グループ</summary>
+        public static BoneSetMenuType GetFingerBlendSetMenuType(WindowPartsFingerBlend.Type type)
         {
-            "右手",
-            "左手",
-            "右足",
-            "左足",
-        };
+            switch (type)
+            {
+                case WindowPartsFingerBlend.Type.RightArm:
+                    return BoneSetMenuType.RightArmFinger;
+                case WindowPartsFingerBlend.Type.LeftArm:
+                    return BoneSetMenuType.LeftArmFinger;
+                case WindowPartsFingerBlend.Type.RightLeg:
+                    return BoneSetMenuType.RightLegFinger;
+                case WindowPartsFingerBlend.Type.LeftLeg:
+                    return BoneSetMenuType.LeftLegFinger;
+                default:
+                    return BoneSetMenuType.None;
+            }
+        }
 
         private static WindowPartsFingerBlend.Type ConvertToFingerBlendType(string boneName)
         {
