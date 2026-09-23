@@ -402,6 +402,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isTangentModelBone = true;
         public bool isTangentModelShapeKey = true;
 
+        /// <summary>表情レイヤーをタンジェント補間するか。旧 XML には要素が無く false で読まれ、新規作成は true</summary>
+        public bool isTangentFace = true;
+
         public List<int> stageLaserCountList = new List<int>();
         public List<int> stageLightCountList = new List<int>();
 
@@ -799,6 +802,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isTangentModel = xml.isTangentModel;
             isTangentModelBone = xml.isTangentModelBone;
             isTangentModelShapeKey = xml.isTangentModelShapeKey;
+            isTangentFace = xml.isTangentFace;
             stageLaserCountList = xml.stageLaserCountList.ToList();
             stageLightCountList = xml.stageLightCountList.ToList();
             additionalSeNames = xml.additionalSeNames.ToList();
@@ -948,6 +952,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.isTangentModel = isTangentModel;
             xml.isTangentModelBone = isTangentModelBone;
             xml.isTangentModelShapeKey = isTangentModelShapeKey;
+            xml.isTangentFace = isTangentFace;
             xml.stageLaserCountList = stageLaserCountList.ToList();
             xml.stageLightCountList = stageLightCountList.ToList();
             xml.additionalSeNames = additionalSeNames.ToList();

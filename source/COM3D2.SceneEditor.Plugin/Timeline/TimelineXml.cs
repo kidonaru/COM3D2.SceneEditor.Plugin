@@ -253,6 +253,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("IsTangentModelShapeKey")]
         public bool isTangentModelShapeKey = false;
 
+        // 表情レイヤーのタンジェント補間。旧 XML では要素が無いので false (線形補間のまま)
+        [XmlElement("IsTangentFace")]
+        public bool isTangentFace = false;
+
         // 以下のライト補間設定 3 項目は v33 以前の読込互換用。v34 でライトは他レイヤーと同じく
         // 常時補間になったため値は参照せず、ShouldSerialize で書き出しだけ抑止する
         [XmlElement("IsLightColorEasing")]
