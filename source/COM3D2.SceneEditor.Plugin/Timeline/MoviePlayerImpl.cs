@@ -665,6 +665,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (et == MediaPlayerEvent.EventType.Started)
             {
+                // UpdateSpeed の Pause/Play で再開するたびに Started が再送されるため初回だけ処理する。
+                // 毎回シークし直すと Seek→Pause→Play→Started の再シークループになり、
+                // 数十フレームごとに動画が止まるプチフリの原因になる
+                if (_isStarted)
+                {
+                    return;
+                }
                 _isStarted = true;
                 StartCoroutine(UpdateSeekTimeAfterDelay(0.5f));
                 StartCoroutine(UpdateColorAfterDelay(0.5f));
