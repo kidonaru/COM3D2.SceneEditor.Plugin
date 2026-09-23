@@ -51,6 +51,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>注視点の基準にする頭ボーンの名前</summary>
         private const string HEAD_BONE_NAME = "Bip01 Head";
 
+        // 手首は TBody で private のため、public な上腕から相対パスで辿る。
+        // GetBone は全ボーンの再帰探索になり、毎フレーム引く追従には重い
+        private const string HAND_L_PATH = "Bip01 L Forearm/Bip01 L Hand";
+        private const string HAND_R_PATH = "Bip01 R Forearm/Bip01 R Hand";
+
         /// <summary>頭ボーン配下に作る注視点の名前。フォトモードと同名にして使い回す</summary>
         private const string LOOK_POINT_NAME = "face_to_object";
 
@@ -412,9 +417,18 @@ namespace COM3D2.SceneEditor.Plugin
                     return maid.body0.Hip_R;
                 case MTEP.MaidPointType.Bip01:
                     return maid.body0.trBip;
+                case MTEP.MaidPointType.HandL:
+                    return FindChild(maid.body0.UpperArmL, HAND_L_PATH);
+                case MTEP.MaidPointType.HandR:
+                    return FindChild(maid.body0.UpperArmR, HAND_R_PATH);
                 default:
                     return null;
             }
+        }
+
+        private static Transform FindChild(Transform parent, string path)
+        {
+            return parent != null ? parent.Find(path) : null;
         }
 
         /// <summary>

@@ -121,7 +121,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     index = (int)Index.MaidPointType,
                     name = "追従点",
                     min = 0f,
-                    max = (float)MaidPointType.Bip01,
+                    max = (float)MaidPointType.HandR,
                     step = 1f,
                     // 既存データ互換のため、旧仕様の追従先(股)をデフォルトとする
                     defaultValue = (float)MaidPointType.Crotch,

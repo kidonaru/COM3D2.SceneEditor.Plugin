@@ -20,6 +20,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Crotch,
         Hip,
         Bip01,
+        // キー値は int のため末尾に足し、既存データの値をずらさない
+        HandL,
+        HandR,
     }
 
     public enum LookAtTargetType
@@ -859,7 +862,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public static readonly List<string> MaidPointTypeNames = new List<string>
         {
-            "顔", "胸", "股", "尻", "中心",
+            "顔", "胸", "股", "尻", "中心", "左手首", "右手首",
         };
 
         public static string GetMaidPointTypeName(MaidPointType type)
