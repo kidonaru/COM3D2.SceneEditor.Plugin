@@ -158,13 +158,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             areas = GetComponentsInChildren<PsylliumArea>().ToList();
             areas.Sort((a, b) => a.index - b.index);
 
-            materials = new Material[2];
-            materials[0] = CreateMaterial("Psyllium");
-            materials[1] = CreateMaterial("PsylliumAdd");
+            // 再アクティブ化 (OnEnable) でも呼ばれる。バーは Setup 時の参照を持ち続けるため、
+            // 作り直すと以後の色・形状変更がバーへ届かなくなる
+            if (materials == null || materials.Length == 0)
+            {
+                materials = new Material[2];
+                materials[0] = CreateMaterial("Psyllium");
+                materials[1] = CreateMaterial("PsylliumAdd");
+            }
 
-            meshes = new Mesh[2];
-            meshes[0] = new Mesh();
-            meshes[1] = new Mesh();
+            if (meshes == null || meshes.Length == 0)
+            {
+                meshes = new Mesh[2];
+                meshes[0] = new Mesh();
+                meshes[1] = new Mesh();
+            }
 
             UpdateName();
             UpdateMaterials();

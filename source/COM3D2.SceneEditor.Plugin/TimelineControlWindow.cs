@@ -732,9 +732,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            if (timelineManager.hasPostEffectLayer)
+            if (timelineManager.hasPostEffectSyncLayer)
             {
-                DrawIconToggle(view, ToolbarIcons.Kind.PostEffect, "ポスプロ同期", timelineConfig.isPostEffectSync, !currentLayer.isPostEffectLayer, newValue =>
+                DrawIconToggle(view, ToolbarIcons.Kind.PostEffect, "ポスプロ同期", timelineConfig.isPostEffectSync, timelineManager.hasNonCurrentPostEffectSyncLayer, newValue =>
                 {
                     timelineConfig.isPostEffectSync = newValue;
                     timelineConfig.dirty = true;

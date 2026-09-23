@@ -19,6 +19,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public virtual bool hasSlotNo => false;
         public virtual bool isCameraLayer => false;
         public virtual bool isPostEffectLayer => false;
+        public virtual bool isLiveEffectLayer => false;
         public virtual bool isMotionLayer => false;
         public virtual bool isMoveLayer => false;
 
@@ -237,6 +238,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             _keyFrames.Clear();
             _dummyLastFrame = null;
+        }
+
+        private bool _isLiveEffectHidden = false;
+
+        /// <summary>
+        /// ポスプロ同期 OFF かつ非カレントならライブ演出を丸ごと隠し、false を返す。
+        /// 各演出の visible はキーフレームの値なので触らず、コントローラーの親であるマネージャの GameObject を切り替える
+        /// </summary>
+        protected bool UpdateLiveEffectSyncVisibility(Component manager)
+        {
+            var hidden = !isCurrent && !config.isPostEffectSync;
+            if (hidden != _isLiveEffectHidden)
+            {
+                manager.gameObject.SetActive(!hidden);
+                _isLiveEffectHidden = hidden;
+            }
+            return !hidden;
+        }
+
+        /// <summary>レイヤー破棄時、隠したままのライブ演出を表示へ戻す</summary>
+        protected void RestoreLiveEffectSyncVisibility(Component manager)
+        {
+            if (_isLiveEffectHidden)
+            {
+                manager.gameObject.SetActive(true);
+                _isLiveEffectHidden = false;
+            }
         }
 
         public abstract bool IsValidData();

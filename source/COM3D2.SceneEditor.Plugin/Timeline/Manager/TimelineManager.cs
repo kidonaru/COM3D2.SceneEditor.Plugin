@@ -118,9 +118,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => FindLayers(typeof(CameraTimelineLayer)).Count > 0;
         }
 
-        public bool hasPostEffectLayer
+        /// <summary>ポスプロ同期の対象 (ポストエフェクト・ライブ演出) のレイヤーがあるか</summary>
+        public bool hasPostEffectSyncLayer
         {
-            get => FindLayers(typeof(PostEffectTimelineLayer)).Count > 0;
+            get => layers.Exists(IsPostEffectSyncTarget);
+        }
+
+        /// <summary>
+        /// カレント以外に同期対象があるか。カレントレイヤーは同期設定に関係なく反映されるため、
+        /// これが false ならポスプロ同期を切り替えても見た目が変わらない
+        /// </summary>
+        public bool hasNonCurrentPostEffectSyncLayer
+        {
+            get
+            {
+                var current = currentLayer;
+                return layers.Exists(layer => layer != current && IsPostEffectSyncTarget(layer));
+            }
+        }
+
+        private static bool IsPostEffectSyncTarget(ITimelineLayer layer)
+        {
+            return layer.isPostEffectLayer || layer.isLiveEffectLayer;
         }
 
         private bool _isMotionEditing = false;

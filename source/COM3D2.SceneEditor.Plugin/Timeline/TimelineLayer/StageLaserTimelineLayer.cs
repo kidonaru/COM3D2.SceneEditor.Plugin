@@ -10,6 +10,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         public override Type layerType => typeof(StageLaserTimelineLayer);
         public override string layerName => nameof(StageLaserTimelineLayer);
+        public override bool isLiveEffectLayer => true;
 
         private List<string> _allBoneNames = null;
 
@@ -87,6 +88,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void Dispose()
         {
             base.Dispose();
+            RestoreLiveEffectSyncVisibility(stageLaserManager);
 
             StageLaserManager.onControllerAdded -= OnControllerAdded;
             StageLaserManager.onControllerRemoved -= OnControllerRemoved;
@@ -119,6 +121,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             var maid = this.maid;
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+            {
+                return;
+            }
+
+            if (!UpdateLiveEffectSyncVisibility(stageLaserManager))
             {
                 return;
             }
