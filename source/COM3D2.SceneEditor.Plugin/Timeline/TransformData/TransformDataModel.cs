@@ -1,13 +1,25 @@
-
+using System.Collections.Generic;
 using System.IO;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using AttachPoint = PhotoTransTargetObject.AttachPoint;
+
     public class TransformDataModel : TransformDataBase
     {
         public override TransformType type => TransformType.Model;
 
-        public override int valueCount => 12;
+        public enum Index
+        {
+            AttachMaidSlotNo = 12,
+            AttachPoint = 13,
+            WorldLerp = 14,
+        }
+
+        /// <summary>アタッチ値を持たない旧データ (MTE 産・version 36 以前) の値数</summary>
+        public const int LegacyValueCount = 12;
+
+        public override int valueCount => 15;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -35,6 +47,90 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override ValueData easingValue => values[10];
         public override ValueData[] tangentValues => baseValues;
 
+        private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
+        {
+            {
+                "attachMaidSlotNo", new CustomValueInfo
+                {
+                    index = (int)Index.AttachMaidSlotNo,
+                    name = "アタッチ先",
+                    defaultValue = -1f,
+                    uiType = CustomValueUIType.MaidSlot,
+                }
+            },
+            {
+                "attachPoint", new CustomValueInfo
+                {
+                    index = (int)Index.AttachPoint,
+                    name = "アタッチ部位",
+                    min = 0f,
+                    max = (float)AttachPoint.Foot_L,
+                    step = 1f,
+                    defaultValue = (float)AttachPoint.Head,
+                    uiType = CustomValueUIType.AttachPoint,
+                }
+            },
+            {
+                "worldLerp", new CustomValueInfo
+                {
+                    index = (int)Index.WorldLerp,
+                    name = "ワールド補間",
+                    min = 0f,
+                    max = 1f,
+                    step = 1f,
+                    defaultValue = 0f,
+                }
+            },
+        };
+
+        public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
+        {
+            return CustomValueInfoMap;
+        }
+
+        public ValueData attachMaidSlotNoValue => values[(int)Index.AttachMaidSlotNo];
+        public ValueData attachPointValue => values[(int)Index.AttachPoint];
+        public ValueData worldLerpValue => values[(int)Index.WorldLerp];
+
+        public int attachMaidSlotNo
+        {
+            get => attachMaidSlotNoValue.intValue;
+            set => attachMaidSlotNoValue.intValue = value;
+        }
+
+        public AttachPoint attachPoint
+        {
+            get => (AttachPoint)attachPointValue.intValue;
+            set => attachPointValue.intValue = (int)value;
+        }
+
+        /// <summary>このキーへの区間をワールド座標で補間するか (終点キー側の設定)</summary>
+        public bool worldLerp
+        {
+            get => worldLerpValue.boolValue;
+            set => worldLerpValue.boolValue = value;
+        }
+
+        public bool isAttached => IsAttached(attachPoint, attachMaidSlotNo);
+
+        public static bool IsAttached(AttachPoint point, int maidSlotNo)
+        {
+            return point != AttachPoint.Null && maidSlotNo >= 0;
+        }
+
+        /// <summary>
+        /// キー固有の設定を既存キーから引き継ぐ。
+        /// キー登録はシーンの現在状態から値を作り直すため、シーンに実体の無い設定は呼び出し側で残す
+        /// </summary>
+        public void InheritKeySettings(TransformDataModel existing)
+        {
+            if (existing == null)
+            {
+                return;
+            }
+            worldLerp = existing.worldLerp;
+        }
+
         public TransformDataModel()
         {
         }
@@ -47,7 +143,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 name = Path.GetFileName(name);
             }
+
+            // アタッチ値を持たない旧データは不足分が 0 で埋まり、スロット 0 のメイドへアタッチしてしまう。
+            // 未アタッチ (-1) と既定値へ補正する
+            if (xml.values != null && xml.values.Length <= LegacyValueCount)
+            {
+                attachMaidSlotNo = -1;
+                attachPoint = AttachPoint.Head;
+                worldLerp = false;
+            }
         }
     }
-
 }

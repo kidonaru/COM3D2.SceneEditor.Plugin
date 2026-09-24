@@ -80,6 +80,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         MaidSlot,
         /// <summary>メイドの部位 (MaidPointType)</summary>
         MaidPoint,
+        /// <summary>モデルのアタッチ部位 (PhotoTransTargetObject.AttachPoint)</summary>
+        AttachPoint,
     }
 
     public class CustomValueInfo
