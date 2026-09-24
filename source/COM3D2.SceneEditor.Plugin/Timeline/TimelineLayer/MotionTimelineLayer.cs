@@ -139,7 +139,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var setMenuItemMap = new Dictionary<BoneSetMenuType, BoneSetMenuItem>(12);
 
-            // グループの並びは元の所属で決め、手首の振り替えで順序が崩れないようにする
+            // グループの並びは元の所属で決め、手首・足首の振り替えで順序が崩れないようにする
             foreach (var pair in BoneUtils.BoneTypeToSetMenuTypeMap)
             {
                 var boneType = pair.Key;
@@ -243,10 +243,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>設定に応じて手首を手指グループへ移したメニュー上の所属グループ</summary>
+        /// <summary>設定に応じて手首・足首を指グループへ移したメニュー上の所属グループ</summary>
         private static BoneSetMenuType GetMenuBoneSetType(IKManager.BoneType boneType, BoneSetMenuType boneSetType)
         {
-            if (!config.isWristInFingerMenu)
+            if (!config.isWristAnkleInFingerMenu)
             {
                 return boneSetType;
             }
@@ -256,6 +256,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return BoneSetMenuType.LeftArmFinger;
                 case IKManager.BoneType.Hand_R:
                     return BoneSetMenuType.RightArmFinger;
+                case IKManager.BoneType.Foot_L:
+                    return BoneSetMenuType.LeftLegFinger;
+                case IKManager.BoneType.Foot_R:
+                    return BoneSetMenuType.RightLegFinger;
                 default:
                     return boneSetType;
             }

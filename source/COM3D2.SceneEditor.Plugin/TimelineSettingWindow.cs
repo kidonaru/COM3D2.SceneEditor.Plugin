@@ -552,9 +552,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                view.DrawToggle("手首を指に表示", timelineConfig.isWristInFingerMenu, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                view.DrawToggle("手首・足首を指グループに表示", timelineConfig.isWristAnkleInFingerMenu, -1, ROW_HEIGHT, newValue =>
                 {
-                    timelineConfig.isWristInFingerMenu = newValue;
+                    timelineConfig.isWristAnkleInFingerMenu = newValue;
                     timelineConfig.dirty = true;
                     foreach (var layer in timelineManager.layers.OfType<MTEP.MotionTimelineLayer>())
                     {

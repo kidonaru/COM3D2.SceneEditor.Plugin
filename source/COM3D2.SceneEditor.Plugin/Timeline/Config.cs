@@ -72,8 +72,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string backgroundCustomCategoryName = "MotionTimelineEditor";
         // レイヤー編集の拡縮行の XYZ 連動 (1 軸の編集を比率で全軸へ反映)
         public bool scaleLinked = false;
-        // モーションレイヤーのボーンメニューで手首を腕ではなく手指グループに並べる
-        public bool isWristInFingerMenu = false;
+        // モーションレイヤーのボーンメニューで手首・足首を腕・足ではなく指グループに並べる
+        public bool isWristAnkleInFingerMenu = false;
 
         // 表示設定
         public int frameWidth = 11;
