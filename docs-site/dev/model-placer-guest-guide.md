@@ -98,6 +98,7 @@ public static class ModelPlacerProvider
 |---|---|---|
 | `GetModelDisplayName` | `string GetModelDisplayName(GameObject)` | 一覧に出す表示名 |
 | `BeginBatch` / `EndBatch` | `void BeginBatch()` / `void EndBatch()` | タイムライン読込のような一括操作の開始・終了通知。**2 つ揃っているときだけ**バインドされる |
+| `GetModelAttachBone` | `Transform GetModelAttachBone(GameObject)` | アタッチ中の親ボーン（未アタッチなら null）。実装すると、ゲスト側の UI で付け替えたアタッチが SceneEditor のモデルキーへ取り込まれる。UI での付け替えの前に `AutoEditModeClient.Enter("ModelTimelineLayer")` を呼ぶこと（呼ばないとタイムラインの再生値で元に戻る） |
 
 ## 各メンバの詳細
 
@@ -136,6 +137,8 @@ SceneEditor 側が `AttachPoint` からボーンの `Transform` まで解決し�
 - `maid` が null、または `boneName` が空文字なら**解除**（ワールド配置へ戻す）
 - 渡るボーン名はゲスト側が用意した定番一覧に無いものも含まれるため、
   一覧に無い名前でもアタッチできるようにしておくこと
+
+SceneEditor が付ける部位は、ゲームの `PhotoTransTargetObject.AttachPoint` の部位に胸（`Bip01 Spine1a`）と骨盤（`Bip01 Pelvis`）を足したものです。`GetModelAttachBone` が返すボーンがこの一覧に無い場合、SceneEditor はそのアタッチをキーへ取り込みません。
 
 ### `BeginBatch` / `EndBatch`
 
