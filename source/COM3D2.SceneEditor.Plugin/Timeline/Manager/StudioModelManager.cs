@@ -573,7 +573,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             modelHackManager.UpdateAttachPoint(model);
             LateUpdate(true);
 
-            //timelineManager.RequestHistory("アタッチ変更: " + model.displayName);
+            timelineManager.RequestHistory("アタッチ変更: " + model.displayName);
         }
 
         public void SetModelVisible(StudioModelStat model, bool visible)

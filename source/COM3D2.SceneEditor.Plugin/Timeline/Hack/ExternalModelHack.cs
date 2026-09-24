@@ -214,6 +214,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // UI は StudioModelManager 側の複製 stat を編集して渡してくる。
+            // modelList が返す stat へ写しておかないと、直後の LateUpdate で Null に巻き戻される
+            if (_statMap.TryGetValue(obj, out var cached) && cached != model)
+            {
+                cached.attachPoint = model.attachPoint;
+                cached.attachMaidSlotNo = model.attachMaidSlotNo;
+            }
+
             // アタッチ先ボーンの解決は SE 側が行い、プロバイダへはボーン名だけ渡す。
             // AttachPoint enum → IKManager.BoneType の対応表をゲスト側に持たせずに済む
             var maidCache = maidManager.GetMaidCache(model.attachMaidSlotNo);
