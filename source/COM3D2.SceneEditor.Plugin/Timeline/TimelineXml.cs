@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Xml.Serialization;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
@@ -12,12 +13,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         [XmlElement("Name")]
         public string name;
+        // version 37 でアタッチはモデルキーへ移った。旧 XML の読込 (Initialize の移行) でだけ使う
         [XmlElement("AttachPoint")]
         public AttachPoint attachPoint;
         [XmlElement("AttachMaidSlotNo")]
         public int attachMaidSlotNo = -1;
         [XmlElement("PluginName")]
         public string pluginName;
+
+        public bool ShouldSerializeattachPoint() { return false; }
+        public bool ShouldSerializeattachMaidSlotNo() { return false; }
     }
 
     public class TimelineLightXml
@@ -1344,7 +1349,82 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            if (version < 37)
+            {
+                ConvertModelAttachToKeys();
+            }
+
             ConvertPlugin();
+        }
+
+        /// <summary>
+        /// モデル単位のアタッチ (&lt;Models&gt;) を、同名モデルのキー全部へ移す (version 37)。
+        /// アタッチなしのモデルは触らない (旧 12 値のまま読めば TransformDataModel.FromXml が既定値へ補正する)
+        /// </summary>
+        private void ConvertModelAttachToKeys()
+        {
+            if (models == null || models.Count == 0)
+            {
+                return;
+            }
+
+            var attachMap = new Dictionary<string, TimelineModelXml>();
+            foreach (var model in models)
+            {
+                if (model == null || string.IsNullOrEmpty(model.name) ||
+                    !TransformDataModel.IsAttached(model.attachPoint, model.attachMaidSlotNo))
+                {
+                    continue;
+                }
+                attachMap[model.name] = model;
+            }
+            if (attachMap.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var layer in layers)
+            {
+                foreach (var keyFrame in layer.keyFrames)
+                {
+                    if (keyFrame.bones == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var bone in keyFrame.bones)
+                    {
+                        var transform = bone.transform;
+                        if (transform == null || transform.type != TransformType.Model ||
+                            transform.name == null || transform.values == null)
+                        {
+                            continue;
+                        }
+
+                        // TransformDataModel.FromXml と同じく、旧データのパス付き .menu 名はファイル名で引く
+                        var name = transform.name.EndsWith(".menu", StringComparison.Ordinal)
+                            ? Path.GetFileName(transform.name)
+                            : transform.name;
+
+                        TimelineModelXml model;
+                        if (!attachMap.TryGetValue(name, out model))
+                        {
+                            continue;
+                        }
+
+                        var values = new float[TransformDataModel.LegacyValueCount + 3];
+                        var copyCount = Math.Min(transform.values.Length, TransformDataModel.LegacyValueCount);
+                        Array.Copy(transform.values, values, copyCount);
+                        values[(int)TransformDataModel.Index.AttachMaidSlotNo] = model.attachMaidSlotNo;
+                        values[(int)TransformDataModel.Index.AttachPoint] = (float)model.attachPoint;
+                        values[(int)TransformDataModel.Index.WorldLerp] = 0f;
+                        transform.values = values;
+
+                        MTEUtils.LogDebug("Convert model attach to key name={0} frameNo={1} attach={2}/{3}",
+                            name, keyFrame.frameNo, model.attachMaidSlotNo, model.attachPoint);
+                    }
+                }
+            }
         }
 
         /// <summary>旧 (COM3D2 版) リムライト/パラフィンの値数。テストからも参照する</summary>

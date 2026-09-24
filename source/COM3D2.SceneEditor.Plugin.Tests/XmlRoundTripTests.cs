@@ -90,6 +90,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 "EndOffsetTime",
                 "StartFadeTime",
                 "EndFadeTime",
+
+                // v37 でモデルのアタッチはモデルキーへ移した。モデル単位の値は読込互換専用で書き出さない
+                "AttachPoint",
+                "AttachMaidSlotNo",
             };
 
         private static string SerializeToString(TimelineXml xml, XmlSerializer serializer)

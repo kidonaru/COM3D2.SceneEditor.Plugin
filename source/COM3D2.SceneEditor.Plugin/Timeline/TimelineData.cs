@@ -220,7 +220,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class TimelineData
     {
-        public static readonly int CurrentVersion = 36;
+        public static readonly int CurrentVersion = 37;
         public static readonly TimelineData DefaultTimeline = new TimelineData();
 
         public int version = 0;
