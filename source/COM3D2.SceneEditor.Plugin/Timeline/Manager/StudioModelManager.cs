@@ -58,6 +58,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public static event UnityAction<StudioModelStat> onModelRemoved;
         public static event UnityAction<StudioModelStat> onModelUpdated;
 
+        /// <summary>
+        /// ApplyAttach で最後に付けた親 (モデル名 → ボーン。アタッチなしは null)。
+        /// キーの値が同じでも、メイドの出入りで解決先が変われば付け替え直すために控える
+        /// </summary>
+        private readonly Dictionary<string, Transform> _appliedAttachParents = new Dictionary<string, Transform>();
+
         private static StudioModelManager _instance = null;
         public static StudioModelManager instance
         {
@@ -415,9 +421,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 foreach (var modelData in modelDataList)
                 {
                     var model = modelList.Find(m => m.name == modelData.name);
+                    // アタッチは version 37 からモデルキーの値。ここでは付けず、レイヤーの適用に任せる
                     if (model == null)
                     {
-                        // アタッチは version 37 からモデルキーの値。ここでは付けず、レイヤーの適用に任せる
                         model = CreateModelStat(
                             modelData.name,
                             null,
@@ -431,7 +437,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         MTEUtils.LogDebug("Create model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
                             model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
                     }
-                    // アタッチは version 37 からモデルキーの値。ここでは付けず、レイヤーの適用に任せる
                     else if (model.pluginName != modelData.pluginName)
                     {
                         modelHackManager.ChangePluginName(model, modelData.pluginName);
@@ -573,13 +578,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public bool ApplyAttach(StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo)
         {
-            if (!TransformDataModel.IsAttached(attachPoint, attachMaidSlotNo))
+            Transform parent = null;
+            if (TransformDataModel.IsAttached(attachPoint, attachMaidSlotNo))
+            {
+                parent = GetAttachParent(model, attachPoint, attachMaidSlotNo);
+            }
+
+            // メイドやボーンが居なければアタッチなしとして扱う。
+            // 要求値のまま控えると、キー登録で配置ルート基準の位置に「アタッチ中」の値が付いてしまう
+            if (parent == null)
             {
                 attachPoint = AttachPoint.Null;
                 attachMaidSlotNo = -1;
             }
 
-            if (model.attachPoint == attachPoint && model.attachMaidSlotNo == attachMaidSlotNo)
+            Transform appliedParent;
+            _appliedAttachParents.TryGetValue(model.name, out appliedParent);
+            if (model.attachPoint == attachPoint && model.attachMaidSlotNo == attachMaidSlotNo &&
+                appliedParent == parent)
             {
                 return false;
             }
@@ -587,6 +603,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             model.attachPoint = attachPoint;
             model.attachMaidSlotNo = attachMaidSlotNo;
             modelHackManager.UpdateAttachPointSilently(model);
+            _appliedAttachParents[model.name] = parent;
             return true;
         }
 

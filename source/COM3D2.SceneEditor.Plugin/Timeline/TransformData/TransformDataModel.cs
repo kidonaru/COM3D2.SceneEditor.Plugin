@@ -131,6 +131,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             worldLerp = existing.worldLerp;
         }
 
+        /// <summary>
+        /// アタッチなしを入れる。部位は Null ではなく既定値の Head にそろえる
+        /// (アタッチなし同士で部位の値が違うと、キーの差分や同値区間の判定がずれるため)
+        /// </summary>
+        public void SetUnattached()
+        {
+            attachMaidSlotNo = -1;
+            attachPoint = AttachPoint.Head;
+        }
+
         public TransformDataModel()
         {
         }
@@ -148,8 +158,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 未アタッチ (-1) と既定値へ補正する
             if (xml.values != null && xml.values.Length <= LegacyValueCount)
             {
-                attachMaidSlotNo = -1;
-                attachPoint = AttachPoint.Head;
+                SetUnattached();
                 worldLerp = false;
             }
         }

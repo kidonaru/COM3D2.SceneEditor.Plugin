@@ -118,9 +118,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            if (end.worldLerp && t < StepEndThreshold && ApplyMotionWorldLerp(motion, t, model, start, end))
+            // 終点側へ付け替えた後もワールド座標で書くので、区間の最後まで続けても親に依らず連続する
+            if (end.worldLerp)
             {
-                return;
+                if (ApplyMotionWorldLerp(motion, t, model, start, end))
+                {
+                    return;
+                }
             }
 
             ApplyMotionUpdateTangent(motion, t, model);
@@ -260,8 +264,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
                 else
                 {
-                    trans.attachMaidSlotNo = -1;
-                    trans.attachPoint = AttachPoint.Head;
+                    trans.SetUnattached();
                 }
 
                 var existingBone = existingFrame != null ? existingFrame.GetBone(modelName) : null;
