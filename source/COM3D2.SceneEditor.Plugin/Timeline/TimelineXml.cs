@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Xml.Serialization;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
@@ -1401,10 +1400,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                             continue;
                         }
 
-                        // TransformDataModel.FromXml と同じく、旧データのパス付き .menu 名はファイル名で引く
-                        var name = transform.name.EndsWith(".menu", StringComparison.Ordinal)
-                            ? Path.GetFileName(transform.name)
-                            : transform.name;
+                        var name = TransformDataModel.NormalizeName(transform.name);
 
                         TimelineModelXml model;
                         if (!attachMap.TryGetValue(name, out model))
@@ -1412,7 +1408,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                             continue;
                         }
 
-                        var values = new float[TransformDataModel.LegacyValueCount + 3];
+                        var values = new float[TransformDataModel.ValueCount];
                         var copyCount = Math.Min(transform.values.Length, TransformDataModel.LegacyValueCount);
                         Array.Copy(transform.values, values, copyCount);
                         values[(int)TransformDataModel.Index.AttachMaidSlotNo] = model.attachMaidSlotNo;

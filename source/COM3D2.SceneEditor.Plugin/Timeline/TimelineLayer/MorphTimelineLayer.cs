@@ -14,9 +14,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
-        /// <summary>ステップ適用で end 側へ切り替える補間位置。終端の直前まで start を維持する</summary>
-        private const float StepEndThreshold = 0.99f;
-
         private readonly List<string> _allBoneNamesCache = new List<string>();
 
         /// <summary>

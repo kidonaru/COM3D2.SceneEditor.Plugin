@@ -13,6 +13,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         public static readonly long TimelineAnmId = 26925014;
 
+        /// <summary>
+        /// ステップ値を end 側へ切り替える補間位置。終端の直前まで start を維持する。
+        /// start 側だけで採ると最後のキーの値が永久に効かない
+        /// </summary>
+        protected const float StepEndThreshold = 0.99f;
+
         public abstract Type layerType { get; }
         public abstract string layerName { get; }
         public int slotNo { get; protected set; }

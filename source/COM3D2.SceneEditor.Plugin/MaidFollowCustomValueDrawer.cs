@@ -58,6 +58,13 @@ namespace COM3D2.SceneEditor.Plugin
             new Dictionary<RowKey, GUIComboBox<MTEP.MaidCache>>();
         private readonly Dictionary<RowKey, GUIComboBox<MTEP.MaidPointType>> _pointComboBoxes =
             new Dictionary<RowKey, GUIComboBox<MTEP.MaidPointType>>();
+        /// <summary>
+        /// 部位コンボの選択肢。先頭の Null (設定なし) はアタッチなしの別表現になるので除く
+        /// (アタッチなしはメイド側の「なし」で表す)
+        /// </summary>
+        private static readonly List<string> AttachPointItems = BoneUtils.AttachPointNames.GetRange(
+            1, BoneUtils.AttachPointNames.Count - 1);
+
         private readonly Dictionary<RowKey, GUIComboBox<string>> _attachPointComboBoxes =
             new Dictionary<RowKey, GUIComboBox<string>>();
 
@@ -232,10 +239,9 @@ namespace COM3D2.SceneEditor.Plugin
             GUIComboBox<string> comboBox;
             if (!_attachPointComboBoxes.TryGetValue(rowKey, out comboBox))
             {
-                // 並びは PhotoTransTargetObject.AttachPoint の enum 順なので、添字がそのまま値になる
                 comboBox = new GUIComboBox<string>
                 {
-                    items = BoneUtils.AttachPointNames,
+                    items = AttachPointItems,
                     getName = (name, _) => name,
                 };
                 _attachPointComboBoxes[rowKey] = comboBox;
@@ -244,10 +250,22 @@ namespace COM3D2.SceneEditor.Plugin
             comboBox.defaultName = float.IsNaN(value) ? MixedName : null;
             comboBox.currentIndex = float.IsNaN(value)
                 ? MixedIndex
-                : Mathf.Clamp(Mathf.RoundToInt(value), 0, BoneUtils.AttachPointNames.Count - 1);
-            comboBox.onSelected = (_, index) => onChanged(index);
+                : ToAttachPointIndex(value);
+            comboBox.onSelected = (_, index) => onChanged(ToAttachPointValue(index));
 
             LabeledComboRow.Draw(view, info.name, comboBox, labelWidth, rowHeight);
+        }
+
+        /// <summary>部位の値 (PhotoTransTargetObject.AttachPoint) を、Null を除いた選択肢の添字へ変換する</summary>
+        public static int ToAttachPointIndex(float value)
+        {
+            var index = (int)Math.Round(value) - 1;
+            return Math.Max(0, Math.Min(index, AttachPointItems.Count - 1));
+        }
+
+        public static float ToAttachPointValue(int index)
+        {
+            return index + 1;
         }
     }
 }

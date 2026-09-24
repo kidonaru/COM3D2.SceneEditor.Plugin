@@ -13,12 +13,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     [TimelineLayerDesc("モデル", 21, TimelineLayerCategory.Model, CanRestoreOnRemove = false)]
     public class ModelTimelineLayer : ModelTimelineLayerBase
     {
-        /// <summary>
-        /// ステップ値 (アタッチ先) を終点側へ切り替える区間内位置。
-        /// 始点側だけで採ると最後のキーの値が永久に効かない (MorphTimelineLayer と同じ)
-        /// </summary>
-        private const float StepEndThreshold = 0.99f;
-
         public override Type layerType => typeof(ModelTimelineLayer);
         public override string layerName => nameof(ModelTimelineLayer);
 

@@ -78,7 +78,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             foreach (var keyFrame in timeline.layers[0].keyFrames)
             {
                 var values = keyFrame.bones[0].transform.values;
-                Assert.Equal(15, values.Length);
+                Assert.Equal(TransformDataModel.ValueCount, values.Length);
                 Assert.Equal(1f, values[(int)TransformDataModel.Index.AttachMaidSlotNo]);
                 Assert.Equal((float)AttachPoint.Hand_R, values[(int)TransformDataModel.Index.AttachPoint]);
                 Assert.Equal(0f, values[(int)TransformDataModel.Index.WorldLerp]);

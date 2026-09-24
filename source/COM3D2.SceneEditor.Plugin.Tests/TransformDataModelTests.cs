@@ -22,20 +22,23 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public void アタッチ値は15値の末尾3つで既定はなし_Head_OFF()
         {
             var trans = Create();
-            Assert.Equal(15, trans.valueCount);
+            Assert.Equal(15, TransformDataModel.ValueCount);
+            Assert.Equal(TransformDataModel.ValueCount, trans.valueCount);
 
             var map = trans.GetCustomValueInfoMap();
             Assert.Equal((int)TransformDataModel.Index.AttachMaidSlotNo, map["attachMaidSlotNo"].index);
             Assert.Equal(CustomValueUIType.MaidSlot, map["attachMaidSlotNo"].uiType);
             Assert.Equal((int)TransformDataModel.Index.AttachPoint, map["attachPoint"].index);
             Assert.Equal(CustomValueUIType.AttachPoint, map["attachPoint"].uiType);
+            // Null (設定なし) はアタッチなしの別表現になるため、キーでは選ばせない
+            Assert.Equal((float)AttachPoint.Fix, map["attachPoint"].min);
             Assert.Equal((int)TransformDataModel.Index.WorldLerp, map["worldLerp"].index);
             Assert.Equal(CustomValueType.BoolValue, map["worldLerp"].type);
 
             Assert.Equal(-1, trans.attachMaidSlotNo);
             Assert.Equal(AttachPoint.Head, trans.attachPoint);
             Assert.False(trans.worldLerp);
-            Assert.False(trans.isAttached);
+            Assert.False(TransformDataModel.IsAttached(trans.attachPoint, trans.attachMaidSlotNo));
         }
 
         [Fact]
@@ -68,7 +71,16 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(0, trans.attachMaidSlotNo);
             Assert.Equal(AttachPoint.Hand_R, trans.attachPoint);
             Assert.True(trans.worldLerp);
-            Assert.True(trans.isAttached);
+            Assert.True(TransformDataModel.IsAttached(trans.attachPoint, trans.attachMaidSlotNo));
+        }
+
+        [Theory]
+        [InlineData("menu/cup.menu", "cup.menu")]
+        [InlineData("cup.menu", "cup.menu")]
+        [InlineData("cup.menu (2)", "cup.menu (2)")]
+        public void 名前はパス付きmenuだけファイル名にする(string name, string expected)
+        {
+            Assert.Equal(expected, TransformDataModel.NormalizeName(name));
         }
 
         [Theory]

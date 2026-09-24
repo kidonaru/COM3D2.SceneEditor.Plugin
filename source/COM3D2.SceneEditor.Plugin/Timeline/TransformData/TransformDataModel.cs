@@ -19,7 +19,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>アタッチ値を持たない旧データ (MTE 産・version 36 以前) の値数</summary>
         public const int LegacyValueCount = 12;
 
-        public override int valueCount => 15;
+        /// <summary>アタッチ値を含む現行の値数</summary>
+        public const int ValueCount = (int)Index.WorldLerp + 1;
+
+        public override int valueCount => ValueCount;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -63,7 +66,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     index = (int)Index.AttachPoint,
                     name = "アタッチ部位",
-                    min = 0f,
+                    // Null (設定なし) はアタッチなしの別表現になり、キーの差分判定がずれるので選ばせない
+                    min = (float)AttachPoint.Fix,
                     max = (float)AttachPoint.Foot_L,
                     step = 1f,
                     defaultValue = (float)AttachPoint.Head,
@@ -111,8 +115,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => worldLerpValue.boolValue = value;
         }
 
-        public bool isAttached => IsAttached(attachPoint, attachMaidSlotNo);
-
         public static bool IsAttached(AttachPoint point, int maidSlotNo)
         {
             return point != AttachPoint.Null && maidSlotNo >= 0;
@@ -145,14 +147,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
         }
 
+        /// <summary>旧データのパス付き .menu 名をファイル名にそろえる。XML 移行の対応付けも同じ規則で引く</summary>
+        public static string NormalizeName(string name)
+        {
+            return name.EndsWith(".menu", System.StringComparison.Ordinal)
+                ? Path.GetFileName(name)
+                : name;
+        }
+
         public override void FromXml(TransformXml xml)
         {
             base.FromXml(xml);
 
-            if (name.EndsWith(".menu", System.StringComparison.Ordinal))
-            {
-                name = Path.GetFileName(name);
-            }
+            name = NormalizeName(name);
 
             // アタッチ値を持たない旧データは不足分が 0 で埋まり、スロット 0 のメイドへアタッチしてしまう。
             // 未アタッチ (-1) と既定値へ補正する

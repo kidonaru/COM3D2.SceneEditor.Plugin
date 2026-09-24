@@ -1,5 +1,6 @@
 using COM3D2.MotionTimelineEditor.Plugin;
 using Xunit;
+using AttachPoint = PhotoTransTargetObject.AttachPoint;
 using RowKey = COM3D2.SceneEditor.Plugin.MaidFollowCustomValueDrawer.RowKey;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
@@ -56,6 +57,21 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             object subCamera = TransformType.SubCamera;
 
             Assert.NotEqual(new RowKey(camera, "maidSlotNo"), new RowKey(subCamera, "maidSlotNo"));
+        }
+
+        [Theory]
+        [InlineData(AttachPoint.Fix, 0)]
+        [InlineData(AttachPoint.Hand_R, (int)AttachPoint.Hand_R - 1)]
+        [InlineData(AttachPoint.Foot_L, (int)AttachPoint.Foot_L - 1)]
+        // 旧ビルドで入り得た Null は先頭へ寄せる
+        [InlineData(AttachPoint.Null, 0)]
+        public void 部位コンボはNullを除いた並びで値と添字を変換する(AttachPoint point, int index)
+        {
+            Assert.Equal(index, MaidFollowCustomValueDrawer.ToAttachPointIndex((float)point));
+            if (point != AttachPoint.Null)
+            {
+                Assert.Equal((float)point, MaidFollowCustomValueDrawer.ToAttachPointValue(index));
+            }
         }
 
         [Theory]
