@@ -259,6 +259,7 @@ namespace COM3D2.SceneEditor.Plugin
                     RecordFingerEdit(maid, otherUnit, "指コピー: " + name + "→" + otherName);
                     otherUnit.CopyFrom(unit);
                     ApplyFingerBlend(otherUnit);
+                    otherUnit.CopyFlippedBoneRotations(unit);
                 }
 
                 // SceneView のカメラをこの部位の指へ寄せる。ヘッダーのリセットと同じ右端揃え。

@@ -2,6 +2,7 @@
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -366,6 +367,34 @@ namespace COM3D2.SceneEditor.Plugin
                 _digits[i].isLock = source._digits[i].isLock;
                 _digits[i].lockOpen = source._digits[i].lockOpen;
                 _digits[i].lockFist = source._digits[i].lockFist;
+            }
+        }
+
+        /// <summary>
+        /// 反対側の部位のボーン回転を左右反転して書き写す。個別編集で作った形は
+        /// ブレンド値からは再現できないため、CopyFrom + Apply の後に上書きする。
+        /// 反転規則はポーズ反転 (MaidPoseFlipper) と同じく指はクォータニオンの鏡像
+        /// </summary>
+        public void CopyFlippedBoneRotations(FingerBlendUnit source)
+        {
+            // 左右の部位は同じ並びの BoneType 表から作られるため、添字同士が反転ペアになる
+            var count = Mathf.Min(_digits.Length, source._digits.Length);
+            for (var i = 0; i < count; i++)
+            {
+                var digit = _digits[i];
+                var sourceDigit = source._digits[i];
+                var boneCount = Mathf.Min(digit.bones.Length, sourceDigit.bones.Length);
+                for (var j = 0; j < boneCount; j++)
+                {
+                    var bone = digit.bones[j];
+                    var sourceBone = sourceDigit.bones[j];
+                    if (bone == null || sourceBone == null)
+                    {
+                        continue;
+                    }
+
+                    bone.localRotation = MTEP.PoseFlipUtils.FlipRotation(sourceBone.localRotation);
+                }
             }
         }
 
