@@ -125,6 +125,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         public int digitCount => _digits.Length;
 
+        /// <summary>指の付け根側の関節（手指なら手首、足指なら足首）。指ブレンドでは回さない</summary>
+        public Transform wristBone { get; private set; }
+
         /// <summary>この部位が回す全ボーン。操作履歴の記録対象用</summary>
         public IEnumerable<Transform> bones
         {
@@ -256,6 +259,8 @@ namespace COM3D2.SceneEditor.Plugin
             var isArm = type == FingerBlendType.RightArm || type == FingerBlendType.LeftArm;
             var prefix = isRight ? "Bip01 R " : "Bip01 L ";
             var boneTypeTable = GetBoneTypeTable(type);
+
+            wristBone = FindBone(bones, prefix + (isArm ? "Hand" : "Foot"));
 
             _digits = new Digit[boneTypeTable.Length];
             for (var i = 0; i < _digits.Length; i++)
@@ -396,6 +401,16 @@ namespace COM3D2.SceneEditor.Plugin
                     bone.localRotation = MTEP.PoseFlipUtils.FlipRotation(sourceBone.localRotation);
                 }
             }
+        }
+
+        /// <summary>反対側の部位の手首（足首）の回転を左右反転して書き写す</summary>
+        public void CopyFlippedWristRotation(FingerBlendUnit source)
+        {
+            if (wristBone == null || source.wristBone == null)
+            {
+                return;
+            }
+            wristBone.localRotation = MTEP.PoseFlipUtils.FlipRotation(source.wristBone.localRotation);
         }
 
         /// <summary>

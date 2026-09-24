@@ -30,6 +30,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private DigitTabType _tabType = DigitTabType.手指;
 
+        /// <summary>左右コピーで手首も反転コピーするか。手指タブ用で、右→左・左→右の両行で共有する</summary>
+        private bool _copyWristArm = false;
+
+        /// <summary>左右コピーで足首も反転コピーするか。足指タブ用で、両方向の行で共有する</summary>
+        private bool _copyWristLeg = false;
+
         /// <summary>プリセット適用部位トグル 1 件分。部位と表示名を対で持つ</summary>
         private struct PresetTarget
         {
@@ -248,19 +254,38 @@ namespace COM3D2.SceneEditor.Plugin
                 view.DrawLabel(name, LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
 
                 // モーション再生でポーズが上書きされた後、スライダー値を再適用するためのボタン
-                if (view.DrawButton("更新", 50, ROW_HEIGHT))
+                if (view.DrawButton("更新", 40, ROW_HEIGHT))
                 {
                     RecordFingerEdit(maid, unit, "指ブレンド更新: " + name);
                     ApplyFingerBlend(unit);
                 }
 
-                if (view.DrawButton(otherName + "にコピー", 100, ROW_HEIGHT))
+                var isArm = type == FingerBlendType.RightArm || type == FingerBlendType.LeftArm;
+                var copyWrist = isArm ? _copyWristArm : _copyWristLeg;
+
+                if (view.DrawButton(otherName + "にコピー", 90, ROW_HEIGHT))
                 {
-                    RecordFingerEdit(maid, otherUnit, "指コピー: " + name + "→" + otherName);
+                    RecordFingerCopy(maid, otherUnit, copyWrist, "指コピー: " + name + "→" + otherName);
                     otherUnit.CopyFrom(unit);
                     ApplyFingerBlend(otherUnit);
                     otherUnit.CopyFlippedBoneRotations(unit);
+                    if (copyWrist)
+                    {
+                        otherUnit.CopyFlippedWristRotation(unit);
+                    }
                 }
+
+                view.DrawToggle(isArm ? "手首" : "足首", copyWrist, 45, ROW_HEIGHT, value =>
+                {
+                    if (isArm)
+                    {
+                        _copyWristArm = value;
+                    }
+                    else
+                    {
+                        _copyWristLeg = value;
+                    }
+                });
 
                 // SceneView のカメラをこの部位の指へ寄せる。ヘッダーのリセットと同じ右端揃え。
                 // アイコンは Inspector のフォーカスボタンと共通
@@ -502,10 +527,26 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void RecordFingerEdit(Maid maid, FingerBlendUnit unit, string description)
         {
+            RecordBoneEdit(maid, unit.bones, description);
+        }
+
+        /// <summary>左右コピーの変更を記録する。手首も書き換える場合は手首ボーンも控える</summary>
+        private static void RecordFingerCopy(Maid maid, FingerBlendUnit unit, bool includeWrist, string description)
+        {
+            if (!includeWrist || unit.wristBone == null)
+            {
+                RecordFingerEdit(maid, unit, description);
+                return;
+            }
+            RecordBoneEdit(maid, new List<Transform>(unit.bones) { unit.wristBone }, description);
+        }
+
+        private static void RecordBoneEdit(Maid maid, IEnumerable<Transform> bones, string description)
+        {
             // 停止でボーンが動くため、変更前を控える前に停止させる
             MaidMotionState.StopMotion(maid);
             // undo で戻るのはボーンと開き/握り/ロックの表示値まで
-            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose, description, unit.bones);
+            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose, description, bones);
         }
 
         /// <summary>
