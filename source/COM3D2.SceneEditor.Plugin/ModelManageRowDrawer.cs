@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -91,28 +92,23 @@ namespace COM3D2.SceneEditor.Plugin
                 _maidComboBox.items = _maidCaches;
                 _maidComboBox.currentIndex = Mathf.Clamp(
                     model.attachMaidSlotNo + 1, 0, _maidCaches.Count - 1);
-                _maidComboBox.onSelected = (maidCache, index) =>
+                _maidComboBox.onSelected = (maidCache, index) => ChangeAttach(model, () =>
                 {
-                    // 位置・回転の行と同じく操作履歴へ記録し、確定時の自動キー登録に載せる
-                    RecordAttachEdit(model);
                     model.attachMaidSlotNo = index - 1;
                     if (model.attachPoint == AttachPoint.Null)
                     {
                         model.attachPoint = AttachPoint.Head;
                     }
-                    modelManager.UpdateAttachPoint(model);
-                };
+                });
                 _maidComboBox.DrawButton(view);
 
                 if (model.attachMaidSlotNo >= 0)
                 {
                     _attachPointComboBox.currentIndex = (int)model.attachPoint;
-                    _attachPointComboBox.onSelected = (_, index) =>
+                    _attachPointComboBox.onSelected = (_, index) => ChangeAttach(model, () =>
                     {
-                        RecordAttachEdit(model);
                         model.attachPoint = (AttachPoint)index;
-                        modelManager.UpdateAttachPoint(model);
-                    };
+                    });
                     _attachPointComboBox.DrawButton(view);
                 }
             }
@@ -122,12 +118,15 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndAutoEditMode();
         }
 
-        private static void RecordAttachEdit(MTEP.StudioModelStat model)
+        /// <summary>
+        /// アタッチ先を変え、自動登録が有効なら現在フレームのモデルキーへ記録する。
+        /// 編集モードへは、BeginAutoEditMode の区間で描いたコンボが選択の直前に入れている
+        /// </summary>
+        private static void ChangeAttach(MTEP.StudioModelStat model, Action change)
         {
-            if (model.transform != null)
-            {
-                ObjectTransformRowDrawer.RecordEdit(model.transform.gameObject);
-            }
+            change();
+            modelManager.UpdateAttachPoint(model);
+            TimelineWindow.AutoKeyFrameAfterEdit(typeof(MTEP.ModelTimelineLayer), 0);
         }
 
         /// <summary>プラグイン名から選択肢の添字を引く。未設定・未知の名前は先頭 (Default) 扱い</summary>

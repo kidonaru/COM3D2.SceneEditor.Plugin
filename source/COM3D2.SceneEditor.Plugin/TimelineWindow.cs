@@ -338,6 +338,31 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 履歴の確定を経ない編集の直後に、指定レイヤーへ自動登録する。
+        /// モデルのアタッチ変更は親だけ変わってローカル Transform が同値のことがあり、
+        /// Object 履歴の確定 (前後差分) を起点にした自動登録では拾えない
+        /// </summary>
+        public static void AutoKeyFrameAfterEdit(Type layerType, int slotNo)
+        {
+            if (timeline == null)
+            {
+                return;
+            }
+
+            FocusLayerKeepingEdit(layerType, slotNo);
+
+            var isEditing = currentLayer != null && timelineManager.initialEditFrame != null;
+            if (AutoKeyFrameGate.ShouldRegister(
+                isAutoKeyFrame: timelineConfig.isAutoKeyFrame,
+                isEditing: isEditing,
+                editedMaid: null,
+                activeMaid: maidManager.maid))
+            {
+                timelineManager.AddKeyFrameDiff(isAuto: true);
+            }
+        }
+
+        /// <summary>
         /// 値を変えたレイヤーをアクティブにする。
         /// 登録は表示中のレイヤーだけが対象なので、先に切り替えておくことで
         /// 「触ったものにキーが入る」が成り立つ。
