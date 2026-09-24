@@ -35,6 +35,12 @@ namespace COM3D2.SceneEditor.Plugin
         private const float BendMargin = 15f;
         private const float SpreadMargin = 15f;
 
+        /// <summary>
+        /// 足指の反り側（open より逆方向）の余裕 (度)。足指は爪先立ちや踏ん張りで
+        /// 大きく反るため、テンプレートに反り側の極値が無いぶん手指より広く取る
+        /// </summary>
+        private const float FootBackBendMargin = 45f;
+
         // 指は関節間が数 cm しかないため、体のドラッグ点（0.04）より小さくして
         // 隣の関節と当たり判定が重ならないようにする
         private const float FingerDragPointScale = 0.008f;
@@ -70,7 +76,7 @@ namespace COM3D2.SceneEditor.Plugin
                 for (var digit = 0; digit < HandDigitCount; digit++)
                 {
                     CreateDigitDragPoints(maid, bones, prefix, "Finger" + digit,
-                        HandJointCount, HandBendAxis, handTable[digit]);
+                        HandJointCount, HandBendAxis, BendMargin, handTable[digit]);
                 }
 
                 var footTable = FingerBlendUnit.GetBoneTypeTable(
@@ -79,7 +85,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // テーブル行 i にはボーン Toe(2-i) が対応する（FingerBlendUnit と同じ逆順対応）
                     CreateDigitDragPoints(maid, bones, prefix, "Toe" + digit,
-                        FootJointCount, FootBendAxis, footTable[2 - digit]);
+                        FootJointCount, FootBendAxis, FootBackBendMargin, footTable[2 - digit]);
                 }
             }
         }
@@ -88,10 +94,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// 指 1 本ぶんの点を作る。各関節の個別点と、指先（Nub）に全関節をまとめて曲げる
         /// カール点を置く。ボーン名は根本 "Finger0" → 第 2 関節 "Finger01" → 先端 "Finger02"
         /// （足指は "Toe0" → "Toe01"）、指先は "Finger0Nub" 形式。
+        /// backBendMargin は反り側（open より逆方向）へ許す角度 (度)。
         /// boneTypes はボーンと同順（根本→先端）のテンプレートキー
         /// </summary>
         private void CreateDigitDragPoints(Maid maid, Transform bones, string prefix,
-            string digitName, int jointCount, Vector3 bendAxis, IKManager.BoneType[] boneTypes)
+            string digitName, int jointCount, Vector3 bendAxis, float backBendMargin,
+            IKManager.BoneType[] boneTypes)
         {
             var joints = new Transform[jointCount];
             for (var joint = 0; joint < jointCount; joint++)
@@ -109,7 +117,8 @@ namespace COM3D2.SceneEditor.Plugin
             var entries = new MaidFingerDragPoint.Entry[jointCount];
             for (var joint = 0; joint < jointCount; joint++)
             {
-                entries[joint] = CreateEntry(joints[joint], 1f, bendAxis, boneTypes[joint]);
+                entries[joint] = CreateEntry(joints[joint], 1f, bendAxis, backBendMargin,
+                    boneTypes[joint]);
             }
 
             // 各関節の個別点。根本の点だけ左右ドラッグで開きも動かせる
@@ -130,10 +139,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 1 関節ぶんのエントリを作る。曲げの可動域は open→fist テンプレートの
-        /// 相対回転から算出し、open 姿勢を 0 度として [-マージン, fist角+マージン] とする
+        /// 相対回転から算出し、open 姿勢を 0 度として [-反りマージン, fist角+マージン] とする
         /// </summary>
-        private static MaidFingerDragPoint.Entry CreateEntry(
-            Transform bone, float weight, Vector3 bendAxis, IKManager.BoneType boneType)
+        private static MaidFingerDragPoint.Entry CreateEntry(Transform bone, float weight,
+            Vector3 bendAxis, float backBendMargin, IKManager.BoneType boneType)
         {
             var entry = new MaidFingerDragPoint.Entry
             {
@@ -165,7 +174,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             entry.hasLimit = true;
             entry.openRotation = open;
-            entry.bendMin = -BendMargin;
+            entry.bendMin = -backBendMargin;
             entry.bendMax = bendMax + BendMargin;
             return entry;
         }
