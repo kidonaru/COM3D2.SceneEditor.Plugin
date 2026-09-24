@@ -58,6 +58,8 @@ namespace COM3D2.SceneEditor.Plugin
             new Dictionary<RowKey, GUIComboBox<MTEP.MaidCache>>();
         private readonly Dictionary<RowKey, GUIComboBox<MTEP.MaidPointType>> _pointComboBoxes =
             new Dictionary<RowKey, GUIComboBox<MTEP.MaidPointType>>();
+        private readonly Dictionary<RowKey, GUIComboBox<string>> _attachPointComboBoxes =
+            new Dictionary<RowKey, GUIComboBox<string>>();
 
         /// <summary>このフレームで描いた行。EndFrame の掃除に使う</summary>
         private readonly HashSet<RowKey> _usedKeys = new HashSet<RowKey>();
@@ -66,11 +68,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>先頭に「なし」(null) を含む追従メイドの選択肢</summary>
         private readonly List<MTEP.MaidCache> _maidItems = new List<MTEP.MaidCache>();
 
-        /// <summary>このカスタム値をコンボで描くか (対象は MaidSlot と MaidPoint の 2 種類)</summary>
+        /// <summary>このカスタム値をコンボで描くか (対象は MaidSlot / MaidPoint / AttachPoint)</summary>
         public static bool IsComboValue(MTEP.CustomValueInfo info)
         {
             return info.uiType == MTEP.CustomValueUIType.MaidSlot
-                || info.uiType == MTEP.CustomValueUIType.MaidPoint;
+                || info.uiType == MTEP.CustomValueUIType.MaidPoint
+                || info.uiType == MTEP.CustomValueUIType.AttachPoint;
         }
 
         /// <summary>
@@ -101,6 +104,10 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawMaidPointCombo(view, rowKey, info, value, labelWidth, rowHeight, onChanged);
                     break;
 
+                case MTEP.CustomValueUIType.AttachPoint:
+                    DrawAttachPointCombo(view, rowKey, info, value, labelWidth, rowHeight, onChanged);
+                    break;
+
                 default:
                     MTEUtils.LogError(
                         "MaidFollowCustomValueDrawer: コンボで描けない uiType です " + info.uiType);
@@ -117,6 +124,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             Sweep(_maidComboBoxes);
             Sweep(_pointComboBoxes);
+            Sweep(_attachPointComboBoxes);
             _usedKeys.Clear();
         }
 
@@ -125,6 +133,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _maidComboBoxes.Clear();
             _pointComboBoxes.Clear();
+            _attachPointComboBoxes.Clear();
             _usedKeys.Clear();
         }
 
@@ -207,6 +216,36 @@ namespace COM3D2.SceneEditor.Plugin
                 : Mathf.Clamp(
                     Mathf.RoundToInt(value), 0, MaidFollowRowDrawer.followPointItems.Count - 1);
             comboBox.onSelected = (type, _) => onChanged((float)(int)type);
+
+            LabeledComboRow.Draw(view, info.name, comboBox, labelWidth, rowHeight);
+        }
+
+        private void DrawAttachPointCombo(
+            GUIView view,
+            RowKey rowKey,
+            MTEP.CustomValueInfo info,
+            float value,
+            float labelWidth,
+            float rowHeight,
+            Action<float> onChanged)
+        {
+            GUIComboBox<string> comboBox;
+            if (!_attachPointComboBoxes.TryGetValue(rowKey, out comboBox))
+            {
+                // 並びは PhotoTransTargetObject.AttachPoint の enum 順なので、添字がそのまま値になる
+                comboBox = new GUIComboBox<string>
+                {
+                    items = BoneUtils.AttachPointNames,
+                    getName = (name, _) => name,
+                };
+                _attachPointComboBoxes[rowKey] = comboBox;
+            }
+
+            comboBox.defaultName = float.IsNaN(value) ? MixedName : null;
+            comboBox.currentIndex = float.IsNaN(value)
+                ? MixedIndex
+                : Mathf.Clamp(Mathf.RoundToInt(value), 0, BoneUtils.AttachPointNames.Count - 1);
+            comboBox.onSelected = (_, index) => onChanged(index);
 
             LabeledComboRow.Draw(view, info.name, comboBox, labelWidth, rowHeight);
         }

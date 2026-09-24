@@ -57,5 +57,16 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.NotEqual(new RowKey(camera, "maidSlotNo"), new RowKey(subCamera, "maidSlotNo"));
         }
+
+        [Theory]
+        [InlineData(CustomValueUIType.MaidSlot, true)]
+        [InlineData(CustomValueUIType.MaidPoint, true)]
+        [InlineData(CustomValueUIType.AttachPoint, true)]
+        [InlineData(CustomValueUIType.Default, false)]
+        public void コンボで描くのはメイドと部位の値だけ(CustomValueUIType uiType, bool expected)
+        {
+            // false だとインスペクタが数値入力で描き、モデルキーのアタッチ部位を enum 番号で打つことになる
+            Assert.Equal(expected, MaidFollowCustomValueDrawer.IsComboValue(new CustomValueInfo { uiType = uiType }));
+        }
     }
 }
