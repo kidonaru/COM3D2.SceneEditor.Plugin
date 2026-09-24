@@ -121,9 +121,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
 
-            if (bgName.StartsWith(MyRoomBgNamePrefix))
+            string guid;
+            if (TryGetMyRoomGuid(bgName, out guid))
             {
-                return bgName.Substring(MyRoomBgNamePrefix.Length);
+                return guid;
             }
 
             if (PhotoBGData.data == null)
@@ -210,6 +211,40 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// BgMgr.GetBGName() の値で背景を適用する。
+        /// マイルームの名前は prefab 名ではないため ChangeBg に渡すと読めず、ChangeBgMyRoom で適用する
+        /// </summary>
+        public static void ChangeBgByName(string bgName)
+        {
+            var bgMgr = GameMain.Instance.BgMgr;
+            string guid;
+            if (!TryGetMyRoomGuid(bgName, out guid))
+            {
+                bgMgr.ChangeBg(bgName);
+                return;
+            }
+
+            if (!CreativeRoomManager.IsExistSaveData(guid))
+            {
+                // ChangeBgMyRoom はセーブデータが無いと黙って背景なしにするため、原因をログに残す
+                MTEUtils.LogWarning("マイルームのセーブデータが見つかりません: {0}", bgName);
+            }
+            bgMgr.ChangeBgMyRoom(guid);
+        }
+
+        /// <summary>bgName（BgMgr.GetBGName() の値）がマイルームなら guid を取り出す</summary>
+        private static bool TryGetMyRoomGuid(string bgName, out string guid)
+        {
+            if (bgName == null || !bgName.StartsWith(MyRoomBgNamePrefix))
+            {
+                guid = null;
+                return false;
+            }
+            guid = bgName.Substring(MyRoomBgNamePrefix.Length);
+            return true;
         }
     }
 }

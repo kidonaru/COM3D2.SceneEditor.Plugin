@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -242,7 +243,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (bgName != GameMain.Instance.BgMgr.GetBGName())
             {
                 DeleteBGObject();
-                GameMain.Instance.BgMgr.ChangeBg(bgName);
+                BackgroundUtils.ChangeBgByName(bgName);
             }
         }
 
