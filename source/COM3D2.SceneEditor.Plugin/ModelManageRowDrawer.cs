@@ -35,7 +35,7 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly GUIComboBox<string> _attachPointComboBox = new GUIComboBox<string>
         {
             getName = (name, _) => name,
-            items = BoneUtils.AttachPointNames,
+            items = MTEP.ModelAttachPoints.Names,
             buttonSize = new Vector2(60, 20),
         };
 

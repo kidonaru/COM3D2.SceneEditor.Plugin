@@ -68,7 +68,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     name = "アタッチ部位",
                     // Null (設定なし) はアタッチなしの別表現になり、キーの差分判定がずれるので選ばせない
                     min = (float)AttachPoint.Fix,
-                    max = (float)AttachPoint.Foot_L,
+                    max = (float)ModelAttachPoints.Max,
                     step = 1f,
                     defaultValue = (float)AttachPoint.Head,
                     uiType = CustomValueUIType.AttachPoint,

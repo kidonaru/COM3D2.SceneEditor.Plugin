@@ -32,6 +32,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(CustomValueUIType.AttachPoint, map["attachPoint"].uiType);
             // Null (設定なし) はアタッチなしの別表現になるため、キーでは選ばせない
             Assert.Equal((float)AttachPoint.Fix, map["attachPoint"].min);
+            Assert.Equal((float)ModelAttachPoints.Max, map["attachPoint"].max);
             Assert.Equal((int)TransformDataModel.Index.WorldLerp, map["worldLerp"].index);
             Assert.Equal(CustomValueType.BoolValue, map["worldLerp"].type);
 

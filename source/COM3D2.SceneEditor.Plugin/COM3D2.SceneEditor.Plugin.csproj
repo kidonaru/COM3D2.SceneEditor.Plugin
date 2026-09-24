@@ -482,6 +482,7 @@
     <Compile Include="Timeline\IKHoldType.cs" />
     <Compile Include="Timeline\MaidBlendShape.cs" />
     <Compile Include="Timeline\MaidCache.cs" />
+    <Compile Include="Timeline\ModelAttachPoints.cs" />
     <Compile Include="Timeline\MaidInfo.cs" />
     <Compile Include="Timeline\MaidPropCache.cs" />
     <Compile Include="Timeline\MaidSlotStat.cs" />

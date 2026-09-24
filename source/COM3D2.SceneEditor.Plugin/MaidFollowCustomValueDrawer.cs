@@ -62,8 +62,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// 部位コンボの選択肢。先頭の Null (設定なし) はアタッチなしの別表現になるので除く
         /// (アタッチなしはメイド側の「なし」で表す)
         /// </summary>
-        private static readonly List<string> AttachPointItems = BoneUtils.AttachPointNames.GetRange(
-            1, BoneUtils.AttachPointNames.Count - 1);
+        private static readonly List<string> AttachPointItems = MTEP.ModelAttachPoints.Names.GetRange(
+            1, MTEP.ModelAttachPoints.Names.Count - 1);
 
         private readonly Dictionary<RowKey, GUIComboBox<string>> _attachPointComboBoxes =
             new Dictionary<RowKey, GUIComboBox<string>>();

@@ -587,7 +587,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public Transform GetAttachPointTransform(AttachPoint point)
         {
-            if (ikManager == null || point == AttachPoint.Null)
+            if (point == AttachPoint.Null)
+            {
+                return null;
+            }
+
+            var extraBoneName = ModelAttachPoints.GetExtraBoneName(point);
+            if (extraBoneName != null)
+            {
+                return maid != null && maid.body0 != null ? maid.body0.GetBone(extraBoneName) : null;
+            }
+
+            if (ikManager == null)
             {
                 return null;
             }

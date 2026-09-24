@@ -63,6 +63,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [InlineData(AttachPoint.Fix, 0)]
         [InlineData(AttachPoint.Hand_R, (int)AttachPoint.Hand_R - 1)]
         [InlineData(AttachPoint.Foot_L, (int)AttachPoint.Foot_L - 1)]
+        [InlineData(ModelAttachPoints.Pelvis, (int)ModelAttachPoints.Pelvis - 1)]
         // 旧ビルドで入り得た Null は先頭へ寄せる
         [InlineData(AttachPoint.Null, 0)]
         public void 部位コンボはNullを除いた並びで値と添字を変換する(AttachPoint point, int index)
