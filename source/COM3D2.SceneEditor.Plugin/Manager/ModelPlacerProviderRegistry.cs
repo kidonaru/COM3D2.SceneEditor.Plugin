@@ -39,6 +39,12 @@ namespace COM3D2.SceneEditor.Plugin
         public Func<GameObject, string> getModelDisplayName;
         public Action beginBatch;
         public Action endBatch;
+
+        /// <summary>
+        /// アタッチ中の親ボーン。未アタッチ・不明なら null。
+        /// プロバイダ側の UI で付け替えたアタッチを SE のキーへ取り込むのに使う
+        /// </summary>
+        public Func<GameObject, Transform> getModelAttachBone;
     }
 
     /// <summary>
@@ -128,6 +134,13 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 provider.beginBatch = (Action)Delegate.CreateDelegate(typeof(Action), beginBatch);
                 provider.endBatch = (Action)Delegate.CreateDelegate(typeof(Action), endBatch);
+            }
+
+            var getAttachBone = type.GetMethod("GetModelAttachBone", flags, null, new[] { typeof(GameObject) }, null);
+            if (getAttachBone != null && getAttachBone.ReturnType == typeof(Transform))
+            {
+                provider.getModelAttachBone = (Func<GameObject, Transform>)Delegate.CreateDelegate(
+                    typeof(Func<GameObject, Transform>), getAttachBone);
             }
 
             return true;

@@ -59,6 +59,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public static event UnityAction<StudioModelStat> onModelUpdated;
 
         /// <summary>
+        /// プロバイダ側 (ModItemExplorer の UI など) でアタッチが変わった。
+        /// SE 自身の付け替えは両方の stat を同時に書くため、このイベントは発火しない
+        /// </summary>
+        public static event UnityAction<StudioModelStat> onModelAttachChanged;
+
+        /// <summary>
         /// ApplyAttach で最後に付けた親 (モデル名 → ボーン。アタッチなしは null)。
         /// キーの値が同じでも、メイドの出入りで解決先が変われば付け替え直すために控える
         /// </summary>
@@ -238,6 +244,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var addedModels = new List<StudioModelStat>();
             var removedModels = new List<StudioModelStat>();
             var updatedModels = new List<StudioModelStat>();
+            var attachChangedModels = new List<StudioModelStat>();
             var refresh = false;
 
             foreach (var model in modelList)
@@ -274,6 +281,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     cachedModel.attachMaidSlotNo != model.attachMaidSlotNo ||
                     cachedModel.visible != model.visible)
                 {
+                    if (cachedModel.attachPoint != model.attachPoint ||
+                        cachedModel.attachMaidSlotNo != model.attachMaidSlotNo)
+                    {
+                        attachChangedModels.Add(cachedModel);
+                    }
+
                     cachedModel.FromModel(model);
                     updatedModels.Add(cachedModel);
                     continue;
@@ -382,6 +395,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             foreach (var model in updatedModels)
             {
                 onModelUpdated?.Invoke(model);
+            }
+
+            foreach (var model in attachChangedModels)
+            {
+                onModelAttachChanged?.Invoke(model);
             }
         }
 

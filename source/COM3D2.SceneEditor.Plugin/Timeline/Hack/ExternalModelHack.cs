@@ -106,6 +106,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 foreach (var key in deadKeys)
                 {
                     _statMap.Remove(key);
+                    _unresolvedAttachBones.Remove(key);
                 }
             }
         }
@@ -130,6 +131,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (cached.info != null && cached.info.fileName == fileName)
                 {
                     cached.visible = obj.activeSelf;
+                    SyncAttachFromProvider(cached, obj);
                     return cached;
                 }
                 _statMap.Remove(obj);
@@ -155,9 +157,85 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // プロバイダの列挙名にはグループ接尾辞が無く、CreateModelStat は接尾辞が無いと 0 を付ける。
             // 0 のままだと列挙順によっては新規 stat が既存の 0 番を押し出すため、明示的に未採番へ落とす
             stat.SetGroup(StudioModelStat.UnassignedGroup);
+            SyncAttachFromProvider(stat, obj);
 
             _statMap[obj] = stat;
             return stat;
+        }
+
+        /// <summary>取り込めなかったアタッチ先の控え (警告の重複を避ける)</summary>
+        private readonly Dictionary<GameObject, Transform> _unresolvedAttachBones = new Dictionary<GameObject, Transform>();
+
+        /// <summary>
+        /// プロバイダ側の UI で付け替えたアタッチを stat へ取り込む。
+        /// SE 自身の付け替えは stat を書いてからプロバイダを呼ぶので、ここで差分にはならない
+        /// </summary>
+        private void SyncAttachFromProvider(StudioModelStat stat, GameObject obj)
+        {
+            if (_provider.getModelAttachBone == null)
+            {
+                return;
+            }
+
+            Transform bone;
+            try
+            {
+                bone = _provider.getModelAttachBone(obj);
+            }
+            catch (System.Exception e)
+            {
+                MTEUtils.LogException(e);
+                return;
+            }
+
+            AttachPoint point;
+            int slotNo;
+            if (!TryResolveAttach(bone, out point, out slotNo))
+            {
+                // 30 フレームごとに呼ばれるので、同じボーンについては 1 度だけ知らせる
+                Transform warnedBone;
+                if (!_unresolvedAttachBones.TryGetValue(obj, out warnedBone) || warnedBone != bone)
+                {
+                    _unresolvedAttachBones[obj] = bone;
+                    MTEUtils.LogWarning(
+                        "アタッチ先を SceneEditor の部位として表せないため、キーへ取り込みません: {0} → {1}",
+                        stat.displayName, bone.name);
+                }
+                return;
+            }
+
+            _unresolvedAttachBones.Remove(obj);
+            stat.attachPoint = point;
+            stat.attachMaidSlotNo = slotNo;
+        }
+
+        /// <summary>
+        /// 親ボーンを SE の部位とメイドのスロットへ戻す。未アタッチは true (Null / -1)。
+        /// SE がキャッシュを持たないメイドや、部位一覧に無いボーンは false
+        /// </summary>
+        private static bool TryResolveAttach(Transform bone, out AttachPoint point, out int slotNo)
+        {
+            point = AttachPoint.Null;
+            slotNo = -1;
+            if (bone == null)
+            {
+                return true;
+            }
+
+            var maid = bone.GetComponentInParent<Maid>();
+            var maidCache = maid != null ? maidManager.GetMaidCache(maid) : null;
+            if (maidCache == null)
+            {
+                return false;
+            }
+
+            if (!ModelAttachPoints.TryFindAttachPoint(p => maidCache.GetAttachPointTransform(p), bone, out point))
+            {
+                return false;
+            }
+
+            slotNo = maidCache.slotNo;
+            return true;
         }
 
         private string SafeGetFileName(GameObject obj)

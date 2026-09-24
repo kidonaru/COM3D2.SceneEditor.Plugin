@@ -31,6 +31,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public static string GetModelDisplayName(GameObject obj) => "ダミー";
         public static void BeginBatch() { }
         public static void EndBatch() { }
+        public static Transform GetModelAttachBone(GameObject obj) => null;
     }
 
     /// <summary>任意メンバを持たないプロバイダ</summary>
@@ -100,6 +101,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.NotNull(provider.getModelDisplayName);
             Assert.NotNull(provider.beginBatch);
             Assert.NotNull(provider.endBatch);
+            Assert.NotNull(provider.getModelAttachBone);
         }
 
         [Fact]
@@ -112,6 +114,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Null(provider.getModelDisplayName);
             Assert.Null(provider.beginBatch);
             Assert.Null(provider.endBatch);
+            // 旧版のプロバイダはアタッチを返さない。SE は同期しないだけで、これまでどおり動く
+            Assert.Null(provider.getModelAttachBone);
         }
 
         [Fact]

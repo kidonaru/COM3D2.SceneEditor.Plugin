@@ -260,6 +260,7 @@ namespace COM3D2.SceneEditor.Plugin
             SelectionManager.instance.onSelectRequested += OnSelectRequested;
             MaidDragBoneTracker.onDragCompleted += OnDragCompleted;
             HistoryManager.instance.onEditCommitted += OnEditCommitted;
+            MTEP.StudioModelManager.onModelAttachChanged += OnModelAttachChanged;
 
             // フィールド初期化子ではインスタンスメンバーを参照できないためここで設定する
             // ドロップダウンは操作対象で絞った一覧なのでメイド名は省く
@@ -349,6 +350,23 @@ namespace COM3D2.SceneEditor.Plugin
 
             FocusLayerKeepingEdit(layerType, slotNo);
             TryAutoKeyFrame(editedMaid: null);
+        }
+
+        private static int _lastAttachAutoKeyFrame = -1;
+
+        /// <summary>
+        /// プロバイダ (ModItemExplorer) の UI で付け替えたアタッチも、SE のコンボと同じく自動登録に載せる。
+        /// 登録は全モデルの差分をまとめて取るので、同じフレームで複数モデルが変わっても 1 回だけ呼ぶ
+        /// </summary>
+        private static void OnModelAttachChanged(MTEP.StudioModelStat model)
+        {
+            if (_lastAttachAutoKeyFrame == Time.frameCount)
+            {
+                return;
+            }
+            _lastAttachAutoKeyFrame = Time.frameCount;
+
+            AutoKeyFrameAfterEdit(typeof(MTEP.ModelTimelineLayer), slotNo: 0);
         }
 
         /// <summary>
