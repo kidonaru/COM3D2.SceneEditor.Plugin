@@ -93,6 +93,8 @@ namespace COM3D2.SceneEditor.Plugin
                     model.attachMaidSlotNo + 1, 0, _maidCaches.Count - 1);
                 _maidComboBox.onSelected = (maidCache, index) =>
                 {
+                    // 位置・回転の行と同じく操作履歴へ記録し、確定時の自動キー登録に載せる
+                    RecordAttachEdit(model);
                     model.attachMaidSlotNo = index - 1;
                     if (model.attachPoint == AttachPoint.Null)
                     {
@@ -107,6 +109,7 @@ namespace COM3D2.SceneEditor.Plugin
                     _attachPointComboBox.currentIndex = (int)model.attachPoint;
                     _attachPointComboBox.onSelected = (_, index) =>
                     {
+                        RecordAttachEdit(model);
                         model.attachPoint = (AttachPoint)index;
                         modelManager.UpdateAttachPoint(model);
                     };
@@ -117,6 +120,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 後続の Transform 行まで自動移行の対象にしない
             view.EndAutoEditMode();
+        }
+
+        private static void RecordAttachEdit(MTEP.StudioModelStat model)
+        {
+            if (model.transform != null)
+            {
+                ObjectTransformRowDrawer.RecordEdit(model.transform.gameObject);
+            }
         }
 
         /// <summary>プラグイン名から選択肢の添字を引く。未設定・未知の名前は先頭 (Default) 扱い</summary>

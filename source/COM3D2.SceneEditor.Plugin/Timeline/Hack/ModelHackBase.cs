@@ -19,6 +19,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void CreateModel(StudioModelStat model);
         void UpdateAttachPoint(StudioModelStat model);
         void SetModelVisible(StudioModelStat model, bool visible);
+
+        /// <summary>アタッチしていないモデルの親。ワールド補間でアタッチなし側の座標系に使う。不明なら null</summary>
+        Transform unattachedParent { get; }
     }
 
     public abstract class ModelHackBase : IModelHack
@@ -112,5 +115,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 go.SetActive(visible);
             }
         }
+
+        public virtual Transform unattachedParent => null;
     }
 }

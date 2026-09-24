@@ -27,6 +27,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>生存中 GameObject の集合。掃除のたびに作り直さないよう使い回す</summary>
         private readonly HashSet<GameObject> _aliveObjects = new HashSet<GameObject>();
 
+        private Transform _unattachedParent;
+
+        /// <summary>
+        /// プロバイダがアタッチなしのモデルを置く親。プロバイダ API に取得手段が無いため、
+        /// アタッチしていないと確定している時点 (生成直後・解除直後) の親を控える
+        /// </summary>
+        public override Transform unattachedParent => _unattachedParent;
+
         public override string pluginName => _provider.id;
 
         public ExternalModelHack(ModelPlacerProvider provider)
@@ -127,6 +135,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _statMap.Remove(obj);
             }
 
+            // プロバイダ側で直接置かれたモデルは生成を経ないのでここで控える。
+            // 既にメイドへアタッチ済みならボーンを拾ってしまうため、親の上位にメイドがいないときだけ
+            var parent = obj.transform.parent;
+            if (_unattachedParent == null && parent != null && parent.GetComponentInParent<Maid>() == null)
+            {
+                _unattachedParent = parent;
+            }
+
             var stat = modelManager.CreateModelStat(
                 fileName,
                 obj.transform,
@@ -172,6 +188,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 MTEUtils.LogError("CreateModel: モデルの追加に失敗しました " + model.name);
                 return;
             }
+
+            // UpdateAttachPoint より前なので、ここでの親はプロバイダの配置ルート
+            _unattachedParent = obj.transform.parent;
 
             model.transform = obj.transform;
             model.obj = obj;
@@ -228,6 +247,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var boneTransform = maidCache?.GetAttachPointTransform(model.attachPoint);
             var maid = boneTransform != null ? maidCache.maid : null;
             _provider.attachModel(obj, maid, boneTransform != null ? boneTransform.name : "");
+
+            // 解除した直後の親は配置ルートと確定しているので控え直す。
+            // 最初に見つかったときの親は、プロバイダ側で既にアタッチ済みだとボーンを拾ってしまうため使わない
+            if (maid == null)
+            {
+                _unattachedParent = obj.transform.parent;
+            }
         }
 
         /// <summary>タイムライン読込のような一括操作をプロバイダへ伝える（任意メンバ）</summary>

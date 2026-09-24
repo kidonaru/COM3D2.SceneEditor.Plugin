@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
@@ -165,6 +166,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 MTEUtils.LogException(e);
             }
+        }
+
+        /// <summary>
+        /// 再生中の付け替え用。プロバイダ側の配置履歴を積まないよう一括操作として囲む
+        /// </summary>
+        public void UpdateAttachPointSilently(StudioModelStat model)
+        {
+            try
+            {
+                var modelHack = GetOrDefault(model.pluginName);
+                if (modelHack == null)
+                {
+                    return;
+                }
+
+                var externalHack = modelHack as ExternalModelHack;
+                externalHack?.BeginBatch();
+                try
+                {
+                    modelHack.UpdateAttachPoint(model);
+                }
+                finally
+                {
+                    externalHack?.EndBatch();
+                }
+            }
+            catch (System.Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+        }
+
+        public Transform GetUnattachedParent(StudioModelStat model)
+        {
+            var modelHack = GetOrDefault(model.pluginName);
+            return modelHack != null ? modelHack.unattachedParent : null;
         }
 
         public void SetModelVisible(StudioModelStat model, bool visible)

@@ -17,6 +17,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     public class TimelineModelData
     {
         public string name;
+        // version 37 以降は保存されない (TimelineModelXml.ShouldSerialize*)。アタッチの正本はモデルキー (TransformDataModel)
         public AttachPoint attachPoint;
         public int attachMaidSlotNo = -1;
         public string pluginName;

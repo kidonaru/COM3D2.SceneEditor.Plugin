@@ -8,9 +8,17 @@ using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using AttachPoint = PhotoTransTargetObject.AttachPoint;
+
     [TimelineLayerDesc("モデル", 21, TimelineLayerCategory.Model, CanRestoreOnRemove = false)]
     public class ModelTimelineLayer : ModelTimelineLayerBase
     {
+        /// <summary>
+        /// ステップ値 (アタッチ先) を終点側へ切り替える区間内位置。
+        /// 始点側だけで採ると最後のキーの値が永久に効かない (MorphTimelineLayer と同じ)
+        /// </summary>
+        private const float StepEndThreshold = 0.99f;
+
         public override Type layerType => typeof(ModelTimelineLayer);
         public override string layerName => nameof(ModelTimelineLayer);
 
@@ -87,19 +95,38 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            if (indexUpdated)
+            var start = motion.start as TransformDataModel;
+            var end = motion.end as TransformDataModel;
+            if (start == null || end == null)
             {
-                ApplyMotionInit(motion, t, model);
+                return;
+            }
+
+            var attachKey = t < StepEndThreshold ? start : end;
+            var attachChanged = modelManager.ApplyAttach(
+                model, attachKey.attachPoint, attachKey.attachMaidSlotNo);
+
+            // 付け替えはローカル位置・回転を 0 に戻すので、区間頭と同じく入れ直す
+            if (indexUpdated || attachChanged)
+            {
+                ApplyMotionInit(motion, model);
             }
 
             // 同値区間は ApplyMotionInit が入れた start の値のままでよい (MotionData.isConstant)
-            if (!motion.isConstant)
+            if (motion.isConstant)
             {
-                ApplyMotionUpdateTangent(motion, t, model);
+                return;
             }
+
+            if (end.worldLerp && t < StepEndThreshold && ApplyMotionWorldLerp(motion, t, model, start, end))
+            {
+                return;
+            }
+
+            ApplyMotionUpdateTangent(motion, t, model);
         }
 
-        private void ApplyMotionInit(MotionData motion, float t, StudioModelStat model)
+        private void ApplyMotionInit(MotionData motion, StudioModelStat model)
         {
             var transform = model.transform;
             var start = motion.start;
@@ -142,6 +169,45 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 t);
         }
 
+        /// <summary>
+        /// 始点キー (始点の親基準) と終点キー (そのフレームの終点の親基準) のワールド姿勢を線形補間する。
+        /// タンジェントはローカル座標系の傾きなので使わない。親が解決できなければ false (ローカル補間へ戻す)
+        /// </summary>
+        private bool ApplyMotionWorldLerp(
+            MotionData motion,
+            float t,
+            StudioModelStat model,
+            TransformDataModel start,
+            TransformDataModel end)
+        {
+            var startParent = modelManager.GetAttachParent(model, start.attachPoint, start.attachMaidSlotNo);
+            var endParent = modelManager.GetAttachParent(model, end.attachPoint, end.attachMaidSlotNo);
+            if (startParent == null || endParent == null)
+            {
+                return false;
+            }
+
+            var transform = model.transform;
+            transform.position = Vector3.Lerp(
+                startParent.TransformPoint(start.position),
+                endParent.TransformPoint(end.position),
+                t);
+            transform.rotation = Quaternion.Slerp(
+                startParent.rotation * start.rotation,
+                endParent.rotation * end.rotation,
+                t);
+
+            var t0 = motion.stFrame * timeline.frameDuration;
+            var t1 = motion.edFrame * timeline.frameDuration;
+            transform.localScale = PluginUtils.HermiteVector3(
+                t0,
+                t1,
+                start.scaleValues,
+                end.scaleValues,
+                t);
+            return true;
+        }
+
         public void OnModelAdded(StudioModelStat model)
         {
             InitMenuItems();
@@ -175,6 +241,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
+            // 呼び出し元は一時フレームを渡すことが多いので、引き継ぎ元は登録済みキーから引く
+            var existingFrame = GetFrame(frame.frameNo);
+
             foreach (var model in modelManager.models)
             {
                 var modelName = model.name;
@@ -184,6 +253,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.rotation = model.transform.localRotation;
                 trans.scale = model.transform.localScale;
                 trans.visible = model.visible;
+                if (TransformDataModel.IsAttached(model.attachPoint, model.attachMaidSlotNo))
+                {
+                    trans.attachMaidSlotNo = model.attachMaidSlotNo;
+                    trans.attachPoint = model.attachPoint;
+                }
+                else
+                {
+                    trans.attachMaidSlotNo = -1;
+                    trans.attachPoint = AttachPoint.Head;
+                }
+
+                var existingBone = existingFrame != null ? existingFrame.GetBone(modelName) : null;
+                trans.InheritKeySettings(existingBone != null ? existingBone.transform as TransformDataModel : null);
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);

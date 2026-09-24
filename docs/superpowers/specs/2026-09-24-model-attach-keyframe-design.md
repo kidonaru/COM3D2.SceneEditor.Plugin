@@ -60,7 +60,7 @@
 
 - `ModelTimelineLayer.UpdateFrame` はモデルの現在状態（`attachMaidSlotNo` / `attachPoint`）をキーへ書く
 - ワールド補間はキー固有の設定なので、同じフレームに既存キーがあればその値を引き継ぐ（無ければ既定 0）
-- モデル行（`ModelManageRowDrawer`）のメイド・部位コンボは「現在のアタッチ状態を変える」操作として残す。既存どおり UI 操作では「アタッチ変更」の Undo 履歴を積む。キーへの記録は通常のキー登録で行う
+- モデル行（`ModelManageRowDrawer`）のメイド・部位コンボは「現在のアタッチ状態を変える」操作として残す。キーへの記録と Undo 履歴は通常のキー登録（自動登録なら「キーフレーム登録」）で行う。アタッチがキーの値になったため、コンボ操作単体で「アタッチ変更」を積むと XML 差分の無い空エントリになるので積まない
 - キーフレームインスペクタ（`KeyFrameInspector`）と一括編集（`KeyFrameBatchDrawer`）にアタッチ先・部位のコンボとワールド補間のトグルを出す
   - 部位コンボ用に `CustomValueUIType.AttachPoint` を新設し、`MaidFollowCustomValueDrawer` の対象に加える（候補は `BoneUtils.AttachPointNames`）
 
