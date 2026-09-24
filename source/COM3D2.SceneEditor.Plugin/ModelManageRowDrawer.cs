@@ -126,7 +126,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             change();
             modelManager.UpdateAttachPoint(model);
-            TimelineWindow.AutoKeyFrameAfterEdit(typeof(MTEP.ModelTimelineLayer), 0);
+            TimelineWindow.AutoKeyFrameAfterEdit(typeof(MTEP.ModelTimelineLayer), slotNo: 0);
         }
 
         /// <summary>プラグイン名から選択肢の添字を引く。未設定・未知の名前は先頭 (Default) 扱い</summary>

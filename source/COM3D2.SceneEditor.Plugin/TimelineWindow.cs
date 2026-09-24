@@ -308,14 +308,11 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var isEditing = timelineManager.currentLayer != null
-                && timelineManager.initialEditFrame != null;
-
             // レイヤーの自動追従は「自動登録」トグルに依らず働かせる。
             // 控えは毎回必ず消したいので、条件を付けずに呼ぶ
             FocusEditedLayer();
 
-            TryAutoKeyFrame(editedMaid, isEditing);
+            TryAutoKeyFrame(editedMaid);
         }
 
         /// <summary>
@@ -323,18 +320,19 @@ namespace COM3D2.SceneEditor.Plugin
         /// 指ドラッグ等は選択同期を経ずアクティブメイドが別メイドのままになり得るため、
         /// 操作対象メイドが登録対象 (アクティブメイド) と一致する場合のみ登録する
         /// </summary>
-        private void TryAutoKeyFrame(Maid editedMaid, bool isEditing)
+        private static void TryAutoKeyFrame(Maid editedMaid)
         {
+            var isEditing = currentLayer != null && timelineManager.initialEditFrame != null;
             if (!AutoKeyFrameGate.ShouldRegister(
-                isAutoKeyFrame: MTEP.ConfigManager.instance.config.isAutoKeyFrame,
+                isAutoKeyFrame: timelineConfig.isAutoKeyFrame,
                 isEditing: isEditing,
                 editedMaid: editedMaid,
-                activeMaid: MTEP.MaidManager.instance.maid))
+                activeMaid: maidManager.maid))
             {
                 return;
             }
 
-            MTEP.TimelineManager.instance.AddKeyFrameDiff(isAuto: true);
+            timelineManager.AddKeyFrameDiff(isAuto: true);
         }
 
         /// <summary>
@@ -350,16 +348,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             FocusLayerKeepingEdit(layerType, slotNo);
-
-            var isEditing = currentLayer != null && timelineManager.initialEditFrame != null;
-            if (AutoKeyFrameGate.ShouldRegister(
-                isAutoKeyFrame: timelineConfig.isAutoKeyFrame,
-                isEditing: isEditing,
-                editedMaid: null,
-                activeMaid: maidManager.maid))
-            {
-                timelineManager.AddKeyFrameDiff(isAuto: true);
-            }
+            TryAutoKeyFrame(editedMaid: null);
         }
 
         /// <summary>

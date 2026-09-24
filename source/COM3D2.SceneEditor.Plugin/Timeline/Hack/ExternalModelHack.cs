@@ -31,7 +31,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// プロバイダがアタッチなしのモデルを置く親。プロバイダ API に取得手段が無いため、
-        /// アタッチしていないと確定している時点 (生成直後・解除直後) の親を控える
+        /// アタッチしていないと確定している時点 (生成直後・解除直後・メイド配下でない状態での発見時) の親を控える
         /// </summary>
         public override Transform unattachedParent => _unattachedParent;
 
@@ -248,8 +248,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var maid = boneTransform != null ? maidCache.maid : null;
             _provider.attachModel(obj, maid, boneTransform != null ? boneTransform.name : "");
 
-            // 解除した直後の親は配置ルートと確定しているので控え直す。
-            // 最初に見つかったときの親は、プロバイダ側で既にアタッチ済みだとボーンを拾ってしまうため使わない
+            // 解除した直後の親は配置ルートと確定しているので控え直す
             if (maid == null)
             {
                 _unattachedParent = obj.transform.parent;

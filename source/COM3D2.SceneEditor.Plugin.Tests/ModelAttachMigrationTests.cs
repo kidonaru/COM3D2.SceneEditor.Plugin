@@ -25,21 +25,34 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
         private static TimelineXml CreateTimeline(int version, TimelineModelXml model, params TransformXml[] transforms)
         {
-            var bones = new List<BoneXml>();
-            foreach (var transform in transforms)
-            {
-                bones.Add(new BoneXml { transform = transform });
-            }
-
-            // FrameXml.bones は既定が null なので明示的に作る
             var layer = new TimelineLayerXml { className = "ModelTimelineLayer" };
-            layer.keyFrames.Add(new FrameXml { frameNo = 0, bones = bones });
-            layer.keyFrames.Add(new FrameXml { frameNo = 10, bones = new List<BoneXml>(bones) });
+            layer.keyFrames.Add(new FrameXml { frameNo = 0, bones = CreateBones(transforms) });
+            // キーごとに別インスタンスにしないと、2 つ目のキーの変換漏れを検出できない
+            layer.keyFrames.Add(new FrameXml { frameNo = 10, bones = CreateBones(transforms) });
 
             var timeline = new TimelineXml { version = version };
             timeline.layers.Add(layer);
             timeline.models.Add(model);
             return timeline;
+        }
+
+        // FrameXml.bones は既定が null なので明示的に作る
+        private static List<BoneXml> CreateBones(TransformXml[] transforms)
+        {
+            var bones = new List<BoneXml>();
+            foreach (var transform in transforms)
+            {
+                bones.Add(new BoneXml
+                {
+                    transform = new TransformXml
+                    {
+                        name = transform.name,
+                        type = transform.type,
+                        values = (float[])transform.values.Clone(),
+                    },
+                });
+            }
+            return bones;
         }
 
         private static TimelineModelXml CreateModel(string name, AttachPoint point, int slot)
