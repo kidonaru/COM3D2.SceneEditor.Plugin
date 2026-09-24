@@ -277,12 +277,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                if (cachedModel.attachPoint != model.attachPoint ||
-                    cachedModel.attachMaidSlotNo != model.attachMaidSlotNo ||
-                    cachedModel.visible != model.visible)
+                var attachChanged = cachedModel.attachPoint != model.attachPoint ||
+                    cachedModel.attachMaidSlotNo != model.attachMaidSlotNo;
+                if (attachChanged || cachedModel.visible != model.visible)
                 {
-                    if (cachedModel.attachPoint != model.attachPoint ||
-                        cachedModel.attachMaidSlotNo != model.attachMaidSlotNo)
+                    if (attachChanged)
                     {
                         attachChangedModels.Add(cachedModel);
                     }

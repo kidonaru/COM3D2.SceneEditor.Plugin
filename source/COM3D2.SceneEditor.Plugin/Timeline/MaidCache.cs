@@ -592,6 +592,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return null;
             }
 
+            // 胸・骨盤 (SE 独自値) は IK 管理外なので ikManager を経由せず名前で引く
             var extraBoneName = ModelAttachPoints.GetExtraBoneName(point);
             if (extraBoneName != null)
             {
