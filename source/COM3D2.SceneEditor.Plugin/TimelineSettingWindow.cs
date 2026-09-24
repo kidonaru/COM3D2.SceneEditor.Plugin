@@ -552,6 +552,20 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
+                view.DrawToggle("手首を指に表示", timelineConfig.isWristInFingerMenu, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
+                {
+                    timelineConfig.isWristInFingerMenu = newValue;
+                    timelineConfig.dirty = true;
+                    foreach (var layer in timelineManager.layers.OfType<MTEP.MotionTimelineLayer>())
+                    {
+                        layer.RebuildMenuItems();
+                    }
+                });
+            }
+            view.EndLayout();
+
+            view.BeginHorizontal();
+            {
                 view.DrawToggle("処理時間出力", timelineConfig.outputElapsedTime, TOGGLE_WIDTH, ROW_HEIGHT, newValue =>
                 {
                     timelineConfig.outputElapsedTime = newValue;

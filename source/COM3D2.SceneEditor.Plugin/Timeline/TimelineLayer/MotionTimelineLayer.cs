@@ -139,32 +139,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var setMenuItemMap = new Dictionary<BoneSetMenuType, BoneSetMenuItem>(12);
 
+            // グループの並びは元の所属で決め、手首の振り替えで順序が崩れないようにする
             foreach (var pair in BoneUtils.BoneTypeToSetMenuTypeMap)
             {
                 var boneType = pair.Key;
                 var boneSetType = pair.Value;
 
-                var boneName = BoneUtils.GetBoneName(boneType);
-                var displayName = BoneUtils.GetBoneJpName(boneType);
-                var menuItem = new MaidBoneMenuItem(boneName, displayName);
-
                 if (boneSetType == BoneSetMenuType.None)
                 {
-                    _allMenuItems.Add(menuItem);
+                    var boneName = BoneUtils.GetBoneName(boneType);
+                    var displayName = BoneUtils.GetBoneJpName(boneType);
+                    _allMenuItems.Add(new MaidBoneMenuItem(boneName, displayName));
                     continue;
                 }
 
-                BoneSetMenuItem setMenuItem;
-                if (!setMenuItemMap.TryGetValue(boneSetType, out setMenuItem))
+                if (!setMenuItemMap.ContainsKey(boneSetType))
                 {
                     var boneSetName = boneSetType.ToString();
                     var displaySetName = BoneUtils.GetBoneSetMenuJpName(boneSetType);
-                    setMenuItem = new BoneSetMenuItem(boneSetName, displaySetName);
+                    var setMenuItem = new BoneSetMenuItem(boneSetName, displaySetName);
                     setMenuItemMap[boneSetType] = setMenuItem;
                     _allMenuItems.Add(setMenuItem);
                 }
+            }
 
-                setMenuItem.AddChild(menuItem);
+            // 子ボーンの追加先は設定で振り替えた所属を使う
+            foreach (var pair in BoneUtils.BoneTypeToSetMenuTypeMap)
+            {
+                var boneType = pair.Key;
+                var boneSetType = GetMenuBoneSetType(boneType, pair.Value);
+                if (boneSetType == BoneSetMenuType.None)
+                {
+                    continue;
+                }
+
+                var boneName = BoneUtils.GetBoneName(boneType);
+                var displayName = BoneUtils.GetBoneJpName(boneType);
+                setMenuItemMap[boneSetType].AddChild(new MaidBoneMenuItem(boneName, displayName));
             }
 
             var slotMenuItemMap = new Dictionary<string, BoneSetMenuItem>(12);
@@ -230,6 +241,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var menuItem = new BoneMenuItem(boneName, FingerBlendMenuName);
                 AddToBoneSetOrTop(menuItem, GetFingerBlendSetMenuType(blendType), setMenuItemMap);
             }
+        }
+
+        /// <summary>設定に応じて手首を手指グループへ移したメニュー上の所属グループ</summary>
+        private static BoneSetMenuType GetMenuBoneSetType(IKManager.BoneType boneType, BoneSetMenuType boneSetType)
+        {
+            if (!config.isWristInFingerMenu)
+            {
+                return boneSetType;
+            }
+            switch (boneType)
+            {
+                case IKManager.BoneType.Hand_L:
+                    return BoneSetMenuType.LeftArmFinger;
+                case IKManager.BoneType.Hand_R:
+                    return BoneSetMenuType.RightArmFinger;
+                default:
+                    return boneSetType;
+            }
+        }
+
+        /// <summary>ボーンメニューの並びに関わる設定の変更後に呼ぶ</summary>
+        public void RebuildMenuItems()
+        {
+            InitMenuItems();
         }
 
         /// <summary>対応するボーングループがあればその末尾へ、無ければトップレベルへ追加する</summary>
