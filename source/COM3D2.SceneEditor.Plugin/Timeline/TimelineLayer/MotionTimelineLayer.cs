@@ -634,9 +634,35 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             stopwatch.ProcessEnd("  ApplyPlayData: " + layerName);
         }
 
+        /// <summary>適用中の anm を 1 フレーム調整なしで生成したか</summary>
+        private bool _isAnmSingleFrameSkipped = false;
+
+        /// <summary>
+        /// 編集モード中は anm に 1 フレーム調整をかけない。他レイヤーの再生データ
+        /// (stFrameActive) と同じく、編集中はキーのフレームでそのキーの値を表示するため
+        /// </summary>
+        private bool ShouldSkipAnmSingleFrame(bool forOutput)
+        {
+            return !forOutput
+                && SceneEditorHack.isPoseEditing
+                && GetSingleFrameType(TransformType.Rotation) != SingleFrameType.None;
+        }
+
+        public override void OnPoseEditEnd()
+        {
+            // メイド切替などで ApplyCurrentFrame を通らずに編集モードを抜けても、1 フレーム調整ありの anm に戻す
+            if (anmId == TimelineAnmId && _isAnmSingleFrameSkipped != ShouldSkipAnmSingleFrame(false))
+            {
+                CreateAndApplyAnm();
+            }
+        }
+
         public override void ApplyCurrentFrame(bool motionUpdate)
         {
-            if (anmId != TimelineAnmId || motionUpdate)
+            // 編集モードの切替で 1 フレーム調整の有無が変わったら anm を作り直す
+            if (anmId != TimelineAnmId ||
+                motionUpdate ||
+                _isAnmSingleFrameSkipped != ShouldSkipAnmSingleFrame(false))
             {
                 CreateAndApplyAnm();
             }
@@ -687,6 +713,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             int _startFrameNo = startFrameNo;
             int _endFrameNo = endFrameNo;
+            var isAnmSingleFrameSkipped = ShouldSkipAnmSingleFrame(forOutput);
             Action<BinaryWriter, List<BoneData>> write_bones = delegate (
                 BinaryWriter w,
                 List<BoneData> bones)
@@ -752,8 +779,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     prevBone = bone;
                 }
 
-                // 1 フレーム調整 (設定で anm へ適用したときだけ None 以外) で潰す区間を算出する
-                var singleFrameType = GetSingleFrameType(firstBone.transform.type);
+                // 1 フレーム調整 (設定で anm へ適用したときだけ None 以外。編集モード中は None) で潰す区間を算出する
+                var singleFrameType = isAnmSingleFrameSkipped
+                    ? SingleFrameType.None
+                    : GetSingleFrameType(firstBone.transform.type);
                 AnmSingleFrameAdjuster.Adjust(_keysCache, singleFrameType, timeline.GetFrameTimeSeconds(1), _timingsCache);
 
                 // anmフォーマットのチャンネル107以降はマテリアルUV(_MainTex_ST等)に割り当てられているため、
@@ -809,6 +838,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 maidCache.anmStartFrameNo = startFrameNo;
                 maidCache.anmEndFrameNo = endFrameNo;
+                _isAnmSingleFrameSkipped = isAnmSingleFrameSkipped;
             }
 
             return result;
