@@ -4,7 +4,7 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 呼出済みメイドの配置スナップショット。
+    /// 呼出済みメイドの配置と表示状態のスナップショット。
     /// 退避中 (非表示) のメイドは実座標が退避先で埋まっているため戻り先を記録する
     /// (MaidVisibilityController の退避契約)
     /// </summary>
@@ -15,6 +15,7 @@ namespace COM3D2.SceneEditor.Plugin
             public Maid maid;
             public Vector3 position;
             public Vector3 rotation;
+            public bool visible;
         }
 
         private List<MaidPlacement> _placements;
@@ -38,6 +39,7 @@ namespace COM3D2.SceneEditor.Plugin
                     maid = maid,
                     position = manager.GetLogicalPosition(maid),
                     rotation = maid.GetRot(),
+                    visible = manager.IsVisible(maid),
                 });
             }
             return snapshot;
@@ -61,6 +63,12 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
+                // 表示へ戻すなら先に戻す。退避中のまま実座標を書くと戻り先が退避座標で潰れる
+                if (placement.visible && !manager.IsVisible(target))
+                {
+                    manager.SetVisible(target, true);
+                }
+
                 if (!manager.IsVisible(target))
                 {
                     // 退避中に実座標を動かすと画面に出てしまうため、戻り先だけ書き換える
@@ -75,6 +83,12 @@ namespace COM3D2.SceneEditor.Plugin
                 if (target.body0 != null && target.body0.isLoadedBody)
                 {
                     target.body0.WarpInit();
+                }
+
+                // 非表示へ戻すのは位置を合わせてから。退避前の位置が戻り先として控えられる
+                if (!placement.visible)
+                {
+                    manager.SetVisible(target, false);
                 }
             }
         }
@@ -91,7 +105,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 var a = _placements[i];
                 var b = o._placements[i];
-                if (a.maid != b.maid || a.position != b.position || a.rotation != b.rotation)
+                if (a.maid != b.maid || a.position != b.position || a.rotation != b.rotation
+                    || a.visible != b.visible)
                 {
                     return false;
                 }

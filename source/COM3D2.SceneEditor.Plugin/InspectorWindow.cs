@@ -226,8 +226,13 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     DrawHeader(_view, go);
 
-                    _objectTransformRowDrawer.Draw(
-                        _view, go, LabelWidth, ScaleLabelWidth, RowHeight);
+                    // 退避中のメイドは実座標が退避先なので、書いても再表示時に戻り先で上書きされる
+                    if (maid == null || !HiddenMaidGuard.DrawWarningIfHidden(
+                            _view, maid, "非表示中は位置を操作できません", RowHeight))
+                    {
+                        _objectTransformRowDrawer.Draw(
+                            _view, go, LabelWidth, ScaleLabelWidth, RowHeight);
+                    }
 
                     // PNG 配置は Transform に続けて固有パラメータも編集させる
                     PngPlacementInspector.Draw(_view, go);
@@ -661,9 +666,23 @@ namespace COM3D2.SceneEditor.Plugin
                 || _bgModelInspector.TryDrawSelected(_view, go);
         }
 
-        /// <summary>アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行</summary>
+        /// <summary>
+        /// アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行。
+        /// メイド本体は SetActive で消すと Maid.Update が止まりメイド一覧からも外れるため、
+        /// 表示/非表示を退避方式 (MaidManipulateManager.SetVisibleByUser) で切り替える
+        /// </summary>
         private void DrawHeader(GUIView view, GameObject go)
         {
+            var maid = go.GetComponent<Maid>();
+            if (maid != null)
+            {
+                var manager = MaidManipulateManager.instance;
+                var isVisible = go.activeSelf && maid.Visible && manager.IsVisible(maid);
+                InspectorHeaderRowDrawer.Draw(view, isVisible, go.name, RowHeight,
+                    value => manager.SetVisibleByUser(maid, value), go);
+                return;
+            }
+
             InspectorHeaderRowDrawer.Draw(view, go.activeSelf, go.name, RowHeight, value =>
             {
                 ObjectTransformRowDrawer.RecordEdit(go);

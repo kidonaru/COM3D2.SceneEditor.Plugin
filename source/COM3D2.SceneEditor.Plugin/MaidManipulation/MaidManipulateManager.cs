@@ -82,6 +82,31 @@ namespace COM3D2.SceneEditor.Plugin
             _visibilityController.SetHidden(maid, !visible);
         }
 
+        /// <summary>
+        /// UI からの表示切替。履歴 (配置スコープ) に積んでから退避方式で切り替える。
+        /// 旧版のトグルは Maid.Visible や SetActive で GameObject ごと消していたため、
+        /// その状態で残っているメイドも表示へ戻せるようにゲーム側のフラグも立て直す
+        /// </summary>
+        public void SetVisibleByUser(Maid maid, bool visible)
+        {
+            // ロード中は呼出処理が退避で隠しており、完了時に配置位置へ戻す。
+            // ここで解くと戻り先が退避座標のまま確定して取り残される
+            if (maid == null || IsLoading(maid))
+            {
+                return;
+            }
+
+            HistoryManager.instance.BeforeEditWithoutEditMode(null, HistoryScope.Placement,
+                (visible ? "表示: " : "非表示: ") + maid.status.fullNameJpStyle);
+
+            // Visible の setter は SetActive(true) も兼ねる
+            if (visible && (!maid.Visible || !maid.gameObject.activeSelf))
+            {
+                maid.Visible = true;
+            }
+            SetVisible(maid, visible);
+        }
+
         /// <summary>見かけ上の位置。退避中は戻り先を返す</summary>
         public Vector3 GetLogicalPosition(Maid maid)
         {

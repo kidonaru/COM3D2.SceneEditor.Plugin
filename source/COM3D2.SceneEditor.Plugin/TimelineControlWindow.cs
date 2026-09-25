@@ -686,9 +686,15 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineConfig.dirty = true;
             }, AUTO_KEY_ON_COLOR);
 
-            DrawIconToggle(view, ToolbarIcons.Kind.Maid, "メイド表示", maidManager.maid.Visible, true, newValue =>
+            // Maid.Visible は GameObject ごと消してメイド一覧から外してしまうため、SE の退避方式で切り替える。
+            // ゲーム側のフラグも見るのは、旧方式で消えたままのメイドを OFF と出して ON で戻せるようにするため
+            var seMaidManager = MaidManipulateManager.instance;
+            var targetMaid = maidManager.maid;
+            var isMaidVisible = seMaidManager.IsVisible(targetMaid)
+                && targetMaid.Visible && targetMaid.gameObject.activeSelf;
+            DrawIconToggle(view, ToolbarIcons.Kind.Maid, "メイド表示", isMaidVisible, true, newValue =>
             {
-                maidManager.maid.Visible = newValue;
+                seMaidManager.SetVisibleByUser(targetMaid, newValue);
             });
 
             DrawIconToggle(view, ToolbarIcons.Kind.Model, "モデル表示", modelManager.Visible, true, newValue =>
