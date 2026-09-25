@@ -1284,13 +1284,15 @@ namespace COM3D2.SceneEditor.Plugin
                     var frame = blockLayer.GetKeyFrameAt(frameIndex);
                     var frameNo = frame.frameNo;
 
-                    view.currentPos.x = frameNo * frameWidth;
-                    if (view.currentPos.x < scrollPosition.x ||
-                        view.currentPos.x > scrollPosition.x + viewWidth)
+                    var frameX = frameNo * frameWidth;
+                    if (frameX < scrollPosition.x ||
+                        frameX > scrollPosition.x + viewWidth)
                     {
                         continue;
                     }
-                    view.currentPos.x += keyOffsetX;
+                    // フレーム幅がキーより狭いと、両端のキーは中央寄せでスクロール領域の外へはみ出して欠ける。
+                    // 描画と当たり判定の矩形だけ内側へ寄せる (ドラッグの起点はフレーム左端のまま)
+                    view.currentPos.x = Mathf.Clamp(frameX + keyOffsetX, 0f, contentWidth - keySize);
 
                     for (var i = blockStart; i < blockEnd; i++)
                     {
@@ -1360,7 +1362,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                         // フレームのドラッグ開始。クリックしたレイヤーを編集基準 (アクティブ) にする
                         if (!areaDragInfo.isDragging && !frameDragInfo.isDragging &&
-                            view.InvokeActionOnDragStart(keyFrameRect, frameDragInfo, view.currentPos))
+                            view.InvokeActionOnDragStart(keyFrameRect, frameDragInfo, new Vector2(frameX, view.currentPos.y)))
                         {
                             if (row.layer != timelineManager.currentLayer)
                             {
@@ -1408,8 +1410,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                         if (frameDragBoneData != null)
                         {
-                            // ドラッグの起点はキー矩形の左上なので、中央寄せのずれを戻してからフレームへ換算する
-                            var targetFrameNo = (int)((newPos.x - keyOffsetX + halfFrameWidth) / frameWidth);
+                            // ドラッグの起点はフレーム左端 (キー矩形の位置ではない) なので、そのままフレームへ換算できる
+                            var targetFrameNo = (int)((newPos.x + halfFrameWidth) / frameWidth);
                             timelineManager.MoveSelectedBones(targetFrameNo - frameDragBoneData.frameNo);
                         }
                     });
