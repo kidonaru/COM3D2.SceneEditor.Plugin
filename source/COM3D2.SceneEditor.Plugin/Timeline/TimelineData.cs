@@ -556,7 +556,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Color bgColor2,
             Color frameLineColor1,
             Color frameLineColor2,
-            int frameNoInterval)
+            int frameNoInterval,
+            bool drawFrameLines = true)
         {
             var tex = new Texture2D(width, height);
             var pixels = new Color[width * height];
@@ -566,8 +567,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var frameNo = x / frameWidth;
                 var framePos = x - frameNo * frameWidth;
                 bool isSecondColorLine = frameNo % frameNoInterval == 0;
-                bool isCenterLine = framePos == frameWidth / 2 ||
-                        (isSecondColorLine && framePos == frameWidth / 2 + 1);
+                // 幅が狭いとフレームごとの中心線が背景を埋めるため、強調線だけにする
+                bool isCenterLine = (drawFrameLines || isSecondColorLine) &&
+                        (framePos == frameWidth / 2 ||
+                        (isSecondColorLine && framePos == frameWidth / 2 + 1));
 
                 for (int y = 0; y < height; y++)
                 {

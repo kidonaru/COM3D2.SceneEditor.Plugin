@@ -39,6 +39,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         private Texture2D _eyesPositionTex = null;
         private Texture2D _eyesTex = null;
+        /// <summary>目線ドットの直径。タイムラインの横ズーム (config.frameWidth) に引きずられないよう固定する</summary>
+        private const int EyesDotSize = 11;
 
         /// <summary>位置図でドラッグ中の瞳。押下時に近い方のマーカーを掴み、左右を個別に動かす</summary>
         private MTEP.MotionEyesType? _draggingEyesType = null;
@@ -78,7 +80,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (_eyesTex == null)
             {
                 _eyesTex = TextureUtils.CreateCircleTexture(
-                    config.frameWidth,
+                    EyesDotSize,
                     Color.white);
             }
         }

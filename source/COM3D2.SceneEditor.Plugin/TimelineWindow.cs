@@ -645,7 +645,9 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var tc = timelineConfig;
-            var bgWidth = _contentWidth - tc.menuWidth + tc.frameWidth * tc.frameNoInterval;
+            // 背景の強調線の周期は、描画時のスナップ周期 (DrawTimeline) と同じ値にする
+            var labelInterval = MTEP.TimelineZoomMath.LabelInterval(tc.frameWidth, tc.frameNoInterval);
+            var bgWidth = _contentWidth - tc.menuWidth + tc.frameWidth * labelInterval;
             bgWidth = Mathf.Min(bgWidth, tc.frameWidth * timeline.maxFrameCount);
 
             texTimelineBG = timeline.CreateBGTexture(
@@ -657,12 +659,13 @@ namespace COM3D2.SceneEditor.Plugin
                 tc.timelineBgColor2,
                 tc.timelineLineColor1,
                 tc.timelineLineColor2,
-                tc.frameNoInterval);
+                labelInterval,
+                tc.frameWidth >= MTEP.TimelineZoomMath.MinFrameLineWidth);
 
             if (texKeyFrame == null)
             {
                 texKeyFrame = TextureUtils.CreateDiamondTexture(
-                    tc.frameWidth,
+                    MTEP.TimelineZoomMath.KeySize,
                     Color.white);
             }
 
@@ -671,6 +674,55 @@ namespace COM3D2.SceneEditor.Plugin
                 texColorGradient = TextureUtils.CreateHorizontalAlphaGradientTexture(
                     COLOR_GRADIENT_TEXTURE_WIDTH);
             }
+        }
+
+        /// <summary>横ズームを処理した直近のフレーム (ConsumeWheel が 1 フレーム 1 回に絞るのに使う)</summary>
+        private int _horizontalZoomFrame = -1;
+
+        /// <summary>
+        /// Ctrl+ホイールの横ズーム。1 フレームの幅 (ドープシートとカーブエディタで共有) を段階的に変え、
+        /// カーソル下のフレームが動かないようスクロール位置を補正する
+        /// </summary>
+        private void HandleHorizontalZoom(GUIView view, float viewWidth)
+        {
+            if (!MTEP.TimelineZoomMath.IsControlHeld())
+            {
+                return;
+            }
+
+            var e = Event.current;
+            var tc = timelineConfig;
+            // ドープシートとカーブペインを合わせた領域 (フレーム番号行より下、ボーンメニューより右)
+            var origin = view.GetDrawRect(tc.menuWidth, FRAME_LABEL_HEIGHT, 1f, 1f);
+            var mouseX = e.mousePosition.x - origin.x;
+            var mouseY = e.mousePosition.y - origin.y;
+            if (mouseX < 0f || mouseX > viewWidth || mouseY < 0f || mouseY > _contentHeight - FRAME_LABEL_HEIGHT)
+            {
+                return;
+            }
+
+            // 届いたイベントも消費されるので、Ctrl+ホイールでドープシートが縦に流れない
+            var wheel = MTEP.TimelineZoomMath.ConsumeWheel(ref _horizontalZoomFrame);
+            if (wheel == 0f)
+            {
+                return;
+            }
+
+            var oldWidth = tc.frameWidth;
+            // 奥へ回す (プラス) と拡大
+            var newWidth = MTEP.TimelineZoomMath.StepFrameWidth(oldWidth, wheel > 0f ? 1 : -1);
+            if (newWidth == oldWidth)
+            {
+                return;
+            }
+
+            timelineView.scrollPosition.x = MTEP.TimelineZoomMath.AnchorScrollX(
+                timelineView.scrollPosition.x, mouseX, oldWidth, newWidth);
+            tc.frameWidth = newWidth;
+            tc.dirty = true;
+
+            // 背景テクスチャは幅ごとに作り直す (キーは固定サイズなので不要)
+            requestUpdateTexture = true;
         }
 
         /// <summary>シーク後に現在フレームが見える位置へスクロールを寄せる。TimelineControlWindow からも呼ばれる</summary>
@@ -1037,12 +1089,19 @@ namespace COM3D2.SceneEditor.Plugin
             var tc = timelineConfig;
             var menuWidth = tc.menuWidth;
 
+            // 幅を読む前に処理し、このパスの描画から新しい幅で揃える
+            HandleHorizontalZoom(view, _contentWidth - menuWidth);
+
             view.currentPos.x = menuWidth;
             view.currentPos.y = FRAME_LABEL_HEIGHT;
 
             var frameWidth = tc.frameWidth;
             var frameHeight = tc.frameHeight;
             var halfFrameWidth = frameWidth * 0.5f;
+            var labelInterval = MTEP.TimelineZoomMath.LabelInterval(frameWidth, tc.frameNoInterval);
+            // キーは幅によらず固定サイズで、フレーム中心に置く
+            var keySize = MTEP.TimelineZoomMath.KeySize;
+            var keyOffsetX = (frameWidth - keySize) * 0.5f;
 
             var contentWidth = timeline.maxFrameCount * frameWidth;
             var contentHeight = _rows.Count * frameHeight;
@@ -1086,10 +1145,10 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                for (var j = 0; j < timeline.maxFrameCount; j += tc.frameNoInterval)
+                for (var j = 0; j < timeline.maxFrameCount; j += labelInterval)
                 {
                     view.currentPos.x = j * frameWidth;
-                    if (view.currentPos.x < scrollPosition.x - frameWidth * tc.frameNoInterval)
+                    if (view.currentPos.x < scrollPosition.x - frameWidth * labelInterval)
                     {
                         continue;
                     }
@@ -1205,7 +1264,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             // キーフレーム表示。行リストを同一レイヤーの連続ブロックごとに走査する。
             // 選択はレイヤーをまたいで保持されるので、アクティブレイヤーは選択判定に関与しない
-            var adjustY = (frameHeight - frameWidth) / 2;
+            var adjustY = (frameHeight - keySize) / 2;
             var blockStart = 0;
             while (blockStart < _rows.Count)
             {
@@ -1231,6 +1290,7 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         continue;
                     }
+                    view.currentPos.x += keyOffsetX;
 
                     for (var i = blockStart; i < blockEnd; i++)
                     {
@@ -1276,8 +1336,8 @@ namespace COM3D2.SceneEditor.Plugin
                         var keyFrameRect = new Rect(
                                 view.currentPos.x,
                                 view.currentPos.y,
-                                frameWidth,
-                                frameWidth);
+                                keySize,
+                                keySize);
 
                         // エリア選択範囲内のキーフレームを選択 (全レイヤー対象)
                         if (areaDragInfo.isDragging)
@@ -1327,8 +1387,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                         view.DrawTexture(
                             texKeyFrame,
-                            frameWidth,
-                            frameWidth,
+                            keySize,
+                            keySize,
                             keyFrameColor);
                     }
                 }
@@ -1348,7 +1408,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                         if (frameDragBoneData != null)
                         {
-                            var targetFrameNo = (int)((newPos.x + halfFrameWidth) / frameWidth);
+                            // ドラッグの起点はキー矩形の左上なので、中央寄せのずれを戻してからフレームへ換算する
+                            var targetFrameNo = (int)((newPos.x - keyOffsetX + halfFrameWidth) / frameWidth);
                             timelineManager.MoveSelectedBones(targetFrameNo - frameDragBoneData.frameNo);
                         }
                     });
@@ -1469,7 +1530,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     view.DrawLabel(frameNo.ToString(), frameLabelWidth, 20, Color.green, gsFrameLabel);
                 }
-                else if (frameNo % tc.frameNoInterval == 0)
+                else if (frameNo % labelInterval == 0)
                 {
                     view.DrawLabel(frameNo.ToString(), frameLabelWidth, 20, Color.white, gsFrameLabel);
                 }

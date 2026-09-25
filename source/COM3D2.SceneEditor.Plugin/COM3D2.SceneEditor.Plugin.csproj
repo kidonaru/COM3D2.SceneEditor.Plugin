@@ -466,6 +466,7 @@
     <Compile Include="Timeline\CameraShakeNoise.cs" />
     <Compile Include="Timeline\CameraShakeParams.cs" />
     <Compile Include="Timeline\CurveViewMapping.cs" />
+    <Compile Include="Timeline\TimelineZoomMath.cs" />
     <Compile Include="Timeline\DressUtils.cs" />
     <Compile Include="Timeline\EasingFunctions.cs" />
     <Compile Include="Timeline\EasingToTangent.cs" />

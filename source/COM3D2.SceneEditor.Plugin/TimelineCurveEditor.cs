@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -19,6 +20,9 @@ namespace COM3D2.SceneEditor.Plugin
         private const int MIN_PANE_HEIGHT = 80;
         private const int MAX_PANE_HEIGHT = 400;
         private const float TOGGLE_BUTTON_WIDTH = 80f;
+        private const float FIT_BUTTON_WIDTH = 50f;
+        /// <summary>ホイール 1 ノッチの縦ズーム倍率</summary>
+        private const float WHEEL_ZOOM_FACTOR = 1.2f;
 
         /// <summary>カーブ折れ線のサンプリング間隔 (px)</summary>
         private const float SAMPLE_STEP = 2f;
@@ -150,6 +154,20 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>直近の描画で使ったマッピング。ヒットテストは描画済みの座標系に合わせる</summary>
         private MTEP.CurveViewMapping _mapping = null;
+
+        /// <summary>手動ズーム・パン中の値域。null なら表示範囲へ自動フィットする</summary>
+        private float? _manualValueMin;
+        private float? _manualValueMax;
+        /// <summary>中ボタンでパン中か。押下位置からではなく前イベントとの差分で動かす</summary>
+        private bool _isPanning;
+        private float _panLastY;
+        /// <summary>縦ズームを処理した直近のフレーム (ConsumeWheel が 1 フレーム 1 回に絞るのに使う)</summary>
+        private int _wheelZoomFrame = -1;
+        /// <summary>自動フィットへ戻す判定用。表示中チャンネルの種別と対象ボーンの組</summary>
+        private string _valueRangeViewKey;
+
+        /// <summary>縦方向を手動でズーム・パンしているか</summary>
+        private bool isValueRangeManual => _manualValueMin.HasValue;
         private List<CurveChannel> _channels = new List<CurveChannel>();
         /// <summary>_channels を構築したときの入力シグネチャ。一致する間は再構築しない (GC 対策)</summary>
         private long _channelsSignature = 0;
@@ -327,6 +345,16 @@ namespace COM3D2.SceneEditor.Plugin
             if (view.DrawButton(isOpen ? "▼ カーブ" : "▲ カーブ", TOGGLE_BUTTON_WIDTH, TOGGLE_BAR_HEIGHT))
             {
                 isOpen = !isOpen;
+            }
+
+            // 手動ズーム中だけ出す。自動フィット中は押しても何も変わらないため
+            if (isOpen && isValueRangeManual)
+            {
+                view.currentPos = new Vector2(barRect.x + 5 + TOGGLE_BUTTON_WIDTH + 5, barRect.y);
+                if (view.DrawButton("フィット", FIT_BUTTON_WIDTH, TOGGLE_BAR_HEIGHT))
+                {
+                    ResetValueRange();
+                }
             }
 
             if (isOpen)
@@ -649,6 +677,15 @@ namespace COM3D2.SceneEditor.Plugin
                 _channelsSignature = signature;
                 _channelsValid = true;
                 channelsRebuilt = true;
+
+                // キーの追加・削除でも再構築は走るが、そこでズームを捨てると
+                // ズームしたままキーを打つ操作が成り立たないため、表示対象の組が変わったときだけ戻す
+                var viewKey = BuildValueRangeViewKey(_channels);
+                if (viewKey != _valueRangeViewKey)
+                {
+                    _valueRangeViewKey = viewKey;
+                    ResetValueRange();
+                }
             }
             var totalChannelCount = _totalChannelCount;
 
@@ -680,6 +717,12 @@ namespace COM3D2.SceneEditor.Plugin
             if (Event.current.type == EventType.Repaint || _mapping == null)
             {
                 _mapping = BuildMapping(_channels, graphRect, scrollX, frameWidth, _mappingValues);
+                // サンプル収集はカーブ描画に要るので BuildMapping は常に通し、値域だけ差し替える
+                if (_manualValueMin.HasValue)
+                {
+                    _mapping = new MTEP.CurveViewMapping(
+                        frameWidth, graphRect.height, _manualValueMin.Value, _manualValueMax.Value);
+                }
             }
 
             if (Event.current.type == EventType.Repaint)
@@ -709,6 +752,9 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
+            // 表示の拡縮は値を変えないので、編集不可の間も受け付ける
+            HandleViewInput(view, graphRect);
+
             if (guiEnabled)
             {
                 HandleInput(view, graphRect, scrollX);
@@ -719,6 +765,96 @@ namespace COM3D2.SceneEditor.Plugin
                 // 掴み続けないよう、ここでドラッグを打ち切る
                 EndDrag();
             }
+        }
+
+        /// <summary>自動フィットへ戻す</summary>
+        public void ResetValueRange()
+        {
+            _manualValueMin = null;
+            _manualValueMax = null;
+        }
+
+        private void SetManualRange(MTEP.CurveViewMapping mapping)
+        {
+            _manualValueMin = mapping.valueMin;
+            _manualValueMax = mapping.valueMax;
+            _mapping = mapping;
+        }
+
+        /// <summary>チャンネルの種別と対象ボーンの組。キー数には依存させない</summary>
+        private static string BuildValueRangeViewKey(List<CurveChannel> channels)
+        {
+            var sb = new StringBuilder();
+            foreach (var channel in channels)
+            {
+                sb.Append(channel.displayName).Append('|');
+                string lastBone = null;
+                foreach (var bone in channel.keyBones)
+                {
+                    if (bone != null && bone.name != lastBone)
+                    {
+                        lastBone = bone.name;
+                        sb.Append(lastBone).Append(',');
+                    }
+                }
+                sb.Append(';');
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 縦方向の表示操作。ホイールでカーソル位置を軸に拡縮し、中ボタンドラッグでパンする。
+        /// Ctrl 付きのホイールは横ズームとして TimelineWindow が扱う
+        /// </summary>
+        private void HandleViewInput(GUIView view, Rect graphRect)
+        {
+            var origin = view.GetDrawRect(graphRect.x, graphRect.y, 1f, 1f);
+            var mouse = Event.current.mousePosition - new Vector2(origin.x, origin.y);
+            var e = Event.current;
+            var inGraph = mouse.x >= 0f && mouse.x <= graphRect.width
+                && mouse.y >= 0f && mouse.y <= graphRect.height;
+
+            if (_isPanning)
+            {
+                if (!Input.GetMouseButton(2) || _mapping == null)
+                {
+                    _isPanning = false;
+                }
+                else if (e.type == EventType.MouseDrag)
+                {
+                    SetManualRange(_mapping.PanValue(mouse.y - _panLastY));
+                    _panLastY = mouse.y;
+                    e.Use();
+                }
+                return;
+            }
+
+            if (!inGraph || _mapping == null)
+            {
+                return;
+            }
+
+            if (e.type == EventType.MouseDown && e.button == 2)
+            {
+                _isPanning = true;
+                _panLastY = mouse.y;
+                e.Use();
+                return;
+            }
+
+            if (MTEP.TimelineZoomMath.IsControlHeld())
+            {
+                return;
+            }
+
+            var wheel = MTEP.TimelineZoomMath.ConsumeWheel(ref _wheelZoomFrame);
+            if (wheel == 0f)
+            {
+                return;
+            }
+            // 奥へ回す (プラス) と拡大。1 ノッチ 1.2 倍
+            var factor = wheel > 0f ? WHEEL_ZOOM_FACTOR : 1f / WHEEL_ZOOM_FACTOR;
+            SetManualRange(_mapping.ZoomValue(factor, mouse.y));
         }
 
         /// <summary>キー点とタンジェントハンドルのドラッグ処理。
