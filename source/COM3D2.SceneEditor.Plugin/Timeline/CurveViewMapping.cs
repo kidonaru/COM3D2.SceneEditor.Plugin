@@ -6,6 +6,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// <summary>
     /// カーブビューのスクリーン座標⇔値のマッピング (純粋ロジック、単体テスト対象)。
     /// 横軸はドープシートとフレームスケールを共有し、縦軸は表示値域に自動フィットする
+    /// (手動ズーム・パン中は ZoomValue / PanValue で作った値域を使う)
     /// </summary>
     public class CurveViewMapping
     {
@@ -50,6 +51,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var valuePerPx = (valueMax - valueMin) / paneHeight;
             var framePerPx = 1f / frameWidth;
             return (-dyPx * valuePerPx) / (dxPx * framePerPx);
+        }
+
+        /// <summary>縦ズームで狭められる値域の下限。これより狭いと float の精度で曲線が崩れる</summary>
+        public const float MinValueRange = 1e-4f;
+        /// <summary>縦ズームで広げられる値域の上限。これより広いと曲線が 1px に潰れて意味がない</summary>
+        public const float MaxValueRange = 1e6f;
+
+        /// <summary>
+        /// 縦ズーム。pivotY の値を画面上で固定したまま値域を 1/factor 倍にする。
+        /// 値域が MinValueRange〜MaxValueRange を外れる拡縮は行わず、そのままの値域を返す
+        /// </summary>
+        public CurveViewMapping ZoomValue(float factor, float pivotY)
+        {
+            var newRange = (valueMax - valueMin) / factor;
+            if (newRange < MinValueRange || newRange > MaxValueRange)
+            {
+                return this;
+            }
+
+            var pivotValue = YToValue(pivotY);
+            var newMin = pivotValue - (pivotValue - valueMin) / factor;
+            var newMax = pivotValue + (valueMax - pivotValue) / factor;
+            return new CurveViewMapping(frameWidth, paneHeight, newMin, newMax);
+        }
+
+        /// <summary>縦パン。下へ dyPx ドラッグしたら曲線も下へ付いてくるよう値域を上へずらす</summary>
+        public CurveViewMapping PanValue(float dyPx)
+        {
+            var delta = dyPx * (valueMax - valueMin) / paneHeight;
+            return new CurveViewMapping(frameWidth, paneHeight, valueMin + delta, valueMax + delta);
         }
 
         public static CurveViewMapping AutoFit(

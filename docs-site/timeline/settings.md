@@ -58,7 +58,7 @@
 |---|---|---|
 | `isAutoKeyFrame` | `true` | `タイムライン操作` の `自動登録` |
 | `isCameraSync` / `isFixedFoV` / `isFixedFocus` / `isPostEffectSync` | `true` / `false` / `false` / `true` | `タイムライン操作` の各トグル |
-| `frameWidth` / `frameHeight` / `frameNoInterval` | 11 / 20 / 5 | グリッドの 1 フレーム幅、行の高さ、目盛り間隔 |
+| `frameWidth` / `frameHeight` / `frameNoInterval` | 11 / 20 / 5 | グリッドの 1 フレーム幅（`Ctrl` + ホイールの横ズームでも変わる）、行の高さ、目盛り間隔 |
 | `menuWidth` | 100 | ボーンメニューの幅（右辺の境界線ドラッグでも変更可） |
 | `thumWidth` / `thumHeight` | 256 / 192 | サムネイルのサイズ |
 | `detailTransformCount` / `detailTangentCount` | 16 / 32 | キーフレーム詳細で表示するブロック数と、補間曲線プレビューに重ねる曲線数の上限 |

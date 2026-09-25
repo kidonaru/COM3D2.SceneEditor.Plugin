@@ -56,5 +56,36 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(m.valueMax > m.valueMin);
             Assert.Equal(50f, m.ValueToY(5f), 3);
         }
+
+        [Fact]
+        public void 縦ズーム_ピボットの値が動かない()
+        {
+            var m = new CurveViewMapping(10f, 100f, 0f, 10f);
+            var pivotValue = m.YToValue(25f);
+            var z = m.ZoomValue(2f, 25f);
+            Assert.Equal(pivotValue, z.YToValue(25f), 3);
+            Assert.Equal(5f, z.valueMax - z.valueMin, 3);
+        }
+
+        [Fact]
+        public void 縦ズーム_値域の下限と上限で止まる()
+        {
+            // 精度が崩れる手前で止める。限界を越える拡縮は値域をそのまま保つ
+            var tiny = new CurveViewMapping(10f, 100f, 0f, CurveViewMapping.MinValueRange);
+            Assert.Equal(CurveViewMapping.MinValueRange, tiny.ZoomValue(2f, 50f).valueMax - tiny.ZoomValue(2f, 50f).valueMin, 6);
+
+            var huge = new CurveViewMapping(10f, 100f, 0f, CurveViewMapping.MaxValueRange);
+            var zoomedOut = huge.ZoomValue(0.5f, 50f);
+            Assert.Equal(CurveViewMapping.MaxValueRange, zoomedOut.valueMax - zoomedOut.valueMin, 0);
+        }
+
+        [Fact]
+        public void 縦パン_下へドラッグすると値域が上へずれる()
+        {
+            var m = new CurveViewMapping(10f, 100f, 0f, 10f);
+            var p = m.PanValue(10f);   // 10px = 値 1
+            Assert.Equal(1f, p.valueMin, 3);
+            Assert.Equal(11f, p.valueMax, 3);
+        }
     }
 }

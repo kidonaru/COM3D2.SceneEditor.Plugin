@@ -187,7 +187,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         if (SE.MaidMotionState.IsMotionStopped(maid))
                         {
-                            SE.MaidMotionState.PlayMotion(maid);
+                            SE.MaidMotionState.PlayMotion(maid, resetSpeed: false);
                         }
                     }
                     else

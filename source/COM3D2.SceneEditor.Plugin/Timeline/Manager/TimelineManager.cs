@@ -268,6 +268,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void Update()
         {
+            UpdatePendingMotionLayers();
+
             if (defaultLayer.isAnmSyncing)
             {
                 var playingFrameNo = defaultLayer.playingFrameNo;
@@ -1857,6 +1859,48 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public T GetLayer<T>(int slotNo = 0)
         {
             return (T) GetLayer(typeof(T), slotNo);
+        }
+
+        /// <summary>メイドアニメレイヤーの追加を待っている、呼出ウィンドウで呼んだメイド</summary>
+        private readonly List<Maid> _pendingMotionLayerMaids = new List<Maid>();
+
+        /// <summary>
+        /// 呼び出したメイドへメイドアニメレイヤーを用意する。
+        /// ロードが終わるまでは maidCaches に載らず slotNo が決まらないため、Update で載るまで待つ。
+        /// タイムライン未読込なら何もしない (後から読み込んだときにレイヤーが勝手に増えないように)
+        /// </summary>
+        public void RequestMotionLayer(Maid maid)
+        {
+            if (maid == null || timeline == null || _pendingMotionLayerMaids.Contains(maid))
+            {
+                return;
+            }
+            _pendingMotionLayerMaids.Add(maid);
+        }
+
+        private void UpdatePendingMotionLayers()
+        {
+            var seMaidManager = SE.MaidManipulateManager.instance;
+            for (var i = _pendingMotionLayerMaids.Count - 1; i >= 0; i--)
+            {
+                var maid = _pendingMotionLayerMaids[i];
+                // ロード中に解除されたメイドは待ち続けない
+                if (maid == null || !seMaidManager.calledMaids.Contains(maid))
+                {
+                    _pendingMotionLayerMaids.RemoveAt(i);
+                    continue;
+                }
+
+                // ロード完了時の立ちモーション適用より前に作ると、初期キーが素のポーズになる
+                var slotNo = maidManager.maidCaches.FindIndex(cache => cache.maid == maid);
+                if (slotNo < 0 || seMaidManager.IsLoading(maid))
+                {
+                    continue;
+                }
+
+                _pendingMotionLayerMaids.RemoveAt(i);
+                ChangeActiveLayer(typeof(MotionTimelineLayer), slotNo);
+            }
         }
 
         public void ChangeActiveLayer(Type layerType, int slotNo = 0)

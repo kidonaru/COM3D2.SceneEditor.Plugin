@@ -203,6 +203,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 編集モードへの自動移行をしない BeforeEdit。ポーズに触れない表示切替などから呼ぶ。
+        /// 編集モードへ入るとタイムラインの再生が止まるため、見た目だけの操作では入らない
+        /// </summary>
+        public void BeforeEditWithoutEditMode(Maid maid, HistoryScope scope, string description)
+        {
+            BeforeEditCore(maid, scope, description, null,
+                () => SnapshotFactory.Capture(maid, scope, null),
+                null, enterEditMode: false);
+        }
+
+        /// <summary>
         /// モードの切り替わりを検出し、残った履歴を捨てる (別モードの操作になるため)。
         /// 読み込み直後の登録が同フレーム内で消されないよう、Update だけでなく登録時にも呼ぶ
         /// </summary>
