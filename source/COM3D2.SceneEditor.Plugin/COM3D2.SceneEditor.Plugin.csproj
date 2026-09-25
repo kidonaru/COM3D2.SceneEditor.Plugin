@@ -294,6 +294,7 @@
     <Compile Include="HierarchyWindow.cs" />
     <Compile Include="HistoryAPI.cs" />
     <Compile Include="HistoryWindow.cs" />
+    <Compile Include="InspectorHeaderRowDrawer.cs" />
     <Compile Include="InspectorWindow.cs" />
     <Compile Include="KeyFrameTangentDrawer.cs" />
     <Compile Include="TangentCurveTexture.cs" />
