@@ -279,7 +279,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 var attachChanged = cachedModel.attachPoint != model.attachPoint ||
                     cachedModel.attachMaidSlotNo != model.attachMaidSlotNo;
-                if (attachChanged || cachedModel.visible != model.visible)
+                if (attachChanged || cachedModel.visible != model.visible
+                    || cachedModel.layer != model.layer)
                 {
                     if (attachChanged)
                     {
@@ -449,14 +450,31 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                             null,
                             modelData.pluginName,
                             true);
+                        // 表示レイヤーは生成時に ExternalModelHack.CreateModel が適用する
+                        model.layer = modelData.layer;
                         modelHackManager.CreateModel(model);
 
                         MTEUtils.LogDebug("Create model: type={0} displayName={1} name={2} label={3} fileName={4} myRoomId={5} bgObjectId={6}",
                             model.info.type, model.displayName, model.name, model.info.label, model.info.fileName, model.info.myRoomId, model.info.bgObjectId);
                     }
-                    else if (model.pluginName != modelData.pluginName)
+                    else
                     {
-                        modelHackManager.ChangePluginName(model, modelData.pluginName);
+                        // 同名モデルを流用するときも、前のタイムラインの表示レイヤーを持ち越さない。
+                        // プラグインの付け替えは実体を作り直す (CreateModel が stat のレイヤーを適用する) ので、先に書いておく
+                        var hasLayer = modelData.layer != StudioModelStat.UnspecifiedLayer;
+                        if (hasLayer)
+                        {
+                            model.layer = modelData.layer;
+                        }
+
+                        if (model.pluginName != modelData.pluginName)
+                        {
+                            modelHackManager.ChangePluginName(model, modelData.pluginName);
+                        }
+                        else if (hasLayer)
+                        {
+                            modelHackManager.UpdateLayer(model);
+                        }
                     }
                 }
 

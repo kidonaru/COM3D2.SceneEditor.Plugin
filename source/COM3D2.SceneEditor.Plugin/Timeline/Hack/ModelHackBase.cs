@@ -20,6 +20,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void UpdateAttachPoint(StudioModelStat model);
         void SetModelVisible(StudioModelStat model, bool visible);
 
+        /// <summary>stat の表示レイヤーを実体へ適用する。未指定なら何もしない</summary>
+        void UpdateLayer(StudioModelStat model);
+
         /// <summary>アタッチしていないモデルの親。ワールド補間でアタッチなし側の座標系に使う。不明なら null</summary>
         Transform unattachedParent { get; }
     }
@@ -114,6 +117,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 go.SetActive(visible);
             }
+        }
+
+        public virtual void UpdateLayer(StudioModelStat model)
+        {
+            // do nothing
         }
 
         public virtual Transform unattachedParent => null;

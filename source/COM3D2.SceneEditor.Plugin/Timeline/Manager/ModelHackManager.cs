@@ -168,6 +168,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        public void UpdateLayer(StudioModelStat model)
+        {
+            try
+            {
+                var modelHack = GetOrDefault(model.pluginName);
+                if (modelHack != null)
+                {
+                    modelHack.UpdateLayer(model);
+                }
+            }
+            catch (System.Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+        }
+
         /// <summary>
         /// 再生中の付け替え用。プロバイダ側の配置履歴を積まないよう一括操作として囲む
         /// </summary>

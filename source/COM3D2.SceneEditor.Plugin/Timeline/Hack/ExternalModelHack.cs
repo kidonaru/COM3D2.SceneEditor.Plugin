@@ -132,6 +132,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     cached.visible = obj.activeSelf;
                     SyncAttachFromProvider(cached, obj);
+                    SyncLayerFromProvider(cached, obj);
                     return cached;
                 }
                 _statMap.Remove(obj);
@@ -158,9 +159,31 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 0 のままだと列挙順によっては新規 stat が既存の 0 番を押し出すため、明示的に未採番へ落とす
             stat.SetGroup(StudioModelStat.UnassignedGroup);
             SyncAttachFromProvider(stat, obj);
+            SyncLayerFromProvider(stat, obj);
 
             _statMap[obj] = stat;
             return stat;
+        }
+
+        /// <summary>
+        /// プロバイダ側の UI で切り替えた表示レイヤーを stat へ取り込む。
+        /// プロバイダが扱えない (任意メンバが無い) 場合は未指定のまま
+        /// </summary>
+        private void SyncLayerFromProvider(StudioModelStat stat, GameObject obj)
+        {
+            if (_provider.getModelLayer == null)
+            {
+                return;
+            }
+
+            try
+            {
+                stat.layer = _provider.getModelLayer(obj);
+            }
+            catch (System.Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
         }
 
         /// <summary>取り込めなかったアタッチ先の控え (警告の重複を避ける)</summary>
@@ -275,6 +298,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _statMap[obj] = model;
 
             UpdateAttachPoint(model);
+
+            // 複製・読込で stat に載っているレイヤーを新しい実体へ移す
+            UpdateLayer(model);
         }
 
         public override void DeleteModel(StudioModelStat model)
@@ -301,6 +327,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 _provider.setModelVisible(obj, visible);
             }
+        }
+
+        public override void UpdateLayer(StudioModelStat model)
+        {
+            var obj = model.obj as GameObject;
+            if (obj == null || model.layer == StudioModelStat.UnspecifiedLayer
+                || _provider.setModelLayer == null)
+            {
+                return;
+            }
+
+            // UI は StudioModelManager 側の複製 stat を渡してくるので、modelList が返す stat へも写す
+            // (写さないと直後の LateUpdate で旧値との差分と誤判定される)
+            if (_statMap.TryGetValue(obj, out var cached) && cached != model)
+            {
+                cached.layer = model.layer;
+            }
+
+            _provider.setModelLayer(obj, model.layer);
         }
 
         public override void UpdateAttachPoint(StudioModelStat model)
