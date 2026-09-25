@@ -22,6 +22,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public AttachPoint attachPoint;
         public int attachMaidSlotNo = -1;
         public string pluginName;
+        /// <summary>表示レイヤー (Unity のレイヤー番号)。未指定は StudioModelStat.UnspecifiedLayer</summary>
+        public int layer = StudioModelStat.UnspecifiedLayer;
 
         public TimelineModelData()
         {
@@ -38,6 +40,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             attachPoint = model.attachPoint;
             attachMaidSlotNo = model.attachMaidSlotNo;
             pluginName = model.pluginName;
+            layer = model.layer;
         }
 
         public void FromXml(TimelineModelXml xml)
@@ -46,6 +49,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             attachPoint = xml.attachPoint;
             attachMaidSlotNo = xml.attachMaidSlotNo;
             pluginName = xml.pluginName;
+            layer = xml.layer;
         }
 
         public TimelineModelXml ToXml()
@@ -56,6 +60,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 attachPoint = attachPoint,
                 attachMaidSlotNo = attachMaidSlotNo,
                 pluginName = pluginName,
+                layer = layer,
             };
             return xml;
         }

@@ -26,6 +26,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>未採番。ModelHackManager.FixGroup が一度だけ番号を振る</summary>
         public const int UnassignedGroup = -1;
 
+        /// <summary>表示レイヤー未指定。プロバイダがレイヤーを扱えない、または旧 XML から読んだ</summary>
+        public const int UnspecifiedLayer = -1;
+
         public OfficialObjectInfo info { get; private set; }
         public int group { get; private set; }
         public string name { get; private set; }
@@ -35,6 +38,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public object obj { get; set; }
         public string pluginName { get; set; }
         public bool visible { get; set; }
+
+        /// <summary>
+        /// 表示レイヤー (Unity のレイヤー番号)。プロバイダの GetModelLayer から同期し、
+        /// タイムラインのモデル定義として保存する。未指定は UnspecifiedLayer
+        /// </summary>
+        public int layer { get; set; } = UnspecifiedLayer;
 
         public BlendShapeController blendShapeController { get; private set; }
         public ModelBoneController modelBoneController { get; private set; }
@@ -172,6 +181,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             obj = model.obj;
             pluginName = model.pluginName;
             visible = model.visible;
+            layer = model.layer;
 
             transform = model.transform;
         }

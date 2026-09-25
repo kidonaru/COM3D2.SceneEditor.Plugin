@@ -19,9 +19,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int attachMaidSlotNo = -1;
         [XmlElement("PluginName")]
         public string pluginName;
+        /// <summary>
+        /// 表示レイヤー (Unity のレイヤー番号)。SE 独自で、未指定 (-1) は書き出さない。
+        /// 要素名を Layer にしないのは、タイムラインレイヤーの &lt;Layer&gt; と紛れるため
+        /// </summary>
+        [XmlElement("ModelLayer")]
+        public int layer = StudioModelStat.UnspecifiedLayer;
 
         public bool ShouldSerializeattachPoint() { return false; }
         public bool ShouldSerializeattachMaidSlotNo() { return false; }
+        public bool ShouldSerializelayer() { return layer != StudioModelStat.UnspecifiedLayer; }
     }
 
     public class TimelineLightXml
