@@ -33,6 +33,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>停止中に Adjusting が収束しないと判断するまでのフレーム数</summary>
         private const int AdjustingTimeoutFrames = 60;
 
+        /// <summary>再生中シークの発行時刻 (realtimeSinceStartup)。再生中シーク以外では負値</summary>
+        private float _playSeekStartTime = -1f;
+
+        /// <summary>実測したシーク所要時間から求めた先読み量 (動画時間 ms)</summary>
+        private float _learnedSeekLeadMs = 0f;
+
+        /// <summary>シーク完了時に目標へ遅れていたため再シークした回数</summary>
+        private int _seekRetryCount = 0;
+
+        /// <summary>実測シーク時間に掛ける余裕。デコード負荷の揺らぎで間に合わなくならないようにする</summary>
+        private const float SeekLeadMargin = 1.5f;
+
+        /// <summary>学習する先読み量の上限。一時的なヒッチで極端な値を覚えないようにする</summary>
+        private const float MaxLearnedSeekLeadMs = 2000f;
+
+        /// <summary>シーク完了時にこれ以上目標より遅れていれば、学習した先読み量で再シークする</summary>
+        private const float SeekRetryLateThresholdMs = 30f;
+
+        /// <summary>再シークの上限。毎回間に合わない環境で再シークし続けないようにする</summary>
+        private const int MaxSeekRetryCount = 1;
+
         /// <summary>
         /// プレビューウィンドウにだけ映す表示形式か。
         /// enum 名 (GUI) は XML 互換のため据え置いているが、ゲーム画面には何も出さない
@@ -225,6 +246,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             _isStarted = false;
             _seekState = SeekState.None;
+            // シーク所要時間は動画ごとに違うので覚え直す
+            _playSeekStartTime = -1f;
+            _learnedSeekLeadMs = 0f;
+            _seekRetryCount = 0;
 
             UpdateVisible();
             UpdateTransform();
@@ -447,15 +472,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     if (currentLayer.isAnmPlaying)
                     {
+                        // シーク中もタイムラインは進むため、完了までに進む分だけ先へシークして
+                        // Adjusting で追いつくのを待つ。設定値だけでは動画によって所要時間に
+                        // 足りず、完了時点で目標に追い越されて遅れたまま再生されるので実測値も使う
                         var halfPrebufferTimeMs = config.videoPrebufferTime * 500f;
+                        var leadMs = Mathf.Max(halfPrebufferTimeMs, _learnedSeekLeadMs);
+                        // 短い動画で学習値が大きいと末尾を越えるため、動画長で止める
+                        var leadSeekTimeMs = seekTimeMs + leadMs;
+                        if (_duration > 0f)
+                        {
+                            leadSeekTimeMs = Mathf.Min(leadSeekTimeMs, _duration * 1000f);
+                        }
                         mediaControl.SeekWithTolerance(
-                            seekTimeMs + halfPrebufferTimeMs,
-                            halfPrebufferTimeMs,
+                            leadSeekTimeMs,
+                            leadMs,
                             halfPrebufferTimeMs);
+                        _playSeekStartTime = Time.realtimeSinceStartup;
                     }
                     else
                     {
                         mediaControl.Seek(seekTimeMs);
+                        _playSeekStartTime = -1f;
                     }
                     _seekState = SeekState.Seeking;
                     UpdateSpeed();
@@ -463,6 +500,46 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 _prevTime = currentTime;
             }
+        }
+
+        /// <summary>再生中シークの所要時間を次回の先読み量として覚える</summary>
+        /// <returns>再生中シークの完了だった場合 true</returns>
+        private bool LearnSeekLead()
+        {
+            if (_playSeekStartTime < 0f)
+            {
+                return false;
+            }
+
+            // 先読み量は動画時間で要るため、実時間ではなくシーク中に目標が進んだ量で測る
+            var targetAdvanceMs = (Time.realtimeSinceStartup - _playSeekStartTime) * 1000f * timelineManager.anmSpeed;
+            _playSeekStartTime = -1f;
+            _learnedSeekLeadMs = Mathf.Min(targetAdvanceMs * SeekLeadMargin, MaxLearnedSeekLeadMs);
+            return true;
+        }
+
+        /// <summary>シーク完了時点で目標に追い越されていれば、覚えた先読み量で 1 度だけ再シークする</summary>
+        /// <returns>再シークした場合 true</returns>
+        private bool TryRetrySeek()
+        {
+            if (timeline == null || currentLayer == null)
+            {
+                _seekRetryCount = 0;
+                return false;
+            }
+
+            var lateMs = targetSeekTimeMs - playingTimeMs;
+            if (_isAnmPlaying && lateMs > SeekRetryLateThresholdMs && _seekRetryCount < MaxSeekRetryCount)
+            {
+                _seekRetryCount++;
+                _seekState = SeekState.None;
+                UpdateSeekTime();
+                // シークが発行されなかった場合は呼び出し側で速度を戻させる
+                return _seekState == SeekState.Seeking;
+            }
+
+            _seekRetryCount = 0;
+            return false;
         }
 
         private IEnumerator UpdateSeekTimeAfterDelay(float delay)
@@ -682,6 +759,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 _seekState = SeekState.Adjusting;
                 _adjustingFrames = 0;
+
+                if (LearnSeekLead() && TryRetrySeek())
+                {
+                    return;
+                }
+
                 UpdateSpeed();
                 return;
             }
