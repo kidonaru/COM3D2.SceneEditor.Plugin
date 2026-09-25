@@ -275,7 +275,7 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                 }
 
-                view.DrawToggle(isArm ? "手首" : "足首", copyWrist, 45, ROW_HEIGHT, value =>
+                view.DrawToggle(isArm ? "手首も含める" : "足首も含める", copyWrist, 95, ROW_HEIGHT, value =>
                 {
                     if (isArm)
                     {
