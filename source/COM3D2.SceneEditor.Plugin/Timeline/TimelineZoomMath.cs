@@ -21,10 +21,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static readonly int[] LabelIntervalMultipliers = { 1, 2, 6, 12, 60 };
 
         /// <summary>
-        /// キーの菱形の一辺。フレーム幅によらず固定する。
-        /// 5px 未満の幅では隣のキーと重なって描かれるが、掴めることを優先する
+        /// キーの菱形の一辺。フレーム幅によらず、ズーム導入前の既定幅 (11px) と同じ大きさに固定する。
+        /// 11px 未満の幅では隣のキーと重なって描かれるが、見やすさと掴みやすさを優先する
         /// </summary>
-        public const int KeySize = 5;
+        public const int KeySize = 11;
 
         /// <summary>この幅未満ではフレームごとの中心線を引かない (1〜3px では線が背景を埋めてしまう)</summary>
         public const int MinFrameLineWidth = 4;
