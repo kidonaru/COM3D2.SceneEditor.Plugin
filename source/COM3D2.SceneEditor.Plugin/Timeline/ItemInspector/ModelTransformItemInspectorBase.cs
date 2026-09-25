@@ -126,7 +126,8 @@ namespace COM3D2.SceneEditor.Plugin
                 view, go, LabelWidth, ScaleLabelWidth, RowHeight);
 
             // 委譲先 (ModItemExplorer 等) に固有の行。ホスト側の別ビューで描くため、
-            // こちらのレイアウトは返ってきた高さぶん自分で送る
+            // こちらのレイアウトは返ってきた高さぶん自分で送る。
+            // 渡す矩形は描き始めの位置だけが意味を持つので高さは 0 でよい
             var rowsHeight = InspectorHost.DrawRows(go, view.GetDrawRect(-1, 0f));
             if (rowsHeight > 0f)
             {
