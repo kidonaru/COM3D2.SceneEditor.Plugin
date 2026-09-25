@@ -134,6 +134,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // 中身の差し替え直後は StudioModelManager が掴み直すまで破棄済みのまま残る
+            if (material.material == null)
+            {
+                return;
+            }
+
             // 数値はその値自身のタンジェント、色は線形で補間した結果を一度に適用する
             var scratch = LerpScratch<TransformDataModelMaterial>(motion, t);
             material.Apply(scratch);

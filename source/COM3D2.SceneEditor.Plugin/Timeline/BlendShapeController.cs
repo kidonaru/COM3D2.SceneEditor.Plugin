@@ -46,10 +46,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 対象メッシュが破棄された。プロバイダがモデルの中身を差し替えると起きる
+        /// </summary>
+        public bool isMeshDestroyed => !ReferenceEquals(mesh, null) && mesh == null;
+
         public void Init(Mesh mesh, BlendShapeCacheData blendData)
         {
             this.mesh = mesh;
             this.blendData = blendData;
+
+            // 差し替え後の初期化でシェイプキーが無くなった場合も旧キーを残さない
+            blendShapes.Clear();
 
             if (blendData.blendShapes.Count == 0)
             {
@@ -61,8 +69,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             tmpVertices = new Vector3[mesh.vertexCount];
             tmpNormals = new Vector3[mesh.vertexCount];
 
-            blendShapes.Clear();
-
             for (int i = 0; i < blendData.blendShapes.Count; i++)
             {
                 var shepeKey = blendData.blendShapes[i].name;
@@ -73,7 +79,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void FixBlendValues()
         {
-            if (blendData.blendShapes.Count == 0)
+            // 中身の差し替え直後は StudioModelManager が初期化し直すまで破棄済みのまま残る
+            if (blendData.blendShapes.Count == 0 || isMeshDestroyed)
             {
                 return;
             }

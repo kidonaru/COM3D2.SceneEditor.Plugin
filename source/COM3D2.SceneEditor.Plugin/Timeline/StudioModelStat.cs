@@ -206,6 +206,38 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             modelMaterialController = ModelMaterialController.GetOrCreate(this);
         }
 
+        /// <summary>
+        /// プロバイダが外側の transform を保ったまま中身を差し替えた (ModItemExplorer のモデル再読込)。
+        /// transform の比較では検知できず、各コントローラは破棄済みのボーン・メッシュ・マテリアルを握ったままになる
+        /// </summary>
+        public bool isContentReplaced
+        {
+            get
+            {
+                return (modelBoneController != null && modelBoneController.isRendererDestroyed)
+                    || (blendShapeController != null && blendShapeController.isMeshDestroyed)
+                    || (modelMaterialController != null && modelMaterialController.isRendererDestroyed);
+            }
+        }
+
+        /// <summary>
+        /// 差し替わった中身に合わせて各コントローラを初期化し直す
+        /// </summary>
+        public void ReloadControllers()
+        {
+            if (transform == null)
+            {
+                return;
+            }
+
+            if (modelBoneController != null)
+            {
+                modelBoneController.Init();
+            }
+            blendShapeController = BlendShapeLoader.LoadController(this, reload: true);
+            // マテリアルは materials を読んだ時点でレンダラーを掴み直して差し替わる
+        }
+
         public ModelBone GetBone(int index)
         {
             return modelBoneController.GetBone(index);

@@ -223,6 +223,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private int _prevUpdateFrame = -1;
 
+        private readonly List<StudioModelStat> _replacedModels = new List<StudioModelStat>();
+
         public override void LateUpdate()
         {
             LateUpdate(false);
@@ -230,7 +232,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void LateUpdate(bool force)
         {
-            if (!force)
+            // 中身の差し替えを放置すると、再生中のレイヤーが毎フレーム破棄済みのマテリアル等へ書き込んで例外になる。
+            // 判定は破棄済みかを見るだけで軽いので、間引きや再生中の停止より先に毎フレーム行う
+            var replacedModels = ReloadReplacedModels();
+
+            if (!force && replacedModels.Count == 0)
             {
                 if (Time.frameCount < _prevUpdateFrame + 30 || currentLayer.isAnmPlaying)
                 {
@@ -243,9 +249,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var addedModels = new List<StudioModelStat>();
             var removedModels = new List<StudioModelStat>();
-            var updatedModels = new List<StudioModelStat>();
+            var updatedModels = new List<StudioModelStat>(replacedModels);
             var attachChangedModels = new List<StudioModelStat>();
-            var refresh = false;
+            // 差し替えでボーン・シェイプキー・マテリアルの名前が変わりうるため引き当て表を作り直す
+            var refresh = replacedModels.Count > 0;
 
             foreach (var model in modelList)
             {
@@ -401,6 +408,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 onModelAttachChanged?.Invoke(model);
             }
+
+            // 再生中は各レイヤーが毎フレーム適用し直す。停止中は新しい中身がキーの値を受け取っていない
+            if (replacedModels.Count > 0 && !currentLayer.isAnmPlaying)
+            {
+                timelineManager.ApplyCurrentFrame(true);
+            }
+        }
+
+        /// <summary>
+        /// 中身が差し替わったモデルのコントローラを初期化し直し、該当モデルを返す。
+        /// 戻り値は使い回しのバッファで、次の呼び出しまでの間だけ有効
+        /// </summary>
+        private List<StudioModelStat> ReloadReplacedModels()
+        {
+            // 毎フレーム呼ぶため使い回す
+            var replacedModels = _replacedModels;
+            replacedModels.Clear();
+            foreach (var model in modelMap.Values)
+            {
+                // 外側ごと消えたモデルは削除として通常の経路で扱う
+                if (model.transform == null || !model.isContentReplaced)
+                {
+                    continue;
+                }
+
+                MTEUtils.LogDebug("StudioModelManager: モデルの中身の差し替えを検知しました: name={0}", model.name);
+                model.ReloadControllers();
+                replacedModels.Add(model);
+            }
+            return replacedModels;
         }
 
         public void SetupModels(List<TimelineModelData> modelDataList)

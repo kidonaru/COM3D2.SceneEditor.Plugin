@@ -44,6 +44,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public List<ModelBone> bones = new List<ModelBone>();
 
+        /// <summary>
+        /// 初期化時に掴んだレンダラーが破棄された。プロバイダがモデルの中身を差し替えると起きる
+        /// </summary>
+        public bool isRendererDestroyed => !ReferenceEquals(_meshRenderer, null) && _meshRenderer == null;
+
         public static ModelBoneController GetOrCreate(IModelStat model)
         {
             var transform = model.transform;

@@ -21,6 +21,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 掴んでいるレンダラーが破棄された。プロバイダがモデルの中身を差し替えると起きる。
+        /// materials を読めば新しいレンダラーのマテリアルへ差し替わる
+        /// </summary>
+        public bool isRendererDestroyed => !ReferenceEquals(_renderer, null) && _renderer == null;
+
         private List<ModelMaterial> _materials = new List<ModelMaterial>();
         public List<ModelMaterial> materials
         {

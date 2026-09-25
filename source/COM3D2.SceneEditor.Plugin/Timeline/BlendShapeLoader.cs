@@ -10,7 +10,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         private static Dictionary<string, BlendShapeCacheData> blendShapeCacheMap = new Dictionary<string, BlendShapeCacheData>();
 
-        public static BlendShapeController LoadController(StudioModelStat model)
+        /// <param name="reload">
+        /// 中身が差し替わったモデル向け。既存コントローラも新しいメッシュで初期化し直し、
+        /// モデルファイルが更新されている可能性があるためシェイプキーのキャッシュも読み直す
+        /// </param>
+        public static BlendShapeController LoadController(StudioModelStat model, bool reload = false)
         {
             if (model == null || model.transform == null || model.info == null)
             {
@@ -21,34 +25,46 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var go = transform.gameObject;
 
             var controller = go.GetComponent<BlendShapeController>();
-            if (controller != null)
+            if (controller != null && !reload)
             {
                 controller.model = model;
                 return controller;
             }
 
-            var menu = ModMenuLoader.Load(model.info.fileName);
+            var meshRenderer = go.GetComponentInChildren<SkinnedMeshRenderer>();
+            var blendShapeCache = meshRenderer != null ? LoadCacheByMenu(model.info.fileName, reload) : null;
+            if (blendShapeCache == null)
+            {
+                // 差し替えでシェイプキーを持たなくなった。破棄済みメッシュを握ったコントローラは外す
+                if (controller != null)
+                {
+                    UnityEngine.Object.Destroy(controller);
+                }
+                return null;
+            }
+
+            if (controller == null)
+            {
+                controller = go.AddComponent<BlendShapeController>();
+            }
+            controller.Init(meshRenderer.sharedMesh, blendShapeCache);
+            controller.model = model;
+            return controller;
+        }
+
+        private static BlendShapeCacheData LoadCacheByMenu(string menuFileName, bool reload)
+        {
+            var menu = ModMenuLoader.Load(menuFileName);
             if (menu == null || string.IsNullOrEmpty(menu.modelFileName))
             {
                 return null;
             }
 
-            var blendShapeCache = LoadCache(menu.modelFileName);
-            if (blendShapeCache == null)
+            if (reload)
             {
-                return null;
+                blendShapeCacheMap.Remove(menu.modelFileName);
             }
-
-            var meshRenderer = go.GetComponentInChildren<SkinnedMeshRenderer>();
-            if (meshRenderer == null)
-            {
-                return null;
-            }
-
-            controller = go.AddComponent<BlendShapeController>();
-            controller.Init(meshRenderer.sharedMesh, blendShapeCache);
-            controller.model = model;
-            return controller;
+            return LoadCache(menu.modelFileName);
         }
 
         public static BlendShapeCacheData LoadCache(string modelFileName)
