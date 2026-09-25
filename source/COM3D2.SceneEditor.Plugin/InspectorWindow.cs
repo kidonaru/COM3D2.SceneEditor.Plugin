@@ -8,6 +8,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// ポーズボーン選択中は回転オフセットのスライダー、ボーン編集中は位置/回転/拡縮の行、
     /// メイド選択中は切替とカメラ追従の行を出す。
     /// 通常オブジェクトは Transform を表示・編集する。
+    /// 配置モデル・背景モデルの本体はタイムラインのモデルレイヤー選択と同じ表示にする。
     /// X/Y/Z ラベルの左右ドラッグで値を増減でき (Shift で 0.1 倍)、数値入力も併用できる。
     /// ギズモ操作による変化は毎フレーム反映される
     /// </summary>
@@ -65,6 +66,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>Object の Transform 行。タイムライン項目表示と共有する</summary>
         private readonly ObjectTransformRowDrawer _objectTransformRowDrawer =
             new ObjectTransformRowDrawer();
+
+        /// <summary>
+        /// モデル本体の選択時に、タイムラインのモデルレイヤー選択と同じ表示を描く。
+        /// 行ドロワーの状態 (コンボの開閉・オイラー角キャッシュ) をタイムライン側と
+        /// 混ぜないよう、登録済みのものとは別インスタンスを持つ
+        /// </summary>
+        private readonly ModelItemInspector _modelInspector = new ModelItemInspector();
+        private readonly BGModelItemInspector _bgModelInspector = new BGModelItemInspector();
 
         private static InspectorWindow _instance = null;
         public static InspectorWindow instance
@@ -213,13 +222,16 @@ namespace COM3D2.SceneEditor.Plugin
                     DrawMaidContent(maid);
                 }
 
-                DrawHeader(_view, go);
+                if (!TryDrawModel(go))
+                {
+                    DrawHeader(_view, go);
 
-                _objectTransformRowDrawer.Draw(
-                    _view, go, LabelWidth, ScaleLabelWidth, RowHeight);
+                    _objectTransformRowDrawer.Draw(
+                        _view, go, LabelWidth, ScaleLabelWidth, RowHeight);
 
-                // PNG 配置は Transform に続けて固有パラメータも編集させる
-                PngPlacementInspector.Draw(_view, go);
+                    // PNG 配置は Transform に続けて固有パラメータも編集させる
+                    PngPlacementInspector.Draw(_view, go);
+                }
 
                 _view.EndScrollView();
             }
@@ -637,6 +649,16 @@ namespace COM3D2.SceneEditor.Plugin
             });
 
             view.DrawHorizontalLine();
+        }
+
+        /// <summary>
+        /// 配置モデル・背景モデルの本体なら、タイムラインのモデルレイヤー選択と同じ表示を描く。
+        /// 全面委譲 (InspectorHost.TryDraw) より後に判定するので、旧版の委譲先はそちらが優先される
+        /// </summary>
+        private bool TryDrawModel(GameObject go)
+        {
+            return _modelInspector.TryDrawSelected(_view, go)
+                || _bgModelInspector.TryDrawSelected(_view, go);
         }
 
         /// <summary>アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行</summary>

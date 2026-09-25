@@ -5,7 +5,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 配置モデルレイヤー (ModelTimelineLayer) のメニュー項目 → モデルの管理操作と Transform 編集UI。
+    /// 配置モデルレイヤー (ModelTimelineLayer) のメニュー項目・選択中のモデル本体 → モデルの管理操作と Transform 編集UI。
     /// 逆方向: モデル (またはその子) の選択 → 該当モデルのメニュー選択
     /// </summary>
     public class ModelItemInspector : ModelTransformItemInspectorBase<MTEP.StudioModelStat>
@@ -23,14 +23,19 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override List<MTEP.StudioModelStat> models => modelManager.models;
 
+        protected override void DrawModelHeaderRow(GUIView view, MTEP.StudioModelStat model)
+        {
+            ModelManageRowDrawer.DrawHeaderRow(view, model);
+        }
+
         protected override void DrawModelManageRows(GUIView view, MTEP.StudioModelStat model)
         {
             _manageRowDrawers.Get(model.name).Draw(view, model);
         }
 
-        protected override void PruneCaches(IList<MTEP.IBoneMenuItem> items)
+        protected override void PruneCaches(IList<string> names)
         {
-            _manageRowDrawers.PruneExcept(items);
+            _manageRowDrawers.PruneExcept(names);
         }
     }
 }

@@ -9,7 +9,7 @@ namespace COM3D2.SceneEditor.Plugin
     using AttachPoint = PhotoTransTargetObject.AttachPoint;
 
     /// <summary>
-    /// 配置モデル 1 つ分の管理行 (表示切替・プラグイン・複製・削除・アタッチ先)。
+    /// 配置モデル 1 つ分の管理行 (プラグイン・複製・削除・アタッチ先。表示切替はヘッダー行の DrawHeaderRow)。
     /// 一覧性はヒエラルキーが受け持ち、ここは選択中のモデルへの操作だけを担う。
     /// コンボボックスの開閉状態を持つため、モデルごとにインスタンスを分ける
     /// </summary>
@@ -42,6 +42,23 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>アタッチ先メイドの選択肢 (先頭の null は「未選択」)</summary>
         private readonly List<MTEP.MaidCache> _maidCaches = new List<MTEP.MaidCache>();
 
+        /// <summary>
+        /// 表示トグル + 表示名 + フォーカスのヘッダー行。
+        /// 表示切替はレイヤーの書き戻し対象なので、値を書く直前に編集モードへ入る
+        /// </summary>
+        public static void DrawHeaderRow(GUIView view, MTEP.StudioModelStat model)
+        {
+            view.BeginAutoEditMode();
+            InspectorHeaderRowDrawer.Draw(view, model.visible, model.displayName, RowHeight,
+                newValue =>
+                {
+                    modelManager.SetModelVisible(model, newValue);
+                    model.visible = newValue;
+                },
+                model.transform.gameObject);
+            view.EndAutoEditMode();
+        }
+
         public void Draw(GUIView view, MTEP.StudioModelStat model)
         {
             if (model == null)
@@ -49,14 +66,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 複製・削除・表示切替はレイヤーの書き戻し対象なので、値を書く直前に編集モードへ入る
+            // 複製・削除・アタッチはレイヤーの書き戻し対象なので、値を書く直前に編集モードへ入る
             view.BeginAutoEditMode();
-
-            view.DrawToggle("表示", model.visible, 80, RowHeight, newValue =>
-            {
-                modelManager.SetModelVisible(model, newValue);
-                model.visible = newValue;
-            });
 
             view.BeginHorizontal();
             {

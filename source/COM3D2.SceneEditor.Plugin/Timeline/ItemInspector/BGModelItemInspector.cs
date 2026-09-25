@@ -5,7 +5,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 背景モデルレイヤー (BGModelTimelineLayer) のメニュー項目 → モデルの Transform 編集UI。
+    /// 背景モデルレイヤー (BGModelTimelineLayer) のメニュー項目・選択中の背景モデル本体 → モデルの Transform 編集UI。
     /// 逆方向: 背景モデル (またはその子) の選択 → 該当モデルのメニュー選択
     /// </summary>
     public class BGModelItemInspector : ModelTransformItemInspectorBase<MTEP.BGModelStat>
@@ -22,14 +22,13 @@ namespace COM3D2.SceneEditor.Plugin
         protected override List<MTEP.BGModelStat> models => bgModelManager.models;
 
         /// <summary>
-        /// 背景モデルは配置数の増減を背景ウィンドウが持つため、ここは表示切替だけを出す
+        /// 背景モデルは配置数の増減を背景ウィンドウが持つため、管理行は出さずヘッダー行の表示切替だけにする
         /// </summary>
-        protected override void DrawModelManageRows(GUIView view, MTEP.BGModelStat model)
+        protected override void DrawModelHeaderRow(GUIView view, MTEP.BGModelStat model)
         {
-            view.DrawToggle("表示", model.visible, 80, RowHeight, newValue =>
-            {
-                model.visible = newValue;
-            });
+            InspectorHeaderRowDrawer.Draw(view, model.visible, model.displayName, RowHeight,
+                newValue => { model.visible = newValue; },
+                model.transform.gameObject);
         }
     }
 }
