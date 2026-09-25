@@ -613,23 +613,24 @@ namespace COM3D2.SceneEditor.Plugin
             var yaw = AngleUtils.NormalizeAngle(aroundAngle.x);
             var pitch = AngleUtils.NormalizeAngle(aroundAngle.y);
 
+            // 表記と並びはメインカメラと同じ RX (ピッチ) → RY (ヨー)
+            MainCameraRowDrawer.DrawAxisSlider(_view, "RX", pitch, -90f, 90f, 0.1f,
+                MainCameraRowDrawer.DefaultAroundAngle.y, LABEL_WIDTH, ROW_HEIGHT,
+                value => controller.aroundAngle = new Vector2(yaw, value));
             if (follow.isFollow && follow.followRotation)
             {
-                MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー",
+                MainCameraRowDrawer.DrawAxisSlider(_view, "RY",
                     AngleUtils.NormalizeAngle(follow.yawOffset),
                     -180f, 180f, 0.1f, 0f, LABEL_WIDTH, ROW_HEIGHT,
                     value => follow.yawOffset = value);
             }
             else
             {
-                MainCameraRowDrawer.DrawAxisSlider(_view, "ヨー", yaw, -180f, 180f, 0.1f,
+                MainCameraRowDrawer.DrawAxisSlider(_view, "RY", yaw, -180f, 180f, 0.1f,
                     AngleUtils.NormalizeAngle(MainCameraRowDrawer.DefaultAroundAngle.x),
                     LABEL_WIDTH, ROW_HEIGHT,
                     value => controller.aroundAngle = new Vector2(value, pitch));
             }
-            MainCameraRowDrawer.DrawAxisSlider(_view, "ピッチ", pitch, -90f, 90f, 0.1f,
-                MainCameraRowDrawer.DefaultAroundAngle.y, LABEL_WIDTH, ROW_HEIGHT,
-                value => controller.aroundAngle = new Vector2(yaw, value));
 
             _view.DrawHorizontalLine();
 

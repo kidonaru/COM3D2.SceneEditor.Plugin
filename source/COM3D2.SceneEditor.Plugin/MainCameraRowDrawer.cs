@@ -6,7 +6,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メインカメラの構図 (注視点・ヨー/ピッチ/ロール・距離・FOV) の行描画。
+    /// メインカメラの構図 (注視点・回転 RX/RY/RZ・距離・FOV) の行描画。
     /// CameraWindow と TimelineItemInspector (カメラレイヤーの項目表示) で共有する。
     /// 編集は UltimateOrbitCamera を包む CameraMain の API 経由で行う。
     /// 履歴 (HistoryScope.Camera) を記録するのは RecordCameraEdit を呼ぶ行だけで、
@@ -55,7 +55,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 回転。GetAroundAngle は x がヨー (水平旋回)、y がピッチ (仰俯角)。
+        /// 回転。表記と並びはタイムラインのカメラキー (RX/RY/RZ) に揃える。
+        /// GetAroundAngle は x がヨー (水平旋回 = RY)、y がピッチ (仰俯角 = RX)。
         /// 向き反映中のヨーはメイドの向きからのオフセットを編集する。
         /// ロールは UltimateOrbitCamera が管理しないため Transform へ直接書くが、
         /// 手ブレの揺れが値に混ざらないよう読み書きは CameraShakeManager を経由する
@@ -72,31 +73,31 @@ namespace COM3D2.SceneEditor.Plugin
             // 手ブレ適用中は揺れ込みの値になるため、揺れ前のロールを読む
             var roll = AngleUtils.NormalizeAngle(CameraShakeManager.instance.GetCleanRotationZ(camera));
 
+            DrawAxisSlider(view, "RX", pitch, -90f, 90f, 0.1f,
+                DefaultAroundAngle.y, labelWidth, rowHeight, value =>
+                {
+                    RecordCameraEdit("RX");
+                    mainCamera.SetAroundAngle(new Vector2(yaw, value));
+                });
             if (follow != null && follow.isFollow && follow.state.followRotation)
             {
-                DrawAxisSlider(view, "ヨー", AngleUtils.NormalizeAngle(follow.state.yawOffset),
+                DrawAxisSlider(view, "RY", AngleUtils.NormalizeAngle(follow.state.yawOffset),
                     -180f, 180f, 0.1f, 0f, labelWidth, rowHeight,
                     value => follow.state.yawOffset = value);
             }
             else
             {
-                DrawAxisSlider(view, "ヨー", yaw, -180f, 180f, 0.1f,
+                DrawAxisSlider(view, "RY", yaw, -180f, 180f, 0.1f,
                     AngleUtils.NormalizeAngle(DefaultAroundAngle.x), labelWidth, rowHeight, value =>
                     {
-                        RecordCameraEdit("ヨー");
+                        RecordCameraEdit("RY");
                         mainCamera.SetAroundAngle(new Vector2(value, pitch));
                     });
             }
-            DrawAxisSlider(view, "ピッチ", pitch, -90f, 90f, 0.1f,
-                DefaultAroundAngle.y, labelWidth, rowHeight, value =>
-                {
-                    RecordCameraEdit("ピッチ");
-                    mainCamera.SetAroundAngle(new Vector2(yaw, value));
-                });
-            DrawAxisSlider(view, "ロール", roll, -180f, 180f, 0.1f, 0f,
+            DrawAxisSlider(view, "RZ", roll, -180f, 180f, 0.1f, 0f,
                 labelWidth, rowHeight, value =>
                 {
-                    RecordCameraEdit("ロール");
+                    RecordCameraEdit("RZ");
                     CameraShakeManager.instance.SetCleanRotationZ(camera, value);
                 });
         }
