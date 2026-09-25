@@ -439,7 +439,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 foreach (var modelData in modelDataList)
                 {
                     var model = modelList.Find(m => m.name == modelData.name);
-                    // アタッチは version 37 からモデルキーの値。ここでは付けず、レイヤーの適用に任せる
+                    // アタッチは version 37 からモデルキーの値。ここでは付けず、タイムラインレイヤーの適用に任せる
                     if (model == null)
                     {
                         model = CreateModelStat(
