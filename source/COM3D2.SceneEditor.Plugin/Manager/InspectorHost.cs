@@ -17,11 +17,16 @@ namespace COM3D2.SceneEditor.Plugin
         {
             public string name;
             public Func<GameObject, bool> canDraw;
+            /// <summary>内容を丸ごと描く委譲先。行の登録では null</summary>
             public Action<GameObject, Rect> draw;
+            /// <summary>ホストが描く内容の末尾へ行を足す委譲先。全面委譲の登録では null</summary>
+            public Func<GameObject, Rect, float> drawRows;
             /// <summary>委譲先が自前のスクロールビュー内で DrawHeader を呼ぶか</summary>
             public bool drawsHeader;
             /// <summary>連続で例外になった回数。成功したら 0 に戻す</summary>
             public int failureCount;
+
+            public bool isRows => drawRows != null;
         }
 
         private static readonly List<Entry> _entries = new List<Entry>();
@@ -91,22 +96,54 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
 
-            // 同名の再登録はプラグインのリロードとみなして置き換える
-            for (var i = _entries.Count - 1; i >= 0; i--)
-            {
-                if (_entries[i].name == name)
-                {
-                    Unregister(_entries[i]);
-                }
-            }
-
-            var entry = new Entry
+            return AddEntry(new Entry
             {
                 name = name ?? "",
                 canDraw = canDraw,
                 draw = draw,
                 drawsHeader = drawsHeader,
-            };
+            });
+        }
+
+        /// <summary>
+        /// ホストが自前で描く内容 (現状は配置モデル・背景モデルの共通表示) の末尾へ、
+        /// 委譲先に固有の行だけを足す登録 (後発 API)。
+        /// drawRows は rect の左上から描き、使った高さ (末尾の余白を含まない) を返す。
+        /// 全面委譲 (Register / Register2) とは別枠で、同名でも互いを置き換えない
+        /// </summary>
+        public static object RegisterRows(
+            string name,
+            Func<GameObject, bool> canDraw,
+            Func<GameObject, Rect, float> drawRows)
+        {
+            if (canDraw == null || drawRows == null)
+            {
+                MTEUtils.LogError("InspectorHost.RegisterRows: デリゲートに null は指定できません");
+                return null;
+            }
+
+            return AddEntry(new Entry
+            {
+                name = name ?? "",
+                canDraw = canDraw,
+                drawRows = drawRows,
+            });
+        }
+
+        /// <summary>
+        /// 同名・同種の既存登録はプラグインのリロードとみなして置き換える。
+        /// 種類が違えば残す (同じプラグインが全面委譲と行を併用しても消し合わない)
+        /// </summary>
+        private static object AddEntry(Entry entry)
+        {
+            for (var i = _entries.Count - 1; i >= 0; i--)
+            {
+                if (_entries[i].name == entry.name && _entries[i].isRows == entry.isRows)
+                {
+                    Unregister(_entries[i]);
+                }
+            }
+
             _entries.Add(entry);
             return entry;
         }
@@ -138,7 +175,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var entry in _entries)
             {
-                if (entry.failureCount >= MaxConsecutiveFailures)
+                if (entry.isRows || entry.failureCount >= MaxConsecutiveFailures)
                 {
                     continue;
                 }
@@ -156,15 +193,53 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 catch (Exception e)
                 {
-                    // 外部プラグインの例外でホストの描画を止めない
-                    MTEUtils.LogException(e);
-                    if (++entry.failureCount >= MaxConsecutiveFailures)
-                    {
-                        MTEUtils.LogWarning("InspectorHost: {0} の描画が連続で失敗したため委譲を停止します", entry.name);
-                    }
+                    RecordFailure(entry, e);
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// 選択オブジェクトを管理下に持つ行の登録者が居れば、rect の位置へ行を描かせて
+        /// 使った高さを返す。居なければ 0。最初に canDraw が true を返した 1 者だけを呼ぶ。
+        /// 呼び出し元は戻り値の高さぶんレイアウトを送る (DrawHeader と同じ作法)。
+        /// 例外の扱いは TryDraw と同じ
+        /// </summary>
+        public static float DrawRows(GameObject go, Rect rect)
+        {
+            foreach (var entry in _entries)
+            {
+                if (!entry.isRows || entry.failureCount >= MaxConsecutiveFailures)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (!entry.canDraw(go))
+                    {
+                        continue;
+                    }
+                    var height = entry.drawRows(go, rect);
+                    entry.failureCount = 0;
+                    return Math.Max(0f, height);
+                }
+                catch (Exception e)
+                {
+                    RecordFailure(entry, e);
+                }
+            }
+            return 0f;
+        }
+
+        /// <summary>外部プラグインの例外でホストの描画を止めない。連続失敗が続く登録者は打ち切る</summary>
+        private static void RecordFailure(Entry entry, Exception e)
+        {
+            MTEUtils.LogException(e);
+            if (++entry.failureCount >= MaxConsecutiveFailures)
+            {
+                MTEUtils.LogWarning("InspectorHost: {0} の描画が連続で失敗したため委譲を停止します", entry.name);
+            }
         }
     }
 }
