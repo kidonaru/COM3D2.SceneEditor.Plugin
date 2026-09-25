@@ -45,6 +45,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// プロバイダ側の UI で付け替えたアタッチを SE のキーへ取り込むのに使う
         /// </summary>
         public Func<GameObject, Transform> getModelAttachBone;
+
+        /// <summary>モデルの表示レイヤー (Unity のレイヤー番号)。管理外・不明なら -1 (任意メンバ)</summary>
+        public Func<GameObject, int> getModelLayer;
+
+        /// <summary>モデルの表示レイヤーを変える (任意メンバ。getModelLayer と対でだけ有効)</summary>
+        public Action<GameObject, int> setModelLayer;
     }
 
     /// <summary>
@@ -141,6 +147,18 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 provider.getModelAttachBone = (Func<GameObject, Transform>)Delegate.CreateDelegate(
                     typeof(Func<GameObject, Transform>), getAttachBone);
+            }
+
+            // 保存 (取得) と読込 (設定) は対で使うため、片方だけなら両方とも無効にする
+            var getLayer = type.GetMethod("GetModelLayer", flags, null, new[] { typeof(GameObject) }, null);
+            var setLayer = type.GetMethod("SetModelLayer", flags, null, new[] { typeof(GameObject), typeof(int) }, null);
+            if (getLayer != null && getLayer.ReturnType == typeof(int)
+                && setLayer != null && setLayer.ReturnType == typeof(void))
+            {
+                provider.getModelLayer = (Func<GameObject, int>)Delegate.CreateDelegate(
+                    typeof(Func<GameObject, int>), getLayer);
+                provider.setModelLayer = (Action<GameObject, int>)Delegate.CreateDelegate(
+                    typeof(Action<GameObject, int>), setLayer);
             }
 
             return true;

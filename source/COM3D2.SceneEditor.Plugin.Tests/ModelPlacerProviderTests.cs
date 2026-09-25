@@ -32,6 +32,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public static void BeginBatch() { }
         public static void EndBatch() { }
         public static Transform GetModelAttachBone(GameObject obj) => null;
+        public static int GetModelLayer(GameObject obj) => -1;
+        public static void SetModelLayer(GameObject obj, int layer) { }
     }
 
     /// <summary>任意メンバを持たないプロバイダ</summary>
@@ -49,6 +51,24 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public static void DeleteAllModels() { }
         public static void SetModelVisible(GameObject obj, bool visible) { }
         public static void AttachModel(GameObject obj, Maid maid, string attachPointName) { }
+    }
+
+    /// <summary>レイヤーの取得だけを持ち、設定を欠いたプロバイダ</summary>
+    [ModelPlacerProvider]
+    public static class GetLayerOnlyDummyProvider
+    {
+        public static string ModelPlacerId => "GetLayerOnlyPlacer";
+        public static string ModelPlacerDisplayName => "取得のみ";
+
+        public static List<GameObject> GetModels() => new List<GameObject>();
+        public static string GetModelFileName(GameObject obj) => "";
+        public static GameObject CreateModel(
+            string type, string fileName, int myRoomId, long bgObjectId, int group, bool visible) => null;
+        public static void DeleteModel(GameObject obj) { }
+        public static void DeleteAllModels() { }
+        public static void SetModelVisible(GameObject obj, bool visible) { }
+        public static void AttachModel(GameObject obj, Maid maid, string attachPointName) { }
+        public static int GetModelLayer(GameObject obj) => 0;
     }
 
     /// <summary>必須メンバ GetModels を欠いたプロバイダ</summary>
@@ -102,6 +122,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.NotNull(provider.beginBatch);
             Assert.NotNull(provider.endBatch);
             Assert.NotNull(provider.getModelAttachBone);
+            Assert.NotNull(provider.getModelLayer);
+            Assert.NotNull(provider.setModelLayer);
         }
 
         [Fact]
@@ -116,6 +138,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Null(provider.endBatch);
             // 旧版のプロバイダはアタッチを返さない。SE は同期しないだけで、これまでどおり動く
             Assert.Null(provider.getModelAttachBone);
+            Assert.Null(provider.getModelLayer);
+            Assert.Null(provider.setModelLayer);
+        }
+
+        [Fact]
+        public void レイヤーの取得と設定は片方だけならどちらも無効()
+        {
+            // 読めても書けないと、保存した値を読込で戻せず食い違うため
+            var bound = ModelPlacerProviderBinder.TryBind(
+                typeof(GetLayerOnlyDummyProvider), out var provider, out var error);
+
+            Assert.True(bound, error);
+            Assert.Null(provider.getModelLayer);
+            Assert.Null(provider.setModelLayer);
         }
 
         [Fact]
