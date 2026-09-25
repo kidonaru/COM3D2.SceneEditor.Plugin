@@ -17,6 +17,7 @@ SceneEditor プラグイン（COM3D2.SceneEditor.Plugin）の Inspector ウィ�
 | Inspector ウィンドウの矩形・表示状態を読む | ✅ `GetWindowRect` / `IsWindowVisible`（自前ドロップダウン等の座標計算用） |
 | ヘッダー行（ギズモ行 + アクティブ・名前・フォーカス）を自前のスクロールビュー内へ描く | ✅ `drawsHeader: true` で登録し、`DrawHeader` を呼ぶ（ヘッダーも一緒にスクロールする） |
 | ヘッダー行の内容そのものの変更 | ❌ 中身を描くのはホスト。委譲先が選べるのは描く位置だけ |
+| ホストが描くモデル表示（配置モデル・背景モデル）の末尾へ固有の行だけを足す | ✅ `RegisterRows` で登録し、`drawRows` が使った高さを返す |
 | 複数登録者による同一オブジェクトの分担描画 | ❌ 最初に `canDraw` が true を返した 1 者が全面を描く |
 
 ## 連携方法は 2 通り
@@ -56,6 +57,27 @@ _view.DrawEmpty(-1, height);   // 描いたぶんだけレイアウトを送る
 （ヘッダーはホストが固定表示し、`contentRect` はその下の残り領域になる）。
 分岐が必要なら `isHeaderDrawAvailable` で判定できる。
 
+配置モデル・背景モデルは、ホストが共通のモデル表示（ヘッダー・管理行・アタッチ・Transform）を描く。
+その末尾へ固有の行だけを足したい場合は `RegisterRows` を使う:
+
+```csharp
+if (InspectorHostClient.isRowsDrawAvailable)
+{
+    _inspectorHandle = InspectorHostClient.RegisterRows(
+        "MyPlugin",
+        canDraw:  go => IsMyModel(go),
+        drawRows: (go, rect) => DrawMyRows(go, rect));   // rect の左上から描き、使った高さを返す
+}
+else
+{
+    // 旧ホスト: 従来どおり Register で内容を丸ごと描く
+}
+```
+
+`drawRows` は `DrawHeader` と同じく、ホストのスクロールビュー内の座標で自前の `GUIView`
+（`padding = Vector2.zero` で `Init(rect)`）に描く。返す高さに末尾の余白は含めない。
+全面委譲（`Register`）の登録者が居るオブジェクトではホストが共通表示を描かないため、`drawRows` は呼ばれない。
+
 コンボのドロップダウンを自前ウィンドウとして出す場合は、ボタン座標を
 スクリーン座標へ直す基準にホストのウィンドウ状態を使う:
 
@@ -94,6 +116,10 @@ void Unregister(object handle);
 Rect GetWindowRect();                   // Inspector ウィンドウのスクリーン矩形（後発 API）
 bool IsWindowVisible();                 // Inspector が描画中か（後発 API）
 float DrawHeader(GameObject go, Rect rect);  // ヘッダー行を描く。戻り値は使った高さ（後発 API）
+object RegisterRows(                    // ホストの共通表示の末尾へ行を足す登録（後発 API）
+    string name,                        // 同名・同種の再登録は置き換え。全面委譲の登録とは別枠
+    Func<GameObject, bool> canDraw,
+    Func<GameObject, Rect, float> drawRows);  // 戻り値は使った高さ（末尾の余白を含まない）
 ```
 
 ## 挙動の詳細・注意点
@@ -111,6 +137,8 @@ float DrawHeader(GameObject go, Rect rect);  // ヘッダー行を描く。戻�
 - `Register2` / `DrawHeader` も後発 API。A の `isHeaderDrawAvailable` で有無を判定する。
   `DrawHeader` はホスト側の別ビューで描くため、呼び出し元のレイアウトは進まない。
   戻り値の高さぶんを自分で送ること（末尾の余白は含まれない）
+- `RegisterRows` も後発 API。A の `isRowsDrawAvailable` で有無を判定する。
+  判定の順は「全面委譲 → ホストの共通表示（+ 行の委譲）→ 既定描画」
 - **不要になったら必ず `Unregister`**。ホストは常駐するため、解除を怠ると
   デリゲートが掴んだ参照ごと残る
 
