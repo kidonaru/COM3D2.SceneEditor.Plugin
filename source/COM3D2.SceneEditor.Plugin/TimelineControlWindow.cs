@@ -158,6 +158,9 @@ namespace COM3D2.SceneEditor.Plugin
             onSelected = (maidCache, index) =>
             {
                 maidManager.ChangeMaid(maidCache.maid);
+                // ChangeMaid は編集モードの解除だけで操作対象は変えない。
+                // targetMaid を書けば次の PreUpdate がアクティブレイヤーもそのメイドへ追従させる
+                MaidManipulateManager.instance.targetMaid = maidCache.maid;
             },
             buttonSize = new Vector2(150, 20),
             contentSize = new Vector2(150, 300),
@@ -663,7 +666,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.DrawLabel("操作対象", 60, ROW_HEIGHT);
 
             // スロットを持たないレイヤー (カメラ等) でも選択中のメイドを出す
-            _maidComboBox.currentIndex = currentLayer.hasSlotNo
+            _maidComboBox.currentIndex = currentLayer != null && currentLayer.hasSlotNo
                 ? currentLayer.slotNo
                 : maidManager.maidSlotNo;
             _maidComboBox.items = maidManager.maidCaches;
