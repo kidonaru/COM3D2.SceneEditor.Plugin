@@ -454,9 +454,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 直近に停止したクリップを再生し直す。
         /// ポーズは動き出すのでボーンスライダーの基準は破棄するが、
-        /// リセットの復帰先は残して停止後にまた戻せるようにする
+        /// リセットの復帰先は残して停止後にまた戻せるようにする。
+        /// resetSpeed=false はタイムラインの有効化用: 再生状態は anm の速度で表すため、
+        /// 等速へ戻すと一時停止中のタイムラインが再生を始めてしまう
         /// </summary>
-        public static void PlayMotion(Maid maid)
+        public static void PlayMotion(Maid maid, bool resetSpeed = true)
         {
             var anim = GetAnimation(maid);
             if (anim == null)
@@ -476,7 +478,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // ベースが流れ出すので手編集の anm 化対象から外す
                 MaidAnimationBlendController.ClearBoneEdit(maid);
                 var state = anim[clipName];
-                if (state != null)
+                if (resetSpeed && state != null)
                 {
                     // 層を残す停止では速度を 0 にしてあるので等速へ戻す
                     state.speed = 1f;
