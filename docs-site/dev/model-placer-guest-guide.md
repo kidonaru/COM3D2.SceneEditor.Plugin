@@ -99,6 +99,8 @@ public static class ModelPlacerProvider
 | `GetModelDisplayName` | `string GetModelDisplayName(GameObject)` | 一覧に出す表示名 |
 | `BeginBatch` / `EndBatch` | `void BeginBatch()` / `void EndBatch()` | タイムライン読込のような一括操作の開始・終了通知。**2 つ揃っているときだけ**バインドされる |
 | `GetModelAttachBone` | `Transform GetModelAttachBone(GameObject)` | アタッチ中の親ボーン（未アタッチなら null）。実装すると、ゲスト側の UI で付け替えたアタッチが SceneEditor のモデルキーへ取り込まれる。UI での付け替えの前に `AutoEditModeClient.Enter("ModelTimelineLayer")` を呼ぶこと（呼ばないとタイムラインの再生値で元に戻る） |
+| `GetModelLayer` | `int GetModelLayer(GameObject)` | モデルの表示レイヤー（Unity のレイヤー番号）。管理外・不明なら -1。`SetModelLayer` と対で実装すると、SceneEditor がタイムラインのモデル定義（`<ModelLayer>`）として保存・復元する |
+| `SetModelLayer` | `void SetModelLayer(GameObject, int)` | 表示レイヤーを変える。タイムライン読込・モデル複製から呼ばれる。0〜31 以外は無視すること。`GetModelLayer` と片方だけでは無効 |
 
 ## 各メンバの詳細
 
