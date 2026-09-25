@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -237,6 +238,8 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         // ロード完了後に SceneView を呼び出したメイドへ寄せる
                         maidManager.RequestFocusOnLoaded(calledMaid);
+                        // タイムラインを読み込んでいれば、呼んだメイドのメイドアニメレイヤーも用意する
+                        MTEP.TimelineManager.instance.RequestMotionLayer(calledMaid);
                     }
                 }
                 else if (!isSelected && isCalled && canRelease)
