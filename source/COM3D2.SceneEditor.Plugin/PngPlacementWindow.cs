@@ -28,8 +28,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly string[] IMAGE_PATTERNS = { "*.png", "*.jpg" };
 
         private static readonly int TAB_WIDTH = 100;
-        /// <summary>フォルダ行の右端に並べる「開く」「更新」ボタン 2 つ分の幅</summary>
-        private static readonly int FOLDER_BUTTON_AREA_WIDTH = 110;
+        /// <summary>フォルダ行の右端に並べる「開く」「更新」ボタン 1 つ分の幅</summary>
+        private static readonly int FOLDER_BUTTON_WIDTH = 50;
 
         private enum PngTab
         {
@@ -274,14 +274,16 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _view.DrawLabel(_currentDir.name, -1, ROW_HEIGHT);
 
-                _view.currentPos.x = _view.viewRect.width - FOLDER_BUTTON_AREA_WIDTH;
+                // currentPos は padding の内側基準なので、右端も padding の内側で合わせる
+                _view.currentPos.x = _view.viewRect.width - _view.padding.x * 2
+                    - (FOLDER_BUTTON_WIDTH * 2 + _view.margin);
 
-                if (_view.DrawButton("開く", 50, ROW_HEIGHT))
+                if (_view.DrawButton("開く", FOLDER_BUTTON_WIDTH, ROW_HEIGHT))
                 {
                     OpenCurrentDirectory();
                 }
 
-                if (_view.DrawButton("更新", 50, ROW_HEIGHT))
+                if (_view.DrawButton("更新", FOLDER_BUTTON_WIDTH, ROW_HEIGHT))
                 {
                     ReloadFileList();
                 }

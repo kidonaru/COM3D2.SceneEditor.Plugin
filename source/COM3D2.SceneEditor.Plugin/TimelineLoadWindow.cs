@@ -20,8 +20,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>タイルの幅。高さはサムネの縦横比から決める。
         /// 幅はシーンプリセット (PresetWindow.TILE_WIDTH) と揃えている</summary>
         private static readonly int TILE_WIDTH = 96;
-        /// <summary>ヘッダー右端に並べる「開く」「更新」ボタン 2 つ分の幅</summary>
-        private static readonly int HEADER_BUTTON_AREA_WIDTH = 110;
+        /// <summary>ヘッダー右端に並べる「開く」「更新」ボタン 1 つ分の幅</summary>
+        private static readonly int HEADER_BUTTON_WIDTH = 50;
 
         private readonly GUIView _view = new GUIView();
 
@@ -90,14 +90,16 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _view.DrawLabel(currentDirItem.name, -1, ROW_HEIGHT);
 
-                _view.currentPos.x = _view.viewRect.width - HEADER_BUTTON_AREA_WIDTH;
+                // currentPos は padding の内側基準なので、右端も padding の内側で合わせる
+                _view.currentPos.x = _view.viewRect.width - _view.padding.x * 2
+                    - (HEADER_BUTTON_WIDTH * 2 + _view.margin);
 
-                if (_view.DrawButton("開く", 50, ROW_HEIGHT))
+                if (_view.DrawButton("開く", HEADER_BUTTON_WIDTH, ROW_HEIGHT))
                 {
                     MTEUtils.OpenDirectory(currentDirItem.path);
                 }
 
-                if (_view.DrawButton("更新", 50, ROW_HEIGHT))
+                if (_view.DrawButton("更新", HEADER_BUTTON_WIDTH, ROW_HEIGHT))
                 {
                     TimelineLoadManager.Reload();
                 }
