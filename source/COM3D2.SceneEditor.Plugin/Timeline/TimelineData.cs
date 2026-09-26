@@ -188,7 +188,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string shaderDisplay;
         public int renderQueue;
         public int displayType;
-        public int decalBlendMode;
+        public int blendMode;
         public float decalFadeAngle = SE.PngDecalProjection.DefaultFadeAngle;
         public bool decalProjectOnMaids;
 
@@ -217,9 +217,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             displayType = System.Enum.IsDefined(typeof(SE.PngDisplayType), xml.displayType)
                 ? xml.displayType
                 : (int)SE.PngDisplayType.Board;
-            decalBlendMode = System.Enum.IsDefined(typeof(SE.PngDecalBlendMode), xml.decalBlendMode)
-                ? xml.decalBlendMode
-                : (int)SE.PngDecalBlendMode.Normal;
+            blendMode = System.Enum.IsDefined(typeof(SE.PngBlendMode), xml.blendMode)
+                ? xml.blendMode
+                : (int)SE.PngBlendMode.Normal;
             decalFadeAngle = xml.decalFadeAngle;
             decalProjectOnMaids = xml.decalProjectOnMaids;
         }
@@ -235,7 +235,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 shaderDisplay = shaderDisplay,
                 renderQueue = renderQueue,
                 displayType = displayType,
-                decalBlendMode = decalBlendMode,
+                blendMode = blendMode,
                 decalFadeAngle = decalFadeAngle,
                 decalProjectOnMaids = decalProjectOnMaids,
             };

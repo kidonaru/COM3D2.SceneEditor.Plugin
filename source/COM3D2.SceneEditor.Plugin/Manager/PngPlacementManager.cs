@@ -17,17 +17,6 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// デカールのブレンド方式。値はシーンプリセットとタイムライン XML に保存され、
-    /// シェーダー SE/Decal の _BlendMode 判定とも対応する
-    /// </summary>
-    public enum PngDecalBlendMode
-    {
-        Normal = 0,
-        Multiply = 1,
-        Additive = 2,
-    }
-
-    /// <summary>
     /// PNG 配置 1 枚分。root（ユーザー操作用 Transform）の子に
     /// アスペクト補正済みの Quad をぶら下げる 2 階層構成
     /// </summary>
@@ -48,13 +37,14 @@ namespace COM3D2.SceneEditor.Plugin
         public float brightness = 1f;
         public Color color = Color.white;
         public int renderQueue;
+        /// <summary>板・デカール共通のブレンド方式</summary>
+        public PngBlendMode blendMode = PngBlendMode.Normal;
         public bool visible = true;
 
         /// <summary>画像の縦横 (長辺 1)。板の Quad とデカールの投影箱の大きさに使う</summary>
         public Vector2 aspect = Vector2.one;
 
         public PngDisplayType displayType = PngDisplayType.Board;
-        public PngDecalBlendMode decalBlendMode = PngDecalBlendMode.Normal;
         public float decalFadeAngle = PngDecalProjection.DefaultFadeAngle;
         public bool decalProjectOnMaids;
 
@@ -129,7 +119,7 @@ namespace COM3D2.SceneEditor.Plugin
         private bool _isPreCullHooked = false;
 
         /// <summary>
-        /// タイムラインの実体データへ保存する設定 (表示順・表示タイプ・デカール設定) の変更回数。
+        /// タイムラインの実体データへ保存する設定 (表示順・表示タイプ・ブレンド方式・デカール設定) の変更回数。
         /// タイムライン側は前回値と比べて保存データへ書き戻す。
         /// 色・表示はキー側の値で再生中に毎フレーム変わりうるため数えない
         /// </summary>
@@ -435,24 +425,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             UnityEngine.Rendering.BlendMode src;
             UnityEngine.Rendering.BlendMode dst;
-            switch (data.decalBlendMode)
-            {
-                case PngDecalBlendMode.Multiply:
-                    src = UnityEngine.Rendering.BlendMode.DstColor;
-                    dst = UnityEngine.Rendering.BlendMode.Zero;
-                    break;
-                case PngDecalBlendMode.Additive:
-                    src = UnityEngine.Rendering.BlendMode.SrcAlpha;
-                    dst = UnityEngine.Rendering.BlendMode.One;
-                    break;
-                default:
-                    src = UnityEngine.Rendering.BlendMode.SrcAlpha;
-                    dst = UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha;
-                    break;
-            }
+            PngBlendModes.GetBlendFactors(data.blendMode, out src, out dst);
             material.SetInt(SrcBlendId, (int)src);
             material.SetInt(DstBlendId, (int)dst);
-            material.SetFloat(BlendModeId, (int)data.decalBlendMode);
+            material.SetFloat(BlendModeId, (int)data.blendMode);
         }
 
         private static void ApplyDecalFadeAngle(PngObjectData data)
@@ -687,13 +663,13 @@ namespace COM3D2.SceneEditor.Plugin
             ApplyDisplayType(data);
         }
 
-        public void SetDecalBlendMode(PngObjectData data, PngDecalBlendMode blendMode)
+        public void SetBlendMode(PngObjectData data, PngBlendMode blendMode)
         {
-            if (data.decalBlendMode != blendMode)
+            if (data.blendMode != blendMode)
             {
                 entitySettingsRevision++;
             }
-            data.decalBlendMode = blendMode;
+            data.blendMode = blendMode;
             ApplyDecalBlendMode(data);
         }
 

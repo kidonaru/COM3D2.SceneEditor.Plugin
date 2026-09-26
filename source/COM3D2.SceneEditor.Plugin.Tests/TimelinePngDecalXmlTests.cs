@@ -38,7 +38,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 imageName = "logo",
                 renderQueue = 3000,
                 displayType = (int)PngDisplayType.Decal,
-                decalBlendMode = (int)PngDecalBlendMode.Additive,
+                blendMode = (int)PngBlendMode.Additive,
                 decalFadeAngle = 30f,
                 decalProjectOnMaids = true,
             };
@@ -49,7 +49,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Contains("<DisplayType>1</DisplayType>", text);
             Assert.Equal((int)PngDisplayType.Decal, restored.displayType);
-            Assert.Equal((int)PngDecalBlendMode.Additive, restored.decalBlendMode);
+            Assert.Equal((int)PngBlendMode.Additive, restored.blendMode);
             Assert.Equal(30f, restored.decalFadeAngle);
             Assert.True(restored.decalProjectOnMaids);
         }
@@ -61,7 +61,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 imageName = "logo",
                 renderQueue = 3000,
-                decalBlendMode = (int)PngDecalBlendMode.Multiply,
                 decalProjectOnMaids = true,
             };
 
@@ -84,7 +83,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             restored.FromXml(Deserialize(text));
 
             Assert.Equal((int)PngDisplayType.Board, restored.displayType);
-            Assert.Equal((int)PngDecalBlendMode.Normal, restored.decalBlendMode);
+            Assert.Equal((int)PngBlendMode.Normal, restored.blendMode);
             Assert.Equal(PngDecalProjection.DefaultFadeAngle, restored.decalFadeAngle);
             Assert.False(restored.decalProjectOnMaids);
             Assert.Equal(3000, restored.renderQueue);
@@ -96,14 +95,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             const string text =
                 "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
                 "<TimelinePngObjectXml><ImageName>logo</ImageName>" +
-                "<DisplayType>5</DisplayType><DecalBlendMode>-1</DecalBlendMode>" +
+                "<DisplayType>5</DisplayType><BlendMode>9</BlendMode>" +
                 "</TimelinePngObjectXml>";
 
             var restored = new TimelinePngObjectData();
             restored.FromXml(Deserialize(text));
 
             Assert.Equal((int)PngDisplayType.Board, restored.displayType);
-            Assert.Equal((int)PngDecalBlendMode.Normal, restored.decalBlendMode);
+            Assert.Equal((int)PngBlendMode.Normal, restored.blendMode);
         }
 
         [Fact]
@@ -118,6 +117,40 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             restored.FromXml(Deserialize(text));
 
             Assert.Equal(0, restored.renderQueue);
+        }
+
+        [Fact]
+        public void 板でもブレンドが通常以外なら書き出す()
+        {
+            var data = new TimelinePngObjectData
+            {
+                imageName = "logo",
+                renderQueue = 3000,
+                blendMode = (int)PngBlendMode.Overlay,
+            };
+
+            var text = Serialize(data.ToXml());
+            var restored = new TimelinePngObjectData();
+            restored.FromXml(Deserialize(text));
+
+            Assert.Contains("<BlendMode>3</BlendMode>", text);
+            Assert.DoesNotContain("DisplayType", text);
+            Assert.Equal((int)PngBlendMode.Overlay, restored.blendMode);
+        }
+
+        [Fact]
+        public void 通常のブレンドは書き出さない()
+        {
+            var data = new TimelinePngObjectData
+            {
+                imageName = "logo",
+                renderQueue = 3000,
+                displayType = (int)PngDisplayType.Decal,
+            };
+
+            var text = Serialize(data.ToXml());
+
+            Assert.DoesNotContain("BlendMode", text);
         }
     }
 }

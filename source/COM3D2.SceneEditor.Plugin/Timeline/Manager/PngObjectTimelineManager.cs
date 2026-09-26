@@ -81,7 +81,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             = new Dictionary<SE.PngObjectData, TimelinePngObjectEntry>();
 
         // 保存データへ書き戻した時点の SE 側の実体設定の改訂番号。
-        // 表示順・表示タイプ・デカール設定は増減を伴わず変わるため、これで変化を検知する
+        // 表示順・表示タイプ・ブレンド方式・デカール設定は増減を伴わず変わるため、これで変化を検知する
         private int _syncedSettingsRevision = -1;
 
         // 読込時に画像が見つからず実体を作れなかった XML の定義。
@@ -201,7 +201,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// タイムライン読込時に PNG 実体を再生成する。
         /// 画像は SE の既知ソース (config → photo) からファイル名一致で探索し、
         /// 見つからない場合は警告してスキップする (キーフレームは XML に保持されたまま)。
-        /// 最後に XML の実体設定 (表示順・表示タイプ・デカール設定) を SE 実体へ適用する
+        /// 最後に XML の実体設定 (表示順・表示タイプ・ブレンド方式・デカール設定) を SE 実体へ適用する
         /// </summary>
         public void Setup(List<TimelinePngObjectData> pngObjectDatas)
         {
@@ -268,7 +268,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
             // 範囲外の値は FromXml で既定値へ直してあるため、そのままキャストしてよい
             sePngManager.SetDisplayType(target, (SE.PngDisplayType)source.displayType);
-            sePngManager.SetDecalBlendMode(target, (SE.PngDecalBlendMode)source.decalBlendMode);
+            sePngManager.SetBlendMode(target, (SE.PngBlendMode)source.blendMode);
             sePngManager.SetDecalFadeAngle(target, source.decalFadeAngle);
             sePngManager.SetDecalProjectOnMaids(target, source.decalProjectOnMaids);
         }
@@ -322,7 +322,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (se != null)
                 {
                     data.displayType = (int)se.displayType;
-                    data.decalBlendMode = (int)se.decalBlendMode;
+                    data.blendMode = (int)se.blendMode;
                     data.decalFadeAngle = se.decalFadeAngle;
                     data.decalProjectOnMaids = se.decalProjectOnMaids;
                 }

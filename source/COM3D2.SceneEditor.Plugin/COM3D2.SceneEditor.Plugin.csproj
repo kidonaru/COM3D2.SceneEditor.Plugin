@@ -269,6 +269,7 @@
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />
     <Compile Include="Manager\SkirtHookDriftPatch.cs" />
+    <Compile Include="Manager\PngBlendModes.cs" />
     <Compile Include="Manager\PngDecalProjection.cs" />
     <Compile Include="Manager\PngPlacementManager.cs" />
     <Compile Include="Manager\StudioLightManager.cs" />

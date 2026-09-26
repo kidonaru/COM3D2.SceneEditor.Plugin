@@ -211,8 +211,9 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public PngDisplayType displayType = PngDisplayType.Board;
 
+        /// <summary>板・デカール共通のブレンド方式</summary>
         [XmlAttribute]
-        public PngDecalBlendMode decalBlendMode = PngDecalBlendMode.Normal;
+        public PngBlendMode blendMode = PngBlendMode.Normal;
 
         [XmlAttribute]
         public float decalFadeAngle = PngDecalProjection.DefaultFadeAngle;
@@ -220,9 +221,10 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public bool decalProjectOnMaids;
 
-        // 板のプリセットを v35 以前と同じ内容に保つため、表示タイプとデカール設定は板では書き出さない
+        // 板のプリセットを v35 以前と同じ内容に保つため、表示タイプとデカール設定は板では書き出さない。
+        // ブレンド方式は板にも効くため、表示タイプに関係なく既定値 (通常) 以外のときだけ書き出す
         public bool ShouldSerializedisplayType() { return IsDecal(); }
-        public bool ShouldSerializedecalBlendMode() { return IsDecal(); }
+        public bool ShouldSerializeblendMode() { return blendMode != PngBlendMode.Normal; }
         public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
         public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
 
@@ -1080,9 +1082,9 @@ namespace COM3D2.SceneEditor.Plugin
         // v34: effects に liveEffect (ステージライト / レーザー / サイリウム) と、
         //      ルートに bgModels (背景モデルの表示・transform・複製) を追加。
         //      旧形式はどちらも null で読め、適用時に触らない
-        // v36: pngPlacement の png に表示タイプ (displayType) とデカール設定
-        //      (decalBlendMode / decalFadeAngle / decalProjectOnMaids) を追加。板では書き出さない。
-        //      旧形式は属性が無く板として読める
+        // v36: pngPlacement の png に表示タイプ (displayType)、ブレンド方式 (blendMode)、
+        //      デカール設定 (decalFadeAngle / decalProjectOnMaids) を追加。表示タイプとデカール設定は板では、
+        //      ブレンド方式は通常のときは書き出さない。旧形式は属性が無く板・通常として読める
         public static readonly int CurrentVersion = 36;
 
         [XmlAttribute]

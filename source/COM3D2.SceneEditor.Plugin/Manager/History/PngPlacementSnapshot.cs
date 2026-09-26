@@ -39,7 +39,7 @@ namespace COM3D2.SceneEditor.Plugin
                     renderQueue = data.renderQueue,
                     visible = data.visible,
                     displayType = data.displayType,
-                    decalBlendMode = data.decalBlendMode,
+                    blendMode = data.blendMode,
                     decalFadeAngle = data.decalFadeAngle,
                     decalProjectOnMaids = data.decalProjectOnMaids,
                 });
@@ -111,7 +111,7 @@ namespace COM3D2.SceneEditor.Plugin
                 manager.SetRenderQueue(data, objState.renderQueue);
                 manager.SetVisible(data, objState.visible);
                 manager.SetDisplayType(data, objState.displayType);
-                manager.SetDecalBlendMode(data, objState.decalBlendMode);
+                manager.SetBlendMode(data, objState.blendMode);
                 manager.SetDecalFadeAngle(data, objState.decalFadeAngle);
                 manager.SetDecalProjectOnMaids(data, objState.decalProjectOnMaids);
                 index++;
@@ -167,7 +167,7 @@ namespace COM3D2.SceneEditor.Plugin
                     || a.renderQueue != b.renderQueue
                     || a.visible != b.visible
                     || a.displayType != b.displayType
-                    || a.decalBlendMode != b.decalBlendMode
+                    || a.blendMode != b.blendMode
                     || !Mathf.Approximately(a.decalFadeAngle, b.decalFadeAngle)
                     || a.decalProjectOnMaids != b.decalProjectOnMaids)
                 {

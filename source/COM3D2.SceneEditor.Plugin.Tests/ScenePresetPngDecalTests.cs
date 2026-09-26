@@ -44,7 +44,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 source = "config",
                 relativePath = "logo.png",
                 displayType = PngDisplayType.Decal,
-                decalBlendMode = PngDecalBlendMode.Multiply,
+                blendMode = PngBlendMode.Multiply,
                 decalFadeAngle = 45f,
                 decalProjectOnMaids = true,
             });
@@ -53,7 +53,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var png = Assert.Single(restored.pngPlacement.objects);
             Assert.Equal(PngDisplayType.Decal, png.displayType);
-            Assert.Equal(PngDecalBlendMode.Multiply, png.decalBlendMode);
+            Assert.Equal(PngBlendMode.Multiply, png.blendMode);
             Assert.Equal(45f, png.decalFadeAngle);
             Assert.True(png.decalProjectOnMaids);
         }
@@ -66,7 +66,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             {
                 source = "config",
                 relativePath = "logo.png",
-                decalBlendMode = PngDecalBlendMode.Additive,
                 decalProjectOnMaids = true,
             };
 
@@ -90,9 +89,27 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var png = Assert.Single(restored.pngPlacement.objects);
             Assert.Equal(PngDisplayType.Board, png.displayType);
-            Assert.Equal(PngDecalBlendMode.Normal, png.decalBlendMode);
+            Assert.Equal(PngBlendMode.Normal, png.blendMode);
             Assert.Equal(PngDecalProjection.DefaultFadeAngle, png.decalFadeAngle);
             Assert.False(png.decalProjectOnMaids);
+        }
+
+        [Fact]
+        public void 板でもブレンドが通常以外なら書き出す()
+        {
+            var png = new ScenePresetPngObject
+            {
+                source = "config",
+                relativePath = "logo.png",
+                blendMode = PngBlendMode.Overlay,
+            };
+
+            var xml = Serialize(png);
+            var restored = Deserialize(Serialize(WithPng(png)));
+
+            Assert.Contains("blendMode=\"Overlay\"", xml);
+            Assert.DoesNotContain("displayType", xml);
+            Assert.Equal(PngBlendMode.Overlay, Assert.Single(restored.pngPlacement.objects).blendMode);
         }
     }
 }

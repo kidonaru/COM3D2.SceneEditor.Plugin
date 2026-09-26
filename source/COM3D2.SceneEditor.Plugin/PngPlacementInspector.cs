@@ -25,7 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
         // 見出し列版の DrawTabs を選ばせるため明示する (4 引数だと enum 版の DrawTabs<T> に解決される)
         private const float TAB_MARGIN = 0f;
 
-        // PngDisplayType / PngDecalBlendMode の値順に並べる
+        // PngDisplayType / PngBlendMode の値順に並べる
         private static readonly List<PngDisplayType> DisplayTypes =
             new List<PngDisplayType> { PngDisplayType.Board, PngDisplayType.Decal };
         private static readonly string[] DisplayTypeLabels = { "板", "デカール" };
@@ -197,11 +197,11 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("ブレンド", LABEL_WIDTH, ROW_HEIGHT);
                 var blendIndex = view.DrawTabs(
-                    BlendModeLabels, (int)data.decalBlendMode, BLEND_TAB_WIDTH, ROW_HEIGHT, TAB_MARGIN);
-                if (blendIndex != (int)data.decalBlendMode)
+                    BlendModeLabels, (int)data.blendMode, BLEND_TAB_WIDTH, ROW_HEIGHT, TAB_MARGIN);
+                if (blendIndex != (int)data.blendMode)
                 {
                     RecordPngEdit("ブレンド");
-                    pngManager.SetDecalBlendMode(data, (PngDecalBlendMode)blendIndex);
+                    pngManager.SetBlendMode(data, (PngBlendMode)blendIndex);
                 }
             }
             view.EndLayout();

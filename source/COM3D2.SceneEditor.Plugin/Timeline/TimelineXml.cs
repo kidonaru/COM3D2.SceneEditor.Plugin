@@ -82,15 +82,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // MTE 産の XML を保存し直しても内容を変えない (MTE は未知の要素を読み飛ばし板として表示する)
         [XmlElement("DisplayType")]
         public int displayType;
-        [XmlElement("DecalBlendMode")]
-        public int decalBlendMode;
+        // ブレンド方式も SE 独自。板にも効くため、表示タイプに関係なく通常以外のときだけ書き出す
+        [XmlElement("BlendMode")]
+        public int blendMode;
         [XmlElement("DecalFadeAngle")]
         public float decalFadeAngle = PngDecalProjection.DefaultFadeAngle;
         [XmlElement("DecalProjectOnMaids")]
         public bool decalProjectOnMaids;
 
         public bool ShouldSerializedisplayType() { return IsDecal(); }
-        public bool ShouldSerializedecalBlendMode() { return IsDecal(); }
+        public bool ShouldSerializeblendMode() { return blendMode != (int)PngBlendMode.Normal; }
         public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
         public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
 
