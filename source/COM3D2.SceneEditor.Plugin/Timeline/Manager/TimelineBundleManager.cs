@@ -106,6 +106,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return new Material(material);
         }
 
+        /// <summary>
+        /// シェーダー単体をロードする。Unity 5.6 のマテリアルはバイナリ形式で手書きできないため、
+        /// マテリアルを用意せずコード側で new Material する用途に使う
+        /// </summary>
+        public Shader LoadShader(string shaderName)
+        {
+            if (!IsValid())
+            {
+                return null;
+            }
+
+            var path = ShaderBasePath + shaderName + ".shader";
+            var shader = _assetBundle.LoadAsset<Shader>(path);
+            if (shader == null)
+            {
+                MTEUtils.LogError("シェーダーが見つかりません: {0}", path);
+                return null;
+            }
+            return shader;
+        }
+
         public Texture2D LoadTexture(string textureName)
         {
             if (!IsValid())
