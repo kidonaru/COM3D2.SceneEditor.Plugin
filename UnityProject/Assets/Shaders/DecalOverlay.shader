@@ -1,6 +1,8 @@
-﻿Shader "SE/Decal"
+Shader "SE/DecalOverlay"
 {
-    // 既定値は PngDecalProjection の既定 (フェード角 80 度・通常ブレンド) 相当。実行時は C# が上書きする
+    // SE/Decal のオーバーレイ版。Projector は受け側のメッシュごとに描くため、
+    // 名前付き GrabPass で下地の取得を 1 フレーム 1 回に抑える。
+    // そのためオーバーレイのデカール同士を重ねても互いは合成されない
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
@@ -9,7 +11,7 @@
         _FadeCosMin ("Fade Cos Min", Float) = 0.1736
         _FadeCosMax ("Fade Cos Max", Float) = 0.5976
         // PngBlendMode の値
-        _BlendMode ("Blend Mode", Float) = 0
+        _BlendMode ("Blend Mode", Float) = 3
         // SrcAlpha / OneMinusSrcAlpha
         _SrcBlend ("Src Blend", Float) = 5
         _DstBlend ("Dst Blend", Float) = 10
@@ -23,6 +25,8 @@
             "Queue"="Transparent-500"
             "RenderType"="Transparent"
         }
+
+        GrabPass { "_SEDecalOverlayGrab" }
 
         Pass
         {
@@ -42,6 +46,7 @@
             sampler2D _MainTex;
             float4 _Color;
             float _Saturation;
+            sampler2D _SEDecalOverlayGrab;
             // ワールド → 投影箱 (各軸 -0.5〜0.5)。Projector 組込みの行列は
             // エンジンのバージョンで名前が変わるため使わず、C# から渡す
             float4x4 _DecalMatrix;
@@ -62,6 +67,7 @@
                 float4 pos : SV_POSITION;
                 float3 boxPos : TEXCOORD0;
                 float3 worldNormal : TEXCOORD1;
+                float4 grabPos : TEXCOORD2;
             };
 
             v2f vert (appdata v)
@@ -71,6 +77,7 @@
                 float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
                 o.boxPos = mul(_DecalMatrix, worldPos).xyz;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
+                o.grabPos = ComputeGrabScreenPos(o.pos);
                 return o;
             }
 
@@ -90,7 +97,8 @@
                 fixed4 col = tex2D(_MainTex, uv) * _Color;
                 col.rgb = PngApplySaturation(col.rgb, _Saturation);
                 col.a *= fade;
-                return PngApplyMultiply(col, _BlendMode);
+                fixed3 base = tex2Dproj(_SEDecalOverlayGrab, i.grabPos).rgb;
+                return fixed4(PngOverlay(base, col.rgb), col.a);
             }
             ENDCG
         }
