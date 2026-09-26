@@ -28,6 +28,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly string[] IMAGE_PATTERNS = { "*.png", "*.jpg" };
 
         private static readonly int TAB_WIDTH = 100;
+        /// <summary>フォルダ行の右端に並べる「開く」「更新」ボタン 2 つ分の幅</summary>
+        private static readonly int FOLDER_BUTTON_AREA_WIDTH = 110;
 
         private enum PngTab
         {
@@ -74,12 +76,25 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// フォルダタイル 1 つ分。同名フォルダでも出所ごとに別ノードになるため、
+        /// 実フォルダは常に 1 つに定まる
+        /// </summary>
+        private class PngDirContent : TileViewContentBase
+        {
+            /// <summary>対応する実フォルダの絶対パス。「開く」と更新後の復帰に使う</summary>
+            public string path;
+        }
+
+        /// <summary>
         /// 画像一覧の最上位。2 つの出所の中身を階層ごとここへ展開する
         /// (出所フォルダを挟まず、直下の画像とサブフォルダをそのまま並べる)。
         /// 中身は BuildFileList で必ず組み立て直される
         /// </summary>
-        private TileViewContentBase _tileRoot = CreateDir(ROOT_NAME);
-        /// <summary>タイルビューに表示中のフォルダ。フォルダタイルのクリックで潜る</summary>
+        private PngDirContent _tileRoot = CreateDir(ROOT_NAME, null);
+        /// <summary>
+        /// タイルビューに表示中のフォルダ。フォルダタイルのクリックで潜る。
+        /// フォルダノードは CreateDir でしか作らないため、中身は常に PngDirContent
+        /// </summary>
         private ITileViewContent _currentDir = null;
 
         /// <summary>配置済み一覧。要素は PngPlacementManager の一覧に追従させる</summary>
@@ -127,11 +142,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
         }
 
-        private static TileViewContentBase CreateDir(string name)
+        private static PngDirContent CreateDir(string name, string path)
         {
-            return new TileViewContentBase
+            return new PngDirContent
             {
                 name = name,
+                path = path,
                 isDir = true,
                 children = new List<ITileViewContent>(),
             };
@@ -245,23 +261,30 @@ namespace COM3D2.SceneEditor.Plugin
                 });
         }
 
-        /// <summary>上位フォルダへ戻る操作行。検索中は階層を辿らないため出さない</summary>
+        /// <summary>上位フォルダへ戻る / フォルダを開く / 一覧更新 + 表示中フォルダ名</summary>
         private void DrawFolderRow()
         {
-            if (isSearching)
-            {
-                return;
-            }
-
             _view.BeginHorizontal();
             {
-                // ルートでは戻り先が無いため無効化する
-                if (_view.DrawButton("<", 20, ROW_HEIGHT, _currentDir != _tileRoot))
+                // ルートでは戻り先が無く、検索中は一覧が階層を表していないため無効化する
+                if (_view.DrawButton("<", 20, ROW_HEIGHT, !isSearching && _currentDir != _tileRoot))
                 {
                     _currentDir = _currentDir.parent;
                 }
 
                 _view.DrawLabel(_currentDir.name, -1, ROW_HEIGHT);
+
+                _view.currentPos.x = _view.viewRect.width - FOLDER_BUTTON_AREA_WIDTH;
+
+                if (_view.DrawButton("開く", 50, ROW_HEIGHT))
+                {
+                    OpenCurrentDirectory();
+                }
+
+                if (_view.DrawButton("更新", 50, ROW_HEIGHT))
+                {
+                    ReloadFileList();
+                }
             }
             _view.EndLayout();
         }
@@ -405,12 +428,79 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void BuildFileList()
         {
-            _tileRoot = CreateDir(ROOT_NAME);
+            // ルートは 2 つの出所を合わせた仮想フォルダ。「開く」ではプラグイン側の出所を開く
+            _tileRoot = CreateDir(ROOT_NAME,
+                PngPlacementManager.GetSourceDirectory(PngPlacementManager.SOURCE_CONFIG));
             AddSource(PngPlacementManager.SOURCE_CONFIG);
             AddSource(PngPlacementManager.SOURCE_PHOTO);
             _currentDir = _tileRoot;
 
             BuildSearchList();
+        }
+
+        /// <summary>一覧を取り直し、表示中のフォルダがまだあればそこへ戻す</summary>
+        private void ReloadFileList()
+        {
+            var currentPath = ((PngDirContent)_currentDir).path;
+            BuildFileList();
+
+            var dir = FindDir(_tileRoot, currentPath);
+            if (dir != null)
+            {
+                _currentDir = dir;
+            }
+        }
+
+        private static PngDirContent FindDir(PngDirContent node, string path)
+        {
+            if (string.Equals(node.path, path, StringComparison.OrdinalIgnoreCase))
+            {
+                return node;
+            }
+
+            foreach (var child in node.children)
+            {
+                var childDir = child as PngDirContent;
+                if (childDir == null)
+                {
+                    continue;
+                }
+
+                var found = FindDir(childDir, path);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 表示中のフォルダをエクスプローラーで開く。
+        /// ルートの出所フォルダは未作成のことがあり、画像を置く先として作ってから開く
+        /// </summary>
+        private void OpenCurrentDirectory()
+        {
+            var path = ((PngDirContent)_currentDir).path;
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            if (_currentDir == _tileRoot && !Directory.Exists(path))
+            {
+                try
+                {
+                    Directory.CreateDirectory(path);
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogWarning("フォルダを作成できません: {0} ({1})", path, e.Message);
+                    return;
+                }
+            }
+
+            MTEUtils.OpenDirectory(path);
         }
 
         private void AddSource(string source)
@@ -468,7 +558,7 @@ namespace COM3D2.SceneEditor.Plugin
                         continue;
                     }
 
-                    var child = CreateDir(Path.GetFileName(subDir));
+                    var child = CreateDir(Path.GetFileName(subDir), subDir);
                     ApplySourceTag(child, source);
                     var childCount = AddDirectory(child, rootDir, subDir, source, depth + 1);
                     if (childCount > 0)
