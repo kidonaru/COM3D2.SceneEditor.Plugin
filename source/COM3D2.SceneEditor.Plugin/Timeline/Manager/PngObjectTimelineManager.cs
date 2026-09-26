@@ -80,6 +80,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private Dictionary<SE.PngObjectData, TimelinePngObjectEntry> _dataMap
             = new Dictionary<SE.PngObjectData, TimelinePngObjectEntry>();
 
+        // 保存データへ書き戻した時点の SE 側の実体設定の改訂番号。
+        // 表示順・表示タイプ・デカール設定は増減を伴わず変わるため、これで変化を検知する
+        private int _syncedSettingsRevision = -1;
+
         public static event UnityAction<TimelinePngObjectEntry> onObjectAdded;
         public static event UnityAction<TimelinePngObjectEntry> onObjectRemoved;
 
@@ -112,6 +116,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var seObjects = sePngManager.pngObjects;
             if (!IsChanged(seObjects))
             {
+                if (_syncedSettingsRevision != sePngManager.entitySettingsRevision)
+                {
+                    UpdateTimelineData();
+                }
                 return;
             }
 
@@ -188,16 +196,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>
         /// タイムライン読込時に PNG 実体を再生成する。
         /// 画像は SE の既知ソース (config → photo) からファイル名一致で探索し、
-        /// 見つからない場合は警告してスキップする (キーフレームは XML に保持されたまま)
+        /// 見つからない場合は警告してスキップする (キーフレームは XML に保持されたまま)。
+        /// 最後に XML の実体設定 (表示順・表示タイプ・デカール設定) を SE 実体へ適用する
         /// </summary>
         public void Setup(List<TimelinePngObjectData> pngObjectDatas)
         {
+            // 引数は timeline.pngObjects そのもので、途中の RebuildIfChanged → UpdateTimelineData が
+            // 同じリストを消して SE 側の状態で書き直しうる。XML の値を失わないよう先に複製する
+            var sources = new List<TimelinePngObjectData>(pngObjectDatas);
+
             RebuildIfChanged();
 
             // ソースディレクトリの走査は 1 回にまとめ、画像名 → (source, relativePath) の辞書で解決する
             Dictionary<string, KeyValuePair<string, string>> imageIndex = null;
 
-            foreach (var data in pngObjectDatas)
+            foreach (var data in sources)
             {
                 var name = data.name;
                 if (_entryMap.ContainsKey(name))
@@ -227,6 +240,30 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             RebuildIfChanged();
+
+            // XML の実体設定を、生成した実体と名前が一致した既存の実体へ戻す
+            foreach (var data in sources)
+            {
+                var entry = GetPngObject(data.name);
+                if (entry != null && entry.data != null)
+                {
+                    ApplyEntitySettings(entry.data, data);
+                }
+            }
+        }
+
+        private static void ApplyEntitySettings(SE.PngObjectData target, TimelinePngObjectData source)
+        {
+            // 要素の無い XML は 0 になる。0 以下の表示順は板が背景より先に描かれ消えるため既定のまま残す
+            if (source.renderQueue > 0)
+            {
+                sePngManager.SetRenderQueue(target, source.renderQueue);
+            }
+            // 範囲外の値は FromXml で既定値へ直してあるため、そのままキャストしてよい
+            sePngManager.SetDisplayType(target, (SE.PngDisplayType)source.displayType);
+            sePngManager.SetDecalBlendMode(target, (SE.PngDecalBlendMode)source.decalBlendMode);
+            sePngManager.SetDecalFadeAngle(target, source.decalFadeAngle);
+            sePngManager.SetDecalProjectOnMaids(target, source.decalProjectOnMaids);
         }
 
         // 画像名 → (source, relativePath)。config を優先するため後勝ちしないよう先着のみ登録する
@@ -253,9 +290,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return index;
         }
 
-        /// <summary>タイムライン保存用に配置一覧を書き戻す</summary>
+        /// <summary>タイムライン保存用に配置一覧と実体設定を書き戻す</summary>
         public void UpdateTimelineData()
         {
+            _syncedSettingsRevision = sePngManager.entitySettingsRevision;
+
             if (timeline == null)
             {
                 return;
@@ -264,14 +303,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             timeline.pngObjects.Clear();
             foreach (var entry in pngObjects)
             {
+                var se = entry.data;
                 var data = new TimelinePngObjectData
                 {
                     imageName = entry.imageName,
                     group = entry.group,
                     // primitive / squareUV / shaderDisplay は SE では固定 Quad + 標準シェーダー
                     // で代替するため既定値のまま保存する (MTE 互換のためフィールド自体は維持)
-                    renderQueue = entry.data != null ? entry.data.renderQueue : SE.PngPlacementManager.DefaultRenderQueue,
+                    renderQueue = se != null ? se.renderQueue : SE.PngPlacementManager.DefaultRenderQueue,
                 };
+                if (se != null)
+                {
+                    data.displayType = (int)se.displayType;
+                    data.decalBlendMode = (int)se.decalBlendMode;
+                    data.decalFadeAngle = se.decalFadeAngle;
+                    data.decalProjectOnMaids = se.decalProjectOnMaids;
+                }
                 timeline.pngObjects.Add(data);
             }
         }
@@ -295,6 +342,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             pngObjectNames.Clear();
             _entryMap.Clear();
             _dataMap.Clear();
+            _syncedSettingsRevision = -1;
         }
     }
 }

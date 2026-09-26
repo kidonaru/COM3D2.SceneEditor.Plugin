@@ -6,6 +6,7 @@ using UnityEngine;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     using AttachPoint = PhotoTransTargetObject.AttachPoint;
+    using SE = SceneEditor.Plugin;
 
     public enum SingleFrameType
     {
@@ -186,6 +187,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool squareUV;
         public string shaderDisplay;
         public int renderQueue;
+        public int displayType;
+        public int decalBlendMode;
+        public float decalFadeAngle = SE.PngDecalProjection.DefaultFadeAngle;
+        public bool decalProjectOnMaids;
 
         public string name
         {
@@ -208,6 +213,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             squareUV = xml.squareUV;
             shaderDisplay = xml.shaderDisplay;
             renderQueue = xml.renderQueue;
+            // 未知の値 (手編集・将来版) は例外にせず既定の板・通常として読む
+            displayType = System.Enum.IsDefined(typeof(SE.PngDisplayType), xml.displayType)
+                ? xml.displayType
+                : (int)SE.PngDisplayType.Board;
+            decalBlendMode = System.Enum.IsDefined(typeof(SE.PngDecalBlendMode), xml.decalBlendMode)
+                ? xml.decalBlendMode
+                : (int)SE.PngDecalBlendMode.Normal;
+            decalFadeAngle = xml.decalFadeAngle;
+            decalProjectOnMaids = xml.decalProjectOnMaids;
         }
 
         public TimelinePngObjectXml ToXml()
@@ -220,6 +234,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 squareUV = squareUV,
                 shaderDisplay = shaderDisplay,
                 renderQueue = renderQueue,
+                displayType = displayType,
+                decalBlendMode = decalBlendMode,
+                decalFadeAngle = decalFadeAngle,
+                decalProjectOnMaids = decalProjectOnMaids,
             };
             return xml;
         }

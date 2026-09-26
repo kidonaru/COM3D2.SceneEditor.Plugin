@@ -77,6 +77,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string shaderDisplay;
         [XmlElement("RenderQueue")]
         public int renderQueue;
+
+        // 表示タイプとデカール設定は SE 独自。板では書き出さず、
+        // MTE 産の XML を保存し直しても内容を変えない (MTE は未知の要素を読み飛ばし板として表示する)
+        [XmlElement("DisplayType")]
+        public int displayType;
+        [XmlElement("DecalBlendMode")]
+        public int decalBlendMode;
+        [XmlElement("DecalFadeAngle")]
+        public float decalFadeAngle = PngDecalProjection.DefaultFadeAngle;
+        [XmlElement("DecalProjectOnMaids")]
+        public bool decalProjectOnMaids;
+
+        public bool ShouldSerializedisplayType() { return IsDecal(); }
+        public bool ShouldSerializedecalBlendMode() { return IsDecal(); }
+        public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
+        public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
+
+        private bool IsDecal() { return displayType != (int)PngDisplayType.Board; }
     }
 
     public class TimelinePsylliumXml
