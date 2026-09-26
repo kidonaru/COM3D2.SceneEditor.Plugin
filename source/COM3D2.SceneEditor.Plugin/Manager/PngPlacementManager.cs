@@ -37,7 +37,6 @@ namespace COM3D2.SceneEditor.Plugin
         public float brightness = 1f;
         public Color color = Color.white;
         public int renderQueue;
-        /// <summary>板・デカール共通のブレンド方式</summary>
         public PngBlendMode blendMode = PngBlendMode.Normal;
         /// <summary>彩度。0 でグレースケール、1 で元の色。タイムラインではキーの値</summary>
         public float saturation = PngPlacementManager.DefaultSaturation;
@@ -79,9 +78,9 @@ namespace COM3D2.SceneEditor.Plugin
         public const string SOURCE_CONFIG = "config";
         public const string SOURCE_PHOTO = "photo";
 
-        /// <summary>SE のシェーダーが読めないときの代替 (マイオブジェクトと同じゲーム組込みシェーダー)</summary>
-        private const string SHADER_NAME = "CM3D2/Unlit_Texture_Photo_MyObject";
-        private const string FALLBACK_SHADER_NAME = "Unlit/Transparent";
+        /// <summary>SE の板シェーダーが読めないときの代替 (マイオブジェクトと同じゲーム組込みシェーダー)</summary>
+        private const string BUILTIN_BOARD_SHADER_NAME = "CM3D2/Unlit_Texture_Photo_MyObject";
+        private const string LAST_RESORT_SHADER_NAME = "Unlit/Transparent";
 
         private const int ZWRITE_OFF = 0;
         private const int ZWRITE_ON = 1;
@@ -93,6 +92,7 @@ namespace COM3D2.SceneEditor.Plugin
         public const float DefaultSaturation = 1f;
         public const float MinSaturation = 0f;
         public const float MaxSaturation = 2f;
+        public const float SaturationStep = 0.01f;
 
         private GameObject _root = null;
         private readonly List<PngObjectData> _pngObjects = new List<PngObjectData>();
@@ -100,7 +100,7 @@ namespace COM3D2.SceneEditor.Plugin
             new Dictionary<string, Texture2D>();
         /// <summary>透過判定の結果。全ピクセル走査を画像ごとに 1 度で済ませる</summary>
         private readonly Dictionary<string, bool> _alphaCache = new Dictionary<string, bool>();
-        private Shader _shader = null;
+        private Shader _builtinBoardShader = null;
 
         // se_bundle 内のシェーダー (Assets/Shaders/<名前>.shader)
         private const string BOARD_SHADER_NAME = "PngBoard";
@@ -130,6 +130,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>デカールを最後に更新したフレーム。カメラごとの onPreCull で重ねて更新しないため</summary>
         private int _decalUpdatedFrame = -1;
         private bool _isPreCullHooked = false;
+        /// <summary>SceneView カメラの描画中だけ止めている Projector。描画後に戻す</summary>
+        private readonly List<Projector> _hiddenProjectors = new List<Projector>();
 
         /// <summary>
         /// タイムラインの実体データへ保存する設定 (表示順・表示タイプ・ブレンド方式・デカール設定) の変更回数。
@@ -300,8 +302,8 @@ namespace COM3D2.SceneEditor.Plugin
                 HasAlpha(source, relativePath, texture) ? ZWRITE_OFF : ZWRITE_ON);
             // 板の裏からも見えるよう両面描画にする
             material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            quad.GetComponent<MeshRenderer>().material = material;
             material.SetFloat(SaturationId, DefaultSaturation);
+            quad.GetComponent<MeshRenderer>().material = material;
 
             var data = new PngObjectData
             {
@@ -362,17 +364,17 @@ namespace COM3D2.SceneEditor.Plugin
                 return shader;
             }
 
-            if (_shader == null)
+            if (_builtinBoardShader == null)
             {
-                _shader = Shader.Find(SHADER_NAME);
-                if (_shader == null)
+                _builtinBoardShader = Shader.Find(BUILTIN_BOARD_SHADER_NAME);
+                if (_builtinBoardShader == null)
                 {
                     MTEUtils.LogWarning("シェーダーが見つからないため代替を使います: {0}",
-                        SHADER_NAME);
-                    _shader = Shader.Find(FALLBACK_SHADER_NAME);
+                        BUILTIN_BOARD_SHADER_NAME);
+                    _builtinBoardShader = Shader.Find(LAST_RESORT_SHADER_NAME);
                 }
             }
-            return _shader;
+            return _builtinBoardShader;
         }
 
         /// <summary>
@@ -431,12 +433,18 @@ namespace COM3D2.SceneEditor.Plugin
             return true;
         }
 
+        /// <summary>se_bundle のシェーダー。読めない・今のグラフィックス API で描けないときは null</summary>
         private Shader GetBundleShader(string shaderName)
         {
             Shader shader;
             if (!_bundleShaders.TryGetValue(shaderName, out shader))
             {
                 shader = MTEP.TimelineBundleManager.instance.LoadShader(shaderName);
+                if (shader != null && !shader.isSupported)
+                {
+                    MTEUtils.LogWarning("シェーダーがこの環境で使えないため代替で描きます: {0}", shaderName);
+                    shader = null;
+                }
                 _bundleShaders[shaderName] = shader;
             }
             return shader;
@@ -449,26 +457,28 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void ApplyBlendMode(PngObjectData data)
         {
-            var useGrab = PngBlendModes.UsesGrab(data.blendMode);
-
             // ゲーム組込みシェーダーで描いている板 (SE シェーダーが読めない) には適用しない
             var boardShader = GetBundleShader(BOARD_SHADER_NAME);
             if (data.material != null && boardShader != null)
             {
-                var overlay = useGrab ? GetBundleShader(BOARD_OVERLAY_SHADER_NAME) : null;
-                SetBlendMaterial(data.material, overlay ?? boardShader,
-                    PngBlendModes.ResolveRenderMode(data.blendMode, overlay != null));
+                ApplyBlendTo(data.material, boardShader, BOARD_OVERLAY_SHADER_NAME, data.blendMode);
                 // シェーダーの差し替えで表示順がシェーダー既定へ戻らないよう、毎回設定し直す
                 data.material.renderQueue = data.renderQueue;
             }
 
             if (data.decalMaterial != null)
             {
-                var decalShader = GetBundleShader(DECAL_SHADER_NAME);
-                var overlay = useGrab ? GetBundleShader(DECAL_OVERLAY_SHADER_NAME) : null;
-                SetBlendMaterial(data.decalMaterial, overlay ?? decalShader,
-                    PngBlendModes.ResolveRenderMode(data.blendMode, overlay != null));
+                ApplyBlendTo(data.decalMaterial, GetBundleShader(DECAL_SHADER_NAME),
+                    DECAL_OVERLAY_SHADER_NAME, data.blendMode);
             }
+        }
+
+        private void ApplyBlendTo(
+            Material material, Shader baseShader, string overlayShaderName, PngBlendMode mode)
+        {
+            var overlay = PngBlendModes.UsesGrab(mode) ? GetBundleShader(overlayShaderName) : null;
+            var renderMode = PngBlendModes.ResolveRenderMode(mode, overlay != null);
+            SetBlendMaterial(material, overlay ?? baseShader, renderMode);
         }
 
         private static void SetBlendMaterial(Material material, Shader shader, PngBlendMode mode)
@@ -559,6 +569,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             Camera.onPreCull += OnPreCullDecals;
+            Camera.onPostRender += OnPostRenderDecals;
             _isPreCullHooked = true;
         }
 
@@ -569,7 +580,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             Camera.onPreCull -= OnPreCullDecals;
+            Camera.onPostRender -= OnPostRenderDecals;
             _isPreCullHooked = false;
+            RestoreHiddenProjectors();
         }
 
         /// <summary>
@@ -579,22 +592,63 @@ namespace COM3D2.SceneEditor.Plugin
         private void OnPreCullDecals(Camera camera)
         {
             // Transform は同じフレーム内で変わらないため、2 台目以降のカメラでは更新しない
-            if (_decalUpdatedFrame == Time.frameCount)
+            if (_decalUpdatedFrame != Time.frameCount)
             {
-                return;
+                _decalUpdatedFrame = Time.frameCount;
+                foreach (var data in _pngObjects)
+                {
+                    if (!data.isDecalShown
+                        || data.rootObject == null
+                        || !data.rootObject.activeInHierarchy)
+                    {
+                        continue;
+                    }
+                    UpdateDecal(data);
+                }
             }
-            _decalUpdatedFrame = Time.frameCount;
 
+            // 更新で Projector が有効へ戻るため、止めるのは更新の後
+            if (camera == SceneViewManager.instance.sceneCamera)
+            {
+                HideOverlayProjectors();
+            }
+        }
+
+        /// <summary>
+        /// オーバーレイのデカールを SceneView カメラの描画中だけ止める。
+        /// 下地を取る名前付き GrabPass は全カメラ通算で 1 フレーム 1 回で、先に描く SceneView が取ると
+        /// ゲーム画面のデカールが SceneView の下地で合成されてしまうため
+        /// </summary>
+        private void HideOverlayProjectors()
+        {
             foreach (var data in _pngObjects)
             {
-                if (!data.isDecalShown
-                    || data.rootObject == null
-                    || !data.rootObject.activeInHierarchy)
+                if (data.isDecalShown
+                    && data.projector != null
+                    && data.projector.enabled
+                    && PngBlendModes.UsesGrab(data.blendMode))
                 {
-                    continue;
+                    data.projector.enabled = false;
+                    _hiddenProjectors.Add(data.projector);
                 }
-                UpdateDecal(data);
             }
+        }
+
+        private void OnPostRenderDecals(Camera camera)
+        {
+            RestoreHiddenProjectors();
+        }
+
+        private void RestoreHiddenProjectors()
+        {
+            foreach (var projector in _hiddenProjectors)
+            {
+                if (projector != null)
+                {
+                    projector.enabled = true;
+                }
+            }
+            _hiddenProjectors.Clear();
         }
 
         /// <summary>
@@ -696,10 +750,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// 彩度を設定する。キーの値で再生中に毎フレーム変わりうるため改訂番号は増やさない
-        /// (色・明るさと同じ扱い)
-        /// </summary>
         public void SetSaturation(PngObjectData data, float saturation)
         {
             data.saturation = Mathf.Clamp(saturation, MinSaturation, MaxSaturation);

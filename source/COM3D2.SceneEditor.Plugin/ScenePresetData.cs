@@ -203,12 +203,6 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public float saturation = PngPlacementManager.DefaultSaturation;
 
-        // 彩度は板・デカール共通。既定値 (1) のときは書き出さず、旧プリセットと同じ内容に保つ
-        public bool ShouldSerializesaturation()
-        {
-            return !Mathf.Approximately(saturation, PngPlacementManager.DefaultSaturation);
-        }
-
         public Color color = Color.white;
 
         [XmlAttribute]
@@ -220,7 +214,6 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public PngDisplayType displayType = PngDisplayType.Board;
 
-        /// <summary>板・デカール共通のブレンド方式</summary>
         [XmlAttribute]
         public PngBlendMode blendMode = PngBlendMode.Normal;
 
@@ -231,9 +224,13 @@ namespace COM3D2.SceneEditor.Plugin
         public bool decalProjectOnMaids;
 
         // 板のプリセットを v35 以前と同じ内容に保つため、表示タイプとデカール設定は板では書き出さない。
-        // ブレンド方式は板にも効くため、表示タイプに関係なく既定値 (通常) 以外のときだけ書き出す
+        // ブレンド方式と彩度は板にも効くため、表示タイプに関係なく既定値 (通常・1) 以外のときだけ書き出す
         public bool ShouldSerializedisplayType() { return IsDecal(); }
         public bool ShouldSerializeblendMode() { return blendMode != PngBlendMode.Normal; }
+        public bool ShouldSerializesaturation()
+        {
+            return !Mathf.Approximately(saturation, PngPlacementManager.DefaultSaturation);
+        }
         public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
         public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
 

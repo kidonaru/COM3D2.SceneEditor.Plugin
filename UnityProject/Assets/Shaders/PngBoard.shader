@@ -24,7 +24,6 @@ Shader "SE/PngBoard"
         {
             "Queue"="Transparent"
             "RenderType"="Transparent"
-            "IgnoreProjector"="True"
         }
 
         Pass
@@ -68,7 +67,7 @@ Shader "SE/PngBoard"
             {
                 fixed4 col = tex2D(_MainTex, i.uv) * _Color;
                 col.rgb = PngApplySaturation(col.rgb, _Saturation);
-                return PngApplyMultiply(col, _BlendMode);
+                return PngApplyBlendOutput(col, _BlendMode);
             }
             ENDCG
         }

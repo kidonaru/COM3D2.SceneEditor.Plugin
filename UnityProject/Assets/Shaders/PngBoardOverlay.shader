@@ -20,7 +20,6 @@ Shader "SE/PngBoardOverlay"
         {
             "Queue"="Transparent"
             "RenderType"="Transparent"
-            "IgnoreProjector"="True"
         }
 
         GrabPass { }

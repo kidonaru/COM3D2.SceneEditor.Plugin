@@ -13,7 +13,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// SE ネイティブの PngPlacementManager へ接続するアダプタ版 (LightTimelineLayer と同方針)。
     /// SE に対応機能が無い値 (Inversion / StopRotation / FixCamera / Attach / APng 系等) は
     /// XML には保持するが適用しない。billboard は per-frame 値でないため対象外。
-    /// 彩度は SE 独自の値 (index 32)
+    /// 彩度は SE 独自の値 (TransformDataPngObject.Index.Saturation)
     /// </summary>
     [TimelineLayerDesc("PNG配置", 35, TimelineLayerCategory.Background, CanRestoreOnRemove = false)]
     public class PngPlacementTimelineLayer : TimelineLayerBase
@@ -161,7 +161,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             if (start.saturation != end.saturation)
             {
-                // 色・明るさと同じく線形補間する
                 sePngManager.SetSaturation(data,
                     Mathf.Lerp(start.saturation, end.saturation, t));
             }

@@ -50,7 +50,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override TransformType type => TransformType.PngObject;
 
-        /// <summary>彩度 (SE 独自) を持たない MTE・旧 SE の値数</summary>
+        /// <summary>MTE・旧 SE の値数</summary>
         public const int LegacyValueCount = 32;
 
         public override int valueCount => (int)Index.Saturation + 1;
@@ -333,7 +333,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     name = "彩度",
                     min = SE.PngPlacementManager.MinSaturation,
                     max = SE.PngPlacementManager.MaxSaturation,
-                    step = 0.01f,
+                    step = SE.PngPlacementManager.SaturationStep,
                     defaultValue = SE.PngPlacementManager.DefaultSaturation,
                 }
             },
@@ -491,7 +491,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             base.FromXml(xml);
 
             // 彩度を持たない旧データ (MTE・旧 SE) は不足分が 0 で埋まり、グレースケールになる。既定値へ補正する
-            if (xml.values == null || xml.values.Length <= LegacyValueCount)
+            if (xml.values.Length <= LegacyValueCount)
             {
                 saturation = SE.PngPlacementManager.DefaultSaturation;
             }
