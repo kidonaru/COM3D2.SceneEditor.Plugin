@@ -221,10 +221,12 @@ namespace COM3D2.SceneEditor.Plugin
         public bool decalProjectOnMaids;
 
         // 板のプリセットを v35 以前と同じ内容に保つため、表示タイプとデカール設定は板では書き出さない
-        public bool ShouldSerializedisplayType() { return displayType != PngDisplayType.Board; }
-        public bool ShouldSerializedecalBlendMode() { return displayType != PngDisplayType.Board; }
-        public bool ShouldSerializedecalFadeAngle() { return displayType != PngDisplayType.Board; }
-        public bool ShouldSerializedecalProjectOnMaids() { return displayType != PngDisplayType.Board; }
+        public bool ShouldSerializedisplayType() { return IsDecal(); }
+        public bool ShouldSerializedecalBlendMode() { return IsDecal(); }
+        public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
+        public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
+
+        private bool IsDecal() { return displayType != PngDisplayType.Board; }
     }
 
     /// <summary>PNG 配置の状態一式</summary>

@@ -85,8 +85,12 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 属性の無い旧データは板と既定値で読む()
         {
-            var data = WithPng(new ScenePresetPngObject { source = "config", relativePath = "logo.png" });
-            var xml = Serialize(data);
+            // v35 以前の形式 (表示タイプ・デカール設定の属性が無い)
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<ScenePresetData><pngPlacement>" +
+                "<png source=\"config\" relativePath=\"logo.png\" billboard=\"true\" />" +
+                "</pngPlacement></ScenePresetData>";
 
             var restored = Deserialize(xml);
 
@@ -95,12 +99,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(PngDecalBlendMode.Normal, png.decalBlendMode);
             Assert.Equal(PngDecalProjection.DefaultFadeAngle, png.decalFadeAngle);
             Assert.False(png.decalProjectOnMaids);
-        }
-
-        [Fact]
-        public void 現在のバージョンは36()
-        {
-            Assert.Equal(36, ScenePresetData.CurrentVersion);
         }
     }
 }

@@ -77,8 +77,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly Color DecalBoxColor = new Color(0.4f, 1f, 0.6f, 0.9f);
 
-        /// <summary>投影方向の矢じりの大きさ (投影箱の幅に対する比)</summary>
-        private const float DecalArrowHeadRatio = 0.15f;
+        /// <summary>投影方向の矢じりの横幅 (投影箱の幅に対する比)</summary>
+        private const float DecalArrowHeadWidthRatio = 0.15f;
+        /// <summary>投影方向の矢じりの長さ (投影箱の奥行きに対する比)</summary>
+        private const float DecalArrowHeadLengthRatio = 0.3f;
 
         // 8 頂点 (bit0=X, bit1=Y, bit2=Z) の箱の 12 辺
         private static readonly int[,] BoxEdges =
@@ -828,10 +830,10 @@ namespace COM3D2.SceneEditor.Plugin
             PngDecalProjection.GetBoxCorners(matrix, data.aspect, _boundsCorners);
             DrawBoxWire(_boundsCorners, DecalBoxColor);
 
-            var front = matrix.MultiplyPoint3x4(new Vector3(0f, 0f, 0.5f));
-            var back = matrix.MultiplyPoint3x4(new Vector3(0f, 0f, -0.5f));
-            var side = matrix.MultiplyVector(Vector3.right * (data.aspect.x * DecalArrowHeadRatio));
-            var headBase = Vector3.Lerp(back, front, DecalArrowHeadRatio * 2f);
+            var front = matrix.MultiplyPoint3x4(new Vector3(0f, 0f, PngDecalProjection.BoxHalfDepth));
+            var back = matrix.MultiplyPoint3x4(new Vector3(0f, 0f, -PngDecalProjection.BoxHalfDepth));
+            var side = matrix.MultiplyVector(Vector3.right * (data.aspect.x * DecalArrowHeadWidthRatio));
+            var headBase = Vector3.Lerp(back, front, DecalArrowHeadLengthRatio);
 
             GL.Begin(GL.LINES);
             GL.Color(DecalBoxColor);

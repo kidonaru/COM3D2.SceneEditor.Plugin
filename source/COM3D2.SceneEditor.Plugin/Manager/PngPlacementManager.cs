@@ -16,7 +16,10 @@ namespace COM3D2.SceneEditor.Plugin
         Decal = 1,
     }
 
-    /// <summary>デカールのブレンド方式。値はシーンプリセットとタイムライン XML に保存される</summary>
+    /// <summary>
+    /// デカールのブレンド方式。値はシーンプリセットとタイムライン XML に保存され、
+    /// シェーダー SE/Decal の _BlendMode 判定とも対応する
+    /// </summary>
     public enum PngDecalBlendMode
     {
         Normal = 0,
@@ -482,13 +485,20 @@ namespace COM3D2.SceneEditor.Plugin
         private static void UpdateDecal(PngObjectData data)
         {
             var root = data.rootObject.transform;
+            var projector = data.projector;
+            var isDegenerate = PngDecalProjection.IsDegenerateScale(root.localScale);
+            projector.enabled = !isDegenerate;
+            if (isDegenerate)
+            {
+                return;
+            }
+
             var frame = PngDecalProjection.ComputeFrame(data.aspect, root.localScale);
 
             var decalTransform = data.decalObject.transform;
             decalTransform.localPosition = frame.localPosition;
             decalTransform.localScale = frame.localScale;
 
-            var projector = data.projector;
             projector.orthographicSize = frame.orthographicSize;
             projector.aspectRatio = frame.aspectRatio;
             projector.nearClipPlane = frame.nearClipPlane;
@@ -549,7 +559,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _pngObjects.Remove(data);
+            DestroyResources(data);
+        }
 
+        /// <summary>配置物 1 枚が所有する Unity オブジェクトを破棄する</summary>
+        private static void DestroyResources(PngObjectData data)
+        {
             if (data.material != null)
             {
                 Object.Destroy(data.material);
@@ -706,18 +721,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var data in _pngObjects)
             {
-                if (data.material != null)
-                {
-                    Object.Destroy(data.material);
-                }
-                if (data.decalMaterial != null)
-                {
-                    Object.Destroy(data.decalMaterial);
-                }
-                if (data.rootObject != null)
-                {
-                    Object.Destroy(data.rootObject);
-                }
+                DestroyResources(data);
             }
             _pngObjects.Clear();
             _nextNumber = 1;

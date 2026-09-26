@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -83,6 +83,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // 保存データへ書き戻した時点の SE 側の実体設定の改訂番号。
         // 表示順・表示タイプ・デカール設定は増減を伴わず変わるため、これで変化を検知する
         private int _syncedSettingsRevision = -1;
+
+        // 読込時に画像が見つからず実体を作れなかった XML の定義。
+        // 書き戻しは SE 実体から作り直すため、別に持って保存データへ残す
+        private readonly List<TimelinePngObjectData> _unresolved = new List<TimelinePngObjectData>();
 
         public static event UnityAction<TimelinePngObjectEntry> onObjectAdded;
         public static event UnityAction<TimelinePngObjectEntry> onObjectRemoved;
@@ -204,6 +208,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 引数は timeline.pngObjects そのもので、途中の RebuildIfChanged → UpdateTimelineData が
             // 同じリストを消して SE 側の状態で書き直しうる。XML の値を失わないよう先に複製する
             var sources = new List<TimelinePngObjectData>(pngObjectDatas);
+            _unresolved.Clear();
 
             RebuildIfChanged();
 
@@ -229,6 +234,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     MTEUtils.LogWarning(
                         "PNG 画像が見つかりません: {0} (UserData\\PngPlacement または PhotoModeData\\Texture へ配置してください)",
                         data.imageName);
+                    _unresolved.Add(data);
                     continue;
                 }
 
@@ -236,6 +242,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (created == null)
                 {
                     MTEUtils.LogWarning("PNG の生成に失敗しました: {0}", data.imageName);
+                    _unresolved.Add(data);
                 }
             }
 
@@ -321,6 +328,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
                 timeline.pngObjects.Add(data);
             }
+            AppendUnresolved(timeline.pngObjects, _unresolved);
+        }
+
+        /// <summary>実体の無い定義を、同名の実体定義が無いものだけ保存データへ足す</summary>
+        public static void AppendUnresolved(
+            List<TimelinePngObjectData> target, List<TimelinePngObjectData> unresolved)
+        {
+            foreach (var data in unresolved)
+            {
+                var name = data.name;
+                if (!target.Any(d => d.name == name))
+                {
+                    target.Add(data);
+                }
+            }
         }
 
         public override void OnLoad()
@@ -343,6 +365,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _entryMap.Clear();
             _dataMap.Clear();
             _syncedSettingsRevision = -1;
+            _unresolved.Clear();
         }
     }
 }

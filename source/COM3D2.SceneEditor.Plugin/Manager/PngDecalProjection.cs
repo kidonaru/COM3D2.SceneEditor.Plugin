@@ -16,8 +16,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>Projector の範囲を箱より広げる量 (m)。箱の境界に接する面がカリングで欠けないようにする</summary>
         public const float CullMargin = 0.01f;
 
-        /// <summary>拡縮の絶対値の下限。0 除算で Infinity にしないため</summary>
+        /// <summary>拡縮の絶対値と画像の縦横比の下限。0 除算で Infinity にしないため</summary>
         public const float MinScale = 0.0001f;
+
+        /// <summary>投影箱の root ローカルでの奥行きの半分。シェーダーの箱外判定 (0.5) と対応する</summary>
+        public const float BoxHalfDepth = 0.5f;
 
         /// <summary>fadeAngle に対してフェードが始まる角度の比</summary>
         private const float FadeStartRatio = 2f / 3f;
@@ -69,9 +72,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 orthographicSize = halfHeight,
                 aspectRatio = halfWidth / halfHeight,
+                // Projector は表の面から CullMargin 手前に立つため、near はその余白の内側に置く
                 nearClipPlane = CullMargin * 0.5f,
                 farClipPlane = depth + CullMargin * 2f,
-                localPosition = new Vector3(0f, 0f, (depth * 0.5f + CullMargin) / sz),
+                localPosition = new Vector3(0f, 0f, (depth * BoxHalfDepth + CullMargin) / sz),
                 localScale = new Vector3(1f / sx, 1f / sy, 1f / sz),
             };
         }
@@ -93,7 +97,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var hx = aspect.x * 0.5f;
             var hy = aspect.y * 0.5f;
-            const float hz = 0.5f;
+            const float hz = BoxHalfDepth;
             for (var i = 0; i < 8; i++)
             {
                 var local = new Vector3(
@@ -102,6 +106,17 @@ namespace COM3D2.SceneEditor.Plugin
                     (i & 4) == 0 ? -hz : hz);
                 corners[i] = rootLocalToWorld.MultiplyPoint3x4(local);
             }
+        }
+
+        /// <summary>
+        /// 拡縮が 0 に近い軸があるか。root の worldToLocal が壊れて箱外判定が効かなくなるため、
+        /// このときはデカールを描かない
+        /// </summary>
+        public static bool IsDegenerateScale(Vector3 rootScale)
+        {
+            return Mathf.Abs(rootScale.x) < MinScale
+                || Mathf.Abs(rootScale.y) < MinScale
+                || Mathf.Abs(rootScale.z) < MinScale;
         }
 
         /// <summary>0 度では smoothstep の両端が一致するため下限を設ける</summary>
