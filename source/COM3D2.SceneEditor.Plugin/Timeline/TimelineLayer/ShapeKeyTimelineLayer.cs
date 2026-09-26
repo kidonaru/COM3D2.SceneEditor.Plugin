@@ -83,6 +83,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             maidCache.FixBlendValues(_playDataMap.Keys);
         }
 
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            if (maidCache == null)
+            {
+                return;
+            }
+            base.ApplyTransformDirectCore(motion);
+            maidCache.FixBlendValues(new string[] { motion.name });
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             var start = motion.start as TransformDataShapeKey;

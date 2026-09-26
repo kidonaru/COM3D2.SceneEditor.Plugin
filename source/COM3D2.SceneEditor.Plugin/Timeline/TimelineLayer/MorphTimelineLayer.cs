@@ -252,6 +252,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             faceManager.SetMorphValue(maid, _applyMorphMap);
         }
 
+        /// <summary>
+        /// ApplyMotion はモーフ値を _applyMorphMap に貯めるだけなので、ApplyPlayData の末尾と同じ
+        /// 書き込みを対象項目だけ行う。強制上書きは Inspector のトグルと同じ経路で書く
+        /// </summary>
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            var maid = this.maid;
+            if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+            {
+                return;
+            }
+
+            if (FaceMorphUtils.IsForceOverrideBone(motion.name))
+            {
+                var setting = motion.start as TransformDataFaceSetting;
+                if (setting != null)
+                {
+                    MaidFaceMorphController.SetForceOverride(
+                        maid, FaceMorphUtils.ToForceOverride(setting.forceOverride));
+                }
+                return;
+            }
+
+            _applyMorphMap.Clear();
+            base.ApplyTransformDirectCore(motion);
+            faceManager.SetMorphValue(maid, _applyMorphMap);
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             if (FaceMorphUtils.IsForceOverrideBone(motion.name))

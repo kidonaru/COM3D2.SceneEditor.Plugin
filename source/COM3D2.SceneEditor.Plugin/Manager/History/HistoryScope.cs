@@ -44,6 +44,11 @@
         /// 捕捉・復元は外部のデリゲートに委ね、対象の区別は targetKey で行う
         /// </summary>
         External,
+        /// <summary>
+        /// タイムラインのレイヤー項目の現在値 (Inspector の値ペースト)。
+        /// 捕捉・復元は TimelineItemSnapshot が ApplyTransformDirect で行う
+        /// </summary>
+        TimelineItem,
     }
 
     public static class HistoryScopeUtils
@@ -80,6 +85,7 @@
                 case HistoryScope.Video:
                 case HistoryScope.LiveEffect:
                 case HistoryScope.External:
+                case HistoryScope.TimelineItem:
                     return false;
                 default:
                     return true;

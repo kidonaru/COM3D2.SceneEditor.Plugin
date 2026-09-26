@@ -73,7 +73,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 複数選択時にどの項目の行か分かるよう見出しを出す
-                view.DrawLabel(item.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, item.displayName, layer, item.name);
 
                 if (rowKind == RowKind.EyesPos)
                 {

@@ -46,7 +46,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// 表示トグル + 表示名 + フォーカスのヘッダー行。
         /// 表示切替はレイヤーの書き戻し対象なので、値を書く直前に編集モードへ入る
         /// </summary>
-        public static void DrawHeaderRow(GUIView view, MTEP.StudioModelStat model)
+        /// <param name="drawTrailing">行の右端に置く要素 (コピー / 貼り付けメニュー)。null なら置かない</param>
+        public static void DrawHeaderRow(
+            GUIView view, MTEP.StudioModelStat model, Action<GUIView> drawTrailing = null)
         {
             view.BeginAutoEditMode();
             InspectorHeaderRowDrawer.Draw(view, model.visible, model.displayName, RowHeight,
@@ -55,7 +57,8 @@ namespace COM3D2.SceneEditor.Plugin
                     modelManager.SetModelVisible(model, newValue);
                     model.visible = newValue;
                 },
-                model.transform.gameObject);
+                model.transform.gameObject,
+                drawTrailing);
             view.EndAutoEditMode();
         }
 

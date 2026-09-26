@@ -72,6 +72,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void ApplyAnm(long id, byte[] anmData);
         void CreateAndApplyAnm();
         void ApplyCurrentFrame(bool motionUpdate);
+        /// <summary>
+        /// 1 項目の値をキーフレームを介さずシーンへ当てる (Inspector の値ペースト用)。
+        /// 当て先は transform.name の項目になる
+        /// </summary>
+        void ApplyTransformDirect(ITransformData transform);
+        /// <summary>
+        /// その項目へ今、直接適用できるか。音を鳴らすだけのイベント型や、
+        /// 編集を受け付けない状態 (ブレンドレイヤー調整中のボーン等) は false
+        /// </summary>
+        bool CanApplyTransformDirect(string name);
         void OutputAnm();
         void OutputDCM(XElement songElement);
         void AddKeyFrameAll();

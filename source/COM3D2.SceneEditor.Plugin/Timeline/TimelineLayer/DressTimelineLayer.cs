@@ -123,6 +123,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>ApplyMotion は衣装の差し替えを控えるだけなので、ApplyPlayData と同じく反映を開始する</summary>
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            var maid = this.maid;
+            if (maid == null)
+            {
+                return;
+            }
+
+            _propUpdated = false;
+            base.ApplyTransformDirectCore(motion);
+
+            if (_propUpdated)
+            {
+                maid.AllProcPropSeqStart();
+            }
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             var start = motion.start as TransformDataDress;

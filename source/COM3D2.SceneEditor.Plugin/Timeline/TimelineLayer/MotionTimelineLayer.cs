@@ -343,6 +343,82 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>ブレンドレイヤー調整中はボーンを書かせない (ボーンスライダーと同じ扱い)</summary>
+        public override bool CanApplyTransformDirect(string name)
+        {
+            switch (GetTransformType(name))
+            {
+                case TransformType.Rotation:
+                case TransformType.Root:
+                case TransformType.ExtendBone:
+                    var maid = this.maid;
+                    return maid != null && !MaidAnimationBlendController.IsLayerSelected(maid);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 体ボーンは anm で動いていて ApplyMotion を通らないため、
+        /// UpdateFrame の読み取りと対称にボーンの Transform へ直接書く
+        /// </summary>
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            var transform = motion.start;
+            switch (transform.type)
+            {
+                case TransformType.Rotation:
+                case TransformType.Root:
+                    ApplyBoneTransformDirect(transform, true);
+                    return;
+                case TransformType.ExtendBone:
+                    // 再生側 (ApplyExtendBoneMotion) は位置と拡縮しか書かないので、回転もここで当てる
+                    ApplyBoneTransformDirect(transform, false);
+                    return;
+            }
+            base.ApplyTransformDirectCore(motion);
+        }
+
+        /// <summary>
+        /// ボーンの Transform へ直接書く。書き込み前の処理はボーンスライダー
+        /// (MaidBoneSliderController.SetOffsetAxis) と揃える。stopMotion は anm 再生中の体ボーンだけ true
+        /// (再生中は毎フレーム上書きされるため、操作の瞬間に止める)
+        /// </summary>
+        private void ApplyBoneTransformDirect(ITransformData transform, bool stopMotion)
+        {
+            var maid = this.maid;
+            var maidCache = this.maidCache;
+            if (maid == null || maidCache == null)
+            {
+                return;
+            }
+
+            // ブレンドレイヤー調整中の拒否は CanApplyTransformDirect が済ませている
+            var bone = maidCache.GetBoneTransform(transform.name);
+            if (bone == null)
+            {
+                return;
+            }
+
+            if (stopMotion)
+            {
+                MaidMotionState.StopMotion(maid);
+            }
+            MaidAnimationBlendController.MarkBoneEdit(maid);
+
+            if (transform.hasPosition)
+            {
+                bone.localPosition = transform.position;
+            }
+            if (transform.hasRotation)
+            {
+                bone.localRotation = transform.rotation;
+            }
+            if (transform.hasScale)
+            {
+                bone.localScale = transform.scale;
+            }
+        }
+
         private void ApplyExtendBoneMotion(MotionData motion, float t)
         {
             if (maidCache == null)

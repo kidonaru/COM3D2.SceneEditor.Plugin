@@ -39,7 +39,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 複数選択時にどのカメラの行か分かるよう見出しを出す
-                view.DrawLabel(cameraData.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, cameraData.displayName, layer, item.name);
                 _cameraRowDrawers.Get(item.name).Draw(
                     view, cameraData, LabelWidth, RowHeight);
             }

@@ -38,7 +38,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 複数選択時にどのテキストの行か分かるよう見出しを出す
-                view.DrawLabel(item.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, item.displayName, layer, item.name);
 
                 // 直前キーの参照と色ピッカーの同定に使うため、項目名をそのまま渡す
                 _textRowDrawers.Get(item.name).Draw(

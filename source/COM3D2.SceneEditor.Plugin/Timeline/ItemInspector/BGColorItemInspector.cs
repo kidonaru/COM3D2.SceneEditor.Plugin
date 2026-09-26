@@ -24,13 +24,14 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (item.name == MTEP.BGColorTimelineLayer.BGColorBoneName)
                 {
-                    // 色行が「背景色」ラベルを自前で描くため、見出しは重ねない
+                    // 色行は固定幅のレイアウトを自前で開くため、コピー / 貼り付けのメニューは見出しに置く
+                    TimelineItemClipboardMenu.DrawHeading(view, item.displayName, layer, item.name);
                     BackgroundRowDrawer.DrawBgColorRow(view, RowHeight);
                 }
                 else if (item.name == MTEP.BGColorTimelineLayer.BGGroundColorBoneName)
                 {
                     // 地面は複数行が並ぶため、まとまりが分かるよう見出しを出す
-                    view.DrawLabel(item.displayName, -1, RowHeight);
+                    TimelineItemClipboardMenu.DrawHeading(view, item.displayName, layer, item.name);
                     BackgroundRowDrawer.DrawGroundRows(view, LabelWidth, RowHeight);
                 }
                 else

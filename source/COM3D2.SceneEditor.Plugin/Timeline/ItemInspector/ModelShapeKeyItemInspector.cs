@@ -34,7 +34,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 同名シェイプキーを持つモデルを同時選択したときに見分けられるよう、
                 // 行の前にモデル名を出す (項目名にはモデル名が入らない)
-                view.DrawLabel(model.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, model.displayName, layer, item.name);
                 ModelShapeKeyRowDrawer.Draw(view, model, blendShape, RowHeight);
             }
         }

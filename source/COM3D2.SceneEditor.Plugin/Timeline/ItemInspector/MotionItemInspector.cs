@@ -44,7 +44,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 複数選択時にどのボーンの行か分かるよう見出しを出す
-                view.DrawLabel(def.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, def.displayName, layer, item.name);
                 BoneSliderRowDrawer.Draw(view, maid, def, LabelWidth);
             }
         }

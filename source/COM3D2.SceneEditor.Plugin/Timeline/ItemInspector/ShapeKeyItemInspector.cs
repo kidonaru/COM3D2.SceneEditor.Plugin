@@ -36,8 +36,10 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
+                var itemName = item.name;
                 MaidShapeKeyRowDrawer.Draw(
-                    view, maid, maidCache, item.name, blendShape, RowHeight);
+                    view, maid, maidCache, itemName, blendShape, RowHeight,
+                    v => TimelineItemClipboardMenu.DrawMenu(v, layer, itemName));
             }
         }
 

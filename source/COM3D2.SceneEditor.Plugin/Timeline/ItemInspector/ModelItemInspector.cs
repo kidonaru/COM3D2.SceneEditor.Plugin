@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -23,9 +24,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override List<MTEP.StudioModelStat> models => modelManager.models;
 
-        protected override void DrawModelHeaderRow(GUIView view, MTEP.StudioModelStat model)
+        protected override void DrawModelHeaderRow(
+            GUIView view, MTEP.StudioModelStat model, Action<GUIView> drawTrailing)
         {
-            ModelManageRowDrawer.DrawHeaderRow(view, model);
+            ModelManageRowDrawer.DrawHeaderRow(view, model, drawTrailing);
         }
 
         protected override void DrawModelManageRows(GUIView view, MTEP.StudioModelStat model)

@@ -42,8 +42,11 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                // 段名の見出しは DrawAnimeLayer が自前で描くため、ここでは足さない
-                animationLayer.DrawAnimeLayer(view, layerIndex);
+                // 段名の見出しは DrawAnimeLayer が自前で描くため、ここでは足さない。
+                // コピー / 貼り付けのメニューはその見出しの右端に置いてもらう
+                var itemName = item.name;
+                animationLayer.DrawAnimeLayer(view, layerIndex,
+                    v => TimelineItemClipboardMenu.DrawMenu(v, layer, itemName));
             }
 
             // DrawAnimeLayer は編集モード判定で無効化したまま戻すため、ここで戻す

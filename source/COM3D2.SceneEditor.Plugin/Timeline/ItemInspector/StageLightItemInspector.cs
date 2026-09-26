@@ -27,7 +27,7 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var item in items)
             {
                 // 複数選択時にどの対象の行か分かるよう見出しを出す
-                view.DrawLabel(item.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, item.displayName, layer, item.name);
 
                 var controller = lightManager.GetController(item.name);
                 if (controller != null)

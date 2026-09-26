@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -24,11 +25,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 背景モデルは配置数の増減を背景ウィンドウが持つため、管理行は出さずヘッダー行の表示切替だけにする
         /// </summary>
-        protected override void DrawModelHeaderRow(GUIView view, MTEP.BGModelStat model)
+        protected override void DrawModelHeaderRow(
+            GUIView view, MTEP.BGModelStat model, Action<GUIView> drawTrailing)
         {
             InspectorHeaderRowDrawer.Draw(view, model.visible, model.displayName, RowHeight,
                 newValue => { model.visible = newValue; },
-                model.transform.gameObject);
+                model.transform.gameObject,
+                drawTrailing);
         }
     }
 }

@@ -139,6 +139,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>ApplyMotion は設定値を書くだけなので、ApplyPlayData と同じくレーザーへ反映する</summary>
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            base.ApplyTransformDirectCore(motion);
+            foreach (var controller in stageLaserManager.controllers)
+            {
+                controller.UpdateLasers();
+            }
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             switch (motion.start.type)

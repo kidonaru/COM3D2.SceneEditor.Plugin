@@ -264,6 +264,7 @@
     <Compile Include="Manager\History\PlacementSnapshot.cs" />
     <Compile Include="Manager\History\PngPlacementSnapshot.cs" />
     <Compile Include="Manager\History\LiveEffectSnapshot.cs" />
+    <Compile Include="Manager\History\TimelineItemSnapshot.cs" />
     <Compile Include="Manager\History\SnapshotFactory.cs" />
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />
@@ -329,6 +330,9 @@
     <Compile Include="LightRowDrawer.cs" />
     <Compile Include="LightTarget.cs" />
     <Compile Include="LightClipboard.cs" />
+    <Compile Include="ItemValueClipboard.cs" />
+    <Compile Include="ItemClipboardMenu.cs" />
+    <Compile Include="TimelineItemValueTransfer.cs" />
     <Compile Include="AngleUtils.cs" />
     <Compile Include="QuaternionUtils.cs" />
     <Compile Include="BackgroundRowDrawer.cs" />
@@ -454,6 +458,7 @@
     <Compile Include="Timeline\ItemInspector\PngPlacementItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\AnimationItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\TimelineItemClipboardMenu.cs" />
     <Compile Include="Timeline\ItemInspector\TimelineItemInspectorRegistry.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuItem.cs" />
     <Compile Include="Timeline\BoneMenu\BoneMenuManager.cs" />

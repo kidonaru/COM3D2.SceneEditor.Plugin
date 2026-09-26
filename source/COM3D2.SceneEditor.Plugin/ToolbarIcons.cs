@@ -65,6 +65,8 @@ namespace COM3D2.SceneEditor.Plugin
             Undo,
             // 操作履歴を進める (右へ折り返す矢印)
             Redo,
+            // 項目メニュー (横線 3 本)
+            Menu,
         }
 
         // 32x32 PNG (base64)。添字は Kind と対応させること
@@ -122,6 +124,8 @@ namespace COM3D2.SceneEditor.Plugin
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABVUlEQVR42u1X0a2DMAz0CIzACGwAI7ABbPC6QdkANggbwAbtBmQTskEe92QjVQIVEx58tCdZVaWmdz47NhB9oUPMcQlqIvIc1dnkJkkSP47jX7CI+HRywDknAqJLyPF9Im+uJG8/lnwgovRNBDdms0KuiXES85g+f/YMmZl8L4Zh8MYYn2WZuJaoBCDro1DXtY+iCEJKVQlEBNzQlAC/LcvS933/4giL2OxEuyICdmYbAmPa5Xk+/0fTNHKeQkWYjecxJZ9wQ8A9cTtbhJNytG2Ls0/tzVgTsXUUV+ICeoGvKAWLUGzDDNYLQpbYLEK5DQ8TQGy79oFkLoG1FufcmY9kyHTsui6oCfcC5I/Qa7jFjaWNeEfmIJe9woPIHkleLY3iNE19URRebJfaa0fxYVsTmWuXUfDWRMZoOK65PTLztyXgcNztt//u9HhhE1721vTFbvwCXmmMUauJiiwAAAAASUVORK5CYII=",
             // Redo
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABW0lEQVR42u1XwZGEIBAkBELYEMzgCMEMNIO7DM4MJAPMQDPYzQAygQy4bWuwfKwrCiWP266a8oXd0zPOIGMf5MWNogg6xpin6Etk7q21c1RVBRHqcgHOOQ+UEiFBWlrE8C9EoN5fO6FziuCMse/ni+/Pp119aruxIUIeIa+QjRDCK6W81tqnACJIXNSwajnnvu97nwtwgwTw3cxBvs54mibftm2wMboEyDqQx5YA6rSUcjlY1zUOOhq3IiL0BvkQY/0Pah5A5I8Y2wgqhRx4DMOw2E6ZX0YO2FB71Jxsjx7FqeTzUgmgF4gj2zCFPFkAiFPIA5wx5kwJ1hcSmTLrlyYcx9HT+OUHHEy+kr36DO8HRCQDRCYMIjQWiYATvxvbL/tFdB7FoRdCOZqmeTeKu9wi5mUUnMi55Y6uY4OeQGOuHTm75U43Ju0D92b7dVc16e3F9iv2N/RBMv4ARd+LhHDwnncAAAAASUVORK5CYII=",
+            // Menu
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAYUlEQVR42u2WwQkAIQwEtwRLSCdnaXacdJBD8HEf4YR8hBnYb1wNA0oAsMckPUWx08OHpCzOOLl5untWMWetEva7QESUFZizVoF2xQq+L9GLYmiIhmiIhmiIhmjIDxdgxwuA0IMni+aGTQAAAABJRU5ErkJggg==",
         };
 
         private static readonly Texture2D[] _textures = new Texture2D[PNG_BASE64.Length];

@@ -89,7 +89,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var color = prop.strFileName == initialPropInfo.propName
                     ? Color.white : Color.green;
 
-                view.DrawLabel(item.displayName + ": " + prop.strFileName, -1, RowHeight, color);
+                TimelineItemClipboardMenu.DrawHeading(view, item.displayName + ": " + prop.strFileName, layer, item.name, color);
             }
         }
 

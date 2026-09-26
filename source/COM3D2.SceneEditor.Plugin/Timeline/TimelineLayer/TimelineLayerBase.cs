@@ -411,6 +411,45 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             bool indexUpdated,
             MotionPlayData playData);
 
+        public virtual bool CanApplyTransformDirect(string name)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// 1 項目の値をキーフレームを介さずシーンへ当てる。
+        /// 始点と終点に同じ値を持つ区間を作るので、補間はどのレイヤーでもその値になる
+        /// (isConstant が立ち、Hermite も dt == 0 で始点値を返す)
+        /// </summary>
+        public void ApplyTransformDirect(ITransformData transform)
+        {
+            if (transform == null || !CanApplyTransformDirect(transform.name))
+            {
+                return;
+            }
+
+            // ApplyPlayData と同じく、ボディ再ロード中は当てない (各 ApplyMotion は読み込み済み前提)
+            var maid = this.maid;
+            if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+            {
+                return;
+            }
+
+            var frameNo = timelineManager.currentFrameNo;
+            ApplyTransformDirectCore(new MotionData(transform, transform, frameNo, frameNo));
+        }
+
+        /// <summary>
+        /// 既定は ApplyMotion を 1 回呼ぶ。indexUpdated = true は区間の切り替わり時だけ
+        /// 書く値 (表示状態・背景の種類など) も当てるため。playData を参照するのは
+        /// AnimationTimelineLayer だけで、null を渡すと区間先頭の時刻を使う。
+        /// ApplyPlayData 側の後処理が要るレイヤーは上書きする
+        /// </summary>
+        protected virtual void ApplyTransformDirectCore(MotionData motion)
+        {
+            ApplyMotion(motion, 0f, true, null);
+        }
+
         protected virtual void BuildPlayData()
         {
             _playDataMap.ClearPlayData();

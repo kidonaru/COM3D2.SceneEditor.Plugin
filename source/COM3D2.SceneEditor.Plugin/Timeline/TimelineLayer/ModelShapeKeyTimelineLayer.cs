@@ -132,6 +132,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>ApplyPlayData と同じく全モデルのブレンド値を確定する</summary>
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            base.ApplyTransformDirectCore(motion);
+            foreach (var model in modelManager.models)
+            {
+                model.FixBlendValues();
+            }
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             var blendShape = modelManager.GetBlendShape(motion.name);

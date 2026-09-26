@@ -43,6 +43,18 @@ namespace COM3D2.SceneEditor.Plugin
 
             TimelineItemInspectorRegistry.CollectLeafItems(
                 boneMenuManager.GetSelectedItems(), _leafItems);
+
+            // 選択中の全項目をまとめてコピー / 貼り付けする行
+            view.BeginHorizontal();
+            {
+                view.DrawLabel(
+                    string.Format("選択中の項目 ({0}件)", _leafItems.Count),
+                    ItemClipboardMenu.GetRemainingWidth(view), 20f);
+                TimelineItemClipboardMenu.DrawSelectionMenu(view, layer, _leafItems);
+            }
+            view.EndLayout();
+            view.DrawHorizontalLine();
+
             inspector.DrawItems(view, layer, _leafItems);
         }
     }

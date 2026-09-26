@@ -46,7 +46,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var bgDisplayName = string.IsNullOrEmpty(bgName)
                     ? "背景なし"
                     : MTEP.PhotoBGManager.instance.GetDisplayName(bgName);
-                view.DrawLabel(item.displayName + ": " + bgDisplayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, item.displayName + ": " + bgDisplayName, layer, item.name);
                 BackgroundRowDrawer.DrawBgTransformRows(
                     view, bgObject.transform, LabelWidth, RowHeight);
             }

@@ -288,13 +288,14 @@ namespace COM3D2.SceneEditor.Plugin
             DrawStrValues(view, bone, transform);
         }
 
-        /// <summary>開閉マーク + ボーン名(フレーム番号) + 初期化 / 削除ボタンの 1 行</summary>
+        /// <summary>開閉マーク + ボーン名(フレーム番号) + 初期化 / 削除ボタン + コピー / 貼り付けメニューの 1 行</summary>
         private void DrawBlockHeader(GUIView view, MTEP.BoneData bone, bool expanded)
         {
             var available = view.viewRect.width - view.padding.x * 2;
-            // 要素は 4 個 (マーク・名前・初期化・削除) なので margin を 4 個ぶん引く
+            // 要素は 5 個 (マーク・名前・初期化・削除・メニュー) なので margin を 5 個ぶん引く
             var labelWidth = available
-                - FoldMarkWidth - HeaderButtonWidth * 2 - view.margin * 4;
+                - FoldMarkWidth - HeaderButtonWidth * 2 - ItemClipboardMenu.ButtonWidth
+                - view.margin * 5;
             labelWidth = Mathf.Max(labelWidth, MinHeaderLabelWidth);
 
             view.BeginHorizontal();
@@ -319,8 +320,31 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     _pendingDeleteBones.Add(bone);
                 }
+
+                var transform = bone.transform;
+                ItemClipboardMenu.instance.Draw(view, bone, null,
+                    true,
+                    ItemValueClipboard.CanResolve(bone.name, transform.type),
+                    () => ItemValueClipboard.Set(
+                        new[] { bone.name }, new MTEP.ITransformData[] { transform }),
+                    () => PasteToBone(bone));
             }
             view.EndLayout();
+        }
+
+        /// <summary>クリップボードの値をキーへ写す (値・文字列値・タンジェントを丸ごと)</summary>
+        private void PasteToBone(MTEP.BoneData bone)
+        {
+            var source = ItemValueClipboard.Resolve(bone.name, bone.transform.type);
+            if (source == null)
+            {
+                return;
+            }
+
+            bone.transform.FromTransformData(source);
+            MTEUtils.LogDebug("キーフレームへ貼り付けます：" + bone.name);
+            bone.parentLayer.ApplyCurrentFrame(true);
+            timelineManager.RequestHistory("キーフレーム貼り付け: " + bone.name);
         }
 
         /// <summary>

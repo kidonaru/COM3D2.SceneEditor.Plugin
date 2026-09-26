@@ -46,7 +46,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 複数選択時にどのカテゴリの行か分かるよう見出しを出す
-                view.DrawLabel(category.name, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, category.name, layer, item.name);
                 GravityRowDrawer.Draw(view, maid, category, RowHeight);
             }
         }

@@ -189,6 +189,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>ApplyMotion は設定値を書くだけなので、ApplyPlayData と同じくサイリウムを更新する</summary>
+        protected override void ApplyTransformDirectCore(MotionData motion)
+        {
+            base.ApplyTransformDirectCore(motion);
+            var playingTime = this.playingTime;
+            foreach (var controller in psylliumManager.controllers)
+            {
+                controller.ManualUpdate(playingTime);
+            }
+        }
+
         protected Dictionary<string, MotionPlayData> _tempPlayDataMap = new Dictionary<string, MotionPlayData>(32);
 
         protected override void BuildPlayData()

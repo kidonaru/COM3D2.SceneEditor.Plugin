@@ -78,14 +78,20 @@ namespace COM3D2.SceneEditor.Plugin
                 var enabled = MTEP.DressUtils.IsSlotLoaded(maidCache, slotId);
                 var displayName = item.displayName;
 
-                view.DrawToggle(displayName, MTEP.DressUtils.IsSlotVisible(maidCache, slotId),
-                    ToggleWidth, RowHeight, enabled,
-                    value =>
-                    {
-                        HistoryManager.instance.BeforeEdit(maid, HistoryScope.Undress,
-                            "脱衣: " + displayName);
-                        MTEP.DressUtils.SetSlotVisible(maidCache, slotId, value);
-                    });
+                view.BeginHorizontal();
+                {
+                    view.DrawToggle(displayName, MTEP.DressUtils.IsSlotVisible(maidCache, slotId),
+                        ToggleWidth, RowHeight, enabled,
+                        value =>
+                        {
+                            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Undress,
+                                "脱衣: " + displayName);
+                            MTEP.DressUtils.SetSlotVisible(maidCache, slotId, value);
+                        });
+                    // トグルと同じく、未装着スロットへは貼り付けさせない
+                    TimelineItemClipboardMenu.DrawMenu(view, layer, item.name, enabled);
+                }
+                view.EndLayout();
             }
         }
 

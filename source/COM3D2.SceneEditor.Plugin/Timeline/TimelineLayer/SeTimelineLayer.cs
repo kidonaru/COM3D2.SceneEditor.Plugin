@@ -10,6 +10,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Type layerType => typeof(SeTimelineLayer);
         public override string layerName => nameof(SeTimelineLayer);
 
+        /// <summary>区間の切り替わりで即再生するだけのイベントなので、値の直接適用は受け付けない</summary>
+        public override bool CanApplyTransformDirect(string name)
+        {
+            return false;
+        }
+
         public static string SeBoneName = "SE";
         public static string SeDisplayName = "効果音";
 

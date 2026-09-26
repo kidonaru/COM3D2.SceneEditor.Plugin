@@ -39,8 +39,12 @@ namespace COM3D2.SceneEditor.Plugin
                 var track = CreateTrack(layer, material);
                 // 複数マテリアルを並べるため、色行のラベル (= ピッカーの同定キー) を
                 // マテリアル名で一意にする
+                // 見出しの既存「コピー」「ペースト」はマテリアルのプロパティ全体を写す別機能。
+                // メニューはタイムラインの項目値 (他のキー・現在値と共有) を扱う
+                var itemName = item.name;
                 MaterialPropertyRowsDrawer.Draw(
-                    view, material, track, RowHeight, material.name);
+                    view, material, track, RowHeight, material.name, null,
+                    v => TimelineItemClipboardMenu.DrawMenu(v, layer, itemName));
             }
         }
 

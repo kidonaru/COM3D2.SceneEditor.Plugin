@@ -30,7 +30,8 @@ namespace COM3D2.SceneEditor.Plugin
             MTEP.MaidCache maidCache,
             string shapeKeyName,
             MTEP.MaidBlendShape blendShape,
-            float rowHeight)
+            float rowHeight,
+            Action<GUIView> drawTrailing = null)
         {
             var weight = blendShape.weight;
             // 値を書き込む直前に呼ぶ。同じシェイプキーへの連続変更はマウス解放まで 1 件に集約される
@@ -59,7 +60,22 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             };
 
-            view.DrawTrackedLabel(isModified, onCheckChanged, shapeKeyName, -1, rowHeight);
+            if (drawTrailing != null)
+            {
+                // GUIView.DrawTrackedLabel と同じ並びを展開し、見出しの右端に要素 (コピー / 貼り付けメニュー) を足す。
+                // あちらの並びが変わったらここも合わせる
+                view.BeginHorizontal();
+                {
+                    view.DrawToggle(isModified, GUIView.TrackedCheckWidth, rowHeight, onCheckChanged);
+                    view.DrawLabel(shapeKeyName, ItemClipboardMenu.GetRemainingWidth(view), rowHeight);
+                    drawTrailing(view);
+                }
+                view.EndLayout();
+            }
+            else
+            {
+                view.DrawTrackedLabel(isModified, onCheckChanged, shapeKeyName, -1, rowHeight);
+            }
 
             var updateTransform = view.DrawSliderValue(new GUIView.SliderOption
             {

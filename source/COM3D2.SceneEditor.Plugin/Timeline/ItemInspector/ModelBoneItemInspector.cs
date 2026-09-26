@@ -41,7 +41,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 複数選択時にどのモデルのどのボーンの行か分かるよう見出しを出す
                 // (項目名にはモデル名が入らないため補う)
-                view.DrawLabel(model.displayName + "/" + item.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, model.displayName + "/" + item.displayName, layer, item.name);
                 _boneRowDrawers.Get(item.name).Draw(
                     view, model.transform.gameObject, bone.transform,
                     LabelWidth, ScaleLabelWidth, RowHeight);

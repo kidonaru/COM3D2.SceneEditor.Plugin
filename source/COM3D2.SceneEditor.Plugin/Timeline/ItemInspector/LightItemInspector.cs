@@ -40,7 +40,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 複数選択時にどのライトの行か分かるよう見出しを出す
-                view.DrawLabel(stat.displayName, -1, RowHeight);
+                TimelineItemClipboardMenu.DrawHeading(view, stat.displayName, layer, item.name);
 
                 // 色ピッカーはラベルで対象を識別するため、ライト名でキーを一意にする
                 var drawer = _lightRowDrawers.Get(item.name);

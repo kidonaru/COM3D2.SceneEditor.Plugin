@@ -279,7 +279,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public void DrawAnimeLayer(GUIView view, int layer)
+        /// <param name="drawTrailing">
+        /// 段名の見出し行の右端に置く要素 (Inspector のコピー / 貼り付けメニュー)。null なら置かない
+        /// </param>
+        public void DrawAnimeLayer(GUIView view, int layer, Action<GUIView> drawTrailing = null)
         {
             var info = maidCache.GetAnimationLayerInfo(layer);
             if (info == null)
@@ -314,6 +317,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     info.overrideTime = newValue;
                 });
+
+                if (drawTrailing != null)
+                {
+                    drawTrailing(view);
+                }
             }
             view.EndLayout();
 

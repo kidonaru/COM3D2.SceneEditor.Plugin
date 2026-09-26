@@ -122,13 +122,14 @@ namespace COM3D2.SceneEditor.Plugin
             DrawStrValues(view, group);
         }
 
-        /// <summary>開閉マーク + 型名(件数) + 初期化 / 削除ボタンの 1 行</summary>
+        /// <summary>開閉マーク + 型名(件数) + 初期化 / 削除ボタン + 貼り付けメニューの 1 行</summary>
         private void DrawGroupHeader(
             GUIView view, Group group, bool expanded, Action<List<MTEP.BoneData>> requestDelete)
         {
             var available = view.viewRect.width - view.padding.x * 2;
             var labelWidth = available
-                - FoldMarkWidth - HeaderButtonWidth * 2 - view.margin * 4;
+                - FoldMarkWidth - HeaderButtonWidth * 2 - ItemClipboardMenu.ButtonWidth
+                - view.margin * 5;
             labelWidth = Mathf.Max(labelWidth, MinHeaderLabelWidth);
 
             view.BeginHorizontal();
@@ -155,8 +156,50 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     requestDelete(group.bones);
                 }
+
+                // どのキーを写すか決まらないので、グループからのコピーは受け付けない
+                ItemClipboardMenu.instance.Draw(view, this, group.type.ToString(),
+                    false,
+                    CanPasteToGroup(group),
+                    null,
+                    () => PasteToGroup(group));
             }
             view.EndLayout();
+        }
+
+        private static bool CanPasteToGroup(Group group)
+        {
+            foreach (var bone in group.bones)
+            {
+                if (ItemValueClipboard.CanResolve(bone.name, bone.transform.type))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>グループ内の各キーへ、当たる値を写す。履歴はまとめて 1 回</summary>
+        private void PasteToGroup(Group group)
+        {
+            var pasted = false;
+            foreach (var bone in group.bones)
+            {
+                var source = ItemValueClipboard.Resolve(bone.name, bone.transform.type);
+                if (source == null)
+                {
+                    continue;
+                }
+                bone.transform.FromTransformData(source);
+                pasted = true;
+            }
+
+            if (!pasted)
+            {
+                return;
+            }
+            MTEUtils.LogDebug("キーフレームへ一括で貼り付けます：" + group.type);
+            Apply(group, "キーフレーム一括貼り付け: " + group.type);
         }
 
         /// <summary>
@@ -469,9 +512,15 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>グループの所属レイヤーへ重複なく反映し、履歴を要求する (選択は複数レイヤーにまたがりうる)</summary>
         private void Apply(Group group)
         {
+            Apply(group, "キーフレーム一括編集: " + group.type);
+        }
+
+        /// <param name="description">履歴の説明文 (Undo 履歴で操作を見分けるため)</param>
+        private void Apply(Group group, string description)
+        {
             MTEUtils.LogDebug("キーフレームを一括更新します：" + group.type);
             // ドラッグ中は毎フレーム呼ばれるため、履歴はマウスを離すまで集約させる
-            timelineManager.RequestHistory("キーフレーム一括編集: " + group.type);
+            timelineManager.RequestHistory(description);
             _applyLayers.Clear();
             foreach (var bone in group.bones)
             {

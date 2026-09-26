@@ -47,10 +47,15 @@ namespace COM3D2.SceneEditor.Plugin
             string trackKey,
             float rowHeight,
             Action markTracked,
-            Action<string> recordEdit)
+            Action<string> recordEdit,
+            Action<GUIView> drawTrailing)
         {
             var labelWidth = view.viewRect.width - view.padding.x * 2
                 - (ClipboardButtonWidth + view.margin) * 2;
+            if (drawTrailing != null)
+            {
+                labelWidth -= ItemClipboardMenu.GetReservedWidth(view);
+            }
 
             view.BeginHorizontal();
             {
@@ -95,6 +100,11 @@ namespace COM3D2.SceneEditor.Plugin
                         markTracked();
                     }
                 }
+
+                if (drawTrailing != null)
+                {
+                    drawTrailing(view);
+                }
             }
             view.EndLayout();
         }
@@ -111,7 +121,8 @@ namespace COM3D2.SceneEditor.Plugin
             MaterialTrackTarget track,
             float rowHeight,
             string colorLabelPrefix,
-            Maid maid = null)
+            Maid maid = null,
+            Action<GUIView> drawTrailing = null)
         {
             var defaultTrans = MTEP.TransformDataModelMaterial.defaultTrans;
             var trackKey = track.isEnabled ? track.getKey(material) : null;
@@ -134,7 +145,7 @@ namespace COM3D2.SceneEditor.Plugin
                     material, () => MaterialSnapshot.Capture(material, track, trackKey));
             };
 
-            DrawNameRow(view, material, track, trackKey, rowHeight, markTracked, recordEdit);
+            DrawNameRow(view, material, track, trackKey, rowHeight, markTracked, recordEdit, drawTrailing);
 
             if (view.DrawButton("初期化", 80, rowHeight))
             {

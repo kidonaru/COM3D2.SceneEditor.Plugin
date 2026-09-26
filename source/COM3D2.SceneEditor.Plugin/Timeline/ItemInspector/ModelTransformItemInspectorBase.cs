@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -38,9 +39,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 表示トグル + 名前 + フォーカスのヘッダー行。トグルが書く先 (表示の持ち方) が
-        /// モデルの種類ごとに違うため派生先が描く。複数選択時はモデルごとの見出しを兼ねる
+        /// モデルの種類ごとに違うため派生先が描く。複数選択時はモデルごとの見出しを兼ねる。
+        /// drawTrailing は行の右端に置くコピー / 貼り付けメニュー (レイヤーが無いときは null)
         /// </summary>
-        protected abstract void DrawModelHeaderRow(GUIView view, TModel model);
+        protected abstract void DrawModelHeaderRow(
+            GUIView view, TModel model, Action<GUIView> drawTrailing);
 
         /// <summary>
         /// モデル 1 件分の管理行 (複製・削除など)。内容はモデルの種類ごとに変わる。
@@ -70,7 +73,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                DrawModel(view, model);
+                DrawModel(view, model, layer);
             }
 
             PruneAllCaches();
@@ -90,9 +93,32 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _drawnNames.Clear();
-            DrawModel(view, model);
+            DrawModel(view, model, FindOwnLayer());
             PruneAllCaches();
             return true;
+        }
+
+        /// <summary>
+        /// このプロバイダが担当するレイヤーを読み込み中のタイムラインから探す。
+        /// Inspector のモデル本体選択はメニュー項目を経由しないため、型で逆引きする
+        /// (InspectorWindow は登録済みとは別インスタンスを持つので、インスタンスではなく型で比べる)
+        /// </summary>
+        private MTEP.ITimelineLayer FindOwnLayer()
+        {
+            var timelineManager = MTEP.TimelineManager.instance;
+            if (timelineManager.timeline == null)
+            {
+                return null;
+            }
+            foreach (var layer in timelineManager.layers)
+            {
+                var inspector = TimelineItemInspectorRegistry.Find(layer);
+                if (inspector != null && inspector.GetType() == GetType())
+                {
+                    return layer;
+                }
+            }
+            return null;
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)
@@ -115,12 +141,16 @@ namespace COM3D2.SceneEditor.Plugin
             return null;
         }
 
-        private void DrawModel(GUIView view, TModel model)
+        /// <param name="layer">コピー / 貼り付けの対象レイヤー。null ならメニューを出さない</param>
+        private void DrawModel(GUIView view, TModel model, MTEP.ITimelineLayer layer)
         {
             _drawnNames.Add(model.name);
             var go = model.transform.gameObject;
 
-            DrawModelHeaderRow(view, model);
+            var modelName = model.name;
+            DrawModelHeaderRow(view, model, layer != null
+                ? (Action<GUIView>)(v => TimelineItemClipboardMenu.DrawMenu(v, layer, modelName))
+                : null);
             DrawModelManageRows(view, model);
             _transformRowDrawers.Get(model.name).Draw(
                 view, go, LabelWidth, ScaleLabelWidth, RowHeight);

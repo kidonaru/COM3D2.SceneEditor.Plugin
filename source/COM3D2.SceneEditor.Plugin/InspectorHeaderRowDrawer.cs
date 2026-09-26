@@ -14,13 +14,17 @@ namespace COM3D2.SceneEditor.Plugin
         private const float ToggleWidth = 20f;
         private const float FocusButtonWidth = 20f;
 
+        /// <param name="drawTrailing">
+        /// フォーカスボタンの後ろに置く要素 (タイムラインのコピー / 貼り付けメニュー)。null なら置かない
+        /// </param>
         public static void Draw(
             GUIView view,
             bool active,
             string label,
             float rowHeight,
             Action<bool> onActiveChanged,
-            GameObject focusTarget)
+            GameObject focusTarget,
+            Action<GUIView> drawTrailing = null)
         {
             // 名前ラベルを自動幅にするとフォーカスボタンが右端からはみ出すため、
             // 残り幅を明示計算して割り当てる。
@@ -29,6 +33,10 @@ namespace COM3D2.SceneEditor.Plugin
                 - (ToggleWidth + view.margin)
                 - (FocusButtonWidth + view.margin)
                 - view.margin;
+            if (drawTrailing != null)
+            {
+                labelWidth -= ItemClipboardMenu.GetReservedWidth(view);
+            }
 
             view.BeginHorizontal();
             {
@@ -40,6 +48,11 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // 明示的なフォーカス要求なのでオートフォーカス設定に関わらず寄せる
                     SceneViewWindow.instance.FocusOn(focusTarget, true);
+                }
+
+                if (drawTrailing != null)
+                {
+                    drawTrailing(view);
                 }
             }
             view.EndLayout();

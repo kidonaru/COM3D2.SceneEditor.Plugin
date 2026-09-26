@@ -25,15 +25,21 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var item in items)
             {
-                if (MTEP.FaceMorphUtils.IsForceOverrideBone(item.name))
+                var itemName = item.name;
+                if (MTEP.FaceMorphUtils.IsForceOverrideBone(itemName))
                 {
-                    view.DrawToggle(MTEP.FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME,
-                        MaidFaceMorphController.IsForceOverride(maid), 130, RowHeight,
-                        newValue =>
-                        {
-                            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Face, "強制上書き切替");
-                            MaidFaceMorphController.SetForceOverride(maid, newValue);
-                        });
+                    view.BeginHorizontal();
+                    {
+                        view.DrawToggle(MTEP.FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME,
+                            MaidFaceMorphController.IsForceOverride(maid), 130, RowHeight,
+                            newValue =>
+                            {
+                                HistoryManager.instance.BeforeEdit(maid, HistoryScope.Face, "強制上書き切替");
+                                MaidFaceMorphController.SetForceOverride(maid, newValue);
+                            });
+                        TimelineItemClipboardMenu.DrawMenu(view, layer, itemName);
+                    }
+                    view.EndLayout();
                     continue;
                 }
 
@@ -51,7 +57,8 @@ namespace COM3D2.SceneEditor.Plugin
                         -1, RowHeight, textColor: Color.gray);
                     continue;
                 }
-                FaceMorphRowDrawer.Draw(view, maid, def, LabelWidth, RowHeight);
+                FaceMorphRowDrawer.Draw(view, maid, def, LabelWidth, RowHeight,
+                    v => TimelineItemClipboardMenu.DrawMenu(v, layer, itemName));
             }
         }
 
