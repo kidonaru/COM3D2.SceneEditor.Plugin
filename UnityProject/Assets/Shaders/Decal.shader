@@ -29,8 +29,9 @@
             ZWrite Off
             ZTest LEqual
             Cull Back
-            // 受け側の面と同じ深度に描くため手前へずらして Z ファイティングを避ける
-            Offset -1, -1
+            // 受け側の面と同じ深度に描くため、面の傾きに応じて手前へずらし Z ファイティングを避ける。
+            // 固定量 (units) は COM3D2.5 の深度バッファでは大きく効きすぎ、手前の物体を突き抜けて描かれるため使わない
+            Offset -1, 0
 
             CGPROGRAM
             #pragma vertex vert
