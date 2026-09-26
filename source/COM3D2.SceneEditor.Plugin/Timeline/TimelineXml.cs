@@ -1379,6 +1379,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 ConvertModelAttachToKeys();
             }
 
+            if (version < PngBrightnessScaleVersion)
+            {
+                foreach (var layer in layers)
+                {
+                    ConvertPngBrightnessToScale(layer.keyFrames);
+                }
+            }
+
             ConvertPlugin();
         }
 
@@ -1449,6 +1457,38 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>PNG 配置キーの明るさを 0〜255 の byte (MTE 形式) から、Inspector と同じ倍率 (1 = 元の明るさ) へ換算する (version 38)</summary>
+        /// <remarks>キーフレームテンプレートも同じキー形式を持つため、TemplateLayerXml の読込からも呼ぶ</remarks>
+        public static void ConvertPngBrightnessToScale(IEnumerable<FrameXml> keyFrames)
+        {
+            var convertedCount = 0;
+            foreach (var keyFrame in keyFrames)
+            {
+                if (keyFrame.bones == null)
+                {
+                    continue;
+                }
+
+                foreach (var bone in keyFrame.bones)
+                {
+                    var transform = bone.transform;
+                    if (transform == null || transform.type != TransformType.PngObject ||
+                        transform.values == null || transform.values.Length <= PngBrightnessIndexAtV37)
+                    {
+                        continue;
+                    }
+
+                    transform.values[PngBrightnessIndexAtV37] /= PngBrightnessMaxAtV37;
+                    convertedCount++;
+                }
+            }
+
+            if (convertedCount > 0)
+            {
+                MTEUtils.LogDebug("Convert png brightness to scale count={0}", convertedCount);
+            }
+        }
+
         /// <summary>旧 (COM3D2 版) リムライト/パラフィンの値数。テストからも参照する</summary>
         public const int OldRimlightValueCount = 28;
         public const int OldParaffinValueCount = 24;
@@ -1465,6 +1505,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         // version 36 で背景レイヤーのボーン名を固定した当時の名前。レイヤー側の定数は参照しない
         private const string BGBoneNameAtV36 = "BG";
+
+        // version 38 で換算する前 (v37 以前) の PNG 配置キーの明るさの添字と最大値。テンプレートの移行と共有する
+        private const int PngBrightnessIndexAtV37 = 19;
+        private const float PngBrightnessMaxAtV37 = 255f;
+        /// <summary>PNG 配置キーの明るさを倍率へ変えたバージョン。テンプレートの移行判定にも使う</summary>
+        public const int PngBrightnessScaleVersion = 38;
 
         /// <summary>旧リムライト/パラフィンの Depth 系 3 値 (DepthMin/DepthMax/DepthFade) は
         /// COM3D2.5 版で廃止され、リムライトは同じ位置がマスク設定 3 値

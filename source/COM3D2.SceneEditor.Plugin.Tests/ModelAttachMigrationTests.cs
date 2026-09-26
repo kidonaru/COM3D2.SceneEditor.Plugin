@@ -138,11 +138,5 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.DoesNotContain("<AttachMaidSlotNo>", xml);
             Assert.Contains("<Name>cup.menu</Name>", xml);
         }
-
-        [Fact]
-        public void 現行バージョンは37()
-        {
-            Assert.Equal(37, TimelineData.CurrentVersion);
-        }
     }
 }

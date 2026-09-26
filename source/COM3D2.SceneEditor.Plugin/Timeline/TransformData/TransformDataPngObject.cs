@@ -187,11 +187,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 "brightness", new CustomValueInfo
                 {
                     index = (int)Index.Brightness,
-                    name = "明度",
-                    min = 0,
-                    max = 255,
-                    step = 1,
-                    defaultValue = 255,
+                    name = "明るさ",
+                    min = SE.PngPlacementManager.MinBrightness,
+                    max = SE.PngPlacementManager.MaxBrightness,
+                    step = SE.PngPlacementManager.BrightnessStep,
+                    defaultValue = SE.PngPlacementManager.DefaultBrightness,
                 }
             },
             {
@@ -435,10 +435,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => attachrotationValue.boolValue;
             set => attachrotationValue.boolValue = value;
         }
-        public byte brightness
+        /// <summary>明るさの倍率 (1 = 元の明るさ)。MTE の 0〜255 とは単位が違う</summary>
+        public float brightness
         {
-            get => (byte) brightnessValue.intValue;
-            set => brightnessValue.intValue = value;
+            get => brightnessValue.value;
+            set => brightnessValue.value = value;
         }
         public float scalez
         {

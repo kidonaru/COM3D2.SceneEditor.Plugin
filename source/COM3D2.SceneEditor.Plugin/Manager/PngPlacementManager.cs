@@ -34,7 +34,7 @@ namespace COM3D2.SceneEditor.Plugin
         public string relativePath;
 
         public bool billboard = true;
-        public float brightness = 1f;
+        public float brightness = PngPlacementManager.DefaultBrightness;
         public Color color = Color.white;
         public int renderQueue;
         public PngBlendMode blendMode = PngBlendMode.Normal;
@@ -88,6 +88,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>生成時の既定位置。メイドの初期位置と被らない手前に出す</summary>
         public static readonly Vector3 DefaultPosition = new Vector3(0f, 1f, 0f);
         public const int DefaultRenderQueue = 3000;
+
+        public const float DefaultBrightness = 1f;
+        public const float MinBrightness = 0f;
+        public const float MaxBrightness = 2f;
+        public const float BrightnessStep = 0.01f;
 
         public const float DefaultSaturation = 1f;
         public const float MinSaturation = 0f;

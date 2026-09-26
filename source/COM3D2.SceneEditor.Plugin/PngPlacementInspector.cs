@@ -103,10 +103,10 @@ namespace COM3D2.SceneEditor.Plugin
                 label = "明るさ",
                 labelWidth = LABEL_WIDTH,
                 width = -1,
-                min = 0f,
-                max = 2f,
-                step = 0.01f,
-                defaultValue = 1f,
+                min = PngPlacementManager.MinBrightness,
+                max = PngPlacementManager.MaxBrightness,
+                step = PngPlacementManager.BrightnessStep,
+                defaultValue = PngPlacementManager.DefaultBrightness,
                 value = data.brightness,
                 onChanged = value =>
                 {

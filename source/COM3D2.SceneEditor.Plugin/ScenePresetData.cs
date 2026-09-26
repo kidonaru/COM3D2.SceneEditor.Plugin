@@ -198,7 +198,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool billboard = true;
 
         [XmlAttribute]
-        public float brightness = 1f;
+        public float brightness = PngPlacementManager.DefaultBrightness;
 
         [XmlAttribute]
         public float saturation = PngPlacementManager.DefaultSaturation;

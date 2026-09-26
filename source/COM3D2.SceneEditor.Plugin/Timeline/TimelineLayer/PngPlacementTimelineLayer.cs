@@ -112,8 +112,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var data = pngObject.data;
 
             sePngManager.SetVisible(data, start.visible);
-            // MTE の brightness は 0-255 の byte、SE は 1.0 基準の倍率のため換算する
-            sePngManager.SetColor(data, start.color, start.brightness / 255f);
+            sePngManager.SetColor(data, start.color, start.brightness);
             sePngManager.SetSaturation(data, start.saturation);
 
             transform.localPosition = start.position;
@@ -156,7 +155,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 var color = Color.Lerp(start.color, end.color, t);
                 var brightness = Mathf.Lerp(start.brightness, end.brightness, t);
-                sePngManager.SetColor(data, color, brightness / 255f);
+                sePngManager.SetColor(data, color, brightness);
             }
 
             if (start.saturation != end.saturation)
@@ -205,7 +204,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.position = pngObject.transform.localPosition;
                 trans.eulerAngles = pngObject.transform.localEulerAngles;
                 trans.color = data.color;
-                trans.brightness = (byte) Mathf.Clamp(data.brightness * 255f, 0f, 255f);
+                trans.brightness = data.brightness;
                 trans.saturation = data.saturation;
                 trans.scalex = pngObject.transform.localScale.x;
                 trans.scalemag = 1;

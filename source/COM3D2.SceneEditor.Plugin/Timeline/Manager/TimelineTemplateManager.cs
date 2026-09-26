@@ -32,6 +32,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OnLoad()
         {
+            MigrateTemplates();
+
             // デフォルトカテゴリが無い場合は追加
             if (categories.FindIndex(c => c.categoryName == "Default") < 0)
             {
@@ -42,6 +44,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             foreach (var category in categories)
             {
                 categoryNames.Add(category.categoryName);
+            }
+        }
+
+        /// <summary>
+        /// 旧形式のテンプレートのキーを現行形式へ直す。テンプレートは適用時に TimelineXml.Initialize を通らないため、
+        /// タイムラインの移行のうち値の意味が変わったものをここでも行う
+        /// </summary>
+        private void MigrateTemplates()
+        {
+            foreach (var category in categories)
+            {
+                foreach (var template in category.templates)
+                {
+                    if (template.version < TimelineXml.PngBrightnessScaleVersion)
+                    {
+                        TimelineXml.ConvertPngBrightnessToScale(template.frames);
+                    }
+                    // 保存し直したときに二重に換算しないよう、換算済みとして揃える
+                    template.version = TimelineData.CurrentVersion;
+                }
             }
         }
 
@@ -193,6 +215,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var newTemplate = new TemplateXml
             {
                 templateName = templateName,
+                version = TimelineData.CurrentVersion,
                 frames = tmpFrames.Values.Select(frame => frame.ToXml()).ToList(),
             };
 
@@ -288,6 +311,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         [XmlElement("TemplateName")]
         public string templateName;
+        /// <summary>保存時のタイムラインのバージョン。属性の無い MTE・旧 SE のテンプレートは 0</summary>
+        [XmlAttribute("version")]
+        public int version;
         [XmlElement("Frame")]
         public List<FrameXml> frames = new List<FrameXml>();
 
