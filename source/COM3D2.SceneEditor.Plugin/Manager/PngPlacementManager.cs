@@ -39,6 +39,8 @@ namespace COM3D2.SceneEditor.Plugin
         public int renderQueue;
         /// <summary>板・デカール共通のブレンド方式</summary>
         public PngBlendMode blendMode = PngBlendMode.Normal;
+        /// <summary>彩度。0 でグレースケール、1 で元の色。タイムラインではキーの値</summary>
+        public float saturation = PngPlacementManager.DefaultSaturation;
         public bool visible = true;
 
         /// <summary>画像の縦横 (長辺 1)。板の Quad とデカールの投影箱の大きさに使う</summary>
@@ -66,7 +68,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// PNG 配置オブジェクトの実体を管理するマネージャー。
     /// 背景配下には置かず専用ルート配下に生成する (背景切替で消えるのを避けるため)。
-    /// 描画はマイオブジェクトと同じ Unlit シェーダーを使い、
+    /// 描画は SE 独自の無照明シェーダー (読めなければマイオブジェクトと同じ組込みシェーダー) を使い、
     /// 透過画像は ZWrite を切って描画順の破綻を抑える。
     /// デカール表示では子の Projector が板の奥の面へ画像を投影する
     /// </summary>
@@ -77,7 +79,7 @@ namespace COM3D2.SceneEditor.Plugin
         public const string SOURCE_CONFIG = "config";
         public const string SOURCE_PHOTO = "photo";
 
-        /// <summary>マイオブジェクトと同じゲーム組込みシェーダー</summary>
+        /// <summary>SE のシェーダーが読めないときの代替 (マイオブジェクトと同じゲーム組込みシェーダー)</summary>
         private const string SHADER_NAME = "CM3D2/Unlit_Texture_Photo_MyObject";
         private const string FALLBACK_SHADER_NAME = "Unlit/Transparent";
 
@@ -88,6 +90,10 @@ namespace COM3D2.SceneEditor.Plugin
         public static readonly Vector3 DefaultPosition = new Vector3(0f, 1f, 0f);
         public const int DefaultRenderQueue = 3000;
 
+        public const float DefaultSaturation = 1f;
+        public const float MinSaturation = 0f;
+        public const float MaxSaturation = 2f;
+
         private GameObject _root = null;
         private readonly List<PngObjectData> _pngObjects = new List<PngObjectData>();
         private readonly Dictionary<string, Texture2D> _textureCache =
@@ -96,7 +102,11 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Dictionary<string, bool> _alphaCache = new Dictionary<string, bool>();
         private Shader _shader = null;
 
+        // se_bundle 内のシェーダー (Assets/Shaders/<名前>.shader)
+        private const string BOARD_SHADER_NAME = "PngBoard";
+        private const string BOARD_OVERLAY_SHADER_NAME = "PngBoardOverlay";
         private const string DECAL_SHADER_NAME = "Decal";
+        private const string DECAL_OVERLAY_SHADER_NAME = "DecalOverlay";
         private const string DECAL_OBJECT_NAME = "PngDecal";
 
         /// <summary>「メイドにも投影」が OFF のとき Projector に無視させるレイヤー名</summary>
@@ -110,10 +120,13 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int SrcBlendId = Shader.PropertyToID("_SrcBlend");
         private static readonly int DstBlendId = Shader.PropertyToID("_DstBlend");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int SaturationId = Shader.PropertyToID("_Saturation");
 
-        private Shader _decalShader = null;
-        /// <summary>シェーダーのロードに失敗したか。失敗を毎回ログへ出さないよう再試行しない</summary>
-        private bool _isDecalShaderMissing = false;
+        /// <summary>
+        /// se_bundle から読んだシェーダー。読めなかった名前は null を入れ、
+        /// 失敗を毎回ログへ出さないよう再試行しない
+        /// </summary>
+        private readonly Dictionary<string, Shader> _bundleShaders = new Dictionary<string, Shader>();
         /// <summary>デカールを最後に更新したフレーム。カメラごとの onPreCull で重ねて更新しないため</summary>
         private int _decalUpdatedFrame = -1;
         private bool _isPreCullHooked = false;
@@ -121,7 +134,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// タイムラインの実体データへ保存する設定 (表示順・表示タイプ・ブレンド方式・デカール設定) の変更回数。
         /// タイムライン側は前回値と比べて保存データへ書き戻す。
-        /// 色・表示はキー側の値で再生中に毎フレーム変わりうるため数えない
+        /// 色・明るさ・彩度・表示はキー側の値で再生中に毎フレーム変わりうるため数えない
         /// </summary>
         public int entitySettingsRevision { get; private set; }
 
@@ -253,7 +266,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
 
-            var shader = GetShader();
+            var shader = GetBoardShader();
             if (shader == null)
             {
                 MTEUtils.LogWarning("シェーダーが無いため配置できません: {0}", relativePath);
@@ -288,6 +301,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 板の裏からも見えるよう両面描画にする
             material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             quad.GetComponent<MeshRenderer>().material = material;
+            material.SetFloat(SaturationId, DefaultSaturation);
 
             var data = new PngObjectData
             {
@@ -299,6 +313,7 @@ namespace COM3D2.SceneEditor.Plugin
                 renderQueue = DefaultRenderQueue,
                 aspect = aspect,
             };
+            ApplyBlendMode(data);
             _pngObjects.Add(data);
             return data;
         }
@@ -335,8 +350,18 @@ namespace COM3D2.SceneEditor.Plugin
             return false;
         }
 
-        private Shader GetShader()
+        /// <summary>
+        /// 板のシェーダー。SE/PngBoard が読めなければゲーム組込みシェーダーで描く
+        /// (このときブレンド方式と彩度は効かないが、設定値は保持して保存する)
+        /// </summary>
+        private Shader GetBoardShader()
         {
+            var shader = GetBundleShader(BOARD_SHADER_NAME);
+            if (shader != null)
+            {
+                return shader;
+            }
+
             if (_shader == null)
             {
                 _shader = Shader.Find(SHADER_NAME);
@@ -374,7 +399,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private bool CreateDecal(PngObjectData data)
         {
-            var shader = GetDecalShader();
+            var shader = GetBundleShader(DECAL_SHADER_NAME);
             if (shader == null || data.rootObject == null)
             {
                 return false;
@@ -397,7 +422,8 @@ namespace COM3D2.SceneEditor.Plugin
             data.decalMaterial = material;
 
             material.SetColor(ColorId, GetTintColor(data));
-            ApplyDecalBlendMode(data);
+            material.SetFloat(SaturationId, data.saturation);
+            ApplyBlendMode(data);
             ApplyDecalFadeAngle(data);
             ApplyDecalIgnoreLayers(data);
             UpdateDecal(data);
@@ -405,30 +431,60 @@ namespace COM3D2.SceneEditor.Plugin
             return true;
         }
 
-        private Shader GetDecalShader()
+        private Shader GetBundleShader(string shaderName)
         {
-            if (_decalShader == null && !_isDecalShaderMissing)
+            Shader shader;
+            if (!_bundleShaders.TryGetValue(shaderName, out shader))
             {
-                _decalShader = MTEP.TimelineBundleManager.instance.LoadShader(DECAL_SHADER_NAME);
-                _isDecalShaderMissing = _decalShader == null;
+                shader = MTEP.TimelineBundleManager.instance.LoadShader(shaderName);
+                _bundleShaders[shaderName] = shader;
             }
-            return _decalShader;
+            return shader;
         }
 
-        private static void ApplyDecalBlendMode(PngObjectData data)
+        /// <summary>
+        /// ブレンド方式を板とデカールのマテリアルへ適用する。
+        /// オーバーレイは GrabPass を持つ専用シェーダーへ差し替える
+        /// (GrabPass はシェーダーに書くと常に走るため、通常のシェーダーには入れていない)
+        /// </summary>
+        private void ApplyBlendMode(PngObjectData data)
         {
-            var material = data.decalMaterial;
-            if (material == null)
+            var useGrab = PngBlendModes.UsesGrab(data.blendMode);
+
+            // ゲーム組込みシェーダーで描いている板 (SE シェーダーが読めない) には適用しない
+            var boardShader = GetBundleShader(BOARD_SHADER_NAME);
+            if (data.material != null && boardShader != null)
             {
-                return;
+                var overlay = useGrab ? GetBundleShader(BOARD_OVERLAY_SHADER_NAME) : null;
+                SetBlendMaterial(data.material, overlay ?? boardShader,
+                    PngBlendModes.ResolveRenderMode(data.blendMode, overlay != null));
+                // シェーダーの差し替えで表示順がシェーダー既定へ戻らないよう、毎回設定し直す
+                data.material.renderQueue = data.renderQueue;
+            }
+
+            if (data.decalMaterial != null)
+            {
+                var decalShader = GetBundleShader(DECAL_SHADER_NAME);
+                var overlay = useGrab ? GetBundleShader(DECAL_OVERLAY_SHADER_NAME) : null;
+                SetBlendMaterial(data.decalMaterial, overlay ?? decalShader,
+                    PngBlendModes.ResolveRenderMode(data.blendMode, overlay != null));
+            }
+        }
+
+        private static void SetBlendMaterial(Material material, Shader shader, PngBlendMode mode)
+        {
+            // 同じシェーダーの再代入でもキーワード等の再構築が走るため、変わるときだけ差し替える
+            if (shader != null && material.shader != shader)
+            {
+                material.shader = shader;
             }
 
             UnityEngine.Rendering.BlendMode src;
             UnityEngine.Rendering.BlendMode dst;
-            PngBlendModes.GetBlendFactors(data.blendMode, out src, out dst);
+            PngBlendModes.GetBlendFactors(mode, out src, out dst);
             material.SetInt(SrcBlendId, (int)src);
             material.SetInt(DstBlendId, (int)dst);
-            material.SetFloat(BlendModeId, (int)data.blendMode);
+            material.SetFloat(BlendModeId, (int)mode);
         }
 
         private static void ApplyDecalFadeAngle(PngObjectData data)
@@ -640,6 +696,23 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 彩度を設定する。キーの値で再生中に毎フレーム変わりうるため改訂番号は増やさない
+        /// (色・明るさと同じ扱い)
+        /// </summary>
+        public void SetSaturation(PngObjectData data, float saturation)
+        {
+            data.saturation = Mathf.Clamp(saturation, MinSaturation, MaxSaturation);
+            if (data.material != null)
+            {
+                data.material.SetFloat(SaturationId, data.saturation);
+            }
+            if (data.decalMaterial != null)
+            {
+                data.decalMaterial.SetFloat(SaturationId, data.saturation);
+            }
+        }
+
         public void SetRenderQueue(PngObjectData data, int renderQueue)
         {
             if (data.renderQueue != renderQueue)
@@ -670,7 +743,7 @@ namespace COM3D2.SceneEditor.Plugin
                 entitySettingsRevision++;
             }
             data.blendMode = blendMode;
-            ApplyDecalBlendMode(data);
+            ApplyBlendMode(data);
         }
 
         public void SetDecalFadeAngle(PngObjectData data, float fadeAngle)
@@ -742,6 +815,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
             _textureCache.Clear();
             _alphaCache.Clear();
+            // シーン切替後にバンドルが読み直されても追従するよう、読んだシェーダーも捨てる
+            _bundleShaders.Clear();
         }
 
         public override void Update()

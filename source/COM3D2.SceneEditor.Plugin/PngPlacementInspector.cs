@@ -7,7 +7,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// Inspector に PNG 配置固有のパラメータを描く。
     /// 位置・回転・拡縮は Inspector 共通の Transform 行が担うため、その続きに足す。
-    /// 表示タイプ (板 / デカール) で固有欄を出し分ける
+    /// ブレンド方式と彩度は板・デカール共通で、表示タイプ (板 / デカール) で残りの固有欄を出し分ける
     /// </summary>
     public static class PngPlacementInspector
     {
@@ -18,25 +18,32 @@ namespace COM3D2.SceneEditor.Plugin
         private const int RENDER_QUEUE_STEP = 10;
         private const int RENDER_QUEUE_BIG_STEP = 100;
 
-        private const float DISPLAY_TYPE_COMBO_WIDTH = 100f;
-        private const float BLEND_TAB_WIDTH = 60f;
+        private const float COMBO_WIDTH = 100f;
         private const float FADE_ANGLE_STEP = 1f;
-
-        // 見出し列版の DrawTabs を選ばせるため明示する (4 引数だと enum 版の DrawTabs<T> に解決される)
-        private const float TAB_MARGIN = 0f;
+        private const float SATURATION_STEP = 0.01f;
 
         // PngDisplayType / PngBlendMode の値順に並べる
         private static readonly List<PngDisplayType> DisplayTypes =
             new List<PngDisplayType> { PngDisplayType.Board, PngDisplayType.Decal };
         private static readonly string[] DisplayTypeLabels = { "板", "デカール" };
-        private static readonly string[] BlendModeLabels = { "通常", "乗算", "加算" };
+        private static readonly List<PngBlendMode> BlendModes = new List<PngBlendMode>
+        {
+            PngBlendMode.Normal, PngBlendMode.Multiply, PngBlendMode.Additive, PngBlendMode.Overlay,
+        };
+        private static readonly string[] BlendModeLabels = { "通常", "乗算", "加算", "オーバーレイ" };
+
+        /// <summary>配置物 1 枚分のコンボ。開閉状態と選択時の対象を持つ</summary>
+        private class ComboBoxes
+        {
+            public GUIComboBox<PngDisplayType> displayType;
+            public GUIComboBox<PngBlendMode> blendMode;
+        }
 
         /// <summary>
-        /// 表示タイプのコンボ。開閉状態と選択時の対象を持つため、
-        /// 複数の PNG を並べる呼び出し側 (タイムラインの項目 Inspector) に備えて配置物ごとに持つ
+        /// 複数の PNG を並べる呼び出し側 (タイムラインの項目 Inspector) があるため配置物ごとに持つ
         /// </summary>
-        private static readonly Dictionary<PngObjectData, GUIComboBox<PngDisplayType>> DisplayTypeComboBoxes =
-            new Dictionary<PngObjectData, GUIComboBox<PngDisplayType>>();
+        private static readonly Dictionary<PngObjectData, ComboBoxes> ComboBoxesMap =
+            new Dictionary<PngObjectData, ComboBoxes>();
 
         private static PngPlacementManager pngManager => PngPlacementManager.instance;
 
@@ -55,9 +62,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            var displayTypeComboBox = GetDisplayTypeComboBox(data);
-            displayTypeComboBox.currentIndex = (int)data.displayType;
-            displayTypeComboBox.DrawButton("表示タイプ", view);
+            var comboBoxes = GetComboBoxes(data);
+            comboBoxes.displayType.currentIndex = (int)data.displayType;
+            comboBoxes.displayType.DrawButton("表示タイプ", view);
             // デカールを作れず板で見せているときは板の欄を出す
             var isDecal = data.isDecalShown;
 
@@ -108,6 +115,26 @@ namespace COM3D2.SceneEditor.Plugin
                 },
             });
 
+            comboBoxes.blendMode.currentIndex = (int)data.blendMode;
+            comboBoxes.blendMode.DrawButton("ブレンド", view);
+
+            view.DrawSliderValue(new GUIView.SliderOption
+            {
+                label = "彩度",
+                labelWidth = LABEL_WIDTH,
+                width = -1,
+                min = PngPlacementManager.MinSaturation,
+                max = PngPlacementManager.MaxSaturation,
+                step = SATURATION_STEP,
+                defaultValue = PngPlacementManager.DefaultSaturation,
+                value = data.saturation,
+                onChanged = value =>
+                {
+                    RecordPngEdit("彩度");
+                    pngManager.SetSaturation(data, value);
+                },
+            });
+
             if (isDecal)
             {
                 DrawDecalRows(view, data);
@@ -120,43 +147,67 @@ namespace COM3D2.SceneEditor.Plugin
             return true;
         }
 
-        private static GUIComboBox<PngDisplayType> GetDisplayTypeComboBox(PngObjectData data)
+        private static ComboBoxes GetComboBoxes(PngObjectData data)
         {
-            GUIComboBox<PngDisplayType> comboBox;
-            if (DisplayTypeComboBoxes.TryGetValue(data, out comboBox))
+            ComboBoxes comboBoxes;
+            if (ComboBoxesMap.TryGetValue(data, out comboBoxes))
             {
-                return comboBox;
+                return comboBoxes;
             }
 
-            PruneDisplayTypeComboBoxes();
-            comboBox = new GUIComboBox<PngDisplayType>
+            PruneComboBoxes();
+            comboBoxes = new ComboBoxes
             {
-                items = DisplayTypes,
-                getName = (type, _) => DisplayTypeLabels[(int)type],
-                labelWidth = LABEL_WIDTH,
-                buttonSize = new Vector2(DISPLAY_TYPE_COMBO_WIDTH, ROW_HEIGHT),
-                contentSize = new Vector2(
-                    DISPLAY_TYPE_COMBO_WIDTH, GUIView.GetPopupHeight(DisplayTypes.Count)),
-                onSelected = (type, _) =>
+                displayType = new GUIComboBox<PngDisplayType>
                 {
-                    // ポップアップを開いたまま配置物が消えた場合、削除済みの配置物へ書き込まない
-                    if (type == data.displayType || pngManager.FindByRoot(data.rootObject) != data)
+                    items = DisplayTypes,
+                    getName = (type, _) => DisplayTypeLabels[(int)type],
+                    labelWidth = LABEL_WIDTH,
+                    buttonSize = new Vector2(COMBO_WIDTH, ROW_HEIGHT),
+                    contentSize = new Vector2(COMBO_WIDTH, GUIView.GetPopupHeight(DisplayTypes.Count)),
+                    onSelected = (type, _) =>
                     {
-                        return;
-                    }
-                    RecordPngEdit("表示タイプ");
-                    pngManager.SetDisplayType(data, type);
+                        // ポップアップを開いたまま配置物が消えた場合、削除済みの配置物へ書き込まない
+                        if (type == data.displayType || !IsAlive(data))
+                        {
+                            return;
+                        }
+                        RecordPngEdit("表示タイプ");
+                        pngManager.SetDisplayType(data, type);
+                    },
+                },
+                blendMode = new GUIComboBox<PngBlendMode>
+                {
+                    items = BlendModes,
+                    getName = (mode, _) => BlendModeLabels[(int)mode],
+                    labelWidth = LABEL_WIDTH,
+                    buttonSize = new Vector2(COMBO_WIDTH, ROW_HEIGHT),
+                    contentSize = new Vector2(COMBO_WIDTH, GUIView.GetPopupHeight(BlendModes.Count)),
+                    onSelected = (mode, _) =>
+                    {
+                        if (mode == data.blendMode || !IsAlive(data))
+                        {
+                            return;
+                        }
+                        RecordPngEdit("ブレンド");
+                        pngManager.SetBlendMode(data, mode);
+                    },
                 },
             };
-            DisplayTypeComboBoxes.Add(data, comboBox);
-            return comboBox;
+            ComboBoxesMap.Add(data, comboBoxes);
+            return comboBoxes;
+        }
+
+        private static bool IsAlive(PngObjectData data)
+        {
+            return pngManager.FindByRoot(data.rootObject) == data;
         }
 
         /// <summary>削除済みの配置物のコンボを捨てる。新しいコンボを作るときだけ走らせる</summary>
-        private static void PruneDisplayTypeComboBoxes()
+        private static void PruneComboBoxes()
         {
             var removed = new List<PngObjectData>();
-            foreach (var data in DisplayTypeComboBoxes.Keys)
+            foreach (var data in ComboBoxesMap.Keys)
             {
                 if (data.rootObject == null)
                 {
@@ -165,7 +216,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             foreach (var data in removed)
             {
-                DisplayTypeComboBoxes.Remove(data);
+                ComboBoxesMap.Remove(data);
             }
         }
 
@@ -193,19 +244,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static void DrawDecalRows(GUIView view, PngObjectData data)
         {
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("ブレンド", LABEL_WIDTH, ROW_HEIGHT);
-                var blendIndex = view.DrawTabs(
-                    BlendModeLabels, (int)data.blendMode, BLEND_TAB_WIDTH, ROW_HEIGHT, TAB_MARGIN);
-                if (blendIndex != (int)data.blendMode)
-                {
-                    RecordPngEdit("ブレンド");
-                    pngManager.SetBlendMode(data, (PngBlendMode)blendIndex);
-                }
-            }
-            view.EndLayout();
-
             view.DrawSliderValue(new GUIView.SliderOption
             {
                 label = "フェード角",
