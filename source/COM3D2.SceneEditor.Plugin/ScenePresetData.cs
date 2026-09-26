@@ -200,6 +200,15 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public float brightness = 1f;
 
+        [XmlAttribute]
+        public float saturation = PngPlacementManager.DefaultSaturation;
+
+        // 彩度は板・デカール共通。既定値 (1) のときは書き出さず、旧プリセットと同じ内容に保つ
+        public bool ShouldSerializesaturation()
+        {
+            return !Mathf.Approximately(saturation, PngPlacementManager.DefaultSaturation);
+        }
+
         public Color color = Color.white;
 
         [XmlAttribute]
@@ -1082,9 +1091,9 @@ namespace COM3D2.SceneEditor.Plugin
         // v34: effects に liveEffect (ステージライト / レーザー / サイリウム) と、
         //      ルートに bgModels (背景モデルの表示・transform・複製) を追加。
         //      旧形式はどちらも null で読め、適用時に触らない
-        // v36: pngPlacement の png に表示タイプ (displayType)、ブレンド方式 (blendMode)、
+        // v36: pngPlacement の png に表示タイプ (displayType)、ブレンド方式 (blendMode)、彩度 (saturation)、
         //      デカール設定 (decalFadeAngle / decalProjectOnMaids) を追加。表示タイプとデカール設定は板では、
-        //      ブレンド方式は通常のときは書き出さない。旧形式は属性が無く板・通常として読める
+        //      ブレンド方式は通常、彩度は 1 のときは書き出さない。旧形式は属性が無く板・通常・彩度 1 として読める
         public static readonly int CurrentVersion = 36;
 
         [XmlAttribute]

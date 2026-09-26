@@ -12,7 +12,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// MTE_PngPlacement 版をベースに、外部 PngPlacement.dll ラッパーではなく
     /// SE ネイティブの PngPlacementManager へ接続するアダプタ版 (LightTimelineLayer と同方針)。
     /// SE に対応機能が無い値 (Inversion / StopRotation / FixCamera / Attach / APng 系等) は
-    /// XML には保持するが適用しない。billboard は per-frame 値でないため対象外
+    /// XML には保持するが適用しない。billboard は per-frame 値でないため対象外。
+    /// 彩度は SE 独自の値 (index 32)
     /// </summary>
     [TimelineLayerDesc("PNG配置", 35, TimelineLayerCategory.Background, CanRestoreOnRemove = false)]
     public class PngPlacementTimelineLayer : TimelineLayerBase
@@ -113,6 +114,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             sePngManager.SetVisible(data, start.visible);
             // MTE の brightness は 0-255 の byte、SE は 1.0 基準の倍率のため換算する
             sePngManager.SetColor(data, start.color, start.brightness / 255f);
+            sePngManager.SetSaturation(data, start.saturation);
 
             transform.localPosition = start.position;
             transform.localEulerAngles = start.eulerAngles;
@@ -156,6 +158,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var brightness = Mathf.Lerp(start.brightness, end.brightness, t);
                 sePngManager.SetColor(data, color, brightness / 255f);
             }
+
+            if (start.saturation != end.saturation)
+            {
+                // 色・明るさと同じく線形補間する
+                sePngManager.SetSaturation(data,
+                    Mathf.Lerp(start.saturation, end.saturation, t));
+            }
         }
 
         // MTE の scalex (基準スケール) × scalemag (倍率) を root のスケールに適用する。
@@ -198,6 +207,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.eulerAngles = pngObject.transform.localEulerAngles;
                 trans.color = data.color;
                 trans.brightness = (byte) Mathf.Clamp(data.brightness * 255f, 0f, 255f);
+                trans.saturation = data.saturation;
                 trans.scalex = pngObject.transform.localScale.x;
                 trans.scalemag = 1;
                 trans.scalez = pngObject.transform.localScale.z;

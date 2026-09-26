@@ -35,6 +35,7 @@ namespace COM3D2.SceneEditor.Plugin
                     scale = data.transform.localScale,
                     billboard = data.billboard,
                     brightness = data.brightness,
+                    saturation = data.saturation,
                     color = data.color,
                     renderQueue = data.renderQueue,
                     visible = data.visible,
@@ -108,6 +109,7 @@ namespace COM3D2.SceneEditor.Plugin
                 data.transform.localScale = objState.scale;
                 manager.SetBillboard(data, objState.billboard);
                 manager.SetColor(data, objState.color, objState.brightness);
+                manager.SetSaturation(data, objState.saturation);
                 manager.SetRenderQueue(data, objState.renderQueue);
                 manager.SetVisible(data, objState.visible);
                 manager.SetDisplayType(data, objState.displayType);
@@ -163,6 +165,7 @@ namespace COM3D2.SceneEditor.Plugin
                     || a.scale != b.scale
                     || a.billboard != b.billboard
                     || !Mathf.Approximately(a.brightness, b.brightness)
+                    || !Mathf.Approximately(a.saturation, b.saturation)
                     || a.color != b.color
                     || a.renderQueue != b.renderQueue
                     || a.visible != b.visible

@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-// MTE_PngPlacement からの逐語移植。namespace のみ SE の Timeline 共通名前空間へ変更
+// MTE_PngPlacement からの逐語移植。namespace を SE の Timeline 共通名前空間へ変更し、SE 独自の彩度を末尾に足している
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
+    using SE = SceneEditor.Plugin;
+
     public class TransformDataPngObject : TransformDataBase
     {
         public enum Index
@@ -39,14 +41,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             StopRotationVZ = 28,
             FixedPosX = 29,
             FixedPosY = 30,
-            FixedPosZ = 31
+            FixedPosZ = 31,
+            // 以降は SE 独自。MTE は値数 32 までしか読まない
+            Saturation = 32
         }
 
         public static TransformDataPngObject defaultTrans = new TransformDataPngObject();
 
         public override TransformType type => TransformType.PngObject;
 
-        public override int valueCount => 32;
+        /// <summary>彩度 (SE 独自) を持たない MTE・旧 SE の値数</summary>
+        public const int LegacyValueCount = 32;
+
+        public override int valueCount => (int)Index.Saturation + 1;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -319,6 +326,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     defaultValue = 0,
                 }
             },
+            {
+                "saturation", new CustomValueInfo
+                {
+                    index = (int)Index.Saturation,
+                    name = "彩度",
+                    min = SE.PngPlacementManager.MinSaturation,
+                    max = SE.PngPlacementManager.MaxSaturation,
+                    step = 0.01f,
+                    defaultValue = SE.PngPlacementManager.DefaultSaturation,
+                }
+            },
         };
 
         private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
@@ -348,6 +366,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData maidValue => values[(int)Index.Maid];
         public ValueData apngspeedValue => values[(int)Index.APngSpeed];
         public ValueData apngisfixedspeedValue => values[(int)Index.APngIsFixedSpeed];
+        public ValueData saturationValue => values[(int)Index.Saturation];
         public ValueData[] stoprotationvValues
         {
             get => new ValueData[] { 
@@ -379,6 +398,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public CustomValueInfo maidInfo => CustomValueInfoMap["maid"];
         public CustomValueInfo apngspeedInfo => CustomValueInfoMap["apngspeed"];
         public CustomValueInfo apngisfixedspeedInfo => CustomValueInfoMap["apngisfixedspeed"];
+        public CustomValueInfo saturationInfo => CustomValueInfoMap["saturation"];
 
         public bool inversion
         {
@@ -450,6 +470,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => apngisfixedspeedValue.boolValue;
             set => apngisfixedspeedValue.boolValue = value;
         }
+        public float saturation
+        {
+            get => saturationValue.value;
+            set => saturationValue.value = value;
+        }
         public Vector3 stoprotationv
         {
             get => stoprotationvValues.ToVector3();
@@ -459,6 +484,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             get => fixedposValues.ToVector3();
             set => fixedposValues.FromVector3(value);
+        }
+
+        public override void FromXml(TransformXml xml)
+        {
+            base.FromXml(xml);
+
+            // 彩度を持たない旧データ (MTE・旧 SE) は不足分が 0 で埋まり、グレースケールになる。既定値へ補正する
+            if (xml.values == null || xml.values.Length <= LegacyValueCount)
+            {
+                saturation = SE.PngPlacementManager.DefaultSaturation;
+            }
         }
     }
 }

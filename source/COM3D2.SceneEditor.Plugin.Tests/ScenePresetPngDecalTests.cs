@@ -111,5 +111,32 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.DoesNotContain("displayType", xml);
             Assert.Equal(PngBlendMode.Overlay, Assert.Single(restored.pngPlacement.objects).blendMode);
         }
+
+        [Fact]
+        public void 彩度は1以外のときだけ書き出す()
+        {
+            var plain = Serialize(new ScenePresetPngObject { source = "config", relativePath = "logo.png" });
+            var tinted = new ScenePresetPngObject { source = "config", relativePath = "logo.png", saturation = 0.5f };
+
+            var restored = Deserialize(Serialize(WithPng(tinted)));
+
+            Assert.DoesNotContain("saturation", plain);
+            Assert.Contains("saturation=\"0.5\"", Serialize(tinted));
+            Assert.Equal(0.5f, Assert.Single(restored.pngPlacement.objects).saturation);
+        }
+
+        [Fact]
+        public void 彩度の属性が無い旧データは1で読む()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<ScenePresetData><pngPlacement>" +
+                "<png source=\"config\" relativePath=\"logo.png\" />" +
+                "</pngPlacement></ScenePresetData>";
+
+            var png = Assert.Single(Deserialize(xml).pngPlacement.objects);
+
+            Assert.Equal(1f, png.saturation);
+        }
     }
 }
