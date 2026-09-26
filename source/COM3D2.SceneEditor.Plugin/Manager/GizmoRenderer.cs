@@ -75,6 +75,19 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Color BoundsColor = new Color(1f, 0.6f, 0f, 0.8f);
         private static readonly Color FrustumColor = new Color(0.4f, 0.8f, 1f, 0.9f);
 
+        private static readonly Color DecalBoxColor = new Color(0.4f, 1f, 0.6f, 0.9f);
+
+        /// <summary>投影方向の矢じりの大きさ (投影箱の幅に対する比)</summary>
+        private const float DecalArrowHeadRatio = 0.15f;
+
+        // 8 頂点 (bit0=X, bit1=Y, bit2=Z) の箱の 12 辺
+        private static readonly int[,] BoxEdges =
+        {
+            {0,1},{2,3},{4,5},{6,7},
+            {0,2},{1,3},{4,6},{5,7},
+            {0,4},{1,5},{2,6},{3,7},
+        };
+
         // メインカメラの視錐台を表示する奥行き (m)
         private const float FrustumDisplayDistance = 8f;
 
@@ -515,7 +528,17 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (target != null && showSelectionBounds)
             {
-                DrawBoundsWire(PluginUtils.CalcObjectBounds(target));
+                // デカールの root にはレンダラーが無く、位置だけの小さなバウンズになる。
+                // 投影範囲を示せないため代わりに投影箱を描く
+                var decal = FindDecal(target);
+                if (decal != null)
+                {
+                    DrawDecalBox(decal);
+                }
+                else
+                {
+                    DrawBoundsWire(PluginUtils.CalcObjectBounds(target));
+                }
             }
 
             GL.PopMatrix();
@@ -776,21 +799,48 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawBoundsWire(Bounds bounds)
         {
             PluginUtils.GetBoundsCorners(bounds, _boundsCorners);
+            DrawBoxWire(_boundsCorners, BoundsColor);
+        }
 
-            int[,] edges =
+        private static void DrawBoxWire(Vector3[] corners, Color color)
+        {
+            GL.Begin(GL.LINES);
+            GL.Color(color);
+            for (var i = 0; i < BoxEdges.GetLength(0); i++)
             {
-                {0,1},{2,3},{4,5},{6,7},
-                {0,2},{1,3},{4,6},{5,7},
-                {0,4},{1,5},{2,6},{3,7},
-            };
+                GL.Vertex(corners[BoxEdges[i, 0]]);
+                GL.Vertex(corners[BoxEdges[i, 1]]);
+            }
+            GL.End();
+        }
+
+        /// <summary>選択中がデカール表示の PNG 配置なら、その配置物。そうでなければ null</summary>
+        private static PngObjectData FindDecal(GameObject go)
+        {
+            var data = PngPlacementManager.instance.FindByRoot(go);
+            return data != null && data.displayType == PngDisplayType.Decal ? data : null;
+        }
+
+        /// <summary>投影箱と投影方向 (表の面の中心から裏の面の中心へ向かう矢印) を描く</summary>
+        private void DrawDecalBox(PngObjectData data)
+        {
+            var matrix = data.transform.localToWorldMatrix;
+            PngDecalProjection.GetBoxCorners(matrix, data.aspect, _boundsCorners);
+            DrawBoxWire(_boundsCorners, DecalBoxColor);
+
+            var front = matrix.MultiplyPoint3x4(new Vector3(0f, 0f, 0.5f));
+            var back = matrix.MultiplyPoint3x4(new Vector3(0f, 0f, -0.5f));
+            var side = matrix.MultiplyVector(Vector3.right * (data.aspect.x * DecalArrowHeadRatio));
+            var headBase = Vector3.Lerp(back, front, DecalArrowHeadRatio * 2f);
 
             GL.Begin(GL.LINES);
-            GL.Color(BoundsColor);
-            for (var i = 0; i < 12; i++)
-            {
-                GL.Vertex(_boundsCorners[edges[i, 0]]);
-                GL.Vertex(_boundsCorners[edges[i, 1]]);
-            }
+            GL.Color(DecalBoxColor);
+            GL.Vertex(front);
+            GL.Vertex(back);
+            GL.Vertex(back);
+            GL.Vertex(headBase + side);
+            GL.Vertex(back);
+            GL.Vertex(headBase - side);
             GL.End();
         }
 

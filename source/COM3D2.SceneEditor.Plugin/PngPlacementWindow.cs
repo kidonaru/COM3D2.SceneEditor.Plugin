@@ -41,6 +41,7 @@ namespace COM3D2.SceneEditor.Plugin
         // 写真フォルダ側にだけ印を付けて見分けられるようにする
         private const string PHOTO_TAG = "写真";
         private static readonly Color PHOTO_TAG_COLOR = new Color(0.2f, 0.4f, 0.8f);
+        private const string DECAL_LABEL_PREFIX = "[デカール] ";
 
         /// <summary>フォルダをたどる深さの上限。壊れた階層で暴走させないための保険</summary>
         private const int MAX_DIR_DEPTH = 16;
@@ -65,6 +66,8 @@ namespace COM3D2.SceneEditor.Plugin
         private class PlacedTileContent : TileViewContentBase
         {
             public PngObjectData data;
+            /// <summary>name に反映済みの表示タイプ。変わったときだけ表示名を作り直す</summary>
+            public PngDisplayType labeledType;
 
             public override Texture2D thum =>
                 PngPlacementManager.instance.GetTexture(data.source, data.relativePath);
@@ -334,7 +337,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     _placedRoot.AddChild(new PlacedTileContent
                     {
-                        name = data.name,
+                        name = GetPlacedLabel(data),
+                        labeledType = data.displayType,
                         data = data,
                         canDelete = true,
                     });
@@ -345,7 +349,19 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (PlacedTileContent content in children)
             {
                 content.isSelected = content.data.rootObject == selectedObject;
+                if (content.labeledType != content.data.displayType)
+                {
+                    content.labeledType = content.data.displayType;
+                    content.name = GetPlacedLabel(content.data);
+                }
             }
+        }
+
+        private static string GetPlacedLabel(PngObjectData data)
+        {
+            return data.displayType == PngDisplayType.Decal
+                ? DECAL_LABEL_PREFIX + data.name
+                : data.name;
         }
 
         private static bool IsPlacedListSynced(
