@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -17,7 +18,7 @@ namespace COM3D2.SceneEditor.Plugin
         private const int RENDER_QUEUE_STEP = 10;
         private const int RENDER_QUEUE_BIG_STEP = 100;
 
-        private const float TAB_WIDTH = 80f;
+        private const float DISPLAY_TYPE_COMBO_WIDTH = 100f;
         private const float BLEND_TAB_WIDTH = 60f;
         private const float FADE_ANGLE_STEP = 1f;
 
@@ -25,8 +26,17 @@ namespace COM3D2.SceneEditor.Plugin
         private const float TAB_MARGIN = 0f;
 
         // PngDisplayType / PngDecalBlendMode の値順に並べる
+        private static readonly List<PngDisplayType> DisplayTypes =
+            new List<PngDisplayType> { PngDisplayType.Board, PngDisplayType.Decal };
         private static readonly string[] DisplayTypeLabels = { "板", "デカール" };
         private static readonly string[] BlendModeLabels = { "通常", "乗算", "加算" };
+
+        /// <summary>
+        /// 表示タイプのコンボ。開閉状態と選択時の対象を持つため、
+        /// 複数の PNG を並べる呼び出し側 (タイムラインの項目 Inspector) に備えて配置物ごとに持つ
+        /// </summary>
+        private static readonly Dictionary<PngObjectData, GUIComboBox<PngDisplayType>> DisplayTypeComboBoxes =
+            new Dictionary<PngObjectData, GUIComboBox<PngDisplayType>>();
 
         private static PngPlacementManager pngManager => PngPlacementManager.instance;
 
@@ -45,13 +55,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            var displayIndex = view.DrawTabs(
-                DisplayTypeLabels, (int)data.displayType, TAB_WIDTH, ROW_HEIGHT, TAB_MARGIN);
-            if (displayIndex != (int)data.displayType)
-            {
-                RecordPngEdit("表示タイプ");
-                pngManager.SetDisplayType(data, (PngDisplayType)displayIndex);
-            }
+            var displayTypeComboBox = GetDisplayTypeComboBox(data);
+            displayTypeComboBox.currentIndex = (int)data.displayType;
+            displayTypeComboBox.DrawButton("表示タイプ", view);
             // デカールを作れず板で見せているときは板の欄を出す
             var isDecal = data.isDecalShown;
 
@@ -114,6 +120,55 @@ namespace COM3D2.SceneEditor.Plugin
             return true;
         }
 
+        private static GUIComboBox<PngDisplayType> GetDisplayTypeComboBox(PngObjectData data)
+        {
+            GUIComboBox<PngDisplayType> comboBox;
+            if (DisplayTypeComboBoxes.TryGetValue(data, out comboBox))
+            {
+                return comboBox;
+            }
+
+            PruneDisplayTypeComboBoxes();
+            comboBox = new GUIComboBox<PngDisplayType>
+            {
+                items = DisplayTypes,
+                getName = (type, _) => DisplayTypeLabels[(int)type],
+                labelWidth = LABEL_WIDTH,
+                buttonSize = new Vector2(DISPLAY_TYPE_COMBO_WIDTH, ROW_HEIGHT),
+                contentSize = new Vector2(
+                    DISPLAY_TYPE_COMBO_WIDTH, GUIView.GetPopupHeight(DisplayTypes.Count)),
+                onSelected = (type, _) =>
+                {
+                    // ポップアップを開いたまま配置物が消えた場合、削除済みの配置物へ書き込まない
+                    if (type == data.displayType || pngManager.FindByRoot(data.rootObject) != data)
+                    {
+                        return;
+                    }
+                    RecordPngEdit("表示タイプ");
+                    pngManager.SetDisplayType(data, type);
+                },
+            };
+            DisplayTypeComboBoxes.Add(data, comboBox);
+            return comboBox;
+        }
+
+        /// <summary>削除済みの配置物のコンボを捨てる。新しいコンボを作るときだけ走らせる</summary>
+        private static void PruneDisplayTypeComboBoxes()
+        {
+            var removed = new List<PngObjectData>();
+            foreach (var data in DisplayTypeComboBoxes.Keys)
+            {
+                if (data.rootObject == null)
+                {
+                    removed.Add(data);
+                }
+            }
+            foreach (var data in removed)
+            {
+                DisplayTypeComboBoxes.Remove(data);
+            }
+        }
+
         /// <summary>表示順は板の描画順で、デカールの描画順はシェーダー側で固定のため板専用</summary>
         private static void DrawRenderQueueRow(GUIView view, PngObjectData data)
         {
@@ -153,7 +208,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawSliderValue(new GUIView.SliderOption
             {
-                label = "角度フェード",
+                label = "フェード角",
                 labelWidth = LABEL_WIDTH,
                 width = -1,
                 min = PngDecalProjection.MinFadeAngle,
@@ -163,7 +218,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value = data.decalFadeAngle,
                 onChanged = value =>
                 {
-                    RecordPngEdit("角度フェード");
+                    RecordPngEdit("フェード角");
                     pngManager.SetDecalFadeAngle(data, value);
                 },
             });
