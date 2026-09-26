@@ -77,7 +77,9 @@
                 clip(0.5 - abs(i.boxPos));
 
                 // 投影元を向く面ほど濃く、横向きの面は消す (床から壁の側面への伸びを抑える)
-                float facing = dot(normalize(i.worldNormal), _DecalNormal.xyz);
+                // 法線を持たないメッシュは長さ 0 で normalize が NaN になるため、下限を設けて向きなし (フェードで消える) として扱う
+                float3 n = i.worldNormal * rsqrt(max(dot(i.worldNormal, i.worldNormal), 1e-8));
+                float facing = dot(n, _DecalNormal.xyz);
                 float fade = smoothstep(_FadeCosMin, _FadeCosMax, facing);
 
                 // 板の Quad は Y180 回転で +X が root の -X になるため、U を反転して板と向きを揃える

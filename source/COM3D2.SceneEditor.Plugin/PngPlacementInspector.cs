@@ -52,7 +52,8 @@ namespace COM3D2.SceneEditor.Plugin
                 RecordPngEdit("表示タイプ");
                 pngManager.SetDisplayType(data, (PngDisplayType)displayIndex);
             }
-            var isDecal = data.displayType == PngDisplayType.Decal;
+            // デカールを作れず板で見せているときは板の欄を出す
+            var isDecal = data.isDecalShown;
 
             view.BeginHorizontal();
             {

@@ -122,6 +122,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>0 度では smoothstep の両端が一致するため下限を設ける</summary>
         public static float ClampFadeAngle(float fadeAngle)
         {
+            // 手編集の XML 等で数値でない値が来ると Clamp を素通りしてデカールが消えるため既定へ戻す
+            if (float.IsNaN(fadeAngle) || float.IsInfinity(fadeAngle))
+            {
+                return DefaultFadeAngle;
+            }
             return Mathf.Clamp(fadeAngle, MinFadeAngle, MaxFadeAngle);
         }
 

@@ -820,7 +820,7 @@ namespace COM3D2.SceneEditor.Plugin
         private static PngObjectData FindDecal(GameObject go)
         {
             var data = PngPlacementManager.instance.FindByRoot(go);
-            return data != null && data.displayType == PngDisplayType.Decal ? data : null;
+            return data != null && data.isDecalShown ? data : null;
         }
 
         /// <summary>投影箱と投影方向 (表の面の中心から裏の面の中心へ向かう矢印) を描く</summary>

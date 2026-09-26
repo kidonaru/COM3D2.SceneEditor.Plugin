@@ -172,5 +172,12 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var range = PngDecalProjection.GetFadeCosRange(0f);
             Assert.True(range.x < range.y);
         }
+
+        [Fact]
+        public void 数値でないフェード角は既定値にする()
+        {
+            AssertNear(PngDecalProjection.DefaultFadeAngle, PngDecalProjection.ClampFadeAngle(float.NaN));
+            AssertNear(PngDecalProjection.DefaultFadeAngle, PngDecalProjection.ClampFadeAngle(float.PositiveInfinity));
+        }
     }
 }

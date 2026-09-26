@@ -63,6 +63,12 @@ namespace COM3D2.SceneEditor.Plugin
         public Projector projector;
         public Material decalMaterial;
 
+        /// <summary>
+        /// 実際にデカールで表示しているか。シェーダーが無くデカールを作れないときは
+        /// 表示タイプがデカールでも板で見せるため、見た目に合わせた分岐はこちらを使う
+        /// </summary>
+        public bool isDecalShown => decalObject != null && decalObject.activeSelf;
+
         public string name => rootObject != null ? rootObject.name : "";
         public Transform transform => rootObject != null ? rootObject.transform : null;
     }
@@ -116,6 +122,10 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
         private Shader _decalShader = null;
+        /// <summary>シェーダーのロードに失敗したか。失敗を毎回ログへ出さないよう再試行しない</summary>
+        private bool _isDecalShaderMissing = false;
+        /// <summary>デカールを最後に更新したフレーム。カメラごとの onPreCull で重ねて更新しないため</summary>
+        private int _decalUpdatedFrame = -1;
         private bool _isPreCullHooked = false;
 
         /// <summary>
@@ -407,9 +417,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         private Shader GetDecalShader()
         {
-            if (_decalShader == null)
+            if (_decalShader == null && !_isDecalShaderMissing)
             {
                 _decalShader = MTEP.TimelineBundleManager.instance.LoadShader(DECAL_SHADER_NAME);
+                _isDecalShaderMissing = _decalShader == null;
             }
             return _decalShader;
         }
@@ -535,11 +546,18 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void OnPreCullDecals(Camera camera)
         {
+            // Transform は同じフレーム内で変わらないため、2 台目以降のカメラでは更新しない
+            if (_decalUpdatedFrame == Time.frameCount)
+            {
+                return;
+            }
+            _decalUpdatedFrame = Time.frameCount;
+
             foreach (var data in _pngObjects)
             {
-                if (data.displayType != PngDisplayType.Decal
-                    || data.decalObject == null
-                    || data.rootObject == null)
+                if (!data.isDecalShown
+                    || data.rootObject == null
+                    || !data.rootObject.activeInHierarchy)
                 {
                     continue;
                 }
@@ -752,8 +770,17 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override void Update()
         {
-            // 外部要因 (シーン側の破棄等) で消えた配置物をリストへ残さない
-            _pngObjects.RemoveAll(data => data.rootObject == null);
+            // 外部要因 (シーン側の破棄等) で消えた配置物をリストへ残さない。
+            // root と一緒に消えないマテリアルはここで破棄する
+            _pngObjects.RemoveAll(data =>
+            {
+                if (data.rootObject != null)
+                {
+                    return false;
+                }
+                DestroyResources(data);
+                return true;
+            });
         }
 
         public override void LateUpdate()
@@ -768,7 +795,7 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var data in _pngObjects)
             {
                 if (!data.billboard
-                    || data.displayType != PngDisplayType.Board
+                    || data.isDecalShown
                     || data.rootObject == null)
                 {
                     continue;

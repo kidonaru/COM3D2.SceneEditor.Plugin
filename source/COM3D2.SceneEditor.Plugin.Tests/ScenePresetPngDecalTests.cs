@@ -10,9 +10,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     /// </summary>
     public class ScenePresetPngDecalTests
     {
-        private static string Serialize(ScenePresetData data)
+        private static string Serialize<T>(T data)
         {
-            var serializer = new XmlSerializer(typeof(ScenePresetData));
+            var serializer = new XmlSerializer(typeof(T));
             using (var writer = new StringWriter())
             {
                 serializer.Serialize(writer, data);
@@ -70,13 +70,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 decalProjectOnMaids = true,
             };
 
-            string xml;
-            var serializer = new XmlSerializer(typeof(ScenePresetPngObject));
-            using (var writer = new StringWriter())
-            {
-                serializer.Serialize(writer, png);
-                xml = writer.ToString();
-            }
+            var xml = Serialize(png);
 
             Assert.DoesNotContain("displayType", xml);
             Assert.DoesNotContain("decal", xml);
