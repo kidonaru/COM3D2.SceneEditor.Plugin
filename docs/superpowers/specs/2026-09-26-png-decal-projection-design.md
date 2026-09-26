@@ -35,17 +35,18 @@
 - こうすると投影方向は root の -Z（板の表側から裏側へ）になる。板を正面から見たときと同じ向き（左右反転なし）で、板の奥の面に絵柄が映る
 
 **投影箱**
-- 投影箱の中心は root の位置に置く
-  - 幅 = 画像アスペクトの X × |root.lossyScale.x|
-  - 高さ = 画像アスペクトの Y × |root.lossyScale.y|
-  - 奥行き = |root.lossyScale.z|
-- 画像アスペクトは既存の `ApplyAspectScale` と同じ規則（長辺を 1、短辺を比率）で求める
-- `Projector` は `orthographic=true` で使い、次のように設定する
-  - `orthographicSize = 高さ / 2`
-  - `aspectRatio = 幅 / 高さ`
-  - 奥行き方向は、箱の表側の面から裏側の面までを覆うように near / far と `PngDecal` の localPosition を決める
-- これらは root の scale が変わるたびに更新する（ギズモ操作・タイムライン再生・Undo が経路）。`LateUpdate` で前回値と比べて更新する
-- **確認事項**: `Projector` の投影範囲に Transform の scale が効くかどうかは、計画の最初のタスクで実機（devbridge）で確認する。どちらの結果でも、上の「投影箱＝ワールド上の箱」という要件を満たすように補正する
+- 投影箱は root のローカル座標で「X が ±画像アスペクトの X/2、Y が ±画像アスペクトの Y/2、Z が ±0.5」の箱とする。root の拡縮と回転がそのまま箱に効く
+  - 画像アスペクトは既存の `ApplyAspectScale` と同じ規則（長辺を 1、短辺を比率）で求める
+  - ワールドでの寸法は、幅 = アスペクトの X × |scale.x|、高さ = アスペクトの Y × |scale.y|、奥行き = |scale.z|
+- **どこに描くかは、C# で計算した行列をシェーダーに渡して決める**。`Projector` 組込みの `_Projector` / `unity_Projector` 行列は使わない
+  - Unity 5.6 でビルドしたシェーダーを Unity 2022 のゲーム（COM3D2.5）で使うので、エンジン側の組込み行列の名前の違いに影響されないようにするため
+  - `Projector` は「どの物体に描くか」を選ぶカリングだけに使う
+- `Projector` は `orthographic=true` とし、箱を少し余裕をもって覆うように設定する
+  - 子の `PngDecal` の localScale を root の scale の逆数にして、ワールドでの拡縮を 1 に打ち消す。これで Projector の値はワールド単位で与えられ、Projector 自体が scale を扱うかどうかに左右されない
+  - `orthographicSize = 高さ / 2`、`aspectRatio = 幅 / 高さ`
+  - `PngDecal` は箱の表側の面より少し手前に置き、near / far で箱の奥行きを覆う
+- 更新は `Camera.onPreCull` で行う。カリングより前で、ギズモ操作・タイムライン再生・Undo によるそのフレームの Transform 変更が済んだ後なので、投影が 1 フレーム遅れない
+- 計算は純粋な静的関数（`PngDecalProjection`）にまとめ、単体テストで検証する
 
 **投影対象**
 - `projectOnMaids=false` のとき、`ignoreLayers` に `Charactor` / `Face` / `Man` の各レイヤーを含める
@@ -53,21 +54,30 @@
 
 ### シェーダー
 
-`UnityProject/Assets/Shaders/Decal.shader` と `Decal.mat` を新しく作り、`se_bundle` に含める。ビルドは `build-bundle.bat`（Unity 5.6）で行う。実行時は `TimelineBundleManager.instance.LoadMaterial("Decal")` で読み込み、デカールごとにマテリアルを複製する。
+`UnityProject/Assets/Shaders/Decal.shader`（シェーダー名 `SE/Decal`）を新しく作る。`Assets/Shaders` フォルダーはフォルダーごと `se_bundle` に割り当てられているので、置くだけでバンドルに入る。ビルドは Unity 5.6 で行う。
 
-- **UV**: `_Projector` 行列でテクスチャ座標を求める。UV が 0..1 の外は描かない
-- **奥行き**: `_ProjectorClip` で奥行き方向の 0..1 を求め、範囲外は描かない（箱の外への突き抜けを防ぐ）
+`.mat` は Unity 5.6 のバイナリ形式で手書きできない。そのためマテリアルは作らず、`TimelineBundleManager` に `LoadShader(name)` を追加してシェーダーを直接ロードし、デカールごとに `new Material(shader)` する。
+
+- **投影箱の座標**
+  - C# から `_DecalMatrix`（ワールド → 投影箱の座標。各軸が -0.5〜0.5）を渡す
+  - 箱の外（いずれかの軸で絶対値が 0.5 を超える所）は描かない。奥行き方向の突き抜けもこれで防ぐ
+- **UV**: `u = 0.5 - x`、`v = y + 0.5`
+  - 板の Quad は Y180 回転していて、Quad の +X が root の -X に当たる。そのため U を反転すると、板と同じ向きになる
 - **角度フェード**
-  - θ = 面のワールド法線と「投影方向の逆向き」がなす角
+  - θ = 面のワールド法線と、投影元の向き（root の +Z。板の表側）がなす角
   - θ ≥ `fadeAngle` のとき不透明度 0、θ ≤ `fadeAngle × 2/3` のとき 1。その間は smoothstep で補間する
-  - 投影方向（ワールド空間）は C# から `_DecalDir` として毎回渡す
+  - C# から次の値を渡す
+    - `_DecalNormal`: 投影元の向き（ワールド）
+    - `_FadeCosMin`: cos(`fadeAngle`)
+    - `_FadeCosMax`: cos(`fadeAngle × 2/3`)
+  - `fadeAngle` は 1〜90 度に丸める。0 度だと smoothstep の両端が一致してしまうため
   - 目的は、床のデカールが壁の側面へ伸びて映るのを抑えること
 - **ブレンド**（`blendMode`）
   - C# から `_SrcBlend` / `_DstBlend` / `_BlendMode` を設定する
   - 通常: `SrcAlpha, OneMinusSrcAlpha`
   - 乗算: `DstColor, Zero`。出力は `lerp(1, 色, α)`
   - 加算: `SrcAlpha, One`
-- **描画状態**: `ZWrite Off`、`Offset -1, -1`、Queue = 2500（不透明物の後、半透明物の前）
+- **描画状態**: `ZWrite Off`、`Offset -1, -1`、`Cull Back`、Queue = `Transparent-500`（= 2500。不透明物の後、半透明物の前）
 - **色**: `_Color = color × brightness`。α は不透明度として働く
 
 ## データモデル
@@ -86,10 +96,15 @@
 ### PngPlacementManager の変更
 
 - セッターを追加する: `SetDisplayType` / `SetDecalBlendMode` / `SetDecalFadeAngle` / `SetDecalProjectOnMaids`
-- 既存と新規のすべての設定セッターが、変更後に `onObjectSettingsChanged(PngObjectData)` を発火する。対象の既存セッターは `SetBillboard` / `SetColor` / `SetRenderQueue` / `SetVisible`
+- タイムラインの実体データに保存する設定のセッター（`SetRenderQueue` と新しい 4 つ）は、値が実際に変わったときだけ `entitySettingsRevision`（int）を 1 増やす
+  - タイムライン側は毎フレームこの値と前回値を比べ、変わっていれば保存データへ書き戻す
+  - イベントの購読・解除を管理しなくて済むので、カウンター方式にする
+  - 色と表示はキー側の値で、タイムライン再生中は毎フレーム変わりうる。そのため、これらのセッターではカウンターを増やさない
 - `LateUpdate` のビルボード処理は、`displayType == Board` のときだけ行う
-- `LateUpdate` でデカールの投影箱を更新する（前回の scale と比べる）
-- `ReleaseAll` では、デカールのマテリアルも破棄する
+- デカールの投影箱と行列は `Camera.onPreCull` で更新する
+  - 購読は最初のデカールを生成したときに始める
+  - `ReleaseAll` で購読を外す
+- `RemovePng` / `ClearAll` では、デカールのマテリアルも破棄する
 - 投影箱のパラメータ計算は、Unity のネイティブ呼び出しを含まない純粋な静的関数（`PngDecalProjection`）に切り出し、テストで検証できるようにする
 
 ## UI
@@ -104,7 +119,7 @@
 - **GizmoRenderer**
   - 選択中の対象が PNG のデカールなら、投影箱の 12 辺と投影方向の矢印を GL の線で描く
   - 描画は既存の選択バウンディングと同じブロックに置く
-  - デカールの root にはレンダラーが無いので、バウンディングは描かない
+  - デカールの root にはレンダラーが無いため、バウンディングは位置だけの小さな箱になり、投影範囲を示せない。そこで、バウンディングの代わりに投影箱を描く
 - **変更しない箇所**: 選択の root への丸め、タイムラインレイヤーの自動切り替え、メニュー。PNG の既存経路がそのまま働く
 
 ## 保存
@@ -116,6 +131,7 @@
 ### シーンプリセット（ScenePresetPngObject）
 
 - `[XmlAttribute]` として `displayType` / `decalBlendMode` / `decalFadeAngle` / `decalProjectOnMaids` を追加する。既定値はデータモデルと同じ
+- 板のときは、4 属性とも `ShouldSerialize*` で書き出さない。これで、板の XML は従来と同じ内容になる
 - `ScenePresetData.CurrentVersion` を 35 から 36 に上げ、履歴コメントに追記する
 - 属性の無い旧データは、既定値（板）として読む
 
@@ -123,6 +139,8 @@
 
 - XML 要素を追加する: `DisplayType`（int）/ `DecalBlendMode`（int）/ `DecalFadeAngle`（float、既定 80）/ `DecalProjectOnMaids`（bool）
 - 既定値はフィールド初期化子で与え、要素の無い XML でも既定値になるようにする
+- 板のときは、4 要素とも `ShouldSerialize*` で書き出さない。MTE 由来や板だけの XML は、保存しても従来と同じ内容になる
+- 範囲外の整数値は既定値（板・通常）として扱う
 - `FromXml` / `ToXml` に対応を追加する
 - `TimelineData.CurrentVersion` は上げない（新しい要素の追加だけで済み、データ移行が要らないため。これまでの前例と同じ）
 - キー（`TransformDataPngObject` の 32 値）は変更しない。`PngPlacementTimelineLayer` の既存の適用（位置・回転・ScaleX × ScaleMag・ScaleZ・色・明度・表示）が root の Transform と色に効き、そこから投影箱が決まる
@@ -131,8 +149,17 @@
 
 現状は、実体の設定（`renderQueue`）がタイムライン XML と正しく往復していない。次の 2 点を直す。
 
-1. **書き戻し**: `onObjectSettingsChanged` を購読し、発火したら `UpdateTimelineData()` を呼ぶ。これで Inspector・Undo・プリセット適用での変更が保存データに反映される。`UpdateTimelineData` は、デカールの 4 値と `renderQueue` を実体から書き出す
-2. **読込時の適用**: `Setup` の中で、XML の各実体データを対応する SE 実体に適用する。対象は新しく生成した実体と、名前が一致した既存の実体の両方で、適用するのは `renderQueue` とデカールの 4 値。`renderQueue` を適用するようになるのは挙動の変更だが、保存した値を読込時に戻すという本来の挙動に揃えるための修正とする
+1. **書き戻し**
+   - `LateUpdate` で `PngPlacementManager.entitySettingsRevision` の変化を検知したら、`UpdateTimelineData()` を呼ぶ
+   - これで Inspector・Undo・プリセット適用での変更が保存データに反映される
+   - `UpdateTimelineData` は、デカールの 4 値と `renderQueue` を実体から書き出す
+2. **読込時の適用**
+   - `Setup` の最後に、XML の各実体データを対応する SE 実体に適用する。対象は、新しく生成した実体と、名前が一致した既存の実体の両方
+   - 適用するのは `renderQueue` とデカールの 4 値
+   - 読込時は XML を正とする。板では要素を書き出さないので、要素が無い XML（MTE 産や旧 SE を含む）を読み込むと、実体は板に戻る
+   - `renderQueue` が 0 以下（要素が無い XML）のときは適用しない
+   - `Setup` は引数に `timeline.pngObjects` そのものを受け取る。一方、途中の `RebuildIfChanged` → `UpdateTimelineData` は同じリストを消して書き直す。そのため、`Setup` の冒頭でリストを複製し、適用には複製を使う
+   - `renderQueue` を適用するようになるのは挙動の変更だが、保存した値を読込時に戻すという本来の挙動に揃えるための修正とする
 
 ### MTE との互換
 
