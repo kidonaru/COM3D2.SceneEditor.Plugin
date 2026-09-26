@@ -1,11 +1,29 @@
 using System.Collections.Generic;
 using System.IO;
 using COM3D2.MotionTimelineEditor;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace COM3D2.SceneEditor.Plugin
 {
+    /// <summary>PNG 配置の表示タイプ。値はシーンプリセットとタイムライン XML に保存される</summary>
+    public enum PngDisplayType
+    {
+        /// <summary>板 (Quad) として置く</summary>
+        Board = 0,
+        /// <summary>板の奥の面へ画像を投影する</summary>
+        Decal = 1,
+    }
+
+    /// <summary>デカールのブレンド方式。値はシーンプリセットとタイムライン XML に保存される</summary>
+    public enum PngDecalBlendMode
+    {
+        Normal = 0,
+        Multiply = 1,
+        Additive = 2,
+    }
+
     /// <summary>
     /// PNG 配置 1 枚分。root（ユーザー操作用 Transform）の子に
     /// アスペクト補正済みの Quad をぶら下げる 2 階層構成
@@ -29,6 +47,19 @@ namespace COM3D2.SceneEditor.Plugin
         public int renderQueue;
         public bool visible = true;
 
+        /// <summary>画像の縦横 (長辺 1)。板の Quad とデカールの投影箱の大きさに使う</summary>
+        public Vector2 aspect = Vector2.one;
+
+        public PngDisplayType displayType = PngDisplayType.Board;
+        public PngDecalBlendMode decalBlendMode = PngDecalBlendMode.Normal;
+        public float decalFadeAngle = PngDecalProjection.DefaultFadeAngle;
+        public bool decalProjectOnMaids;
+
+        /// <summary>デカール投影の子 (PngDecal)。初めてデカールにしたときに生成する</summary>
+        public GameObject decalObject;
+        public Projector projector;
+        public Material decalMaterial;
+
         public string name => rootObject != null ? rootObject.name : "";
         public Transform transform => rootObject != null ? rootObject.transform : null;
     }
@@ -37,7 +68,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// PNG 配置オブジェクトの実体を管理するマネージャー。
     /// 背景配下には置かず専用ルート配下に生成する (背景切替で消えるのを避けるため)。
     /// 描画はマイオブジェクトと同じ Unlit シェーダーを使い、
-    /// 透過画像は ZWrite を切って描画順の破綻を抑える
+    /// 透過画像は ZWrite を切って描画順の破綻を抑える。
+    /// デカール表示では子の Projector が板の奥の面へ画像を投影する
     /// </summary>
     public class PngPlacementManager : ManagerBase
     {
@@ -64,6 +96,31 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>透過判定の結果。全ピクセル走査を画像ごとに 1 度で済ませる</summary>
         private readonly Dictionary<string, bool> _alphaCache = new Dictionary<string, bool>();
         private Shader _shader = null;
+
+        private const string DECAL_SHADER_NAME = "Decal";
+        private const string DECAL_OBJECT_NAME = "PngDecal";
+
+        /// <summary>「メイドにも投影」が OFF のとき Projector に無視させるレイヤー名</summary>
+        private static readonly string[] MaidLayerNames = { "Charactor", "Face", "Man" };
+
+        private static readonly int DecalMatrixId = Shader.PropertyToID("_DecalMatrix");
+        private static readonly int DecalNormalId = Shader.PropertyToID("_DecalNormal");
+        private static readonly int FadeCosMinId = Shader.PropertyToID("_FadeCosMin");
+        private static readonly int FadeCosMaxId = Shader.PropertyToID("_FadeCosMax");
+        private static readonly int BlendModeId = Shader.PropertyToID("_BlendMode");
+        private static readonly int SrcBlendId = Shader.PropertyToID("_SrcBlend");
+        private static readonly int DstBlendId = Shader.PropertyToID("_DstBlend");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+        private Shader _decalShader = null;
+        private bool _isPreCullHooked = false;
+
+        /// <summary>
+        /// タイムラインの実体データへ保存する設定 (表示順・表示タイプ・デカール設定) の変更回数。
+        /// タイムライン側は前回値と比べて保存データへ書き戻す。
+        /// 色・表示はキー側の値で再生中に毎フレーム変わりうるため数えない
+        /// </summary>
+        public int entitySettingsRevision { get; private set; }
 
         /// <summary>次に生成する表示名の番号。削除しても戻さず名前の重複を避ける</summary>
         private int _nextNumber = 1;
@@ -216,7 +273,8 @@ namespace COM3D2.SceneEditor.Plugin
             // Quad の表面は -Z 向きだが、ビルボードの LookAt は +Z を対象へ向ける。
             // 180 度回して表面を root の +Z 側（＝カメラ側）に合わせる
             quad.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            ApplyAspectScale(quad.transform, texture);
+            var aspect = PngDecalProjection.GetAspect(texture.width, texture.height);
+            quad.transform.localScale = new Vector3(aspect.x, aspect.y, 1f);
 
             var material = new Material(shader);
             material.mainTexture = texture;
@@ -236,23 +294,10 @@ namespace COM3D2.SceneEditor.Plugin
                 source = source,
                 relativePath = relativePath,
                 renderQueue = DefaultRenderQueue,
+                aspect = aspect,
             };
             _pngObjects.Add(data);
             return data;
-        }
-
-        /// <summary>
-        /// 長辺を 1m に揃えて短辺をアスペクト比で縮める。
-        /// ユーザースケールは親 (root) 側なのでここへは触らせない
-        /// </summary>
-        private static void ApplyAspectScale(Transform quad, Texture2D texture)
-        {
-            float w = texture.width;
-            float h = texture.height;
-            var ratio = Mathf.Min(w, h) / Mathf.Max(w, h);
-            quad.localScale = w >= h
-                ? new Vector3(1f, ratio, 1f)
-                : new Vector3(ratio, 1f, 1f);
         }
 
         /// <summary>
@@ -303,6 +348,196 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 表示タイプに合わせて板とデカールの一方だけを有効にする。
+        /// デカールを作れない (シェーダーが無い等) ときは設定値を残したまま板で見せる
+        /// </summary>
+        private void ApplyDisplayType(PngObjectData data)
+        {
+            var isDecal = data.displayType == PngDisplayType.Decal;
+            if (isDecal && data.decalObject == null && !CreateDecal(data))
+            {
+                isDecal = false;
+            }
+
+            if (data.quadObject != null)
+            {
+                data.quadObject.SetActive(!isDecal);
+            }
+            if (data.decalObject != null)
+            {
+                data.decalObject.SetActive(isDecal);
+            }
+        }
+
+        private bool CreateDecal(PngObjectData data)
+        {
+            var shader = GetDecalShader();
+            if (shader == null || data.rootObject == null)
+            {
+                return false;
+            }
+
+            var go = new GameObject(DECAL_OBJECT_NAME);
+            go.transform.SetParent(data.rootObject.transform, false);
+            // 板の Quad と同じく 180 度回し、投影方向を root の -Z (板の表から裏) へ向ける
+            go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+            var material = new Material(shader);
+            material.mainTexture = data.material != null ? data.material.mainTexture : null;
+
+            var projector = go.AddComponent<Projector>();
+            projector.orthographic = true;
+            projector.material = material;
+
+            data.decalObject = go;
+            data.projector = projector;
+            data.decalMaterial = material;
+
+            material.SetColor(ColorId, GetTintColor(data));
+            ApplyDecalBlendMode(data);
+            ApplyDecalFadeAngle(data);
+            ApplyDecalIgnoreLayers(data);
+            UpdateDecal(data);
+            HookPreCull();
+            return true;
+        }
+
+        private Shader GetDecalShader()
+        {
+            if (_decalShader == null)
+            {
+                _decalShader = MTEP.TimelineBundleManager.instance.LoadShader(DECAL_SHADER_NAME);
+            }
+            return _decalShader;
+        }
+
+        private static void ApplyDecalBlendMode(PngObjectData data)
+        {
+            var material = data.decalMaterial;
+            if (material == null)
+            {
+                return;
+            }
+
+            UnityEngine.Rendering.BlendMode src;
+            UnityEngine.Rendering.BlendMode dst;
+            switch (data.decalBlendMode)
+            {
+                case PngDecalBlendMode.Multiply:
+                    src = UnityEngine.Rendering.BlendMode.DstColor;
+                    dst = UnityEngine.Rendering.BlendMode.Zero;
+                    break;
+                case PngDecalBlendMode.Additive:
+                    src = UnityEngine.Rendering.BlendMode.SrcAlpha;
+                    dst = UnityEngine.Rendering.BlendMode.One;
+                    break;
+                default:
+                    src = UnityEngine.Rendering.BlendMode.SrcAlpha;
+                    dst = UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha;
+                    break;
+            }
+            material.SetInt(SrcBlendId, (int)src);
+            material.SetInt(DstBlendId, (int)dst);
+            material.SetFloat(BlendModeId, (int)data.decalBlendMode);
+        }
+
+        private static void ApplyDecalFadeAngle(PngObjectData data)
+        {
+            if (data.decalMaterial == null)
+            {
+                return;
+            }
+            var range = PngDecalProjection.GetFadeCosRange(data.decalFadeAngle);
+            data.decalMaterial.SetFloat(FadeCosMinId, range.x);
+            data.decalMaterial.SetFloat(FadeCosMaxId, range.y);
+        }
+
+        private static void ApplyDecalIgnoreLayers(PngObjectData data)
+        {
+            if (data.projector == null)
+            {
+                return;
+            }
+            data.projector.ignoreLayers = data.decalProjectOnMaids ? 0 : GetMaidLayerMask();
+        }
+
+        private static int GetMaidLayerMask()
+        {
+            var mask = 0;
+            foreach (var name in MaidLayerNames)
+            {
+                var layer = LayerMask.NameToLayer(name);
+                if (layer >= 0)
+                {
+                    mask |= 1 << layer;
+                }
+            }
+            return mask;
+        }
+
+        /// <summary>
+        /// 投影箱を root の Transform へ合わせる。
+        /// 専用ルート (SceneEditorPngRoot) は拡縮しないため root の localScale をワールドの拡縮として扱う
+        /// </summary>
+        private static void UpdateDecal(PngObjectData data)
+        {
+            var root = data.rootObject.transform;
+            var frame = PngDecalProjection.ComputeFrame(data.aspect, root.localScale);
+
+            var decalTransform = data.decalObject.transform;
+            decalTransform.localPosition = frame.localPosition;
+            decalTransform.localScale = frame.localScale;
+
+            var projector = data.projector;
+            projector.orthographicSize = frame.orthographicSize;
+            projector.aspectRatio = frame.aspectRatio;
+            projector.nearClipPlane = frame.nearClipPlane;
+            projector.farClipPlane = frame.farClipPlane;
+
+            data.decalMaterial.SetMatrix(DecalMatrixId,
+                PngDecalProjection.ComputeDecalMatrix(root.worldToLocalMatrix, data.aspect));
+            data.decalMaterial.SetVector(DecalNormalId, root.forward);
+        }
+
+        private void HookPreCull()
+        {
+            if (_isPreCullHooked)
+            {
+                return;
+            }
+            Camera.onPreCull += OnPreCullDecals;
+            _isPreCullHooked = true;
+        }
+
+        private void UnhookPreCull()
+        {
+            if (!_isPreCullHooked)
+            {
+                return;
+            }
+            Camera.onPreCull -= OnPreCullDecals;
+            _isPreCullHooked = false;
+        }
+
+        /// <summary>
+        /// デカールを Transform へ追従させる。ギズモ・タイムライン再生・Undo によるそのフレームの変更が
+        /// 済んだ後、カメラのカリングより前に呼ばれるため投影が 1 フレーム遅れない
+        /// </summary>
+        private void OnPreCullDecals(Camera camera)
+        {
+            foreach (var data in _pngObjects)
+            {
+                if (data.displayType != PngDisplayType.Decal
+                    || data.decalObject == null
+                    || data.rootObject == null)
+                {
+                    continue;
+                }
+                UpdateDecal(data);
+            }
+        }
+
+        /// <summary>
         /// 配置物を 1 枚破棄する。破棄済みの root を持つ要素も一覧からは必ず外す
         /// (外し損ねるとプリセット適用の削除ループが進まなくなる)
         /// </summary>
@@ -318,6 +553,10 @@ namespace COM3D2.SceneEditor.Plugin
             if (data.material != null)
             {
                 Object.Destroy(data.material);
+            }
+            if (data.decalMaterial != null)
+            {
+                Object.Destroy(data.decalMaterial);
             }
             if (data.rootObject != null)
             {
@@ -381,21 +620,77 @@ namespace COM3D2.SceneEditor.Plugin
         {
             data.color = color;
             data.brightness = brightness;
+            var tint = GetTintColor(data);
             if (data.material != null)
             {
-                var c = new Color(
-                    color.r * brightness, color.g * brightness, color.b * brightness, color.a);
-                data.material.SetColor("_Color", c);
+                data.material.SetColor(ColorId, tint);
+            }
+            if (data.decalMaterial != null)
+            {
+                data.decalMaterial.SetColor(ColorId, tint);
             }
         }
 
         public void SetRenderQueue(PngObjectData data, int renderQueue)
         {
+            if (data.renderQueue != renderQueue)
+            {
+                entitySettingsRevision++;
+            }
             data.renderQueue = renderQueue;
             if (data.material != null)
             {
                 data.material.renderQueue = renderQueue;
             }
+        }
+
+        public void SetDisplayType(PngObjectData data, PngDisplayType displayType)
+        {
+            if (data.displayType != displayType)
+            {
+                entitySettingsRevision++;
+            }
+            data.displayType = displayType;
+            ApplyDisplayType(data);
+        }
+
+        public void SetDecalBlendMode(PngObjectData data, PngDecalBlendMode blendMode)
+        {
+            if (data.decalBlendMode != blendMode)
+            {
+                entitySettingsRevision++;
+            }
+            data.decalBlendMode = blendMode;
+            ApplyDecalBlendMode(data);
+        }
+
+        public void SetDecalFadeAngle(PngObjectData data, float fadeAngle)
+        {
+            var clamped = PngDecalProjection.ClampFadeAngle(fadeAngle);
+            if (!Mathf.Approximately(data.decalFadeAngle, clamped))
+            {
+                entitySettingsRevision++;
+            }
+            data.decalFadeAngle = clamped;
+            ApplyDecalFadeAngle(data);
+        }
+
+        public void SetDecalProjectOnMaids(PngObjectData data, bool projectOnMaids)
+        {
+            if (data.decalProjectOnMaids != projectOnMaids)
+            {
+                entitySettingsRevision++;
+            }
+            data.decalProjectOnMaids = projectOnMaids;
+            ApplyDecalIgnoreLayers(data);
+        }
+
+        /// <summary>色 × 明るさ。α は明るさの影響を受けない不透明度</summary>
+        private static Color GetTintColor(PngObjectData data)
+        {
+            var c = data.color;
+            var b = data.brightness;
+            return new Color(c.r * b, c.g * b, c.b * b, c.a);
         }
 
         public void SetVisible(PngObjectData data, bool visible)
@@ -415,6 +710,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     Object.Destroy(data.material);
                 }
+                if (data.decalMaterial != null)
+                {
+                    Object.Destroy(data.decalMaterial);
+                }
                 if (data.rootObject != null)
                 {
                     Object.Destroy(data.rootObject);
@@ -428,6 +727,7 @@ namespace COM3D2.SceneEditor.Plugin
         private void ReleaseAll()
         {
             ClearAll();
+            UnhookPreCull();
 
             if (_root != null)
             {
@@ -463,7 +763,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var data in _pngObjects)
             {
-                if (!data.billboard || data.rootObject == null)
+                if (!data.billboard
+                    || data.displayType != PngDisplayType.Board
+                    || data.rootObject == null)
                 {
                     continue;
                 }
