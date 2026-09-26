@@ -38,6 +38,10 @@ namespace COM3D2.SceneEditor.Plugin
                     color = data.color,
                     renderQueue = data.renderQueue,
                     visible = data.visible,
+                    displayType = data.displayType,
+                    decalBlendMode = data.decalBlendMode,
+                    decalFadeAngle = data.decalFadeAngle,
+                    decalProjectOnMaids = data.decalProjectOnMaids,
                 });
             }
             return state;
@@ -106,6 +110,10 @@ namespace COM3D2.SceneEditor.Plugin
                 manager.SetColor(data, objState.color, objState.brightness);
                 manager.SetRenderQueue(data, objState.renderQueue);
                 manager.SetVisible(data, objState.visible);
+                manager.SetDisplayType(data, objState.displayType);
+                manager.SetDecalBlendMode(data, objState.decalBlendMode);
+                manager.SetDecalFadeAngle(data, objState.decalFadeAngle);
+                manager.SetDecalProjectOnMaids(data, objState.decalProjectOnMaids);
                 index++;
             }
 
@@ -157,7 +165,11 @@ namespace COM3D2.SceneEditor.Plugin
                     || !Mathf.Approximately(a.brightness, b.brightness)
                     || a.color != b.color
                     || a.renderQueue != b.renderQueue
-                    || a.visible != b.visible)
+                    || a.visible != b.visible
+                    || a.displayType != b.displayType
+                    || a.decalBlendMode != b.decalBlendMode
+                    || !Mathf.Approximately(a.decalFadeAngle, b.decalFadeAngle)
+                    || a.decalProjectOnMaids != b.decalProjectOnMaids)
                 {
                     return false;
                 }
