@@ -5,7 +5,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// IK のドラッグ点。手首/足首・肘/膝・胸に置く。
     /// 透明な球コライダを骨に追従させ、掴んでいる間は自分自身が FABRIK の target になる。
-    /// 解くのは MaidIKChain 側で、この点はマウス位置をワールド座標へ変換して置くだけ
+    /// 解くのは MaidIKChain 側で、この点はマウス位置をワールド座標へ変換して置くだけ。
+    /// 肘 / 膝の点を Ctrl で掴んだときは FABRIK を使わず、子側のボーンを骨の軸まわりにロールする
     /// </summary>
     public class MaidIKDragPoint : MonoBehaviour, IMaidDragPoint
     {
@@ -48,6 +49,18 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>直前のクリック確定時刻。ダブルクリック判定用</summary>
         private float _lastClickTime = NoClickTime;
+
+        /// <summary>ロールの感度 (度 / px)。手の甲・上体の Ctrl ひねりの既定値と揃える</summary>
+        private const float RollDivisor = 1.5f;
+
+        /// <summary>
+        /// 掴んだ時点でロールモードだったか (肘 / 膝の点 + Ctrl)。
+        /// 途中でキーを離しても切り替わらないよう開始時に固定する
+        /// </summary>
+        private bool _isRollMode = false;
+
+        /// <summary>ロール開始時の followBone のローカル回転。押下位置からの総移動量をこれに掛ける</summary>
+        private Quaternion _rollBaseRotation;
 
         /// <summary>
         /// ドラッグ中の座標変換に使うカメラ。ゲーム画面と SceneView で異なるため掴んだ側を覚えておく
@@ -142,25 +155,47 @@ namespace COM3D2.SceneEditor.Plugin
             _offset = transform.position - camera.ScreenToWorldPoint(
                 new Vector3(pointerPos.x, pointerPos.y, _screenPoint.z));
 
-            PrepareEdit("IK操作: ");
+            // 肘 / 膝の点の Ctrl は子側 (前腕 / すね) のロール。先端の点の Ctrl (肘 / 膝の固定) とは別の意味になる
+            _isRollMode = pointType == MaidIKChainPoint.Joint && IsCtrlHeld();
+
+            PrepareEdit(_isRollMode ? "ロール: " : "IK操作: ");
 
             // 掴んだ時点で IK 選択に切り替える。クリック確定 (EndDrag) まで待つと、
             // ボーン選択が生きたままドラッグが始まり Inspector のボーン自動追従に奪われる
             SelectionManager.instance.SelectIK(this);
 
-            // 固定するかは掴んだ時点で決める。途中で Ctrl を離してもモードは変えない
-            chain.BeginDrag(pointType, IsCtrlHeld(), transform);
+            if (_isRollMode)
+            {
+                // ロールは FABRIK で解かない。チェーンを張ると target (この点) を追って肘 / 膝が動いてしまう
+                _rollBaseRotation = followBone.localRotation;
+            }
+            else
+            {
+                // 固定するかは掴んだ時点で決める。途中で Ctrl を離してもモードは変えない
+                chain.BeginDrag(pointType, IsCtrlHeld(), transform);
+            }
             _isDragging = true;
             MaidDragBoneTracker.BeginDrag(maid, sliderBoneName ?? followBone.name);
             _mouseDownPos = pointerPos;
             return true;
         }
 
-        /// <summary>掴んだ側のカメラ基準でポインタ位置へ点を移動する</summary>
+        /// <summary>
+        /// 掴んだ側のカメラ基準でポインタ位置へ点を移動する。
+        /// ロールモードでは点は動かさず、横方向の総移動量で子側のボーンを骨の軸まわりに回す
+        /// </summary>
         public void UpdateDrag(Vector3 pointerPos)
         {
             if (!_isDragging || _dragCamera == null)
             {
+                return;
+            }
+
+            if (_isRollMode)
+            {
+                // フレーム差分の積算だと誤差が溜まるため、押下位置からの総移動量で決める
+                var angle = (pointerPos.x - _mouseDownPos.x) / RollDivisor;
+                followBone.localRotation = _rollBaseRotation * Quaternion.AngleAxis(angle, Vector3.right);
                 return;
             }
 
@@ -232,6 +267,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             _isDragging = false;
             _dragCamera = null;
+            _isRollMode = false;
             MaidDragBoneTracker.EndDrag();
             if (chain != null)
             {
