@@ -32,6 +32,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int WINDOW_WIDTH = 300;
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int BUTTON_WIDTH = 80;
+        /// <summary>名前欄の右の「日付」ボタンの幅</summary>
+        private static readonly int DATE_BUTTON_WIDTH = 40;
         private static readonly int BUTTON_HEIGHT = 24;
         private static readonly int PADDING = 15;
         /// <summary>ボタン行前の余白。高さ算出と AddSpace の両方で使う</summary>
@@ -40,7 +42,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>保存確定時の応答。null なら閉じている</summary>
         private Action<string, ScenePresetSaveOptions> _onSave;
 
-        /// <summary>プリセット名の入力値。表示のたびに読み込み中プリセット名で初期化する</summary>
+        /// <summary>プリセット名の入力値。表示のたびに読み込み中プリセット名 (未選択なら日時) で初期化する</summary>
         private string _presetName = "";
         /// <summary>名前検証エラー。null なら非表示</summary>
         private string _errorMessage;
@@ -81,8 +83,12 @@ namespace COM3D2.SceneEditor.Plugin
             var window = instance;
             window._onSave = onSave;
             window._errorMessage = null;
-            // 上書き保存が主な操作なので、読み込み中のプリセット名を既定にする
-            window._presetName = ScenePresetManager.currentPresetName;
+            // 上書き保存が主な操作なので読み込み中のプリセット名を既定にする。
+            // 未選択なら名前を考えずにすぐ保存できるよう日時にする
+            var currentName = ScenePresetManager.currentPresetName;
+            window._presetName = string.IsNullOrEmpty(currentName)
+                ? ScenePresetNaming.CreateDateName(DateTime.Now)
+                : currentName;
             window._saveCamera = config.scenePresetSaveCamera;
             window._saveMaids = config.scenePresetSaveMaids;
             window._saveBackground = config.scenePresetSaveBackground;
@@ -193,7 +199,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _view.DrawTextField(new GUIView.TextFieldOption
                 {
                     value = _presetName,
-                    width = contentWidth - 40 - GUIView.defaultMargin,
+                    width = contentWidth - 40 - DATE_BUTTON_WIDTH - GUIView.defaultMargin * 2,
                     hiddenButton = true,
                     // 入力し直したら前回の検証エラー表示を消す
                     onChanged = value =>
@@ -202,6 +208,14 @@ namespace COM3D2.SceneEditor.Plugin
                         _errorMessage = null;
                     },
                 });
+
+                if (_view.DrawButton("日付", DATE_BUTTON_WIDTH, ROW_HEIGHT))
+                {
+                    _presetName = ScenePresetNaming.CreateDateName(DateTime.Now);
+                    _errorMessage = null;
+                    // フォーカス中の TextField は編集バッファを優先して表示するため、外して値を反映させる
+                    GUIUtility.keyboardControl = 0;
+                }
             }
             _view.EndLayout();
 
