@@ -23,7 +23,9 @@ namespace COM3D2.SceneEditor.Plugin
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
         private static List<string> _imageNames = null;
 
-        public static string directory => Path.Combine(PluginUtils.PluginDataPath, "LightCookie");
+        // 窓枠などの模様は PNG 配置の素材と共用できるので、同じフォルダから選ぶ
+        public static string directory =>
+            PngPlacementManager.GetSourceDirectory(PngPlacementManager.SOURCE_CONFIG);
 
         public static Texture2D GetGenerated(float hardness)
         {
@@ -114,7 +116,7 @@ namespace COM3D2.SceneEditor.Plugin
             return texture;
         }
 
-        /// <summary>LightCookie フォルダ配下の PNG の相対パス一覧。フォルダが無ければ空</summary>
+        /// <summary>画像フォルダ配下の PNG の相対パス一覧。フォルダが無ければ空</summary>
         public static List<string> GetImageNames()
         {
             if (_imageNames == null)
