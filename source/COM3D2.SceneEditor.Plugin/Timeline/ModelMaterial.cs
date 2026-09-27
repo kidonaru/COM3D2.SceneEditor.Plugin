@@ -293,6 +293,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>元のシェーダーへ戻す。値は戻さない (値は Reset が戻す)</summary>
         public void ResetShader()
         {
+            if (material == null)
+            {
+                return;
+            }
+            // 引数の originalShader を評価する前に取り込む。後だとゲームが入れたシェーダーを差し替え前へ戻してしまう
+            AdoptExternalShader();
             ChangeShader(originalShader);
         }
 
