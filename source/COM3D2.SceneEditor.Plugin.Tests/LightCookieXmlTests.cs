@@ -44,8 +44,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void 硬さ指定は硬さだけを往復する()
+        public void 硬さ指定は種類だけを往復し硬さは定義に書かない()
         {
+            // 硬さはライトキー (index 19) で持つ
             var data = new TimelineLightData
             {
                 name = "Light2",
@@ -57,10 +58,34 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var restored = FromText(text);
 
             Assert.Contains("<CookieMode>1</CookieMode>", text);
-            Assert.Contains("<CookieHardness>0.95</CookieHardness>", text);
+            Assert.DoesNotContain("CookieHardness", text);
             Assert.DoesNotContain("CookieImage", text);
             Assert.Equal(LightCookieMode.Generated, restored.cookie.mode);
-            Assert.Equal(0.95f, restored.cookie.hardness);
+            Assert.Equal(LightCookieData.DefaultHardness, restored.cookie.hardness);
+        }
+
+        [Fact]
+        public void 開発中の定義にあるCookieHardnessは読み飛ばす()
+        {
+            var restored = FromText(
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<TimelineLightXml><Name>Light2</Name><Type>Spot</Type>" +
+                "<CookieMode>1</CookieMode><CookieHardness>0.3</CookieHardness></TimelineLightXml>");
+
+            Assert.Equal(LightCookieMode.Generated, restored.cookie.mode);
+            Assert.Equal(LightCookieData.DefaultHardness, restored.cookie.hardness);
+        }
+
+        [Fact]
+        public void 硬さだけが違う輪郭は定義として同じ()
+        {
+            var a = new LightCookieData { mode = LightCookieMode.Generated, hardness = 0.2f, image = "" };
+            var b = new LightCookieData { mode = LightCookieMode.Generated, hardness = 0.9f, image = "" };
+            var c = new LightCookieData { mode = LightCookieMode.Image, hardness = 0.2f, image = "a.png" };
+
+            Assert.True(a.EqualsIgnoringHardness(b));
+            Assert.False(a.EqualsIgnoringHardness(c));
+            Assert.False(c.EqualsIgnoringHardness(new LightCookieData { mode = LightCookieMode.Image, image = "b.png" }));
         }
 
         [Fact]

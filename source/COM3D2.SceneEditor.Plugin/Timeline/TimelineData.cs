@@ -98,7 +98,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             cookie = new SE.LightCookieData
             {
                 mode = (SE.LightCookieMode)xml.cookieMode,
-                hardness = xml.cookieHardness,
+                hardness = SE.LightCookieData.DefaultHardness,
                 image = xml.cookieImage,
             }.Normalized();
             shadows = SE.LightShadowValues.FromInt(xml.shadows);
@@ -111,7 +111,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 name = name,
                 type = type,
                 cookieMode = (int)cookie.mode,
-                cookieHardness = cookie.hardness,
                 cookieImage = cookie.image,
                 shadows = (int)shadows,
             };

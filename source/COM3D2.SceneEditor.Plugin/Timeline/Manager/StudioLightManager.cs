@@ -148,8 +148,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                // 輪郭と影の種類はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する
-                if (!cachedLight.cookie.Equals(stat.cookie) || cachedLight.shadows != stat.shadows)
+                // 輪郭の種類・画像と影の種類はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する
+                if (!cachedLight.cookie.EqualsIgnoringHardness(stat.cookie) || cachedLight.shadows != stat.shadows)
                 {
                     cachedLight.cookie = stat.cookie;
                     cachedLight.shadows = stat.shadows;

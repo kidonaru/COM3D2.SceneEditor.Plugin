@@ -14,8 +14,8 @@ namespace COM3D2.SceneEditor.Plugin
     }
 
     /// <summary>
-    /// 追加ライト 1 灯分の輪郭設定。キーフレーム化しないライト定義の値で、
-    /// タイムライン・シーンプリセット・クリップボードの間で受け渡す
+    /// 追加ライト 1 灯分の輪郭設定。シーンプリセット・Undo・クリップボードでは一式を受け渡す。
+    /// タイムラインでは種類と画像をライト定義、硬さをライトキー (index 19) で持つ
     /// </summary>
     public struct LightCookieData : IEquatable<LightCookieData>
     {
@@ -43,6 +43,16 @@ namespace COM3D2.SceneEditor.Plugin
                 hardness = float.IsNaN(hardness) ? DefaultHardness : Math.Max(0f, Math.Min(1f, hardness)),
                 image = image ?? "",
             };
+        }
+
+        /// <summary>
+        /// タイムラインのライト定義として同じか。硬さはライトキーで補間されるので比べない
+        /// (比べると再生中に毎回定義の同期が走る)
+        /// </summary>
+        public bool EqualsIgnoringHardness(LightCookieData other)
+        {
+            return mode == other.mode
+                && string.Equals(image ?? "", other.image ?? "", StringComparison.Ordinal);
         }
 
         public bool Equals(LightCookieData other)
