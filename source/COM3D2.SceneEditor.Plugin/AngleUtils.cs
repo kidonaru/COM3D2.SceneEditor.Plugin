@@ -47,5 +47,29 @@ namespace COM3D2.SceneEditor.Plugin
                 GetFixedAngle(angles.y, prevAngles.y),
                 GetFixedAngle(angles.z, prevAngles.z));
         }
+
+        /// <summary>
+        /// Transform.eulerAngles を、前回の表示値から連続する表現で (-180, 180] に返す。
+        /// Unity は縦回転 (x) を ±90 度に収めて分解するため、真上・真下を越えると
+        /// 同じ向きの別表現 (180 - x, y + 180, z + 180) へ飛ぶ。両者のうち前回値に近い方を選ぶことで、
+        /// 縦回転のスライダーを ±180 度まで連続して動かせるようにする
+        /// </summary>
+        public static Vector3 GetContinuousEulerAngles(Vector3 eulerAngles, Vector3 prevAngles)
+        {
+            var decomposed = NormalizeAngles(eulerAngles);
+            var flipped = NormalizeAngles(new Vector3(
+                180f - eulerAngles.x, eulerAngles.y + 180f, eulerAngles.z + 180f));
+
+            return AngleDistance(flipped, prevAngles) < AngleDistance(decomposed, prevAngles)
+                ? flipped
+                : decomposed;
+        }
+
+        private static float AngleDistance(Vector3 a, Vector3 b)
+        {
+            return Mathf.Abs(Mathf.DeltaAngle(a.x, b.x))
+                + Mathf.Abs(Mathf.DeltaAngle(a.y, b.y))
+                + Mathf.Abs(Mathf.DeltaAngle(a.z, b.z));
+        }
     }
 }

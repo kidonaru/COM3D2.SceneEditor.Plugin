@@ -40,6 +40,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly int TypeButtonWidth = 70;
 
+        /// <summary>
+        /// ライトごとの回転スライダーの前回表示値 (キーは Transform のインスタンス ID)。
+        /// 実体の eulerAngles だけでは縦回転 90 度超を表せないため、表示の連続性をここで保つ
+        /// </summary>
+        private static readonly Dictionary<int, Vector3> _lastRotationAngles = new Dictionary<int, Vector3>();
+
         /// <summary>コピー / ペーストボタンの幅（MaterialPropertyRowsDrawer と同じ）</summary>
         private const float ClipboardButtonWidth = 60f;
 
@@ -112,7 +118,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 既定の横回転 180 度はスライダー範囲の両端どちらでも同じ向きになる。
             // 正規化表示 (-180, 180] と符号を揃えるため -180 側を既定値にする
             DrawRotationSliders(view, labelWidth,
-                light.transform.eulerAngles,
+                light.transform,
                 new Vector3(DefaultMainRotation.x, DefaultMainRotation.y - 360f),
                 lightMain.SetRotation);
 
@@ -217,7 +223,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (light.type != LightType.Point)
             {
                 DrawRotationSliders(view, labelWidth,
-                    light.transform.eulerAngles,
+                    light.transform,
                     DefaultAdditionalRotation,
                     value => light.transform.eulerAngles = value);
             }
@@ -333,21 +339,36 @@ namespace COM3D2.SceneEditor.Plugin
                 value, onChanged, onReset);
         }
 
-        /// <summary>ライトの向き（縦回転・横回転・ロール）</summary>
+        /// <summary>
+        /// ライトの向き（縦回転・横回転・ロール）。
+        /// 縦回転を ±180 度まで連続して動かせるよう、前回の表示値に近い表現で表示する
+        /// </summary>
         private static void DrawRotationSliders(
             GUIView view, float labelWidth,
-            Vector3 eulerAngles, Vector3 defaultRotation, Action<Vector3> onChanged)
+            Transform transform, Vector3 defaultRotation, Action<Vector3> onChanged)
         {
-            var pitch = AngleUtils.NormalizeAngle(eulerAngles.x);
-            var yaw = AngleUtils.NormalizeAngle(eulerAngles.y);
-            var roll = AngleUtils.NormalizeAngle(eulerAngles.z);
+            var id = transform.GetInstanceID();
+            Vector3 prevAngles;
+            if (!_lastRotationAngles.TryGetValue(id, out prevAngles))
+            {
+                prevAngles = AngleUtils.NormalizeAngles(transform.eulerAngles);
+            }
 
-            DrawAxisSlider(view, labelWidth, "縦回転", pitch, -90f, 90f, 0.1f, defaultRotation.x,
-                value => onChanged(new Vector3(value, yaw, roll)));
-            DrawAxisSlider(view, labelWidth, "横回転", yaw, -180f, 180f, 0.1f, defaultRotation.y,
-                value => onChanged(new Vector3(pitch, value, roll)));
-            DrawAxisSlider(view, labelWidth, "ロール", roll, -180f, 180f, 0.1f, defaultRotation.z,
-                value => onChanged(new Vector3(pitch, yaw, value)));
+            var angles = AngleUtils.GetContinuousEulerAngles(transform.eulerAngles, prevAngles);
+            _lastRotationAngles[id] = angles;
+
+            Action<Vector3> apply = value =>
+            {
+                _lastRotationAngles[id] = value;
+                onChanged(value);
+            };
+
+            DrawAxisSlider(view, labelWidth, "縦回転", angles.x, -180f, 180f, 0.1f, defaultRotation.x,
+                value => apply(new Vector3(value, angles.y, angles.z)));
+            DrawAxisSlider(view, labelWidth, "横回転", angles.y, -180f, 180f, 0.1f, defaultRotation.y,
+                value => apply(new Vector3(angles.x, value, angles.z)));
+            DrawAxisSlider(view, labelWidth, "ロール", angles.z, -180f, 180f, 0.1f, defaultRotation.z,
+                value => apply(new Vector3(angles.x, angles.y, value)));
         }
 
         /// <summary>種別切替ボタン 1 つ。選択中はアクセント色で示す</summary>
