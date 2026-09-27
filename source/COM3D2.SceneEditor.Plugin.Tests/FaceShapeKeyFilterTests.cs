@@ -4,10 +4,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
-    /// <summary>
-    /// 表情ウィンドウのシェイプキータブから外す名前を固定する。
-    /// 表情タブと同じ値をシェイプキーレイヤーでも触れると、2 つのレイヤーが毎フレーム奪い合う
-    /// </summary>
+    /// <summary>FaceShapeKeyFilter.IsFaceMorphName が除外する名前の集合を固定する</summary>
     public class FaceShapeKeyFilterTests
     {
         [Theory]

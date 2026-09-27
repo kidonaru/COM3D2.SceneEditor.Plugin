@@ -2230,7 +2230,8 @@ namespace COM3D2.SceneEditor.Plugin
                     foreach (var tag in slot.morph.GetTags())
                     {
                         // 表情モーフは同じ TMorph を共有していて適用順で競合するため除外する
-                        // (判定は表情ウィンドウのシェイプキータブと共有。CRC 顔のサフィックス付きも含む)
+                        // (判定は表情ウィンドウのシェイプキータブと共有。CRC 顔のサフィックス付きも含む。
+                        // タブと基準を揃えるため、対象メイドの顔に実在するかは見ない)
                         if (FaceShapeKeyFilter.IsFaceMorphName(tag) || !seenTags.Add(tag))
                         {
                             continue;

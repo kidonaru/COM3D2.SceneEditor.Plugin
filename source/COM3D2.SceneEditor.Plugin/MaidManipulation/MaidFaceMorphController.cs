@@ -594,6 +594,24 @@ namespace COM3D2.SceneEditor.Plugin
             _mabatakiOverrideStates.Remove(maid);
         }
 
+        /// <summary>
+        /// ゲームの既定 (まばたきあり) へ戻す。強制上書きは Maid のフィールドなので、
+        /// 解除・シーン遷移でストックへ返すメイドに残すと、以降のシーンで表情が固まる
+        /// </summary>
+        public static void RestoreGameDefault(Maid maid)
+        {
+            if (ReferenceEquals(maid, null))
+            {
+                return;
+            }
+
+            _mabatakiOverrideStates.Remove(maid);
+            if (maid != null)
+            {
+                maid.boMabataki = true;
+            }
+        }
+
         /// <summary>タイムラインの上書きを解除し、退避したユーザー設定へ戻す</summary>
         public static void ClearMabatakiOverride(Maid maid)
         {
@@ -708,6 +726,14 @@ namespace COM3D2.SceneEditor.Plugin
                 if (blendSetName != null)
                 {
                     morph.MulBlendValues(blendSetName, 1f);
+                }
+
+                // 頬・涙 (FaceBlend) はゲームが表情の上へ加算している (Maid.Update と同じ合成順)。
+                // MulBlendValues(1) は全要素を上書きするので、足し直さないと頬・涙が消えたまま固まる
+                var faceBlendName = maid.FaceName3;
+                if (!string.IsNullOrEmpty(faceBlendName) && morph.dicBlendSet.ContainsKey(faceBlendName))
+                {
+                    morph.AddBlendValues(faceBlendName);
                 }
             }
 

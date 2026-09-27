@@ -178,7 +178,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             DrawHeader(view, target);
 
-            _tab = DrawInnerTabs(_tab, 70);
+            // 「シェイプキー」の 6 文字が欠けずに収まる幅
+            _tab = DrawInnerTabs(_tab, 78);
 
             var gateState = TimelineLayerGate.Begin(view, GetTimelineLayerType(_tab), target, ROW_HEIGHT);
 
@@ -356,7 +357,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void EnableForceOverrideForEdit(Maid target)
         {
-            // GetMabataki はユーザー設定 (上書き中は退避値)。すでに ON なら履歴も積まない
+            // 実効値の IsForceOverride ではなくユーザー設定 (上書き中は退避値) を見る。
+            // タイムラインが上書き中でも、書き換える対象 (SetForceOverride が変える値) で判定するため。
+            // すでに ON なら履歴も積まない
             if (!MaidFaceMorphController.GetMabataki(target))
             {
                 return;

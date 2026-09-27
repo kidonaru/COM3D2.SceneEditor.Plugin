@@ -683,6 +683,8 @@ namespace COM3D2.SceneEditor.Plugin
             gravityController.Release(maid);
             // 指の開き/握り/ロックも持ち越さない（ストックの Maid は使い回される）
             fingerBlendController.Release(maid);
+            // 表情の強制上書き (まばたき停止) も持ち越さない。呼出時に既定で ON にしているため
+            MaidFaceMorphController.RestoreGameDefault(maid);
 
             // ストックの Maid は解除後も同一インスタンスが使い回されるため、
             // 停止クリップ名や適用記録を残すと再呼出時に古いモーションへ戻してしまう
@@ -768,6 +770,12 @@ namespace COM3D2.SceneEditor.Plugin
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
             DestroyAll();
+            // 呼び出したメイドは遷移先でもストックとして使い回されるため、
+            // 呼出時に ON にした強制上書き (まばたき停止) をゲームの既定へ戻してから手放す
+            foreach (var maid in calledMaids)
+            {
+                MaidFaceMorphController.RestoreGameDefault(maid);
+            }
             calledMaids.Clear();
             _loadingMaids.Clear();
             ClearPendingFocus();
