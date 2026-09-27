@@ -8,8 +8,8 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// ポストエフェクトレイヤー (PostEffectTimelineLayer) のメニュー項目 → エフェクトの編集UI。
-    /// 項目は被写界深度・GTToneMap・ブルームが 1 つずつ、パラフィン・距離フォグ・リムライトが
-    /// タイムラインの設定数だけ並ぶ。
+    /// 項目は被写界深度・GTToneMap・ブルーム・シネマティック被写界深度が 1 つずつ、
+    /// パラフィン・距離フォグ・リムライトがタイムラインの設定数だけ並ぶ。
     /// 逆方向: ポストエフェクトに対応する SelectionManager の選択概念が無いため無し
     /// </summary>
     public class PostEffectItemInspector : ITimelineItemInspector
@@ -69,6 +69,9 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 case MTEP.PostEffectType.Bloom:
                     drawer.DrawBloomRows(view);
+                    return;
+                case MTEP.PostEffectType.CinematicDepthOfField:
+                    drawer.DrawCinematicDepthOfFieldRows(view);
                     return;
                 default:
                     view.DrawLabel("(未対応のエフェクトです)", -1, RowHeight,

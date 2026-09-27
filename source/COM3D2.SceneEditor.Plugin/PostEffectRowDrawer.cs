@@ -9,7 +9,7 @@ using PEData = COM3D2.MotionTimelineEditor.PostEffects;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap / ブルーム)。
+    /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap / ブルーム / シネマティック被写界深度)。
     ///
     /// 委譲先の個別ウィンドウが無いため、コピー先への複製とトーンカーブのプレビューも含めここで描く。
     /// 書き込み先は PostEffectManager のデータで、値の範囲・既定値は TransformData の Info を使う。
@@ -844,6 +844,204 @@ namespace COM3D2.SceneEditor.Plugin
             if (updateTransform)
             {
                 postEffectManager.ApplyBloom(bloom);
+            }
+        }
+
+        /// <summary>シネマティック被写界深度</summary>
+        public void DrawCinematicDepthOfFieldRows(GUIView view)
+        {
+            if (!postEffectManager.isCinematicDepthOfFieldAvailable)
+            {
+                view.DrawLabel("PostEffects.Plugin が古いため使用できません", -1, 20, Color.yellow);
+                return;
+            }
+
+            var dof = postEffectManager.GetCinematicDepthOfFieldData();
+            var updateTransform = false;
+            var defaultTrans = TransformDataCinematicDepthOfField.defaultTrans;
+
+            view.DrawToggle("有効化", dof.enabled, 80, 20, newValue =>
+            {
+                dof.enabled = newValue;
+                updateTransform = true;
+            });
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.tweakModeInfo,
+                dof.tweakMode == TransformDataCinematicDepthOfField.TweakModeExplicit,
+                newValue => dof.tweakMode = newValue
+                    ? TransformDataCinematicDepthOfField.TweakModeExplicit
+                    : TransformDataCinematicDepthOfField.TweakModeRange);
+
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.filteringQualityInfo,
+                dof.filteringQuality,
+                newValue => dof.filteringQuality = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            updateTransform |= view.DrawCustomValueInt(
+                defaultTrans.apertureShapeInfo,
+                dof.apertureShape,
+                newValue => dof.apertureShape = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            // 絞りの向きは円形以外 (方向性ぼかし) でのみ効く
+            if (dof.apertureShape != 0)
+            {
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.apertureOrientationInfo,
+                    dof.apertureOrientation,
+                    newValue => dof.apertureOrientation = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+            }
+
+            var isRange = dof.tweakMode == TransformDataCinematicDepthOfField.TweakModeRange;
+            if (isRange)
+            {
+                // メイド追従はピント面と範囲モードでのみ効く (実体側と同じ条件)
+                view.BeginHorizontal();
+                {
+                    view.DrawLabel("追従メイド", 70, 20);
+
+                    view.DrawToggle("", dof.maidFocus, 20, 20, newValue =>
+                    {
+                        dof.maidFocus = newValue;
+                        dof.maidIndex = newValue ? Mathf.Max(0, _maidComboBox.currentIndex) : 0;
+                        updateTransform = true;
+                    });
+
+                    _maidComboBox.items = MTEP.MaidManager.instance.maidCaches;
+                    _maidComboBox.onSelected = (maidCache, index) =>
+                    {
+                        dof.maidFocus = true;
+                        dof.maidIndex = index;
+                        updateTransform = true;
+                    };
+                    _maidComboBox.DrawButton(view);
+                }
+                view.EndLayout();
+
+                view.SetEnabled(view.focusedComboBox == null);
+
+                if (!dof.maidFocus)
+                {
+                    updateTransform |= view.DrawCustomValueFloat(
+                        defaultTrans.focusFocusPlaneInfo,
+                        dof.focusFocusPlane,
+                        newValue => dof.focusFocusPlane = newValue,
+                        labelWidth: CustomLabelWidth,
+                        sliderWidth: CustomSliderWidth);
+                }
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.focusRangeInfo,
+                    dof.focusRange,
+                    newValue => dof.focusRange = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+            }
+            else
+            {
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.focusNearPlaneInfo,
+                    dof.focusNearPlane,
+                    newValue => dof.focusNearPlane = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+            }
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.focusNearFalloffInfo,
+                dof.focusNearFalloff,
+                newValue => dof.focusNearFalloff = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.focusNearBlurRadiusInfo,
+                dof.focusNearBlurRadius,
+                newValue => dof.focusNearBlurRadius = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            if (!isRange)
+            {
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.focusFarPlaneInfo,
+                    dof.focusFarPlane,
+                    newValue => dof.focusFarPlane = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+            }
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.focusFarFalloffInfo,
+                dof.focusFarFalloff,
+                newValue => dof.focusFarFalloff = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.focusFarBlurRadiusInfo,
+                dof.focusFarBlurRadius,
+                newValue => dof.focusFarBlurRadius = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.antiFlickerInfo,
+                dof.antiFlicker,
+                newValue => dof.antiFlicker = newValue);
+
+            view.DrawHorizontalLine(Color.gray);
+
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.useBokehTextureInfo,
+                dof.useBokehTexture,
+                newValue => dof.useBokehTexture = newValue);
+
+            if (dof.useBokehTexture)
+            {
+                // 画像のパスは値配列に載らないため PostEffects 側でだけ設定できる。
+                // DX11 判定 (CinematicDepthOfFieldEffect.supportsTextureBokeh) は実体側の型でここから
+                // 参照できないため、非 DX11 環境では効かない旨を併記する (実体側は描画時にガード済み)
+                view.DrawLabel("ボケ画像は PostEffects 側で設定します (DX11 のみ有効)", -1, 20, Color.gray);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.bokehScaleInfo,
+                    dof.bokehScale,
+                    newValue => dof.bokehScale = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.bokehIntensityInfo,
+                    dof.bokehIntensity,
+                    newValue => dof.bokehIntensity = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.bokehThresholdInfo,
+                    dof.bokehThreshold,
+                    newValue => dof.bokehThreshold = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.bokehSpawnHeuristicInfo,
+                    dof.bokehSpawnHeuristic,
+                    newValue => dof.bokehSpawnHeuristic = newValue,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+            }
+
+            if (updateTransform)
+            {
+                postEffectManager.ApplyCinematicDepthOfField(dof);
             }
         }
 
