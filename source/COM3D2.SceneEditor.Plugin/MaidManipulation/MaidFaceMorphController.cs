@@ -504,15 +504,10 @@ namespace COM3D2.SceneEditor.Plugin
             // FaceAnime(t=0) は FaceName を設定するだけで、実際のブレンド反映は
             // boMabataki 有効時の毎フレーム処理 (Maid.Update) でしか走らない。
             // まばたきを止めた直後は誰も反映しないため、ブレンドセットを直接書き込む
-            var settingName = data.setting_name;
-            if (morph.dicBlendSet.ContainsKey(settingName + "〓通常"))
+            var settingName = ResolveBlendSetName(morph, data.setting_name);
+            if (settingName == null)
             {
-                // 新ボディ顔向けの別名。Maid.FaceAnime と同じ解決順
-                settingName += "〓通常";
-            }
-            if (!morph.dicBlendSet.ContainsKey(settingName))
-            {
-                MTEUtils.LogWarning("表情プリセットが見つかりません: {0}", settingName);
+                MTEUtils.LogWarning("表情プリセットが見つかりません: {0}", data.setting_name);
                 return;
             }
 
@@ -672,6 +667,54 @@ namespace COM3D2.SceneEditor.Plugin
         {
             return morph.dicBlendSet.ContainsKey(blendSetName)
                 || morph.dicBlendSet.ContainsKey(blendSetName + "〓通常");
+        }
+
+        /// <summary>
+        /// 表情タグをブレンドセット名へ解決する。新ボディ顔の別名 (〓通常) を優先し、
+        /// どちらも無ければ null (Maid.FaceAnime と同じ解決順)
+        /// </summary>
+        private static string ResolveBlendSetName(TMorph morph, string faceName)
+        {
+            var aliasName = faceName + "〓通常";
+            if (morph.dicBlendSet.ContainsKey(aliasName))
+            {
+                return aliasName;
+            }
+            return morph.dicBlendSet.ContainsKey(faceName) ? faceName : null;
+        }
+
+        /// <summary>
+        /// 新しく呼び出したメイドの強制上書きを ON にする。
+        /// ON の間ゲームは表情ブレンドを作り直さない (Maid.Update の boMabataki 分岐) ため、
+        /// ロード完了時の FaceAnime("通常", 1f) のフェードが進まず表情が決まらない。
+        /// フェードを畳み、今の表情タグのブレンドを直接書き込んで固めてから ON にする。
+        /// まばたきの途中で止めると目が半開きのまま残るので、まばたき量も 0 に戻す
+        /// </summary>
+        public static void EnableForceOverrideForCalledMaid(Maid maid)
+        {
+            var morph = GetFaceMorph(maid);
+            if (morph == null)
+            {
+                return;
+            }
+
+            var faceName = maid.ActiveFace;
+            if (!string.IsNullOrEmpty(faceName))
+            {
+                // t=0 の FaceAnime はフェードを畳んで FaceName を揃えるだけで、ブレンドは塗らない
+                maid.FaceAnime(faceName, 0f, 0);
+
+                var blendSetName = ResolveBlendSetName(morph, faceName);
+                if (blendSetName != null)
+                {
+                    morph.MulBlendValues(blendSetName, 1f);
+                }
+            }
+
+            morph.EyeMabataki = 0f;
+            morph.FixBlendValues_Face();
+
+            SetForceOverride(maid, true);
         }
 
         /// <summary>ユーザー設定としてのまばたき。上書き中は実体ではなく退避値を返す</summary>

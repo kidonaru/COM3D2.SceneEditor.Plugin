@@ -510,6 +510,12 @@ namespace COM3D2.SceneEditor.Plugin
                     maid.FaceAnime("通常", 1f, 0);
                 }
 
+                // 新しく呼び出したメイドは強制上書き ON で出す。呼出済みメイドの呼び直しは
+                // CallMaid の早期 return でここを通らないため、ユーザーの設定が残る。
+                // シーンプリセットの保留適用 (UpdatePendingApplies) はこの後に走るので、
+                // プリセットに保存された設定 (旧データは OFF) が最終値になる
+                MaidFaceMorphController.EnableForceOverrideForCalledMaid(maid);
+
                 // 退避を解くと戻り先へ瞬間移動するので、配置位置を戻り先にしてから解く
                 var placementType = (MaidPlacementPreset.PresetType)config.maidPlacementMode;
                 var index = calledMaids.IndexOf(maid);
