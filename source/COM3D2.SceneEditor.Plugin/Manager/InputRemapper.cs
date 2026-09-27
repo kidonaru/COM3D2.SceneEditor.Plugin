@@ -70,7 +70,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// GUI 座標が「GameView の 3D シーンとして扱う領域」上か。
-        /// リサイズのつかみ範囲・GameView 以外の IMGUI ウィンドウ (本プラグインの
+        /// リサイズのつかみ範囲・ツールバー・GameView 以外の IMGUI ウィンドウ (本プラグインの
         /// SceneView 等を含む)・ギアメニューは UI なので除外する。
         /// 座標変換 (picking) とカメラ操作可否の判定はこの条件に揃える
         /// </summary>
@@ -88,6 +88,7 @@ namespace COM3D2.SceneEditor.Plugin
             return drawRect.width > 0f && drawRect.height > 0f &&
                 drawRect.Contains(guiPos) &&
                 !window.IsOverResizeHandle(guiPos) &&
+                !window.IsOverToolbar(guiPos) &&
                 !GuiWindowTracker.IsOverWindowExcept(GameViewWindow.WINDOW_ID, guiPos) &&
                 !GameViewManager.instance.IsOverSystemUI(guiPos);
         }

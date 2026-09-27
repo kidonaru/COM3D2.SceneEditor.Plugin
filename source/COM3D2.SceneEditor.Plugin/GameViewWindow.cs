@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -25,6 +27,20 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static Config config => ConfigManager.instance.config;
         private static GameViewManager gameViewManager => GameViewManager.instance;
+
+        // 比率コンボのボタン幅。「カスタム」が収まる幅
+        private const int ASPECT_COMBO_WIDTH = 64;
+
+        /// <summary>ツールバーの描画用ビュー。コンボのフォーカス管理のルートも兼ねる</summary>
+        private readonly GUIView _toolbarView = ViewToolbarDrawer.CreateView(FRAME);
+
+        private readonly GUIComboBox<GameViewAspectMode> _aspectComboBox = new GUIComboBox<GameViewAspectMode>
+        {
+            items = new List<GameViewAspectMode>(GameViewAspect.modes),
+            getName = (mode, _) => GameViewAspect.GetDisplayName(mode),
+            buttonSize = new Vector2(ASPECT_COMBO_WIDTH, ViewToolbarDrawer.ITEM_HEIGHT),
+            contentSize = new Vector2(ASPECT_COMBO_WIDTH + 20, 160),
+        };
 
         public int windowIndex { get; set; }
         public bool isShowWnd { get; set; }
@@ -187,6 +203,12 @@ namespace COM3D2.SceneEditor.Plugin
                 // CoC 等の作業値を書き残すため、合成ありだと合焦部分 (アルファ0) が背景色で
                 // 塗り潰されてしまう。RT は不透明画像として扱うのが正しい
                 GUI.DrawTextureWithTexCoords(draw, rt, gameViewManager.cropUV, false);
+            }
+
+            // RT の上に重ね、ヘッダーボタンより先に描く (押下の優先はヘッダー側に残す)
+            if (IsToolbarVisible())
+            {
+                DrawToolbar();
             }
 
             // 最大化ボタン (ヘッダー右端)。RT 描画をやめて画面へ直接描画するサブモードへ
@@ -405,8 +427,94 @@ namespace COM3D2.SceneEditor.Plugin
             SavePlacement();
         }
 
+        /// <summary>
+        /// ツールバーの帯 (ウィンドウローカル座標)。入力の除外判定にも使うため、描画結果ではなく
+        /// 常に計算で求める (マウスが入った最初のフレームのクリックもシーンへ通さないため)
+        /// </summary>
+        private Rect GetToolbarLocalRect()
+        {
+            // 項目: 撮影 / 比率 / 背景 / モデル / PNG。マージンは項目間の 4 箇所分
+            var width = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 4 + ASPECT_COMBO_WIDTH
+                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Screenshot))
+                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg))
+                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model))
+                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Png));
+            return new Rect(0, HEADER_HEIGHT, width, ViewToolbarDrawer.TOOLBAR_HEIGHT);
+        }
+
+        /// <summary>ツールバーを出すか。マウスオーバー中と、比率コンボのポップアップを開いている間</summary>
+        private bool IsToolbarVisible()
+        {
+            if (ComboBoxPopupWindow.instance.IsOpenFor(this))
+            {
+                return true;
+            }
+            var guiPos = InputRemapper.rawGuiPosition;
+            return _windowRect.Contains(guiPos) &&
+                !GuiWindowTracker.IsOverWindowExcept(WINDOW_ID, guiPos);
+        }
+
+        /// <summary>GUI 座標がツールバーの帯の上か。帯の上ではシーンへの入力を無効にする</summary>
+        public bool IsOverToolbar(Vector2 guiPos)
+        {
+            if (!isShowWnd || gameViewManager.isDirectRender)
+            {
+                return false;
+            }
+            var local = GetToolbarLocalRect();
+            return new Rect(_windowRect.x + local.x, _windowRect.y + local.y, local.width, local.height)
+                .Contains(guiPos);
+        }
+
+        /// <summary>撮影・表示比率・背景 / モデル / PNG 表示のトグル列。シーン描画に重ねる</summary>
+        private void DrawToolbar()
+        {
+            var rect = GetToolbarLocalRect();
+            ViewToolbarDrawer.DrawBackground(rect);
+
+            var view = _toolbarView;
+            view.Init(rect.x, rect.y, rect.width, rect.height);
+            view.BeginHorizontal();
+
+            if (ViewToolbarDrawer.DrawButton(
+                view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Screenshot), "撮影"))
+            {
+                ScreenshotManager.Capture();
+            }
+
+            _aspectComboBox.currentIndex = Array.IndexOf(GameViewAspect.modes, config.gameViewAspectMode);
+            _aspectComboBox.onSelected = (mode, _) =>
+            {
+                config.gameViewAspectMode = mode;
+                config.dirty = true;
+            };
+            _aspectComboBox.DrawButton(view);
+
+            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg), "背景",
+                gameViewManager.showBg, value => gameViewManager.showBg = value);
+            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model), "モデル",
+                gameViewManager.showModel, value => gameViewManager.showModel = value);
+            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Png), "PNG",
+                gameViewManager.showPng, value => gameViewManager.showPng = value);
+
+            view.EndLayout();
+
+            // ボタン押下で登録されたフォーカスをポップアップへ引き渡す (BackgroundWindow と同じ流儀)
+            ComboBoxPopupWindow.instance.ProcessFocus(view, this);
+        }
+
+        /// <summary>ウィンドウを隠すときに比率コンボのポップアップを残さない</summary>
+        public void CloseToolbarPopup()
+        {
+            if (ComboBoxPopupWindow.instance.IsOpenFor(this))
+            {
+                ComboBoxPopupWindow.instance.Close();
+            }
+        }
+
         public void Close()
         {
+            CloseToolbarPopup();
             isShowWnd = false;
             _resize.Cancel();
             // モード終了時の片付け。保存済みのグループ構成は次回復元用に残す

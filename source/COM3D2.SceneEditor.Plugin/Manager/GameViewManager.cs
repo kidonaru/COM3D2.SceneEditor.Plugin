@@ -231,6 +231,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (maximized)
             {
                 isMaximized = true;
+                GameViewWindow.instance.CloseToolbarPopup();
                 GameViewWindow.instance.isShowWnd = false;
                 // 非表示になるため連結グループからも外す。ウィンドウ化に戻せば元の連結へ復帰
                 // させたいので、config の保存済みグループ構成は上書きしない
