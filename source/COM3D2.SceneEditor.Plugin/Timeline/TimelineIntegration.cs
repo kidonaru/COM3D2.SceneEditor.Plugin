@@ -81,6 +81,9 @@ namespace COM3D2.SceneEditor.Plugin
                     MTEP.TransformType.Bloom,
                     MTEP.TimelineManager.CreateTransform<MTEP.TransformDataBloom>);
                 timelineManager.RegisterTransform(
+                    MTEP.TransformType.CinematicDepthOfField,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataCinematicDepthOfField>);
+                timelineManager.RegisterTransform(
                     MTEP.TransformType.DepthOfField,
                     MTEP.TimelineManager.CreateTransform<MTEP.TransformDataDepthOfField>);
                 timelineManager.RegisterTransform(
