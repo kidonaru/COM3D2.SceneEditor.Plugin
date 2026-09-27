@@ -44,7 +44,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// ライトごとの回転スライダーの前回表示値 (キーは Transform のインスタンス ID)。
         /// 実体の eulerAngles だけでは縦回転 90 度超を表せないため、表示の連続性をここで保つ
         /// </summary>
-        private static readonly Dictionary<int, Vector3> _lastRotationAngles = new Dictionary<int, Vector3>();
+        private static readonly Dictionary<int, Vector3> LastRotationAngles = new Dictionary<int, Vector3>();
 
         /// <summary>コピー / ペーストボタンの幅（MaterialPropertyRowsDrawer と同じ）</summary>
         private const float ClipboardButtonWidth = 60f;
@@ -349,17 +349,21 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var id = transform.GetInstanceID();
             Vector3 prevAngles;
-            if (!_lastRotationAngles.TryGetValue(id, out prevAngles))
+            if (!LastRotationAngles.TryGetValue(id, out prevAngles))
             {
                 prevAngles = AngleUtils.NormalizeAngles(transform.eulerAngles);
             }
 
-            var angles = AngleUtils.GetContinuousEulerAngles(transform.eulerAngles, prevAngles);
-            _lastRotationAngles[id] = angles;
+            // 前回値のままの向きなら前回値を表示する。縦回転 ±90 度ちょうどでは横回転とロールが
+            // 1 軸に縮退し、Unity の分解が前回値と別の組み合わせを返すため
+            var angles = Quaternion.Angle(Quaternion.Euler(prevAngles), transform.rotation) < 0.01f
+                ? prevAngles
+                : AngleUtils.GetContinuousEulerAngles(transform.eulerAngles, prevAngles);
+            LastRotationAngles[id] = angles;
 
             Action<Vector3> apply = value =>
             {
-                _lastRotationAngles[id] = value;
+                LastRotationAngles[id] = value;
                 onChanged(value);
             };
 

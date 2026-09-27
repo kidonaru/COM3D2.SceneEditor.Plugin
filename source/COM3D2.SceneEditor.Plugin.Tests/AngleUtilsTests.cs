@@ -112,5 +112,17 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             AssertAngles(new Vector3(60f, -170f, 180f), actual);
         }
+
+        [Fact]
+        public void GetContinuousEulerAngles_前回値から大きく離れた向きは分解のまま返す()
+        {
+            // リセット等で向きが飛んだとき、古い前回値に引きずられて反転表現を出さない。
+            // 反転表現 (140, 0, -162) の方が前回値に近いが、差が大きいので既定値の表現を優先する
+            var actual = AngleUtils.GetContinuousEulerAngles(
+                new Vector3(40f, 180f, 18f),
+                new Vector3(115f, 10f, 0f));
+
+            AssertAngles(new Vector3(40f, 180f, 18f), actual);
+        }
     }
 }
