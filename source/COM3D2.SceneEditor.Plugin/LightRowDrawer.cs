@@ -51,6 +51,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>照射対象のコンボの幅</summary>
         private const float LightTargetComboWidth = 120f;
 
+        /// <summary>輪郭画像のコンボの幅</summary>
+        private const float CookieImageComboWidth = 160f;
+
+        /// <summary>輪郭画像の再読込ボタンの幅</summary>
+        private const float CookieReloadButtonWidth = 60f;
+
         /// <summary>照射対象のコンボ。開閉状態を持つため追従コンボと同じくインスタンスごとに分ける</summary>
         private readonly GUIComboBox<LightTargetMode> _lightTargetComboBox =
             new GUIComboBox<LightTargetMode>
@@ -67,6 +73,15 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
                 contentSize = new Vector2(150, 300),
                 showArrow = false,
+            };
+
+        /// <summary>輪郭画像のコンボ。LightCookie フォルダからの相対パスを並べる</summary>
+        private readonly GUIComboBox<string> _cookieImageComboBox =
+            new GUIComboBox<string>
+            {
+                getName = (name, _) => name,
+                defaultName = "未選択",
+                contentSize = new Vector2(220, 300),
             };
 
         /// <summary>メインライトの Light。シーンによっては取得できず null になる</summary>
@@ -221,6 +236,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawAxisSlider(view, labelWidth, "角度", light.spotAngle, 1f, 179f, 0.1f,
                     StudioLightManager.DefaultSpotAngle, value => light.spotAngle = value);
+                DrawCookieRows(view, labelWidth, rowHeight, light);
             }
 
             // 影は平行光源だけが落とす（ライトレイヤーの表示条件に合わせる）
@@ -366,6 +382,97 @@ namespace COM3D2.SceneEditor.Plugin
                 _lightTargetComboBox.DrawButton(view);
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// スポットの輪郭 (cookie)。角度を広げると内蔵の輪郭はぼけ幅も広がるため、
+        /// 硬さの指定か画像で縁を決められるようにする
+        /// </summary>
+        private void DrawCookieRows(GUIView view, float labelWidth, float rowHeight, Light light)
+        {
+            var cookie = LightCookie.Get(light);
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("輪郭", labelWidth, rowHeight);
+                DrawCookieModeButton(view, rowHeight, light, cookie, LightCookieMode.Default, "既定");
+                DrawCookieModeButton(view, rowHeight, light, cookie, LightCookieMode.Generated, "硬さ");
+                DrawCookieModeButton(view, rowHeight, light, cookie, LightCookieMode.Image, "画像");
+            }
+            view.EndLayout();
+
+            if (cookie.mode == LightCookieMode.Generated)
+            {
+                DrawAxisSlider(view, labelWidth, "硬さ", cookie.hardness, 0f, 1f, 0.01f,
+                    LightCookieData.DefaultHardness,
+                    value =>
+                    {
+                        cookie.hardness = value;
+                        SetCookie(light, cookie);
+                    });
+            }
+            else if (cookie.mode == LightCookieMode.Image)
+            {
+                DrawCookieImageRow(view, labelWidth, rowHeight, light, cookie);
+            }
+        }
+
+        private static void DrawCookieModeButton(
+            GUIView view, float rowHeight, Light light, LightCookieData cookie, LightCookieMode mode, string label)
+        {
+            var isCurrent = cookie.mode == mode;
+            if (view.DrawButton(label, TypeButtonWidth, rowHeight, true,
+                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            {
+                RecordLightEdit("輪郭");
+                cookie.mode = mode;
+                SetCookie(light, cookie);
+            }
+        }
+
+        private void DrawCookieImageRow(
+            GUIView view, float labelWidth, float rowHeight, Light light, LightCookieData cookie)
+        {
+            var names = LightCookieTextures.GetImageNames();
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("画像", labelWidth, rowHeight);
+
+                _cookieImageComboBox.items = names;
+                _cookieImageComboBox.buttonSize = new Vector2(CookieImageComboWidth, rowHeight);
+                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す
+                _cookieImageComboBox.currentItem = cookie.image;
+                _cookieImageComboBox.onSelected = (name, _) =>
+                {
+                    RecordLightEdit("輪郭画像");
+                    cookie.image = name;
+                    SetCookie(light, cookie);
+                };
+                _cookieImageComboBox.DrawButton(view);
+
+                if (view.DrawButton("再読込", CookieReloadButtonWidth, rowHeight))
+                {
+                    LightCookieTextures.Reload();
+                    lightManager.ReapplyCookies();
+                }
+            }
+            view.EndLayout();
+
+            if (names.Count == 0)
+            {
+                view.DrawLabel("PNG を置いてください: " + LightCookieTextures.directory, -1, rowHeight);
+            }
+        }
+
+        /// <summary>
+        /// 輪郭を反映し、タイムラインのライト定義へ即時に同期させる
+        /// (定期収集は 30 フレーム間隔なので、直後の保存で古い値が書かれないように)
+        /// </summary>
+        private static void SetCookie(Light light, LightCookieData cookie)
+        {
+            LightCookie.Set(light, cookie);
+            MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
         private static string GetLightTargetName(LightTargetMode mode)
