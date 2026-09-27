@@ -19,15 +19,6 @@ namespace COM3D2.SceneEditor.Plugin
         // RenderTexture の最小サイズ (0 サイズの RT は作れない)
         private const int MIN_RT_SIZE = 64;
 
-        // ツールバーの寸法。アイコントグルは正方形、テキスト幅はアイコン読み込み失敗時のフォールバック用
-        public static readonly int TOOLBAR_HEIGHT = 24;
-        public static readonly int TOOLBAR_ITEM_HEIGHT = 20;
-        public static readonly int TOOLBAR_TOGGLE_WIDTH = 72;
-        public static readonly int TOOLBAR_ITEM_MARGIN = 2;
-        // アイコンをボタン枠より少し小さく描くための余白 (両側合計)
-        private const float TOOLBAR_ICON_OFFSET = 4f;
-        // シーン描画に重ねる帯の色
-        private static readonly Color TOOLBAR_BG_COLOR = new Color(0f, 0f, 0f, 0.5f);
         // カメラ角度プリセットのボタン幅
         private static readonly int VIEW_PRESET_BUTTON_WIDTH = 24;
 
@@ -44,11 +35,7 @@ namespace COM3D2.SceneEditor.Plugin
         protected override bool allowContentDrag => false;
 
         /// <summary>ツールバーの描画用ビュー。項目を横並びのフローレイアウトで置く</summary>
-        private readonly GUIView _toolbarView = new GUIView
-        {
-            padding = new Vector2(FRAME, (TOOLBAR_HEIGHT - TOOLBAR_ITEM_HEIGHT) * 0.5f),
-            margin = TOOLBAR_ITEM_MARGIN,
-        };
+        private readonly GUIView _toolbarView = ViewToolbarDrawer.CreateView(FRAME);
 
         private SceneViewCameraController _cameraController = null;
 
@@ -70,11 +57,7 @@ namespace COM3D2.SceneEditor.Plugin
         private Rect _toolbarRightLocalRect = Rect.zero;
 
         /// <summary>右上ツールバーの描画用ビュー。左のツールバーとは独立したフローレイアウト</summary>
-        private readonly GUIView _toolbarRightView = new GUIView
-        {
-            padding = new Vector2(FRAME, (TOOLBAR_HEIGHT - TOOLBAR_ITEM_HEIGHT) * 0.5f),
-            margin = TOOLBAR_ITEM_MARGIN,
-        };
+        private readonly GUIView _toolbarRightView = ViewToolbarDrawer.CreateView(FRAME);
 
         private static SceneViewWindow _instance = null;
         public static SceneViewWindow instance
@@ -291,21 +274,18 @@ namespace COM3D2.SceneEditor.Plugin
             var spaceOption = GizmoRenderer.CreateToolRowOption();
 
             // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 6 箇所分
-            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 6 +
-                GetToolbarToggleWidth(bgIcon) + GetToolbarToggleWidth(maidIcon) +
-                GetToolbarToggleWidth(modelIcon) +
-                GetToolbarToggleWidth(gizmoIcon) + GetToolbarToggleWidth(orthoIcon) +
-                GetToolbarToggleWidth(autoFocusIcon) +
-                GizmoToolRowDrawer.GetSpaceButtonWidth(spaceOption, TOOLBAR_ITEM_HEIGHT);
-            _toolbarLocalRect = new Rect(0, HEADER_HEIGHT, totalWidth, TOOLBAR_HEIGHT);
+            var totalWidth = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 6 +
+                ViewToolbarDrawer.GetItemWidth(bgIcon) + ViewToolbarDrawer.GetItemWidth(maidIcon) +
+                ViewToolbarDrawer.GetItemWidth(modelIcon) +
+                ViewToolbarDrawer.GetItemWidth(gizmoIcon) + ViewToolbarDrawer.GetItemWidth(orthoIcon) +
+                ViewToolbarDrawer.GetItemWidth(autoFocusIcon) +
+                GizmoToolRowDrawer.GetSpaceButtonWidth(spaceOption, ViewToolbarDrawer.ITEM_HEIGHT);
+            _toolbarLocalRect = new Rect(0, HEADER_HEIGHT, totalWidth, ViewToolbarDrawer.TOOLBAR_HEIGHT);
 
-            var prevColor = GUI.color;
-            GUI.color = TOOLBAR_BG_COLOR;
-            GUI.DrawTexture(_toolbarLocalRect, Texture2D.whiteTexture);
-            GUI.color = prevColor;
+            ViewToolbarDrawer.DrawBackground(_toolbarLocalRect);
 
             var view = _toolbarView;
-            view.Init(0, HEADER_HEIGHT, windowRect.width, TOOLBAR_HEIGHT);
+            view.Init(0, HEADER_HEIGHT, windowRect.width, ViewToolbarDrawer.TOOLBAR_HEIGHT);
             view.BeginHorizontal();
 
             DrawToolbarToggle(view, bgIcon, "背景", config.sceneViewShowBg,
@@ -322,7 +302,7 @@ namespace COM3D2.SceneEditor.Plugin
             DrawToolbarToggle(view, autoFocusIcon, "追従", config.sceneViewAutoFocus,
                 value => config.sceneViewAutoFocus = value, applyViewSettings: false);
             // ギズモの軸空間は Inspector のギズモ行と同じ設定を操作する
-            GizmoToolRowDrawer.DrawSpaceButton(view, spaceOption, TOOLBAR_ITEM_HEIGHT);
+            GizmoToolRowDrawer.DrawSpaceButton(view, spaceOption, ViewToolbarDrawer.ITEM_HEIGHT);
 
             view.EndLayout();
 
@@ -336,17 +316,14 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawViewPresetToolbar()
         {
             // 帯の幅: ボタン 3 個 + 項目間マージン 2 箇所
-            var totalWidth = FRAME * 2 + TOOLBAR_ITEM_MARGIN * 2 + VIEW_PRESET_BUTTON_WIDTH * 3;
+            var totalWidth = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 2 + VIEW_PRESET_BUTTON_WIDTH * 3;
             _toolbarRightLocalRect = new Rect(
-                windowRect.width - totalWidth, HEADER_HEIGHT, totalWidth, TOOLBAR_HEIGHT);
+                windowRect.width - totalWidth, HEADER_HEIGHT, totalWidth, ViewToolbarDrawer.TOOLBAR_HEIGHT);
 
-            var prevColor = GUI.color;
-            GUI.color = TOOLBAR_BG_COLOR;
-            GUI.DrawTexture(_toolbarRightLocalRect, Texture2D.whiteTexture);
-            GUI.color = prevColor;
+            ViewToolbarDrawer.DrawBackground(_toolbarRightLocalRect);
 
             var view = _toolbarRightView;
-            view.Init(_toolbarRightLocalRect.x, HEADER_HEIGHT, totalWidth, TOOLBAR_HEIGHT);
+            view.Init(_toolbarRightLocalRect.x, HEADER_HEIGHT, totalWidth, ViewToolbarDrawer.TOOLBAR_HEIGHT);
             view.BeginHorizontal();
 
             // +X 方向から: カメラ前方が -X (ヨー 270 度)
@@ -365,7 +342,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawViewPresetButton(GUIView view, string label, float? yaw)
         {
-            if (!view.DrawButton(label, VIEW_PRESET_BUTTON_WIDTH, TOOLBAR_ITEM_HEIGHT))
+            if (!view.DrawButton(label, VIEW_PRESET_BUTTON_WIDTH, ViewToolbarDrawer.ITEM_HEIGHT))
             {
                 return;
             }
@@ -396,12 +373,6 @@ namespace COM3D2.SceneEditor.Plugin
                 && Mathf.Abs(Mathf.DeltaAngle(a.y, b.y)) < tolerance;
         }
 
-        /// <summary>アイコンなら正方形、テキストフォールバックなら固定幅</summary>
-        private static float GetToolbarToggleWidth(Texture2D icon)
-        {
-            return icon != null ? TOOLBAR_ITEM_HEIGHT : TOOLBAR_TOGGLE_WIDTH;
-        }
-
         /// <summary>
         /// 変更されたときだけ config を更新する。
         /// applyViewSettings が true のときのみカメラ・フィルタへ反映する
@@ -420,16 +391,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             };
 
-            // アイコンを読み込めなかったときはテキストトグルにフォールバックする
-            if (icon != null)
-            {
-                view.DrawToggle(icon, value, TOOLBAR_ITEM_HEIGHT, TOOLBAR_ITEM_HEIGHT,
-                    onChanged, TOOLBAR_ICON_OFFSET, label);
-            }
-            else
-            {
-                view.DrawToggle(label, value, TOOLBAR_TOGGLE_WIDTH, TOOLBAR_ITEM_HEIGHT, onChanged);
-            }
+            ViewToolbarDrawer.DrawToggle(view, icon, label, value, onChanged);
         }
 
         public override void Update()

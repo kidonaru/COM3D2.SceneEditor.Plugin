@@ -1,0 +1,14 @@
+<!--
+  GameView ツールバー「撮影」アイコン (32x32)。カメラ本体とレンズ。
+  白地に黒縁取りで、明るい背景でも暗い背景でも視認できるようにしている。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="none" stroke="#000000" stroke-width="4" stroke-linejoin="round">
+    <path d="M 4 10 L 10 10 L 12 6 L 20 6 L 22 10 L 28 10 L 28 26 L 4 26 Z" />
+    <circle cx="16" cy="17" r="5" />
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M 4 10 L 10 10 L 12 6 L 20 6 L 22 10 L 28 10 L 28 26 L 4 26 Z" />
+    <circle cx="16" cy="17" r="5" />
+  </g>
+</svg>
