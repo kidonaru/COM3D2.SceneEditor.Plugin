@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    /// <summary>タイムラインへ書くシェーダー変更一覧の組み立て</summary>
+    /// <summary>タイムラインへ書くシェーダー・テクスチャ変更一覧の組み立て</summary>
     public static class MaterialShaderSync
     {
         /// <summary>
@@ -56,6 +56,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return false;
                 }
             }
+            return true;
+        }
+
+        /// <summary>
+        /// Material が作り直されて現在の状態から消えたエントリを保留へ戻す。
+        /// 同じ対象が現在の状態か保留に既にあれば戻さない (そちらが新しい)。戻したら true
+        /// </summary>
+        public static bool Requeue(
+            List<TimelineMaterialShaderData> pending,
+            List<TimelineMaterialShaderData> live,
+            TimelineMaterialShaderData lost)
+        {
+            if (live.Exists(e => e.IsSameTarget(lost)) || pending.Exists(e => e.IsSameTarget(lost)))
+            {
+                return false;
+            }
+            pending.Add(lost.Clone());
             return true;
         }
     }

@@ -832,8 +832,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 var materialShader = new TimelineMaterialShaderData();
                 materialShader.FromXml(materialShaderXml);
-                // 対象かシェーダーが空のものは適用できないので読まない
-                if (materialShader.material.Length > 0 && materialShader.shader.Length > 0)
+                // 対象が空か、シェーダーも有効なテクスチャも無いものは適用できないので読まない
+                if (materialShader.material.Length > 0 && materialShader.hasChanges)
                 {
                     materialShaders.Add(materialShader);
                 }

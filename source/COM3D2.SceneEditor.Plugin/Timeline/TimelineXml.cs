@@ -75,9 +75,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public List<string> extendBoneNames;
     }
 
+    /// <summary>テクスチャ差し替え 1 件 (SE 独自)。file は Config\SceneEditor からの相対パス</summary>
+    public class TimelineMaterialTextureXml
+    {
+        [XmlAttribute("prop")]
+        public string property;
+        [XmlAttribute("file")]
+        public string file;
+    }
+
     /// <summary>
-    /// マテリアルのシェーダー変更 1 件 (SE 独自)。メイドは MaidSlotNo + スロット名、
-    /// モデルは MaidSlotNo = -1 + タイムラインのモデル名で所有者を表す
+    /// マテリアルのシェーダー・テクスチャ変更 1 件 (SE 独自)。メイドは MaidSlotNo + スロット名、
+    /// モデルは MaidSlotNo = -1 + タイムラインのモデル名で所有者を表す。
+    /// シェーダーを変えていなければ Shader は書かない (旧版はシェーダーが空のエントリを読まない)
     /// </summary>
     public class TimelineMaterialShaderXml
     {
@@ -91,6 +101,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int index;
         [XmlElement("Shader")]
         public string shader;
+        // 旧版・MTE は未知の要素として読み飛ばす
+        [XmlElement("Texture")]
+        public List<TimelineMaterialTextureXml> textures = new List<TimelineMaterialTextureXml>();
     }
 
     public class TimelineBGModelXml

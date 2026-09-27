@@ -1,7 +1,10 @@
+using System.Collections.Generic;
+using SE = COM3D2.SceneEditor.Plugin;
+
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
-    /// タイムラインに保存するマテリアルのシェーダー変更 1 件。
+    /// タイムラインに保存するマテリアルのシェーダー・テクスチャ変更 1 件。
     /// キーフレームではなく、読込時に 1 回だけ適用する定義の値
     /// </summary>
     public class TimelineMaterialShaderData
@@ -18,7 +21,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>所有者内のマテリアル位置。同名マテリアルの同定に使う</summary>
         public int index;
 
+        /// <summary>差し替えたシェーダー名。空ならシェーダーは元のまま</summary>
         public string shader = "";
+
+        /// <summary>テクスチャ差し替え (プロパティ順)</summary>
+        public List<SE.MaterialTextureOverride> textures = new List<SE.MaterialTextureOverride>();
+
+        public bool hasChanges => shader.Length > 0 || textures.Count > 0;
 
         public bool IsSameTarget(TimelineMaterialShaderData other)
         {
@@ -31,12 +40,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool ContentEquals(TimelineMaterialShaderData other)
         {
-            return IsSameTarget(other) && shader == other.shader;
+            return IsSameTarget(other) && shader == other.shader
+                && SE.MaterialTextureOverride.ListEquals(textures, other.textures);
         }
 
         public TimelineMaterialShaderData Clone()
         {
-            return (TimelineMaterialShaderData)MemberwiseClone();
+            var clone = (TimelineMaterialShaderData)MemberwiseClone();
+            // 要素は不変なので一覧だけ複製する
+            clone.textures = new List<SE.MaterialTextureOverride>(textures);
+            return clone;
         }
 
         public void FromXml(TimelineMaterialShaderXml xml)
@@ -46,18 +59,42 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             material = xml.material ?? "";
             index = xml.index;
             shader = xml.shader ?? "";
+
+            // フォルダ外を指す指定と、同じプロパティの 2 件目以降は読まない
+            textures = new List<SE.MaterialTextureOverride>();
+            if (xml.textures != null)
+            {
+                foreach (var texture in xml.textures)
+                {
+                    string file;
+                    if (texture == null
+                        || !SE.MaterialTextureCatalog.TryNormalize(texture.property, texture.file, out file)
+                        || textures.Exists(t => t.property == texture.property))
+                    {
+                        continue;
+                    }
+                    textures.Add(new SE.MaterialTextureOverride(texture.property, file));
+                }
+            }
+            SE.MaterialTextureOverride.Sort(textures);
         }
 
         public TimelineMaterialShaderXml ToXml()
         {
-            return new TimelineMaterialShaderXml
+            var xml = new TimelineMaterialShaderXml
             {
                 maidSlotNo = maidSlotNo,
                 owner = owner,
                 material = material,
                 index = index,
-                shader = shader,
+                // 空なら要素ごと書かない
+                shader = shader.Length > 0 ? shader : null,
             };
+            foreach (var texture in textures)
+            {
+                xml.textures.Add(new TimelineMaterialTextureXml { property = texture.property, file = texture.file });
+            }
+            return xml;
         }
     }
 }
