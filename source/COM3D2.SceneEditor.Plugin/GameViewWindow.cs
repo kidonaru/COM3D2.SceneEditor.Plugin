@@ -40,6 +40,8 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (mode, _) => GameViewAspect.GetDisplayName(mode),
             buttonSize = new Vector2(ASPECT_COMBO_WIDTH, ViewToolbarDrawer.ITEM_HEIGHT),
             contentSize = new Vector2(ASPECT_COMBO_WIDTH + 20, 160),
+            // 前後の矢印を出すと帯の幅計算 (GetToolbarLocalRect) からはみ出すため、ボタンだけにする
+            showArrow = false,
         };
 
         public int windowIndex { get; set; }
