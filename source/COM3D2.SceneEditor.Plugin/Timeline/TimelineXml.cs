@@ -37,6 +37,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string name;
         [XmlElement("Type")]
         public LightType type;
+
+        // 輪郭 (cookie) の種類と画像は SE 独自 (硬さはライトキーで持つ)。既定の輪郭では書き出さず、MTE 産の XML を保存し直しても内容を変えない。
+        // モードは未知の値でも読めるよう int で持ち、読込時に LightCookieData.Normalized で丸める
+        [XmlElement("CookieMode")]
+        public int cookieMode;
+        [XmlElement("CookieImage")]
+        public string cookieImage;
+
+        public bool ShouldSerializecookieMode() { return cookieMode != (int)LightCookieMode.Default; }
+        public bool ShouldSerializecookieImage()
+        {
+            return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
+        }
+
+        // 影の種類 (LightShadows の数値) も SE 独自。影なしでは書き出さない。
+        // 範囲外の値でも読めるよう int で持ち、読込時に LightShadowValues.FromInt で丸める
+        [XmlElement("Shadows")]
+        public int shadows;
+
+        public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
     }
 
     public class TimelineMaidShapeKeyXml

@@ -25,12 +25,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ShadowBias = 15,
             MaidSlotNo = 16,
             Visible = 17,
-            LightTarget = 18
+            LightTarget = 18,
+            // SE 独自。MTE は 18 値までしか読まない
+            CookieHardness = 19
         }
 
         public override TransformType type => TransformType.Light;
 
-        public override int valueCount => 19;
+        /// <summary>輪郭の硬さ (index 19) を持たない旧データ (MTE・旧 SE) の値数</summary>
+        public const int LegacyValueCount = 19;
+
+        public override int valueCount => (int)Index.CookieHardness + 1;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -130,6 +135,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     defaultValue = 0f,
                 }
             },
+            {
+                "cookieHardness", new CustomValueInfo
+                {
+                    index = (int)Index.CookieHardness,
+                    name = "硬さ",
+                    min = 0f,
+                    max = 1f,
+                    step = 0.01f,
+                    defaultValue = SceneEditor.Plugin.LightCookieData.DefaultHardness,
+                }
+            },
         };
 
         private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
@@ -153,6 +169,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData shadowBiasValue => values[(int)Index.ShadowBias];
         public ValueData maidSlotNoValue => values[(int)Index.MaidSlotNo];
         public ValueData lightTargetValue => values[(int)Index.LightTarget];
+        public ValueData cookieHardnessValue => values[(int)Index.CookieHardness];
 
         // プロパティアクセサ
         public float range
@@ -195,6 +212,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             get => lightTargetValue.intValue;
             set => lightTargetValue.intValue = value;
+        }
+
+        /// <summary>輪郭の硬さ。輪郭の種類が「硬さ」のときだけ見た目に効く</summary>
+        public float cookieHardness
+        {
+            get => cookieHardnessValue.value;
+            set => cookieHardnessValue.value = value;
+        }
+
+        public override void FromXml(TransformXml xml)
+        {
+            base.FromXml(xml);
+
+            // 硬さを持たない旧データ (MTE・旧 SE) は不足分が 0 で埋まり、最も柔らかい輪郭になる。既定値へ補正する
+            if (xml.values.Length <= LegacyValueCount)
+            {
+                cookieHardness = SceneEditor.Plugin.LightCookieData.DefaultHardness;
+            }
         }
     }
 }

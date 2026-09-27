@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -30,7 +31,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
         public static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
 
-        // 追加した平行光源の影のリセット既定値（メインライトの初期値に合わせる）
+        // 追加ライトの影のリセット既定値（メインライトの初期値に合わせる）
         public const float DefaultAdditionalShadowStrength = 0.098f;
         public const float DefaultAdditionalShadowBias = 0.01f;
 
@@ -38,6 +39,12 @@ namespace COM3D2.SceneEditor.Plugin
         public const float PositionDragSensitivity = 0.01f;
 
         private static readonly int TypeButtonWidth = 70;
+
+        /// <summary>
+        /// ライトごとの回転スライダーの前回表示値 (キーは Transform のインスタンス ID)。
+        /// 実体の eulerAngles だけでは縦回転 90 度超を表せないため、表示の連続性をここで保つ
+        /// </summary>
+        private static readonly Dictionary<int, Vector3> LastRotationAngles = new Dictionary<int, Vector3>();
 
         /// <summary>コピー / ペーストボタンの幅（MaterialPropertyRowsDrawer と同じ）</summary>
         private const float ClipboardButtonWidth = 60f;
@@ -50,6 +57,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>照射対象のコンボの幅</summary>
         private const float LightTargetComboWidth = 120f;
+
+        /// <summary>輪郭画像のコンボの幅</summary>
+        private const float CookieImageComboWidth = 160f;
+
+        /// <summary>輪郭画像の再読込ボタンの幅</summary>
+        private const float CookieReloadButtonWidth = 60f;
 
         /// <summary>照射対象のコンボ。開閉状態を持つため追従コンボと同じくインスタンスごとに分ける</summary>
         private readonly GUIComboBox<LightTargetMode> _lightTargetComboBox =
@@ -67,6 +80,14 @@ namespace COM3D2.SceneEditor.Plugin
                 getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
                 contentSize = new Vector2(150, 300),
                 showArrow = false,
+            };
+
+        /// <summary>輪郭画像のコンボ。PNG 配置の画像フォルダ (Config/PngPlacement) からの相対パスを並べる</summary>
+        private readonly GUIComboBox<string> _cookieImageComboBox =
+            new GUIComboBox<string>
+            {
+                getName = (name, _) => name,
+                contentSize = new Vector2(220, 300),
             };
 
         /// <summary>メインライトの Light。シーンによっては取得できず null になる</summary>
@@ -97,7 +118,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 既定の横回転 180 度はスライダー範囲の両端どちらでも同じ向きになる。
             // 正規化表示 (-180, 180] と符号を揃えるため -180 側を既定値にする
             DrawRotationSliders(view, labelWidth,
-                light.transform.eulerAngles,
+                light.transform,
                 new Vector3(DefaultMainRotation.x, DefaultMainRotation.y - 360f),
                 lightMain.SetRotation);
 
@@ -202,7 +223,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (light.type != LightType.Point)
             {
                 DrawRotationSliders(view, labelWidth,
-                    light.transform.eulerAngles,
+                    light.transform,
                     DefaultAdditionalRotation,
                     value => light.transform.eulerAngles = value);
             }
@@ -221,10 +242,13 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawAxisSlider(view, labelWidth, "角度", light.spotAngle, 1f, 179f, 0.1f,
                     StudioLightManager.DefaultSpotAngle, value => light.spotAngle = value);
+                DrawCookieRows(view, labelWidth, rowHeight, light);
             }
 
-            // 影は平行光源だけが落とす（ライトレイヤーの表示条件に合わせる）
-            if (light.type == LightType.Directional)
+            DrawShadowTypeRow(view, labelWidth, rowHeight, light);
+
+            // 濃さと距離は影を落とすときだけ意味を持つ
+            if (light.shadows != LightShadows.None)
             {
                 DrawAxisSlider(view, labelWidth, "影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
                     DefaultAdditionalShadowStrength, value => light.shadowStrength = value);
@@ -315,21 +339,40 @@ namespace COM3D2.SceneEditor.Plugin
                 value, onChanged, onReset);
         }
 
-        /// <summary>ライトの向き（縦回転・横回転・ロール）</summary>
+        /// <summary>
+        /// ライトの向き（縦回転・横回転・ロール）。
+        /// 縦回転を ±180 度まで連続して動かせるよう、前回の表示値に近い表現で表示する
+        /// </summary>
         private static void DrawRotationSliders(
             GUIView view, float labelWidth,
-            Vector3 eulerAngles, Vector3 defaultRotation, Action<Vector3> onChanged)
+            Transform transform, Vector3 defaultRotation, Action<Vector3> onChanged)
         {
-            var pitch = AngleUtils.NormalizeAngle(eulerAngles.x);
-            var yaw = AngleUtils.NormalizeAngle(eulerAngles.y);
-            var roll = AngleUtils.NormalizeAngle(eulerAngles.z);
+            var id = transform.GetInstanceID();
+            Vector3 prevAngles;
+            if (!LastRotationAngles.TryGetValue(id, out prevAngles))
+            {
+                prevAngles = AngleUtils.NormalizeAngles(transform.eulerAngles);
+            }
 
-            DrawAxisSlider(view, labelWidth, "縦回転", pitch, -90f, 90f, 0.1f, defaultRotation.x,
-                value => onChanged(new Vector3(value, yaw, roll)));
-            DrawAxisSlider(view, labelWidth, "横回転", yaw, -180f, 180f, 0.1f, defaultRotation.y,
-                value => onChanged(new Vector3(pitch, value, roll)));
-            DrawAxisSlider(view, labelWidth, "ロール", roll, -180f, 180f, 0.1f, defaultRotation.z,
-                value => onChanged(new Vector3(pitch, yaw, value)));
+            // 前回値のままの向きなら前回値を表示する。縦回転 ±90 度ちょうどでは横回転とロールが
+            // 1 軸に縮退し、Unity の分解が前回値と別の組み合わせを返すため
+            var angles = Quaternion.Angle(Quaternion.Euler(prevAngles), transform.rotation) < 0.01f
+                ? prevAngles
+                : AngleUtils.GetContinuousEulerAngles(transform.eulerAngles, prevAngles);
+            LastRotationAngles[id] = angles;
+
+            Action<Vector3> apply = value =>
+            {
+                LastRotationAngles[id] = value;
+                onChanged(value);
+            };
+
+            DrawAxisSlider(view, labelWidth, "縦回転", angles.x, -180f, 180f, 0.1f, defaultRotation.x,
+                value => apply(new Vector3(value, angles.y, angles.z)));
+            DrawAxisSlider(view, labelWidth, "横回転", angles.y, -180f, 180f, 0.1f, defaultRotation.y,
+                value => apply(new Vector3(angles.x, value, angles.z)));
+            DrawAxisSlider(view, labelWidth, "ロール", angles.z, -180f, 180f, 0.1f, defaultRotation.z,
+                value => apply(new Vector3(angles.x, angles.y, value)));
         }
 
         /// <summary>種別切替ボタン 1 つ。選択中はアクセント色で示す</summary>
@@ -366,6 +409,163 @@ namespace COM3D2.SceneEditor.Plugin
                 _lightTargetComboBox.DrawButton(view);
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// 影の種類。追加ライトは影なしで生成されるので、影を落とすにはここで種類を選ぶ。
+        /// 影を落とす灯が増えるほどシャドウマップの描画が増えて重くなる
+        /// </summary>
+        private static void DrawShadowTypeRow(GUIView view, float labelWidth, float rowHeight, Light light)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("影", labelWidth, rowHeight);
+                DrawShadowTypeButton(view, rowHeight, light, LightShadows.None, "なし");
+                DrawShadowTypeButton(view, rowHeight, light, LightShadows.Hard, "ハード");
+                DrawShadowTypeButton(view, rowHeight, light, LightShadows.Soft, "ソフト");
+            }
+            view.EndLayout();
+        }
+
+        private static void DrawShadowTypeButton(
+            GUIView view, float rowHeight, Light light, LightShadows shadows, string label)
+        {
+            var isCurrent = light.shadows == shadows;
+            if (view.DrawButton(label, TypeButtonWidth, rowHeight, true,
+                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            {
+                RecordLightEdit("影");
+                SetShadows(light, shadows);
+            }
+        }
+
+        /// <summary>
+        /// スポットの輪郭 (cookie)。角度を広げると内蔵の輪郭はぼけ幅も広がるため、
+        /// 硬さの指定か画像で縁を決められるようにする
+        /// </summary>
+        private void DrawCookieRows(GUIView view, float labelWidth, float rowHeight, Light light)
+        {
+            var cookie = LightCookie.Get(light);
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("輪郭", labelWidth, rowHeight);
+                DrawCookieModeButton(view, rowHeight, light, cookie, LightCookieMode.Default, "既定");
+                DrawCookieModeButton(view, rowHeight, light, cookie, LightCookieMode.Generated, "硬さ");
+                DrawCookieModeButton(view, rowHeight, light, cookie, LightCookieMode.Image, "画像");
+            }
+            view.EndLayout();
+
+            if (cookie.mode == LightCookieMode.Generated)
+            {
+                DrawAxisSlider(view, labelWidth, "硬さ", cookie.hardness, 0f, 1f, 0.01f,
+                    LightCookieData.DefaultHardness,
+                    value =>
+                    {
+                        cookie.hardness = value;
+                        SetCookie(light, cookie);
+                    });
+            }
+            else if (cookie.mode == LightCookieMode.Image)
+            {
+                DrawCookieImageRow(view, labelWidth, rowHeight, light, cookie);
+            }
+        }
+
+        private static void DrawCookieModeButton(
+            GUIView view, float rowHeight, Light light, LightCookieData cookie, LightCookieMode mode, string label)
+        {
+            var isCurrent = cookie.mode == mode;
+            if (view.DrawButton(label, TypeButtonWidth, rowHeight, true,
+                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            {
+                RecordLightEdit("輪郭");
+                cookie.mode = mode;
+                SetCookie(light, cookie);
+            }
+        }
+
+        private void DrawCookieImageRow(
+            GUIView view, float labelWidth, float rowHeight, Light light, LightCookieData cookie)
+        {
+            var names = LightCookieTextures.GetImageNames();
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("画像", labelWidth, rowHeight);
+
+                _cookieImageComboBox.items = names;
+                _cookieImageComboBox.buttonSize = new Vector2(CookieImageComboWidth, rowHeight);
+                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す
+                string fallbackName;
+                _cookieImageComboBox.currentIndex =
+                    ResolveCookieImageSelection(names, cookie.image, out fallbackName);
+                _cookieImageComboBox.defaultName = fallbackName;
+                _cookieImageComboBox.onSelected = (name, _) =>
+                {
+                    RecordLightEdit("輪郭画像");
+                    cookie.image = name;
+                    SetCookie(light, cookie);
+                };
+                _cookieImageComboBox.DrawButton(view);
+
+                if (view.DrawButton("再読込", CookieReloadButtonWidth, rowHeight))
+                {
+                    LightCookieTextures.Reload();
+                    lightManager.ReapplyCookies();
+                }
+            }
+            view.EndLayout();
+
+            if (names.Count == 0)
+            {
+                view.DrawLabel("PNG を置いてください: " + LightCookieTextures.directory, -1, rowHeight);
+            }
+        }
+
+        /// <summary>
+        /// 輪郭画像コンボの選択位置を返す。XML 由来の値は大文字小文字や区切り文字が一覧と違いうるので、
+        /// テクスチャのキャッシュと同じくゆるく照合する。
+        /// fallbackName は一覧に無いときだけ表示する名前で、見つかったときは null
+        /// (GUIComboBox は defaultName が null でないと選択中の項目より優先して表示するため)
+        /// </summary>
+        public static int ResolveCookieImageSelection(List<string> names, string image, out string fallbackName)
+        {
+            var normalized = NormalizeImagePath(image);
+            var index = names.FindIndex(
+                name => string.Equals(NormalizeImagePath(name), normalized, StringComparison.OrdinalIgnoreCase));
+
+            if (index >= 0)
+            {
+                fallbackName = null;
+            }
+            else
+            {
+                fallbackName = string.IsNullOrEmpty(image) ? "未選択" : image + " (見つかりません)";
+            }
+            return index;
+        }
+
+        private static string NormalizeImagePath(string path)
+        {
+            return (path ?? "").Replace('/', '\\');
+        }
+
+        /// <summary>
+        /// 輪郭を反映し、タイムラインのライト定義へ即時に同期させる
+        /// (定期収集は 30 フレーム間隔なので、直後の保存で古い値が書かれないように)
+        /// </summary>
+        private static void SetCookie(Light light, LightCookieData cookie)
+        {
+            LightCookie.Set(light, cookie);
+            MTEP.StudioLightManager.instance.LateUpdate(true);
+        }
+
+        /// <summary>影の種類を反映し、輪郭と同じくタイムラインのライト定義へ即時に同期させる</summary>
+        private static void SetShadows(Light light, LightShadows shadows)
+        {
+            light.shadows = shadows;
+            MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
         private static string GetLightTargetName(LightTargetMode mode)

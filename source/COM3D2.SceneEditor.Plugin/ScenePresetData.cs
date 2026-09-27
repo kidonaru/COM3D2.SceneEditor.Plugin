@@ -134,6 +134,52 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>追従先メイドのスロット番号。-1 で追従なし</summary>
         public int maidSlotNo = -1;
         public Vector3 followOffset = Vector3.zero;
+
+        // 輪郭 (cookie)。旧プリセットには無いので既定の輪郭で読み、既定では書き出さない。
+        // モードは未知の値でもプリセット全体の読込を失敗させないよう int で持つ (タイムラインと同じ)
+        [XmlAttribute]
+        public int cookieMode = (int)LightCookieMode.Default;
+        [XmlAttribute]
+        public float cookieHardness = LightCookieData.DefaultHardness;
+        [XmlAttribute]
+        public string cookieImage;
+
+        public bool ShouldSerializecookieMode() { return cookieMode != (int)LightCookieMode.Default; }
+        public bool ShouldSerializecookieHardness() { return cookieMode == (int)LightCookieMode.Generated; }
+        public bool ShouldSerializecookieImage()
+        {
+            return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
+        }
+
+        public LightCookieData GetCookie()
+        {
+            return new LightCookieData
+            {
+                mode = (LightCookieMode)cookieMode,
+                hardness = cookieHardness,
+                image = cookieImage,
+            }.Normalized();
+        }
+
+        public void SetCookie(LightCookieData cookie)
+        {
+            cookieMode = (int)cookie.mode;
+            cookieHardness = cookie.hardness;
+            cookieImage = cookie.image;
+        }
+
+        /// <summary>
+        /// 影の種類 (LightShadows の数値)。旧プリセットには無いので影なしで読み、影なしでは書き出さない。
+        /// 範囲外の値でもプリセット全体の読込を失敗させないよう int で持つ
+        /// </summary>
+        [XmlAttribute]
+        public int shadows = (int)LightShadows.None;
+
+        public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
+
+        public LightShadows GetShadows() { return LightShadowValues.FromInt(shadows); }
+
+        public void SetShadows(LightShadows value) { shadows = (int)value; }
     }
 
     /// <summary>ライトの状態。メインライトと追加ライト一式</summary>
@@ -1091,7 +1137,9 @@ namespace COM3D2.SceneEditor.Plugin
         // v36: pngPlacement の png に表示タイプ (displayType)、ブレンド方式 (blendMode)、彩度 (saturation)、
         //      デカール設定 (decalFadeAngle / decalProjectOnMaids) を追加。表示タイプとデカール設定は板では、
         //      ブレンド方式は通常、彩度は 1 のときは書き出さない。旧形式は属性が無く板・通常・彩度 1 として読める
-        public static readonly int CurrentVersion = 36;
+        // v37: 追加ライトに輪郭 (cookieMode / cookieHardness / cookieImage) と影の種類 (shadows) を追加。
+        //      既定の輪郭・影なしでは書き出さない。旧形式は属性が無く既定の輪郭・影なしとして読める
+        public static readonly int CurrentVersion = 37;
 
         [XmlAttribute]
         public int version = CurrentVersion;

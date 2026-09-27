@@ -115,6 +115,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string name = "Light";
         public string displayName = "通常";
 
+        /// <summary>
+        /// 輪郭設定の写し。実体の変化を LateUpdate の比較で拾い、タイムラインのライト定義へ同期するために持つ
+        /// </summary>
+        public SceneEditor.Plugin.LightCookieData cookie = SceneEditor.Plugin.LightCookieData.Default;
+
+        /// <summary>影の種類の写し。輪郭と同じく LateUpdate の比較でライト定義へ同期する</summary>
+        public LightShadows shadows = LightShadows.None;
+
         public int typeOrder
         {
             get
@@ -204,6 +212,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this.index = index;
             this.transform = transform;
             this.obj = obj;
+            this.cookie = SceneEditor.Plugin.LightCookie.Get(light);
+            // メインライト (index 0) はゲーム側で常に影ありなので定義に載せない。載せると旧 XML を保存し直すだけで要素が増える
+            this.shadows = index > 0 ? light.shadows : LightShadows.None;
         }
 
         public StudioLightStat(LightType type, int index)
@@ -227,6 +238,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             transform = stat.transform;
             obj = stat.obj;
             index = stat.index;
+            cookie = stat.cookie;
+            shadows = stat.shadows;
 
             _followLight = null;
         }

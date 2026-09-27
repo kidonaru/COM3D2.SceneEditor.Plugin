@@ -71,6 +71,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         public string name;
         public LightType type;
+        public SE.LightCookieData cookie = SE.LightCookieData.Default;
+        public LightShadows shadows = LightShadows.None;
 
         public TimelineLightData()
         {
@@ -85,12 +87,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             name = light.name;
             type = light.type;
+            cookie = light.cookie;
+            shadows = light.shadows;
         }
 
         public void FromXml(TimelineLightXml xml)
         {
             name = xml.name;
             type = xml.type;
+            cookie = new SE.LightCookieData
+            {
+                mode = (SE.LightCookieMode)xml.cookieMode,
+                // 硬さはライトキー (index 19) で持つため、定義では既定値を入れておく
+                hardness = SE.LightCookieData.DefaultHardness,
+                image = xml.cookieImage,
+            }.Normalized();
+            shadows = SE.LightShadowValues.FromInt(xml.shadows);
         }
 
         public TimelineLightXml ToXml()
@@ -99,6 +111,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 name = name,
                 type = type,
+                cookieMode = (int)cookie.mode,
+                cookieImage = cookie.image,
+                shadows = (int)shadows,
             };
             return xml;
         }

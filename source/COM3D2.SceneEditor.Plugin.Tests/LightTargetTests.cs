@@ -57,10 +57,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void ライトキーの値数は19で末尾が対象()
+        public void 対象はindex18()
         {
             var trans = new TransformDataLight();
-            Assert.Equal(19, trans.valueCount);
             Assert.Equal(18, (int)TransformDataLight.Index.LightTarget);
             Assert.True(trans.GetCustomValueInfoMap().ContainsKey("lightTarget"));
         }

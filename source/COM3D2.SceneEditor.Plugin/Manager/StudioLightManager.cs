@@ -167,6 +167,15 @@ namespace COM3D2.SceneEditor.Plugin
             Object.Destroy(light.gameObject);
         }
 
+        /// <summary>輪郭テクスチャを読み直したあと、全灯の Light.cookie を付け直す</summary>
+        public void ReapplyCookies()
+        {
+            foreach (var light in _lights)
+            {
+                LightCookie.Apply(light);
+            }
+        }
+
         /// <summary>
         /// 追加ライトとして扱える種別か。
         /// Area / Rectangle 等はリアルタイムライトとして機能しないため除外する
@@ -186,6 +195,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             light.type = type;
+
+            // 2D の cookie はスポット専用なので、種別に合わせて付け外しする
+            LightCookie.Apply(light);
         }
 
         /// <summary>
@@ -297,6 +309,7 @@ namespace COM3D2.SceneEditor.Plugin
         public override void OnPluginDisable()
         {
             ReleaseAll();
+            LightCookieTextures.ReleaseAll();
         }
     }
 }

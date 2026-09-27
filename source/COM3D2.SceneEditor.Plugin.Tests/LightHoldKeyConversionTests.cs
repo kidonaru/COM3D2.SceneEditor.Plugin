@@ -100,6 +100,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 挿入キーの輪郭の硬さは開始キーの値を引き継ぐ()
+        {
+            // 旧 XML のキーは FromXml で硬さ 0.8 に補正済み。挿入キーだけ 0 になると区間内で輪郭が揺らぐ
+            var start = NewLight(1f, Color.red, Vector3.zero);
+            start.cookieHardness = LightCookieData.DefaultHardness;
+            var end = NewLight(2f, Color.red, Vector3.zero);
+            end.cookieHardness = LightCookieData.DefaultHardness;
+
+            var hold = LightHoldKeyConversion.CreateHoldKey(start, end, 0f, 1f, 0.5f, true, true);
+
+            Assert.Equal(LightCookieData.DefaultHardness, hold.cookieHardness);
+        }
+
+        [Fact]
         public void 挿入キーのタンジェントは自動補間になる()
         {
             var start = NewLight(1f, Color.red, Vector3.zero);

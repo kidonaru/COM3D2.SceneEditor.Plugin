@@ -47,5 +47,36 @@ namespace COM3D2.SceneEditor.Plugin
                 GetFixedAngle(angles.y, prevAngles.y),
                 GetFixedAngle(angles.z, prevAngles.z));
         }
+
+        /// <summary>
+        /// Transform.eulerAngles を、前回の表示値から連続する表現で (-180, 180] に返す。
+        /// Unity は縦回転 (x) を ±90 度に収めて分解するため、真上・真下を越えると
+        /// 同じ向きの別表現 (180 - x, y + 180, z + 180) へ飛ぶ。別表現が前回値の近く
+        /// (<see cref="ContinuityThreshold"/> 以内) にあるときだけそちらを選び、
+        /// 縦回転のスライダーを ±180 度まで連続して動かせるようにする。
+        /// リセット等で向きが大きく変わったときや等距離のときは Unity の分解を優先する
+        /// </summary>
+        public static Vector3 GetContinuousEulerAngles(Vector3 eulerAngles, Vector3 prevAngles)
+        {
+            var decomposed = NormalizeAngles(eulerAngles);
+            var flipped = NormalizeAngles(new Vector3(
+                180f - eulerAngles.x, eulerAngles.y + 180f, eulerAngles.z + 180f));
+
+            var flippedDistance = AngleDistance(flipped, prevAngles);
+            return flippedDistance < ContinuityThreshold
+                && flippedDistance < AngleDistance(decomposed, prevAngles)
+                ? flipped
+                : decomposed;
+        }
+
+        /// <summary>前回値からの連続とみなす各軸の角度差の合計。1 フレームのドラッグ量より十分大きくとる</summary>
+        private const float ContinuityThreshold = 45f;
+
+        private static float AngleDistance(Vector3 a, Vector3 b)
+        {
+            return Mathf.Abs(Mathf.DeltaAngle(a.x, b.x))
+                + Mathf.Abs(Mathf.DeltaAngle(a.y, b.y))
+                + Mathf.Abs(Mathf.DeltaAngle(a.z, b.z));
+        }
     }
 }

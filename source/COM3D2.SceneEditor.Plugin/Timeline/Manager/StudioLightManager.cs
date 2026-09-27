@@ -114,6 +114,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var removedLights = new List<StudioLightStat>();
             var updatedLights = new List<StudioLightStat>();
             var refresh = false;
+            var definitionChanged = false;
 
             foreach (var stat in lightList)
             {
@@ -146,6 +147,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     refresh = true;
                     continue;
                 }
+
+                // 輪郭の種類・画像と影の種類はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する
+                if (!cachedLight.cookie.EqualsIgnoringHardness(stat.cookie) || cachedLight.shadows != stat.shadows)
+                {
+                    cachedLight.cookie = stat.cookie;
+                    cachedLight.shadows = stat.shadows;
+                    definitionChanged = true;
+                }
             }
 
             while (lights.Count > lightList.Count)
@@ -175,6 +184,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         light.type, light.displayName, light.name);
                 }
 
+                UpdateTimelineLights();
+            }
+            else if (definitionChanged)
+            {
                 UpdateTimelineLights();
             }
 
@@ -236,7 +249,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (i >= lightList.Count)
                 {
                     var stat = CreateLightStat(lightData.type, i);
-                    CreateLightInternal(stat);
+                    var newLight = CreateLightInternal(stat);
+                    // メインライト (index 0) は輪郭と影の種類を持たない (メインライトが取れないシーンでは index 0 もここを通る)
+                    if (i > 0)
+                    {
+                        SceneEditor.Plugin.LightCookie.Set(newLight, lightData.cookie);
+                        newLight.shadows = lightData.shadows;
+                    }
 
                     MTEUtils.LogDebug("Create light: type={0} displayName={1} name={2}",
                         stat.type, stat.displayName, stat.name);
@@ -248,6 +267,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     newStat.type = lightData.type;
                     newStat.index = i;
                     ChangeLight(newStat);
+
+                    // メインライト (index 0) は輪郭と影の種類を持たない
+                    if (i > 0)
+                    {
+                        SceneEditor.Plugin.LightCookie.Set(stat.light, lightData.cookie);
+                        stat.light.shadows = lightData.shadows;
+                    }
                 }
             }
 
@@ -329,10 +355,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         // 追加ライトを 1 灯生成し stat の種別を適用する。stat.light は次回 LateUpdate で再収集される
-        private void CreateLightInternal(StudioLightStat stat)
+        private Light CreateLightInternal(StudioLightStat stat)
         {
             var newLight = seLightManager.AddLight();
             seLightManager.SetLightType(newLight, stat.type);
+            return newLight;
         }
 
         // メインライト (index 0) は削除不可
