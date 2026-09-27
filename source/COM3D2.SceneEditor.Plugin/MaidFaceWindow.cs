@@ -19,7 +19,8 @@ namespace COM3D2.SceneEditor.Plugin
         protected override string windowTitle => "表情";
 
         /// <summary>
-        /// ウィンドウ内の内部タブ。先頭 4 つは FaceMorphCategory と同順で 1:1 対応
+        /// ウィンドウ内の内部タブ。先頭 4 つは FaceMorphCategory と同順で 1:1 対応。
+        /// 並びは保存しないので途中へ足してよい
         /// </summary>
         private enum FaceTab
         {
@@ -28,10 +29,21 @@ namespace COM3D2.SceneEditor.Plugin
             口,
             オプション,
             視線,
+            シェイプキー,
             プリセット,
         }
 
         private FaceTab _tab = FaceTab.目;
+
+        /// <summary>シェイプキータブの「更新」ボタンの幅</summary>
+        private const int SHAPE_KEY_UPDATE_BUTTON_WIDTH = 50;
+
+        /// <summary>
+        /// 顔スロットのシェイプキー一覧。目・眉・口・オプションタブが扱うモーフは
+        /// 表情レイヤーと値を奪い合うため出さない
+        /// </summary>
+        private readonly MaidShapeKeyListView _shapeKeyList =
+            new MaidShapeKeyListView(name => !FaceShapeKeyFilter.IsFaceMorphName(name));
 
         /// <summary>プリセットタブのユーザー保存表情カテゴリ名</summary>
         private const string MY_FACE_CATEGORY = "マイ表情";
@@ -130,13 +142,15 @@ namespace COM3D2.SceneEditor.Plugin
             }
             if (layerType == typeof(MTEP.MorphTimelineLayer))
             {
-                // 表情レイヤーへ記録するタブは複数あるので、視線タブから戻すときだけ先頭へ移す
-                if (_tab == FaceTab.視線)
+                // 表情レイヤーへ記録するタブは複数あるので、別レイヤーのタブ (視線・シェイプキー) から戻すときだけ先頭へ移す
+                if (_tab == FaceTab.視線 || _tab == FaceTab.シェイプキー)
                 {
                     _tab = FaceTab.目;
                 }
                 return true;
             }
+            // ShapeKeyTimelineLayer はシェイプキーウィンドウが受け持つ。
+            // こちらも応じると、髪や衣装のシェイプキーを選んだだけで表情ウィンドウまで前面に出てくる
             return false;
         }
 
@@ -166,12 +180,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             _tab = DrawInnerTabs(_tab, 70);
 
-            // 視線タブは瞳レイヤー、それ以外（表情・プリセット）は表情レイヤーへ記録される。
-            // プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
-            var layerType = _tab == FaceTab.視線
-                ? typeof(MTEP.EyesTimelineLayer)
-                : typeof(MTEP.MorphTimelineLayer);
-            TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
+            var gateState = TimelineLayerGate.Begin(view, GetTimelineLayerType(_tab), target, ROW_HEIGHT);
 
             if (_tab == FaceTab.プリセット)
             {
@@ -181,14 +190,34 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawLookContent(view, target);
             }
+            else if (_tab == FaceTab.シェイプキー)
+            {
+                DrawShapeKeyContent(view, target, gateState);
+            }
             else
             {
                 DrawMorphList(view, target);
             }
         }
 
-        /// <summary>モーフ一覧を描くタブか。視線・プリセットは対象カテゴリを持たない</summary>
-        private bool isMorphTab => _tab != FaceTab.視線 && _tab != FaceTab.プリセット;
+        /// <summary>
+        /// タブの値が記録されるタイムラインレイヤー。視線タブは瞳レイヤー、シェイプキータブは
+        /// シェイプキーレイヤー、それ以外 (表情・プリセット) は表情レイヤー。
+        /// プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
+        /// </summary>
+        private static Type GetTimelineLayerType(FaceTab tab)
+        {
+            switch (tab)
+            {
+                case FaceTab.視線: return typeof(MTEP.EyesTimelineLayer);
+                case FaceTab.シェイプキー: return typeof(MTEP.ShapeKeyTimelineLayer);
+                default: return typeof(MTEP.MorphTimelineLayer);
+            }
+        }
+
+        /// <summary>モーフ一覧を描くタブか。視線・シェイプキー・プリセットは対象カテゴリを持たない</summary>
+        private bool isMorphTab =>
+            _tab == FaceTab.目 || _tab == FaceTab.眉 || _tab == FaceTab.口 || _tab == FaceTab.オプション;
 
         /// <summary>現在タブに対応するモーフカテゴリ。プリセットタブでは呼ばない</summary>
         private FaceMorphCategory currentMorphCategory
@@ -273,6 +302,68 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             view.EndScrollView();
+        }
+
+        /// <summary>
+        /// シェイプキータブ。顔スロットのシェイプキーをシェイプキーウィンドウと同じ行で並べる。
+        /// 値・履歴・変更追跡はシェイプキーの仕組み (MaidShapeKeyRowDrawer) に乗る
+        /// </summary>
+        private void DrawShapeKeyContent(GUIView view, Maid target, TimelineLayerGateState gateState)
+        {
+            var face = target.body0 != null ? target.body0.Face : null;
+            if (face == null || face.morph == null)
+            {
+                view.DrawLabel("顔が読み込まれていません", -1, ROW_HEIGHT, textColor: Color.yellow);
+                return;
+            }
+
+            var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
+            if (maidCache == null)
+            {
+                // ゲートが同じ状況を通知済みなら重ねて出さない
+                if (gateState != TimelineLayerGateState.MaidNotFound)
+                {
+                    view.DrawLabel("メイド情報を取得できません", -1, ROW_HEIGHT, textColor: Color.yellow);
+                }
+                return;
+            }
+
+            var tags = _shapeKeyList.GetTags(target, face.Category);
+
+            _shapeKeyList.DrawSearchField(view, LABEL_WIDTH, ROW_HEIGHT,
+                SHAPE_KEY_UPDATE_BUTTON_WIDTH + view.margin, () =>
+                {
+                    // 顔の差し替えはウィンドウ側から検知できないため明示更新
+                    if (view.DrawButton("更新", SHAPE_KEY_UPDATE_BUTTON_WIDTH, ROW_HEIGHT))
+                    {
+                        _shapeKeyList.ClearCache();
+                        maidCache.ClearBlendShapeCache();
+                    }
+                });
+
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
+            _shapeKeyList.DrawRows(view, target, maidCache, tags, ROW_HEIGHT,
+                () => EnableForceOverrideForEdit(target));
+        }
+
+        /// <summary>
+        /// シェイプキーを書く直前に強制上書きを ON にする。OFF の間はゲームが毎フレーム
+        /// 顔のブレンド値を作り直すため編集が効かない (表情スライダーの SetMabataki(false) と同じ理由)。
+        /// 切り替えは表情の履歴として別に積み、Undo でシェイプキーの変更とは別に戻せるようにする。
+        /// タイムラインが上書き中はユーザー設定側だけが変わる (表情スライダーと同じ)
+        /// </summary>
+        private static void EnableForceOverrideForEdit(Maid target)
+        {
+            // GetMabataki はユーザー設定 (上書き中は退避値)。すでに ON なら履歴も積まない
+            if (!MaidFaceMorphController.GetMabataki(target))
+            {
+                return;
+            }
+
+            HistoryManager.instance.BeforeEdit(target, HistoryScope.Face, "強制上書き切替");
+            MaidFaceMorphController.SetForceOverride(target, true);
         }
 
         /// <summary>
