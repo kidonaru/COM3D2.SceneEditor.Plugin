@@ -28,7 +28,9 @@
 | `useHSVColor` | `false` | カラーピッカーを HSV 表示にする |
 | `windowHoverColor` | 暗いグレー | ウィンドウのホバー色 |
 | `backgroundColor` | `0.15, 0.15, 0.15` | GameView の外側とレターボックス余白の色 |
-| `screenshotScale` | `2` | スクリーンショットの解像度倍率（1〜4） |
+| `screenshotScale` | `2` | スクリーンショットの解像度倍率（1〜4）。比率 `カスタム` では使わない |
+| `gameViewAspectMode` | `Screen` | GameView の表示比率とスクリーンショットの切り出し（`Screen` / `Ratio16x9` / `Ratio4x3` / `Ratio1x1` / `Ratio3x4` / `Ratio9x16` / `Custom`） |
+| `gameViewCustomWidth` / `gameViewCustomHeight` | `1080` / `1920` | 比率 `カスタム` の幅・高さ（1〜8192）。スクリーンショットはこのサイズちょうどで出力する |
 | `historyLimit` | `20` | 操作履歴の最大保持数（`0` で無効） |
 | `linkExternalPlugin` | `true` | 対応プラグインを連動させる（SceneEditor の ON/OFF の追従と、選択中メイド / モデルの共有） |
 
