@@ -5,7 +5,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// マテリアル 1 件のスナップショット (全色・数値プロパティと追跡チェック)。
+    /// マテリアル 1 件のスナップショット (シェーダー・全色・数値プロパティと追跡チェック)。
     /// 差分ではなく全プロパティを持つので、初期化ボタンやペーストのように
     /// 複数プロパティが一度に変わる操作も 1 エントリで戻せる
     /// </summary>
@@ -20,6 +20,7 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Dictionary<MTEP.ModelMaterial.ValuePropertyType, float> _values
             = new Dictionary<MTEP.ModelMaterial.ValuePropertyType, float>();
         private bool _isTracked;
+        private Shader _shader;
 
         /// <param name="trackKey">追跡チェックの記録名。追跡しない対象 (背景タブ) は null</param>
         public static MaterialSnapshot Capture(
@@ -30,6 +31,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _material = material,
                 _track = track,
                 _trackKey = trackKey,
+                _shader = material.material != null ? material.material.shader : null,
             };
 
             foreach (var type in MTEP.ModelMaterial.ColorPropertyTypes)
@@ -63,6 +65,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void Apply(Maid maid)
         {
+            // 値は記録時のシェーダーのプロパティで控えているので、先にシェーダーを戻す
+            if (_shader != null)
+            {
+                _material.ChangeShader(_shader);
+            }
+
             foreach (var pair in _colors)
             {
                 if (_material.HasColor(pair.Key))
@@ -96,7 +104,7 @@ namespace COM3D2.SceneEditor.Plugin
         public bool Approximately(IStateSnapshot other)
         {
             var o = other as MaterialSnapshot;
-            if (o == null || o._material != _material || o._isTracked != _isTracked
+            if (o == null || o._material != _material || o._isTracked != _isTracked || o._shader != _shader
                 || o._colors.Count != _colors.Count || o._values.Count != _values.Count)
             {
                 return false;
