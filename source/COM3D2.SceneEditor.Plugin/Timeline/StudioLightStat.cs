@@ -115,6 +115,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string name = "Light";
         public string displayName = "通常";
 
+        /// <summary>
+        /// 輪郭設定の写し。実体の変化を LateUpdate の比較で拾い、タイムラインのライト定義へ同期するために持つ
+        /// </summary>
+        public SceneEditor.Plugin.LightCookieData cookie = SceneEditor.Plugin.LightCookieData.Default;
+
         public int typeOrder
         {
             get
@@ -204,6 +209,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this.index = index;
             this.transform = transform;
             this.obj = obj;
+            this.cookie = SceneEditor.Plugin.LightCookie.Get(light);
         }
 
         public StudioLightStat(LightType type, int index)
@@ -227,6 +233,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             transform = stat.transform;
             obj = stat.obj;
             index = stat.index;
+            cookie = stat.cookie;
 
             _followLight = null;
         }
