@@ -33,6 +33,8 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.ModelHackManager.instance,
                 MTEP.StudioModelManager.instance,
                 MTEP.BGModelManager.instance,
+                // モデルの一覧 (StudioModelManager.OnLoad) が埋まった後にシェーダーを適用する
+                MTEP.MaterialShaderManager.instance,
                 MTEP.BGGroundManager.instance,
                 MTEP.SubCameraManager.instance,
                 MTEP.TimelineBundleManager.instance,

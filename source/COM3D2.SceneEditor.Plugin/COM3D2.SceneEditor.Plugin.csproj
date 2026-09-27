@@ -509,6 +509,7 @@
     <Compile Include="Timeline\Manager\CameraManager.cs" />
     <Compile Include="Timeline\Manager\MaidManager.cs" />
     <Compile Include="Timeline\Manager\ManagerBase.cs" />
+    <Compile Include="Timeline\Manager\MaterialShaderManager.cs" />
     <Compile Include="Timeline\Manager\StudioLightManager.cs" />
     <Compile Include="Timeline\Manager\StudioModelManager.cs" />
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />
