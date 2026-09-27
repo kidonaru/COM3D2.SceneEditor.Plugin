@@ -144,10 +144,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             light.shadowStrength = start.shadowStrength;
             light.shadowBias = start.shadowBias;
 
-            // 照射対象は補間しない。メインライト (index 0) はゲーム側の恒久オブジェクトのため触らない
+            // 照射対象は補間しない。メインライト (index 0) はゲーム側の恒久オブジェクトのため照射対象・輪郭を触らない
             if (stat.index > 0)
             {
                 light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(start.lightTarget));
+                SceneEditor.Plugin.LightCookie.SetHardness(light, start.cookieHardness);
             }
 
             lightManager.ApplyLight(stat);
@@ -214,6 +215,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 start.shadowBiasValue,
                 end.shadowBiasValue,
                 t);
+
+            // 輪郭の硬さも他の数値と同じく補間する。メインライトは輪郭を持たない
+            if (stat.index > 0)
+            {
+                SceneEditor.Plugin.LightCookie.SetHardness(light, PluginUtils.HermiteValue(
+                    t0,
+                    t1,
+                    start.cookieHardnessValue,
+                    end.cookieHardnessValue,
+                    t));
+            }
 
             lightManager.ApplyLight(stat);
         }
@@ -284,6 +296,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.lightTarget = stat.index > 0
                     ? (int)LightTarget.FromCullingMask(light.cullingMask)
                     : (int)LightTargetMode.All;
+                trans.cookieHardness = stat.index > 0
+                    ? SceneEditor.Plugin.LightCookie.Get(light).hardness
+                    : SceneEditor.Plugin.LightCookieData.DefaultHardness;
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);

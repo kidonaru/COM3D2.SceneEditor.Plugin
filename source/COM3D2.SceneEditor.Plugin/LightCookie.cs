@@ -43,6 +43,27 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 硬さだけを差し替える (タイムラインのキー適用用)。再生中は毎フレーム呼ばれるため、
+        /// 値が変わらなければ何もしない。生成テクスチャは段階ごとにキャッシュされる
+        /// </summary>
+        public static void SetHardness(Light light, float hardness)
+        {
+            if (light == null)
+            {
+                return;
+            }
+
+            var data = Get(light);
+            var next = new LightCookieData { mode = data.mode, hardness = hardness, image = data.image }.Normalized();
+            if (next.hardness == data.hardness)
+            {
+                return;
+            }
+
+            Set(light, next);
+        }
+
+        /// <summary>
         /// 設定を Light.cookie へ反映する。2D の cookie はスポットにしか使えないため、
         /// それ以外の種別では外す (設定値は残し、スポットへ戻したときに再適用する)
         /// </summary>
