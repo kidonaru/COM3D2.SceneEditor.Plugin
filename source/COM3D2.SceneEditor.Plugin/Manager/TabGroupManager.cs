@@ -161,8 +161,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var guiPos = InputRemapper.rawGuiPosition;
+            // 離した後の位置では分離・並び替えを判定しない。タブ切替のロードで固まっている間に
+            // 離して動かすと、解けた最初のフレームで離したことと移動が同時に届くため
+            var released = !Input.GetMouseButton(0);
 
-            if (!_tabDetached)
+            if (!_tabDetached && !released)
             {
                 // グループが解体済みならつまみ追跡も終了 (通常のヘッダードラッグに任せる)
                 if (_tabDragWindow.group == null)
@@ -181,7 +184,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            if (!_tabDetached)
+            if (!_tabDetached && !released)
             {
                 UpdateTabReorder(guiPos);
             }
@@ -195,7 +198,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _tabDragWindow.windowRect = rect;
             }
 
-            if (!Input.GetMouseButton(0))
+            if (released)
             {
                 if (_tabDetached)
                 {
