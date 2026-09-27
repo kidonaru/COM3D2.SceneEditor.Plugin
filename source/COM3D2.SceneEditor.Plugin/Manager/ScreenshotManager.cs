@@ -11,6 +11,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// スクリーンショットの撮影。
     /// メインカメラを一時 RenderTexture へ描画するため、プラグイン UI や NGUI は写らない。
+    /// GameView の表示比率に合わせて中央を切り出す。
     /// 手動描画では画面表示との差を 2 方向から埋める必要があり、
     /// 撮影から外すもの (ギズモ・骨格線・ドラッグ点) は HideOverlays で止め、
     /// メインカメラが描かないもの (レターボックス・動画・字幕) は
@@ -28,24 +29,27 @@ namespace COM3D2.SceneEditor.Plugin
         public static string screenshotFolderPath
             => Path.Combine(UTY.gameProjectPath, "ScreenShot");
 
-        /// <summary>現在の設定で撮影した場合の出力解像度。設定ウィンドウの表示にも使う</summary>
+        /// <summary>
+        /// 現在の設定での撮影の描画サイズと切り出し矩形。
+        /// GameView の表示比率に合わせて中央を切り出す (計算は GameViewAspect.GetCaptureLayout)
+        /// </summary>
+        public static void GetCaptureLayout(out int renderWidth, out int renderHeight, out Rect cropRect)
+        {
+            GameViewAspect.GetCaptureLayout(
+                Screen.width, Screen.height, Mathf.Clamp(config.screenshotScale, 1, MAX_SCALE),
+                config.gameViewAspectMode, config.gameViewCustomWidth, config.gameViewCustomHeight,
+                SystemInfo.maxTextureSize,
+                out renderWidth, out renderHeight, out cropRect);
+        }
+
+        /// <summary>現在の設定で撮影した場合の出力解像度。設定ウィンドウの表示に使う</summary>
         public static void GetCaptureSize(out int width, out int height)
         {
-            var scale = Mathf.Clamp(config.screenshotScale, 1, MAX_SCALE);
-            width = Screen.width * scale;
-            height = Screen.height * scale;
-
-            // GPU の上限を超えると RenderTexture の確保に失敗するため縮める。
-            // 縦横を個別にクランプすると長辺だけが縮んで絵が歪むので、
-            // はみ出した分の比率を両辺へ等しくかける
-            var limit = SystemInfo.maxTextureSize;
-            var longest = Mathf.Max(width, height);
-            if (longest > limit)
-            {
-                var ratio = (float)limit / longest;
-                width = Mathf.Max(Mathf.RoundToInt(width * ratio), 1);
-                height = Mathf.Max(Mathf.RoundToInt(height * ratio), 1);
-            }
+            int renderWidth, renderHeight;
+            Rect cropRect;
+            GetCaptureLayout(out renderWidth, out renderHeight, out cropRect);
+            width = (int)cropRect.width;
+            height = (int)cropRect.height;
         }
 
         /// <summary>
@@ -93,11 +97,12 @@ namespace COM3D2.SceneEditor.Plugin
             Texture2D texture = null;
             try
             {
-                int captureWidth, captureHeight;
-                GetCaptureSize(out captureWidth, out captureHeight);
+                int renderWidth, renderHeight;
+                Rect cropRect;
+                GetCaptureLayout(out renderWidth, out renderHeight, out cropRect);
                 // RT 描画には QualitySettings の MSAA が反映されないため、画面と同じ段数を明示する
                 renderTexture = RenderTexture.GetTemporary(
-                    captureWidth, captureHeight, 24,
+                    renderWidth, renderHeight, 24,
                     RenderTextureFormat.Default, RenderTextureReadWrite.Default,
                     Mathf.Max(1, QualitySettings.antiAliasing));
                 HideOverlays(hiddenOverlays);
@@ -112,8 +117,8 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var bgColor = BackgroundUtils.bgColor;
                 texture = bgColor.a < 1f
-                    ? CaptureTransparent(camera, renderTexture, extraCameras, bgColor)
-                    : CaptureOpaque(camera, renderTexture, extraCameras);
+                    ? CaptureTransparent(camera, renderTexture, extraCameras, bgColor, cropRect)
+                    : CaptureOpaque(camera, renderTexture, extraCameras, cropRect);
 
                 // UTY.SaveImage(Texture2D) は内部で Blit して ReadPixels し直すため、
                 // 読み込み済みのピクセルをそのまま書き出して GPU リードバックの往復を避ける
@@ -156,15 +161,15 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>不透明な撮影。カメラをそのまま 1 回描画して読み出す</summary>
         private static Texture2D CaptureOpaque(
-            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras)
+            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras, Rect cropRect)
         {
             camera.Render();
             RenderExtras(extraCameras);
 
             RenderTexture.active = renderTexture;
-            var texture = new Texture2D(renderTexture.width, renderTexture.height,
+            var texture = new Texture2D((int)cropRect.width, (int)cropRect.height,
                 TextureFormat.RGB24, false);
-            texture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+            texture.ReadPixels(cropRect, 0, 0);
             texture.Apply();
             return texture;
         }
@@ -177,10 +182,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// 両者の差がそのまま「背景の透け量」(1-c) になる
         /// </summary>
         private static Texture2D CaptureTransparent(
-            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras, Color bgColor)
+            Camera camera, RenderTexture renderTexture, List<Camera> extraCameras, Color bgColor,
+            Rect cropRect)
         {
-            var onBlack = RenderAndRead(camera, renderTexture, extraCameras, Color.black);
-            var onWhite = RenderAndRead(camera, renderTexture, extraCameras, Color.white);
+            var onBlack = RenderAndRead(camera, renderTexture, extraCameras, Color.black, cropRect);
+            var onWhite = RenderAndRead(camera, renderTexture, extraCameras, Color.white, cropRect);
 
             // 高解像度 (最大 4 倍) では 1 本で数百 MB になるため、結果は onBlack へ上書きして
             // 巨大な配列を 3 本同時に抱えないようにする (同じ添字を読んでから書くので安全)
@@ -214,7 +220,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 出力用テクスチャの確保前に、もう使わない白背景分を GC 対象にする
             onWhite = null;
 
-            var texture = new Texture2D(renderTexture.width, renderTexture.height,
+            var texture = new Texture2D((int)cropRect.width, (int)cropRect.height,
                 TextureFormat.RGBA32, false);
             texture.SetPixels(pixels);
             texture.Apply();
@@ -224,7 +230,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>クリア色を指定してカメラを 1 回描画し、ピクセルを読み出す</summary>
         private static Color[] RenderAndRead(
             Camera camera, RenderTexture renderTexture, List<Camera> extraCameras,
-            Color clearColor)
+            Color clearColor, Rect cropRect)
         {
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = clearColor;
@@ -232,12 +238,11 @@ namespace COM3D2.SceneEditor.Plugin
             RenderExtras(extraCameras);
 
             RenderTexture.active = renderTexture;
-            var texture = new Texture2D(renderTexture.width, renderTexture.height,
+            var texture = new Texture2D((int)cropRect.width, (int)cropRect.height,
                 TextureFormat.RGB24, false);
             try
             {
-                texture.ReadPixels(
-                    new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+                texture.ReadPixels(cropRect, 0, 0);
                 texture.Apply();
                 return texture.GetPixels();
             }

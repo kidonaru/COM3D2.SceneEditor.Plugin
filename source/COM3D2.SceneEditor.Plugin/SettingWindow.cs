@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -37,6 +38,14 @@ namespace COM3D2.SceneEditor.Plugin
         private SettingTabType _tabType = SettingTabType.撮影;
 
         private readonly GUIView _view = new GUIView();
+
+        private readonly GUIComboBox<GameViewAspectMode> _aspectComboBox = new GUIComboBox<GameViewAspectMode>
+        {
+            items = new List<GameViewAspectMode>(GameViewAspect.modes),
+            getName = (mode, _) => GameViewAspect.GetDisplayName(mode),
+            buttonSize = new Vector2(100, 20),
+            contentSize = new Vector2(100, 160),
+        };
 
         private static SettingWindow _instance = null;
         public static SettingWindow instance
@@ -115,11 +124,16 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _view.EndScrollView();
+
+            // ボタン押下で _view に登録されたコンボのフォーカスをポップアップへ引き渡す
+            ComboBoxPopupWindow.instance.ProcessFocus(_view, this);
         }
 
-        /// <summary>スクリーンショットの解像度倍率と撮影ボタン</summary>
+        /// <summary>スクリーンショットの解像度倍率・表示比率と撮影ボタン</summary>
         private void DrawScreenshotSection()
         {
+            // カスタムは指定サイズちょうどで出力し倍率を使わないため、その間は倍率を無効表示にする
+            _view.BeginEnabled(config.gameViewAspectMode != GameViewAspectMode.Custom);
             _view.BeginHorizontal();
             {
                 _view.DrawLabel("倍率", LABEL_WIDTH, ROW_HEIGHT);
@@ -138,6 +152,54 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _view.EndLayout();
+            _view.EndEnabled();
+
+            _view.BeginHorizontal();
+            {
+                _view.DrawLabel("比率", LABEL_WIDTH, ROW_HEIGHT);
+                _aspectComboBox.currentIndex = Array.IndexOf(GameViewAspect.modes, config.gameViewAspectMode);
+                _aspectComboBox.onSelected = (mode, _) =>
+                {
+                    config.gameViewAspectMode = mode;
+                    config.dirty = true;
+                };
+                _aspectComboBox.DrawButton(_view);
+            }
+            _view.EndLayout();
+
+            if (config.gameViewAspectMode == GameViewAspectMode.Custom)
+            {
+                _view.DrawIntField(new GUIView.IntFieldOption
+                {
+                    label = "幅",
+                    labelWidth = LABEL_WIDTH,
+                    value = config.gameViewCustomWidth,
+                    minValue = 1,
+                    maxValue = GameViewAspect.MAX_CUSTOM_SIZE,
+                    width = LABEL_WIDTH + INT_FIELD_WIDTH,
+                    height = ROW_HEIGHT,
+                    onChanged = value =>
+                    {
+                        config.gameViewCustomWidth = value;
+                        config.dirty = true;
+                    },
+                });
+                _view.DrawIntField(new GUIView.IntFieldOption
+                {
+                    label = "高さ",
+                    labelWidth = LABEL_WIDTH,
+                    value = config.gameViewCustomHeight,
+                    minValue = 1,
+                    maxValue = GameViewAspect.MAX_CUSTOM_SIZE,
+                    width = LABEL_WIDTH + INT_FIELD_WIDTH,
+                    height = ROW_HEIGHT,
+                    onChanged = value =>
+                    {
+                        config.gameViewCustomHeight = value;
+                        config.dirty = true;
+                    },
+                });
+            }
 
             int width, height;
             ScreenshotManager.GetCaptureSize(out width, out height);
