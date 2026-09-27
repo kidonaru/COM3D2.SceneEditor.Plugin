@@ -6,7 +6,7 @@
 
 | # | 要望 | 状態 | 計画 |
 |---|---|---|---|
-| 1 | シーンプリセット名の既定値を日付にする | 仕様確定 | [preset-default-name](../plans/2026-09-28-preset-default-name.md) |
+| 1 | シーンプリセット名の既定値を日付にする | 実装・実機確認済み | [preset-default-name](../plans/2026-09-28-preset-default-name.md) |
 | 2 | GameView のサイズを数値・比率で指定 | 仕様確定 | [gameview-toolbar-aspect](../plans/2026-09-28-gameview-toolbar-aspect.md) |
 | 3 | 背景・アイテムを抜いた透過撮影 | 仕様確定 | 同上 |
 | 4 | GameView 左上のツールバー（マウスオーバー時のみ） | 仕様確定 | 同上 |
@@ -34,6 +34,7 @@
 - 日付の後ろに文字を足すときは、名前欄を直接編集する。専用の入力欄は作らない
 - 同じ秒に 2 回保存すると同名になるが、既存の上書き確認ダイアログが出るので追加の対策はしない
 - 保存形式と設定ファイルは変わらない
+- 実装メモ: 日時は `CultureInfo.InvariantCulture` で組む (仏暦などのカルチャで年がずれないように)。上書き確認ダイアログを出すとき、既存の保存フローで `You cannot show two modal windows at once` が 1 フレームだけログに出る (今回の変更前からの挙動)
 
 ### 2. GameView の表示比率とサイズ指定
 
