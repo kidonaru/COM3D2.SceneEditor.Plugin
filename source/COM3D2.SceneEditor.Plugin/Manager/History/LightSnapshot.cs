@@ -45,7 +45,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
                 var followLight = LightRowDrawer.FindFollowLight(light);
-                state.additionalLights.Add(new ScenePresetAdditionalLight
+                var lightState = new ScenePresetAdditionalLight
                 {
                     type = (int)light.type,
                     position = light.transform.position,
@@ -61,7 +61,9 @@ namespace COM3D2.SceneEditor.Plugin
                     shadowBias = light.shadowBias,
                     maidSlotNo = followLight != null ? followLight.maidSlotNo : -1,
                     followOffset = followLight != null ? followLight.offset : Vector3.zero,
-                });
+                };
+                lightState.SetCookie(LightCookie.Get(light));
+                state.additionalLights.Add(lightState);
             }
 
             return state;
@@ -147,6 +149,7 @@ namespace COM3D2.SceneEditor.Plugin
             light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(lightState.target));
             light.shadowStrength = lightState.shadowStrength;
             light.shadowBias = lightState.shadowBias;
+            LightCookie.Set(light, lightState.GetCookie());
 
             // 追従はタイムライン側の収集後にしか触れない (未収集なら追従行も出ていない)
             var followLight = LightRowDrawer.FindFollowLight(light);
@@ -200,7 +203,8 @@ namespace COM3D2.SceneEditor.Plugin
                     || !Mathf.Approximately(a.shadowStrength, b.shadowStrength)
                     || !Mathf.Approximately(a.shadowBias, b.shadowBias)
                     || a.maidSlotNo != b.maidSlotNo
-                    || a.followOffset != b.followOffset)
+                    || a.followOffset != b.followOffset
+                    || !a.GetCookie().Equals(b.GetCookie()))
                 {
                     return false;
                 }

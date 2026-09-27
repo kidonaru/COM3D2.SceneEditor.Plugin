@@ -25,6 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
             public LightTargetMode target;
             public int maidSlotNo;
             public Vector3 followOffset;
+            public LightCookieData cookie;
         }
 
         private static Data _data = null;
@@ -49,6 +50,7 @@ namespace COM3D2.SceneEditor.Plugin
                 target = LightTarget.FromCullingMask(light.cullingMask),
                 maidSlotNo = followLight != null ? followLight.maidSlotNo : -1,
                 followOffset = followLight != null ? followLight.offset : Vector3.zero,
+                cookie = LightCookie.Get(light),
             };
         }
 
@@ -70,6 +72,7 @@ namespace COM3D2.SceneEditor.Plugin
                 target = LightTargetMode.All,
                 maidSlotNo = -1,
                 followOffset = Vector3.zero,
+                cookie = LightCookieData.Default,
             };
         }
 
@@ -92,6 +95,7 @@ namespace COM3D2.SceneEditor.Plugin
             light.shadowStrength = _data.shadowStrength;
             light.shadowBias = _data.shadowBias;
             light.cullingMask = LightTarget.ToCullingMask(_data.target);
+            LightCookie.Set(light, _data.cookie);
 
             if (followLight != null)
             {
