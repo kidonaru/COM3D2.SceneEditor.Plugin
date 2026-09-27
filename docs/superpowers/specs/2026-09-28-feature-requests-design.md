@@ -7,9 +7,9 @@
 | # | 要望 | 状態 | 計画 |
 |---|---|---|---|
 | 1 | シーンプリセット名の既定値を日付にする | 実装・実機確認済み | [preset-default-name](../plans/2026-09-28-preset-default-name.md) |
-| 2 | GameView のサイズを数値・比率で指定 | 仕様確定 | [gameview-toolbar-aspect](../plans/2026-09-28-gameview-toolbar-aspect.md) |
-| 3 | 背景・アイテムを抜いた透過撮影 | 仕様確定 | 同上 |
-| 4 | GameView 左上のツールバー（マウスオーバー時のみ） | 仕様確定 | 同上 |
+| 2 | GameView のサイズを数値・比率で指定 | 実装・実機確認済み | [gameview-toolbar-aspect](../plans/2026-09-28-gameview-toolbar-aspect.md) |
+| 3 | 背景・アイテムを抜いた透過撮影 | 実装・実機確認済み | 同上 |
+| 4 | GameView 左上のツールバー（マウスオーバー時のみ） | 実装・実機確認済み | 同上 |
 | 5 | 関節の玉＋キーで子側をロール | 仕様確定 | [limb-joint-roll](../plans/2026-09-28-limb-joint-roll.md) |
 | 6 | 表情に Face のシェイプキー欄 | 仕様確定 | [face-shapekey-tab](../plans/2026-09-28-face-shapekey-tab.md) |
 | 7 | マテリアルごとの影 ON/OFF・濃さ | 仕様確定 | [material-texture-override](../plans/2026-09-28-material-texture-override.md) |
@@ -88,6 +88,12 @@ GameView ウィンドウの左上（ヘッダーの直下）に、SceneView と�
 - 最大化中とウィンドウ一時非表示中は GameView ウィンドウが無いので、ツールバーも出ない
 - アイコンを 2 つ足す（撮影: カメラ、PNG: 角を折った画像カード）。背景とモデルは SceneView と同じアイコン
 - ツールバーの部品は SceneView と共有する。SceneView のツールバーの見た目と動作は変わらない
+
+実装メモ (#2〜#4):
+- 最大化中の撮影も切り出さない (表示に合わせる)。設定の比率は保ったまま、直接描画中だけ `画面` として撮る
+- ツールバーの比率コンボは前後の矢印を出さない (帯の幅計算と入力除外の範囲を一致させるため)
+- PNG の非表示はデカール (Projector) も対象。板は `ViewCullingFilter` が Renderer を、デカールは `PngPlacementManager` がデカール更新後に Projector を、メインカメラの描画中だけ止める
+- 実機で未確認: ツールバーのボタンの実クリック (検証環境で OS のマウス入力がゲームに届かなかった)。表示・入力除外・コンボのポップアップ・各機能の実体は確認済み
 
 ### 5. 肘・膝のロール
 
