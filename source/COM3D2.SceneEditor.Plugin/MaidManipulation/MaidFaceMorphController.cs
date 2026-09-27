@@ -221,6 +221,18 @@ namespace COM3D2.SceneEditor.Plugin
             return null;
         }
 
+        /// <summary>全カテゴリのモーフ名 (素の名前。CRC 顔のサフィックスは付けない)</summary>
+        public static IEnumerable<string> GetAllMorphNames()
+        {
+            foreach (var defs in MorphDefs.Values)
+            {
+                foreach (var def in defs)
+                {
+                    yield return def.name;
+                }
+            }
+        }
+
         /// <summary>対象メイドの顔にこのモーフが存在するか</summary>
         public static bool IsAvailable(Maid maid, FaceMorphDef def)
         {

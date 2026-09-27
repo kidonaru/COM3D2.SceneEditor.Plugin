@@ -2208,15 +2208,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var faceMorphNames = new HashSet<string>();
-            foreach (FaceMorphCategory category in Enum.GetValues(typeof(FaceMorphCategory)))
-            {
-                foreach (var def in MaidFaceMorphController.GetAvailableMorphs(maid, category))
-                {
-                    faceMorphNames.Add(def.name);
-                }
-            }
-
             // 着替え後の古い TMorph を掴んだまま読まないよう作り直してから走査する
             maidCache.ClearBlendShapeCache();
 
@@ -2238,8 +2229,9 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     foreach (var tag in slot.morph.GetTags())
                     {
-                        // 表情モーフは同じ TMorph を共有していて適用順で競合するため従来どおり除外する
-                        if (faceMorphNames.Contains(tag) || !seenTags.Add(tag))
+                        // 表情モーフは同じ TMorph を共有していて適用順で競合するため除外する
+                        // (判定は表情ウィンドウのシェイプキータブと共有。CRC 顔のサフィックス付きも含む)
+                        if (FaceShapeKeyFilter.IsFaceMorphName(tag) || !seenTags.Add(tag))
                         {
                             continue;
                         }
