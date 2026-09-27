@@ -56,6 +56,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                     if (_materials.Count > baseMaterials.Length)
                     {
+                        for (int i = baseMaterials.Length; i < _materials.Count; i++)
+                        {
+                            _materials[i].Release();
+                        }
                         _materials.RemoveRange(baseMaterials.Length, _materials.Count - baseMaterials.Length);
                     }
                 }
