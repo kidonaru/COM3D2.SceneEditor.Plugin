@@ -281,6 +281,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // maidSlotNo -> extendBoneNames
         public Dictionary<int, HashSet<string>> extendBoneNamesMap = new Dictionary<int, HashSet<string>>();
 
+        /// <summary>マテリアルのシェーダー変更。MaterialShaderManager が現在の状態から同期する</summary>
+        public List<TimelineMaterialShaderData> materialShaders = new List<TimelineMaterialShaderData>();
+
         private int _maxFrameNo = 30;
         public int maxFrameNo
         {
@@ -824,6 +827,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            materialShaders = new List<TimelineMaterialShaderData>(xml.materialShaders.Count);
+            foreach (var materialShaderXml in xml.materialShaders)
+            {
+                var materialShader = new TimelineMaterialShaderData();
+                materialShader.FromXml(materialShaderXml);
+                // 対象かシェーダーが空のものは適用できないので読まない
+                if (materialShader.material.Length > 0 && materialShader.shader.Length > 0)
+                {
+                    materialShaders.Add(materialShader);
+                }
+            }
+
             maxFrameNo = xml.maxFrameNo;
             frameRate = xml.frameRate;
             anmName = xml.anmName;
@@ -972,6 +987,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     extendBoneNames = pair.Value.ToList(),
                 };
                 xml.extendBones.Add(extendBoneXml);
+            }
+
+            xml.materialShaders = new List<TimelineMaterialShaderXml>(materialShaders.Count);
+            foreach (var materialShader in materialShaders)
+            {
+                xml.materialShaders.Add(materialShader.ToXml());
             }
 
             xml.maxFrameNo = maxFrameNo;
