@@ -209,6 +209,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var bloom = PostEffectsClient.GetBloom();
             bloom.enabled = false;
             PostEffectsClient.ApplyBloom(bloom);
+
+            var cinematicDof = PostEffectsClient.GetCinematicDepthOfField();
+            cinematicDof.enabled = false;
+            PostEffectsClient.ApplyCinematicDepthOfField(cinematicDof);
         }
 
         public DepthOfFieldData GetDepthOfFieldData()
@@ -307,6 +311,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void ApplyBloom(PEData.BloomData data)
         {
             PostEffectsClient.ApplyBloom(data);
+        }
+
+        /// <summary>旧版の PostEffects.Plugin では false (Get は既定値、Apply は何もしない)</summary>
+        public bool isCinematicDepthOfFieldAvailable => PostEffectsClient.isCinematicDepthOfFieldAvailable;
+
+        // シネマティック被写界深度も共有 DTO をそのまま流す。
+        // メイド追従のスロット番号との変換は TransformDataCinematicDepthOfField が持つ
+        public PEData.CinematicDepthOfFieldData GetCinematicDepthOfFieldData()
+        {
+            return PostEffectsClient.GetCinematicDepthOfField();
+        }
+
+        public void ApplyCinematicDepthOfField(PEData.CinematicDepthOfFieldData data)
+        {
+            PostEffectsClient.ApplyCinematicDepthOfField(data);
         }
     }
 }

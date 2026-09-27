@@ -14,6 +14,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Bloom,
         Camera,
         CameraShake,
+        CinematicDepthOfField,
         DepthOfField,
         DistanceFog,
         Dress,

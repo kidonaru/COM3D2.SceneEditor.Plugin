@@ -11,6 +11,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         DistanceFog,
         Rimlight,
         Bloom,
+        CinematicDepthOfField,
     }
 
     public static class PostEffectUtils
@@ -25,6 +26,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             { PostEffectType.DistanceFog, "距離フォグ" },
             { PostEffectType.Rimlight, "リムライト" },
             { PostEffectType.Bloom, "ブルーム" },
+            { PostEffectType.CinematicDepthOfField, "シネマティックDoF" },
         };
 
         public static string ToJpName(PostEffectType postEffectType)
