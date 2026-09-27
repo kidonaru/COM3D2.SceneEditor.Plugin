@@ -19,7 +19,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static Shader _shader;
 
-        public static bool hasData => _colors.Count > 0 || _values.Count > 0;
+        public static bool hasData => _shader != null || _colors.Count > 0 || _values.Count > 0;
 
         public static void Copy(MTEP.ModelMaterial material)
         {

@@ -71,6 +71,21 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 対象かシェーダーが空の項目はタイムラインに読まない()
+        {
+            var xml = new TimelineXml { version = TimelineData.CurrentVersion };
+            xml.materialShaders.Add(Maid().ToXml());
+            xml.materialShaders.Add(new TimelineMaterialShaderXml { maidSlotNo = 0, owner = "wear", material = "", shader = "s" });
+            xml.materialShaders.Add(new TimelineMaterialShaderXml { maidSlotNo = 0, owner = "wear", material = "b", shader = null });
+
+            var data = new TimelineData();
+            data.FromXml(xml);
+
+            Assert.Single(data.materialShaders);
+            Assert.True(Maid().ContentEquals(data.materialShaders[0]));
+        }
+
+        [Fact]
         public void 読込時に名前の欠けた項目は空文字で読む()
         {
             var restored = new TimelineMaterialShaderData();

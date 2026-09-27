@@ -81,14 +81,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private HashSet<ColorPropertyType> capturedColors = new HashSet<ColorPropertyType>();
         private HashSet<ValuePropertyType> capturedValues = new HashSet<ValuePropertyType>();
 
-        /// <summary>元のシェーダー。Init で掴み、ChangeShader では変えない</summary>
+        /// <summary>元のシェーダー。Init で掴み、ChangeShader では変えない (ゲーム側の差し替えは取り込む)</summary>
         public Shader originalShader { get; private set; }
 
-        // 元シェーダーへ戻すときの renderQueue。シェーダーを代入すると既定値へ戻るため控える
+        // 元シェーダーでの renderQueue。シェーダーを代入すると既定値へ戻るため控える
         private int originalRenderQueue;
 
+        // 最後にこちらが設定したシェーダー。現在のシェーダーと食い違えば、
+        // ゲーム (menu の shader コマンド等) が既存の Material を差し替えたと判断する
+        private Shader appliedShader;
+
+        /// <summary>こちらで差し替えたシェーダーが効いているか。ゲーム側に上書きされていれば false</summary>
         public bool isShaderChanged
-            => material != null && originalShader != null && material.shader != originalShader;
+            => material != null && originalShader != null
+                && appliedShader != originalShader && material.shader == appliedShader;
 
         // シェーダーを変えたマテリアル。タイムラインへの同期 (MaterialShaderManager) が全メイド・全モデルを
         // 走査せずに済むよう、変更と戻しのたびに出し入れする
@@ -114,6 +120,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             originalShader = material.shader;
             originalRenderQueue = material.renderQueue;
+            appliedShader = material.shader;
 
             capturedColors.Clear();
             capturedValues.Clear();
@@ -242,23 +249,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// シェーダーを差し替える。同名プロパティの値は Unity が引き継ぐ。
-        /// renderQueue は代入で既定値へ戻るため、元シェーダーへ戻すなら元の値、
-        /// それ以外は MaterialRenderQueue の規則で決め直す
+        /// renderQueue は代入で既定値へ戻るため、元シェーダーでの状態から決め直す
+        /// (直前のシェーダーから決めると、経由したシェーダーによって値が変わる)
         /// </summary>
         public void ChangeShader(Shader shader)
         {
-            if (material == null || shader == null || material.shader == shader)
+            if (material == null || shader == null)
+            {
+                return;
+            }
+            AdoptExternalShader();
+            if (material.shader == shader)
             {
                 return;
             }
 
-            var currentQueue = material.renderQueue;
-            var currentShaderQueue = material.shader.renderQueue;
             material.shader = shader;
-            material.renderQueue = shader == originalShader
-                ? originalRenderQueue
-                : SE.MaterialRenderQueue.Resolve(currentQueue, currentShaderQueue, shader.renderQueue);
+            material.renderQueue = SE.MaterialRenderQueue.Resolve(
+                originalRenderQueue, originalShader.renderQueue, shader.renderQueue);
+            appliedShader = shader;
 
+            RefreshProperties();
+            UpdateShaderChangedRegistry();
+        }
+
+        /// <summary>
+        /// ゲーム側が既存の Material のシェーダーを差し替えていたら、それを新しい元の状態として取り込む。
+        /// 取り込まないと「初期化」がゲームの入れたシェーダーを差し替え前へ戻してしまう
+        /// </summary>
+        private void AdoptExternalShader()
+        {
+            if (material.shader == appliedShader)
+            {
+                return;
+            }
+            originalShader = material.shader;
+            originalRenderQueue = material.renderQueue;
+            appliedShader = material.shader;
             RefreshProperties();
             UpdateShaderChangedRegistry();
         }
@@ -282,13 +309,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// シェーダーを変えたマテリアルを result へ写す。
-        /// 着替え・モデル削除で破棄されたものはここで落とす (落としたら version も進める)
+        /// 着替え・モデル削除で破棄されたものと、ゲーム側にシェーダーを上書きされたものは
+        /// ここで落とす (落としたら version も進める)
         /// </summary>
         public static void CollectShaderChanged(List<ModelMaterial> result)
         {
             result.Clear();
             var removed = shaderChangedMaterials.RemoveWhere(
-                m => m.material == null || m.controller == null);
+                m => m.material == null || m.controller == null || !m.isShaderChanged);
             if (removed > 0)
             {
                 shaderChangedVersion++;

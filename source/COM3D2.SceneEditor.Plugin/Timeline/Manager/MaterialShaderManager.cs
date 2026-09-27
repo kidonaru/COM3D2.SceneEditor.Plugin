@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using SE = COM3D2.SceneEditor.Plugin;
 
@@ -39,8 +40,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private readonly List<TimelineMaterialShaderData> _live = new List<TimelineMaterialShaderData>();
         private readonly List<string> _names = new List<string>();
 
-        // 見つからないシェーダーの警告は名前ごとに 1 回
-        private readonly HashSet<string> _warnedShaders = new HashSet<string>();
+        // シェーダー名 → Shader (見つからなければ null)。Find は全 Shader を走査するので、
+        // 保留の再試行で同じ名前を毎回引き直さない。見つからない名前の警告もここで 1 回に抑える
+        private readonly Dictionary<string, Shader> _resolvedShaders = new Dictionary<string, Shader>();
 
         private TimelineData _lastTimeline;
         private int _lastVersion = -1;
@@ -49,6 +51,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void OnLoad()
         {
             _lastTimeline = timeline;
+            _resolvedShaders.Clear();
             _pending.Clear();
             foreach (var entry in timeline.materialShaders)
             {
@@ -104,14 +107,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var shader = SE.ShaderCatalog.Find(entry.shader);
+                var shader = ResolveShader(entry.shader);
                 if (shader == null)
                 {
                     // 保留に残して保存からは消さない (導入し直せば次の読込で効く)
-                    if (_warnedShaders.Add(entry.shader))
-                    {
-                        MTEUtils.LogWarning("シェーダーが見つかりません: {0}", entry.shader);
-                    }
                     continue;
                 }
 
@@ -120,6 +119,40 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 applied = true;
             }
             return applied;
+        }
+
+        private Shader ResolveShader(string name)
+        {
+            Shader shader;
+            if (!_resolvedShaders.TryGetValue(name, out shader))
+            {
+                shader = SE.ShaderCatalog.Find(name);
+                _resolvedShaders[name] = shader;
+                if (shader == null)
+                {
+                    MTEUtils.LogWarning("シェーダーが見つかりません: {0}", name);
+                }
+            }
+            return shader;
+        }
+
+        /// <summary>
+        /// タイムラインのファイルを読む直前に呼ぶ。読むタイムラインに無いシェーダー変更は元へ戻し、
+        /// 前のタイムラインやプリセットの変更が読んだタイムラインへ紛れ込まないようにする。
+        /// 背景とタイムライン管理外の対象はタイムラインが扱わないので触らない。
+        /// Undo/Redo の差し替えと新規作成では呼ばない (シーンの今の見た目を保つ)
+        /// </summary>
+        public void ResetShadersNotIn(List<TimelineMaterialShaderData> entries)
+        {
+            ModelMaterial.CollectShaderChanged(_changedMaterials);
+            foreach (var material in _changedMaterials)
+            {
+                var entry = CreateEntry(material);
+                if (entry != null && !entries.Exists(e => e.IsSameTarget(entry)))
+                {
+                    material.ResetShader();
+                }
+            }
         }
 
         private void ReapplyMaterialLayers()
@@ -234,6 +267,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return null;
             }
 
+            // 位置を保つため、破棄済みマテリアルも空名で残す (詰めると entry.index がずれる)
             _names.Clear();
             foreach (var material in materials)
             {
@@ -245,7 +279,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
-            // シーン遷移でメイド・モデルが入れ替わるため、保留も捨てる
+            // シーン遷移でメイド・モデルが入れ替わるため、保留も捨てる。
+            // タイムラインを開いていないと Update が回らないので、破棄済みの登録もここで落とす
+            ModelMaterial.CollectShaderChanged(_changedMaterials);
+            _changedMaterials.Clear();
             _pending.Clear();
             _lastTimeline = null;
             _lastVersion = -1;

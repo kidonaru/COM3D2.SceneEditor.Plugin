@@ -2456,10 +2456,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static MTEP.ModelMaterial FindMaterial(List<MTEP.ModelMaterial> materials, ScenePresetMaterial state)
         {
+            // 位置を保つため、破棄済みマテリアルも空名で残す (詰めると保存時の index がずれる)
             var names = new List<string>(materials.Count);
             foreach (var material in materials)
             {
-                names.Add(material.displayName);
+                names.Add(material.material != null ? material.displayName : "");
             }
             var index = MaterialLookup.FindIndex(names, state.material, state.index);
             return index >= 0 ? materials[index] : null;
