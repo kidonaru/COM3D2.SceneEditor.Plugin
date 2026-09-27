@@ -340,8 +340,11 @@
     <Compile Include="ImagePathResolver.cs" />
     <Compile Include="LightShadowValues.cs" />
     <Compile Include="MaterialLookup.cs" />
+    <Compile Include="MaterialTextureCatalog.cs" />
+    <Compile Include="MaterialTextureOverride.cs" />
     <Compile Include="MaterialRenderQueue.cs" />
     <Compile Include="ShaderCatalog.cs" />
+    <Compile Include="TexFile.cs" />
     <Compile Include="ItemValueClipboard.cs" />
     <Compile Include="ItemClipboardMenu.cs" />
     <Compile Include="TimelineItemValueTransfer.cs" />
