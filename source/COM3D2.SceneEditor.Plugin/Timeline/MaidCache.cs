@@ -1064,23 +1064,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 maidPropCache.Init(maid);
             }
 
-            foreach (var pair in DressUtils.DressSlotJpNameMap)
+            foreach (var pair in MaidSlotStat.MaterialSlots)
             {
-                var dressSlotId = pair.Key;
-                var slotJpName = pair.Value;
-                if (DressUtils.IsShiftSlotId(dressSlotId))
-                {
-                    continue;
-                }
-
-                var slotId = DressUtils.GetBodySlotId(dressSlotId);
-                var slot = GetSlot(dressSlotId);
+                var slotId = pair.Key;
+                var slot = GetSlot(slotId);
                 if (slot == null)
                 {
                     continue;
                 }
 
-                var stat = new MaidSlotStat(slot, slotJpName);
+                var stat = new MaidSlotStat(slot, pair.Value);
 
                 slotStats.Add(stat);
                 slotStatMap[slotId] = stat;
