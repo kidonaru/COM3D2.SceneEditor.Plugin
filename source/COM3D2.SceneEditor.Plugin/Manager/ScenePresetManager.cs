@@ -2360,6 +2360,13 @@ namespace COM3D2.SceneEditor.Plugin
                 data.shader = material.material.shader.name;
             }
 
+            var overrides = new List<MaterialTextureOverride>();
+            material.GetTextureOverrides(overrides);
+            foreach (var texture in overrides)
+            {
+                data.textures.Add(new ScenePresetMaterialTexture { prop = texture.property, file = texture.file });
+            }
+
             foreach (var propertyType in MTEP.ModelMaterial.ColorPropertyTypes)
             {
                 if (!material.HasColor(propertyType))
@@ -2399,7 +2406,7 @@ namespace COM3D2.SceneEditor.Plugin
             return data.isEmpty ? null : data;
         }
 
-        /// <summary>保存されたシェーダーとプロパティだけをマテリアルへ書き戻す。未知のプロパティ名は無視して互換を保つ</summary>
+        /// <summary>保存されたシェーダー・テクスチャとプロパティだけをマテリアルへ書き戻す。未知のプロパティ名は無視して互換を保つ</summary>
         private static void ApplyMaterial(MTEP.ModelMaterial material, ScenePresetMaterial state)
         {
             // 新シェーダーにしか無いプロパティへ書けるよう、色・値より先に差し替える
@@ -2413,6 +2420,19 @@ namespace COM3D2.SceneEditor.Plugin
                 else
                 {
                     material.ChangeShader(shader);
+                }
+            }
+
+            // テクスチャは記載分だけ差し替える (シェーダー属性と同じく、無い項目は触らない)
+            if (state.textures != null)
+            {
+                foreach (var texture in state.textures)
+                {
+                    string file;
+                    if (texture != null && MaterialTextureCatalog.TryNormalize(texture.prop, texture.file, out file))
+                    {
+                        material.ChangeTexture(texture.prop, file);
+                    }
                 }
             }
 

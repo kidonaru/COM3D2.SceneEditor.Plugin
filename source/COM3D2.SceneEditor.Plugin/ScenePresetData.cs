@@ -548,6 +548,15 @@ namespace COM3D2.SceneEditor.Plugin
         public float value;
     }
 
+    /// <summary>マテリアルのテクスチャ差し替え 1 件。file は Config\SceneEditor からの相対パス</summary>
+    public class ScenePresetMaterialTexture
+    {
+        [XmlAttribute]
+        public string prop;
+        [XmlAttribute]
+        public string file;
+    }
+
     /// <summary>マテリアル 1 件分の編集差分（初期値と異なるプロパティのみ）</summary>
     public class ScenePresetMaterial
     {
@@ -572,9 +581,13 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlElement("value")]
         public List<ScenePresetMaterialValue> values = new List<ScenePresetMaterialValue>();
 
+        [XmlElement("texture")]
+        public List<ScenePresetMaterialTexture> textures = new List<ScenePresetMaterialTexture>();
+
         [XmlIgnore]
         public bool isEmpty => string.IsNullOrEmpty(shader)
-            && (colors == null || colors.Count == 0) && (values == null || values.Count == 0);
+            && (colors == null || colors.Count == 0) && (values == null || values.Count == 0)
+            && (textures == null || textures.Count == 0);
     }
 
     /// <summary>モデルのシェイプキー 1 件。modelName + pluginName で ModelProviderHost のモデルと照合する</summary>
@@ -1145,6 +1158,7 @@ namespace COM3D2.SceneEditor.Plugin
         // v37: 追加ライトに輪郭 (cookieMode / cookieHardness / cookieImage) と影の種類 (shadows) を追加。
         //      既定の輪郭・影なしでは書き出さない。旧形式は属性が無く既定の輪郭・影なしとして読める。
         //      マテリアル差分にシェーダー (shader) を追加。変更が無ければ書き出さず、無い場合はシェーダーを触らない
+        //      マテリアル差分にテクスチャ差し替え (texture 要素、prop / file 属性) を追加。無い場合はテクスチャを触らない
         public static readonly int CurrentVersion = 37;
 
         [XmlAttribute]

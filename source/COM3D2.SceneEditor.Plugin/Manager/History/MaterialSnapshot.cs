@@ -5,7 +5,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// マテリアル 1 件のスナップショット (シェーダー・全色・数値プロパティと追跡チェック)。
+    /// マテリアル 1 件のスナップショット (シェーダー・テクスチャ・全色・数値プロパティと追跡チェック)。
     /// 差分ではなく全プロパティを持つので、初期化ボタンやペーストのように
     /// 複数プロパティが一度に変わる操作も 1 エントリで戻せる
     /// </summary>
@@ -21,6 +21,7 @@ namespace COM3D2.SceneEditor.Plugin
             = new Dictionary<MTEP.ModelMaterial.ValuePropertyType, float>();
         private bool _isTracked;
         private Shader _shader;
+        private readonly List<MaterialTextureOverride> _textures = new List<MaterialTextureOverride>();
 
         /// <param name="trackKey">追跡チェックの記録名。追跡しない対象 (背景タブ) は null</param>
         public static MaterialSnapshot Capture(
@@ -33,6 +34,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _trackKey = trackKey,
                 _shader = material.material != null ? material.material.shader : null,
             };
+            material.GetTextureOverrides(snapshot._textures);
 
             foreach (var type in MTEP.ModelMaterial.ColorPropertyTypes)
             {
@@ -70,6 +72,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _material.ChangeShader(_shader);
             }
+            // 見つからないファイルの指定も含めて記録時の状態へ揃える
+            _material.SetTextureOverrides(_textures);
 
             foreach (var pair in _colors)
             {
@@ -105,6 +109,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var o = other as MaterialSnapshot;
             if (o == null || o._material != _material || o._isTracked != _isTracked || o._shader != _shader
+                || !MaterialTextureOverride.ListEquals(o._textures, _textures)
                 || o._colors.Count != _colors.Count || o._values.Count != _values.Count)
             {
                 return false;

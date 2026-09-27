@@ -5,7 +5,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// マテリアル設定 (シェーダー / 色 / 数値プロパティ) のコピー & ペースト用クリップボード。
+    /// マテリアル設定 (シェーダー / テクスチャ / 色 / 数値プロパティ) のコピー & ペースト用クリップボード。
     /// 別マテリアルへ設定を写すためのもので、プロセス内でのみ保持する。
     /// 貼り付け先のシェーダーを先に揃え、それでも持たないプロパティは読み飛ばす
     /// </summary>
@@ -19,6 +19,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static Shader _shader;
 
+        private static readonly List<MaterialTextureOverride> _textures = new List<MaterialTextureOverride>();
+
         public static bool hasData => _shader != null || _colors.Count > 0 || _values.Count > 0;
 
         public static void Copy(MTEP.ModelMaterial material)
@@ -26,6 +28,7 @@ namespace COM3D2.SceneEditor.Plugin
             _colors.Clear();
             _values.Clear();
             _shader = material.material != null ? material.material.shader : null;
+            material.GetTextureOverrides(_textures);
 
             foreach (var type in MTEP.ModelMaterial.ColorPropertyTypes)
             {
@@ -54,6 +57,12 @@ namespace COM3D2.SceneEditor.Plugin
             if (_shader != null && material.material != null && material.material.shader != _shader)
             {
                 material.ChangeShader(_shader);
+            }
+
+            // テクスチャもコピー元に揃える。シェーダーと同じく追跡の対象外なので applied には数えない
+            if (material.material != null)
+            {
+                material.SetTextureOverrides(_textures);
             }
 
             foreach (var pair in _colors)
