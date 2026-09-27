@@ -331,6 +331,8 @@
     <Compile Include="LightRowDrawer.cs" />
     <Compile Include="LightTarget.cs" />
     <Compile Include="LightClipboard.cs" />
+    <Compile Include="LightCookieData.cs" />
+    <Compile Include="LightCookieAlpha.cs" />
     <Compile Include="ItemValueClipboard.cs" />
     <Compile Include="ItemClipboardMenu.cs" />
     <Compile Include="TimelineItemValueTransfer.cs" />
