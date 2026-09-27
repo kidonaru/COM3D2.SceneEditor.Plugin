@@ -196,7 +196,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// relativePath はプリセット XML 由来の外部入力なので、絶対パス指定や
         /// ".." による出所外への脱出を弾く。範囲外なら null
         /// </summary>
-        private static string ResolveImagePath(string dir, string relativePath)
+        public static string ResolveImagePath(string dir, string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath) || Path.IsPathRooted(relativePath))
             {

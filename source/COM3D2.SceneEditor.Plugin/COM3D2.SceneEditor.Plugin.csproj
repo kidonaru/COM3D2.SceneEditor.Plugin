@@ -333,6 +333,8 @@
     <Compile Include="LightClipboard.cs" />
     <Compile Include="LightCookieData.cs" />
     <Compile Include="LightCookieAlpha.cs" />
+    <Compile Include="LightCookieTextures.cs" />
+    <Compile Include="LightCookie.cs" />
     <Compile Include="ItemValueClipboard.cs" />
     <Compile Include="ItemClipboardMenu.cs" />
     <Compile Include="TimelineItemValueTransfer.cs" />
