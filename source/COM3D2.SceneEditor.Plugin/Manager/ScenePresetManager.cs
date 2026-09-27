@@ -2437,12 +2437,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static MTEP.ModelMaterial FindMaterial(List<MTEP.ModelMaterial> materials, ScenePresetMaterial state)
         {
-            if (state.index >= 0 && state.index < materials.Count
-                && materials[state.index].displayName == state.material)
+            var names = new List<string>(materials.Count);
+            foreach (var material in materials)
             {
-                return materials[state.index];
+                names.Add(material.displayName);
             }
-            return materials.Find(m => m.displayName == state.material);
+            var index = MaterialLookup.FindIndex(names, state.material, state.index);
+            return index >= 0 ? materials[index] : null;
         }
 
         /// <summary>Enum.TryParse が使えない .NET 3.5 向けの安全なパース</summary>
