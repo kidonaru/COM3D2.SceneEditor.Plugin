@@ -80,7 +80,6 @@ namespace COM3D2.SceneEditor.Plugin
             new GUIComboBox<string>
             {
                 getName = (name, _) => name,
-                defaultName = "未選択",
                 contentSize = new Vector2(220, 300),
             };
 
@@ -441,8 +440,14 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _cookieImageComboBox.items = names;
                 _cookieImageComboBox.buttonSize = new Vector2(CookieImageComboWidth, rowHeight);
-                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す
-                _cookieImageComboBox.currentItem = cookie.image;
+                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す。
+                // XML 由来の値は大文字小文字や区切り文字が一覧と違いうるので、テクスチャのキャッシュと同じくゆるく照合する
+                var image = NormalizeImagePath(cookie.image);
+                _cookieImageComboBox.currentIndex = names.FindIndex(
+                    name => string.Equals(NormalizeImagePath(name), image, StringComparison.OrdinalIgnoreCase));
+                _cookieImageComboBox.defaultName = string.IsNullOrEmpty(cookie.image)
+                    ? "未選択"
+                    : cookie.image + " (見つかりません)";
                 _cookieImageComboBox.onSelected = (name, _) =>
                 {
                     RecordLightEdit("輪郭画像");
@@ -463,6 +468,11 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("PNG を置いてください: " + LightCookieTextures.directory, -1, rowHeight);
             }
+        }
+
+        private static string NormalizeImagePath(string path)
+        {
+            return (path ?? "").Replace('/', '\\');
         }
 
         /// <summary>

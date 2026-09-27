@@ -249,7 +249,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     var stat = CreateLightStat(lightData.type, i);
                     var newLight = CreateLightInternal(stat);
-                    // メインライトが取れないシーンでは index 0 もここを通る。メインライト相当の定義は輪郭を持たない
+                    // メインライト (index 0) は輪郭を持たない (メインライトが取れないシーンでは index 0 もここを通る)
                     if (i > 0)
                     {
                         SceneEditor.Plugin.LightCookie.Set(newLight, lightData.cookie);

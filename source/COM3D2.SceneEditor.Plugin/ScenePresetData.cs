@@ -135,29 +135,35 @@ namespace COM3D2.SceneEditor.Plugin
         public int maidSlotNo = -1;
         public Vector3 followOffset = Vector3.zero;
 
-        // 輪郭 (cookie)。旧プリセットには無いので既定の輪郭で読み、既定では書き出さない
+        // 輪郭 (cookie)。旧プリセットには無いので既定の輪郭で読み、既定では書き出さない。
+        // モードは未知の値でもプリセット全体の読込を失敗させないよう int で持つ (タイムラインと同じ)
         [XmlAttribute]
-        public LightCookieMode cookieMode = LightCookieMode.Default;
+        public int cookieMode = (int)LightCookieMode.Default;
         [XmlAttribute]
         public float cookieHardness = LightCookieData.DefaultHardness;
         [XmlAttribute]
         public string cookieImage;
 
-        public bool ShouldSerializecookieMode() { return cookieMode != LightCookieMode.Default; }
-        public bool ShouldSerializecookieHardness() { return cookieMode == LightCookieMode.Generated; }
+        public bool ShouldSerializecookieMode() { return cookieMode != (int)LightCookieMode.Default; }
+        public bool ShouldSerializecookieHardness() { return cookieMode == (int)LightCookieMode.Generated; }
         public bool ShouldSerializecookieImage()
         {
-            return cookieMode == LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
+            return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
         }
 
         public LightCookieData GetCookie()
         {
-            return new LightCookieData { mode = cookieMode, hardness = cookieHardness, image = cookieImage }.Normalized();
+            return new LightCookieData
+            {
+                mode = (LightCookieMode)cookieMode,
+                hardness = cookieHardness,
+                image = cookieImage,
+            }.Normalized();
         }
 
         public void SetCookie(LightCookieData cookie)
         {
-            cookieMode = cookie.mode;
+            cookieMode = (int)cookie.mode;
             cookieHardness = cookie.hardness;
             cookieImage = cookie.image;
         }

@@ -335,6 +335,7 @@
     <Compile Include="LightCookieAlpha.cs" />
     <Compile Include="LightCookieTextures.cs" />
     <Compile Include="LightCookie.cs" />
+    <Compile Include="ImagePathResolver.cs" />
     <Compile Include="ItemValueClipboard.cs" />
     <Compile Include="ItemClipboardMenu.cs" />
     <Compile Include="TimelineItemValueTransfer.cs" />

@@ -61,7 +61,7 @@ namespace COM3D2.SceneEditor.Plugin
         private static Texture2D LoadImage(string relativePath)
         {
             // relativePath はプリセット XML 由来の外部入力なのでフォルダ外への脱出を弾く
-            var path = PngPlacementManager.ResolveImagePath(directory, relativePath);
+            var path = ImagePathResolver.Resolve(directory, relativePath);
             if (path == null)
             {
                 MTEUtils.LogWarning("ライトの輪郭画像のパスが不正です: {0}", relativePath);
@@ -133,10 +133,19 @@ namespace COM3D2.SceneEditor.Plugin
                 return result;
             }
 
-            var rootPath = Path.GetFullPath(dir).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
-            foreach (var path in Directory.GetFiles(dir, "*.png", SearchOption.AllDirectories))
+            // 一覧は描画のたびに参照するので、失敗しても空で覚えて毎フレーム例外を出さない
+            try
             {
-                result.Add(Path.GetFullPath(path).Substring(rootPath.Length));
+                var rootPath = Path.GetFullPath(dir).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+                foreach (var path in Directory.GetFiles(dir, "*.png", SearchOption.AllDirectories))
+                {
+                    result.Add(Path.GetFullPath(path).Substring(rootPath.Length));
+                }
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("ライトの輪郭画像の一覧を取得できません: {0} ({1})", dir, e.Message);
+                result.Clear();
             }
             result.Sort(StringComparer.OrdinalIgnoreCase);
             return result;

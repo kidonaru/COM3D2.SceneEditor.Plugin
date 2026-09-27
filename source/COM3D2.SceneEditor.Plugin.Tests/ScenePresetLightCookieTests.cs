@@ -63,6 +63,17 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 未知のモードでもプリセットを読めて既定の輪郭になる()
+        {
+            // 新しい SE で増えたモードを古い SE で読んでも、プリセット全体の読込を失敗させない
+            const string text =
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<ScenePresetAdditionalLight type=\"0\" cookieMode=\"9\" />";
+
+            Assert.Equal(LightCookieMode.Default, Deserialize(text).GetCookie().mode);
+        }
+
+        [Fact]
         public void 属性の無い旧プリセットは既定の輪郭として読む()
         {
             const string text =

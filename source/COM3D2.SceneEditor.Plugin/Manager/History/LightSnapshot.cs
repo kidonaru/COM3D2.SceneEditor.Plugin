@@ -128,6 +128,9 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ApplyLightState(lights[i], state.additionalLights[i]);
             }
+
+            // 輪郭はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
+            MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
         /// <summary>追加ライト 1 灯へ記録値を反映する</summary>

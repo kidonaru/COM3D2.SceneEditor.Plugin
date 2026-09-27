@@ -192,32 +192,6 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 出所ディレクトリ配下の実ファイルパスを解決する。
-        /// relativePath はプリセット XML 由来の外部入力なので、絶対パス指定や
-        /// ".." による出所外への脱出を弾く。範囲外なら null
-        /// </summary>
-        public static string ResolveImagePath(string dir, string relativePath)
-        {
-            if (string.IsNullOrEmpty(relativePath) || Path.IsPathRooted(relativePath))
-            {
-                return null;
-            }
-
-            var rootPath = Path.GetFullPath(dir);
-            if (!rootPath.EndsWith("\\") && !rootPath.EndsWith("/"))
-            {
-                rootPath += Path.DirectorySeparatorChar;
-            }
-
-            var fullPath = Path.GetFullPath(Path.Combine(rootPath, relativePath));
-            if (!fullPath.StartsWith(rootPath, System.StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-            return fullPath;
-        }
-
-        /// <summary>
         /// 画像をロードする。同一ファイルの再配置でテクスチャを重複させないよう
         /// キャッシュする。読めない場合は null
         /// </summary>
@@ -236,7 +210,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
 
-            var path = ResolveImagePath(dir, relativePath);
+            var path = ImagePathResolver.Resolve(dir, relativePath);
             if (path == null)
             {
                 MTEUtils.LogWarning("画像のパスが不正です: {0}", relativePath);

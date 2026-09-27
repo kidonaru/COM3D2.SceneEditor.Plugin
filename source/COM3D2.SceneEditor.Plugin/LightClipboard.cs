@@ -102,6 +102,9 @@ namespace COM3D2.SceneEditor.Plugin
                 followLight.maidSlotNo = _data.maidSlotNo;
                 followLight.offset = _data.followOffset;
             }
+
+            // 輪郭はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
+            MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
         /// <summary>
