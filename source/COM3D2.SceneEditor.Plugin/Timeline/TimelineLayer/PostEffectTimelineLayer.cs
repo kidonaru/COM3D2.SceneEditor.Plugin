@@ -21,13 +21,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_allBoneNames == null)
                 {
                     _allBoneNames = new List<string>(
-                        3 + timeline.paraffinCount + timeline.distanceFogCount + timeline.rimlightCount);
+                        4 + timeline.paraffinCount + timeline.distanceFogCount + timeline.rimlightCount);
                     _allBoneNames.Add("DepthOfField");
                     _allBoneNames.Add("GTToneMap");
                     _allBoneNames.AddRange(paraffinNames);
                     _allBoneNames.AddRange(distanceFogNames);
                     _allBoneNames.AddRange(rimlightNames);
                     _allBoneNames.Add("Bloom");
+                    _allBoneNames.Add("CinematicDepthOfField");
                 }
                 return _allBoneNames;
             }
@@ -76,7 +77,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // タイムライン → 実体へ流し込み済みなので、ここで巻き戻ることはない)
             postEffectManager.SyncCountsFromHost();
 
-            var boneCount = 3
+            var boneCount = 4
                 + timeline.paraffinCount
                 + timeline.distanceFogCount
                 + timeline.rimlightCount;
@@ -132,6 +133,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             ApplyPlayDataByType(TransformType.Bloom);
             //stopwatch.ProcessEnd("  Bloom");
+
+            ApplyPlayDataByType(TransformType.CinematicDepthOfField);
+            //stopwatch.ProcessEnd("  CinematicDepthOfField");
         }
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
@@ -155,6 +159,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     break;
                 case TransformType.Bloom:
                     ApplyBloom(motion, t);
+                    break;
+                case TransformType.CinematicDepthOfField:
+                    ApplyCinematicDepthOfField(motion, t);
                     break;
             }
         }
@@ -221,6 +228,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         frame.UpdateBone(bone);
                         break;
                     }
+                    case PostEffectType.CinematicDepthOfField:
+                    {
+                        var trans = CreateTransformData<TransformDataCinematicDepthOfField>(effectName);
+                        trans.cinematicDepthOfField = postEffectManager.GetCinematicDepthOfFieldData();
+
+                        var bone = frame.CreateBone(trans);
+                        frame.UpdateBone(bone);
+                        break;
+                    }
                 }
             }
         }
@@ -247,6 +263,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return TransformType.GTToneMap;
                 case PostEffectType.Bloom:
                     return TransformType.Bloom;
+                case PostEffectType.CinematicDepthOfField:
+                    return TransformType.CinematicDepthOfField;
             }
 
             return TransformType.None;
