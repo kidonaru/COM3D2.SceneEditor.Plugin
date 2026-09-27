@@ -6,7 +6,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// メイドのシェイプキー 1 つ分の行描画 (変更追跡チェック付きラベル + 重みスライダー)。
-    /// ShapeKeyEditWindow と TimelineItemInspector (メニュー項目選択時) で共有する。
+    /// MaidShapeKeyListView (シェイプキーウィンドウ・表情ウィンドウ) と TimelineItemInspector (メニュー項目選択時) で共有する。
     /// 追跡ストア更新と morph の反映 (FixBlendValues) までここで面倒を見る
     /// </summary>
     public static class MaidShapeKeyRowDrawer
@@ -31,13 +31,23 @@ namespace COM3D2.SceneEditor.Plugin
             string shapeKeyName,
             MTEP.MaidBlendShape blendShape,
             float rowHeight,
-            Action<GUIView> drawTrailing = null)
+            Action<GUIView> drawTrailing = null,
+            Action onBeforeEdit = null)
         {
             var weight = blendShape.weight;
             // 値を書き込む直前に呼ぶ。同じシェイプキーへの連続変更はマウス解放まで 1 件に集約される
-            Action recordEdit = () => HistoryManager.instance.BeforeEdit(
-                target, HistoryScope.ShapeKey, "シェイプキー: " + shapeKeyName,
-                shapeKeyName, () => MaidShapeKeySnapshot.Capture(target, maidCache, shapeKeyName));
+            Action recordEdit = () =>
+            {
+                // 呼び出し側の前処理 (表情ウィンドウの強制上書き ON) は別の履歴として積むため、
+                // シェイプキーの確定待ちを作るより前に済ませる
+                if (onBeforeEdit != null)
+                {
+                    onBeforeEdit();
+                }
+                HistoryManager.instance.BeforeEdit(
+                    target, HistoryScope.ShapeKey, "シェイプキー: " + shapeKeyName,
+                    shapeKeyName, () => MaidShapeKeySnapshot.Capture(target, maidCache, shapeKeyName));
+            };
             // 表示判定用。まだ 1 つもチェックしていないメイドのストアを作らないよう FindStore を使う
             // (操作側のコールバックは GetStore で遅延生成する)
             var shapeKeyStore = MaidShapeKeyEditManager.instance.FindStore(target);

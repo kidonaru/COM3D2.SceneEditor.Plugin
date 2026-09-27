@@ -323,6 +323,7 @@
     <Compile Include="ObjectTransformRowDrawer.cs" />
     <Compile Include="ScaleRowDrawer.cs" />
     <Compile Include="Vector3RowDrawer.cs" />
+    <Compile Include="MaidShapeKeyListView.cs" />
     <Compile Include="MaidShapeKeyRowDrawer.cs" />
     <Compile Include="CameraShakeRowDrawer.cs" />
     <Compile Include="MainCameraRowDrawer.cs" />

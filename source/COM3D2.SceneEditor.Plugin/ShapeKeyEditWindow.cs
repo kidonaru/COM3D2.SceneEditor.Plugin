@@ -45,16 +45,8 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (model, _) => model.displayName,
         };
 
-        /// <summary>シェイプキー名の絞り込み。メイド / モデルタブで共用する</summary>
-        private string _searchText = "";
-
-        // スロット/タグ一覧のキャッシュ。全スロットの morph 走査と GetTags() はどちらも
-        // 毎フレーム回すには重いため、対象が変わったときだけ作り直す。
-        // 着替えではスロット構成が変わっても検知できないので「更新」ボタンで捨てられるようにする
-        private readonly List<string> _slotNames = new List<string>();
-        private Maid _slotNamesMaid = null;
-        private List<string> _tags = new List<string>();
-        private string _tagsSlotName = null;
+        /// <summary>メイドタブのスロット / タグ一覧と検索欄。検索文字列はモデルタブとも共用する</summary>
+        private readonly MaidShapeKeyListView _maidShapeKeyList = new MaidShapeKeyListView();
 
         private static ShapeKeyEditWindow _instance = null;
         public static ShapeKeyEditWindow instance
@@ -168,21 +160,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>スロット選択 → そのスロットの全シェイプキーをスライダー表示する</summary>
         private void DrawMaidShapeKeys(Maid target, MTEP.MaidCache maidCache)
         {
-            UpdateSlotNames(target);
-
-            if (_slotNames.Count == 0)
+            var slotNames = _maidShapeKeyList.GetSlotNames(target);
+            if (slotNames.Count == 0)
             {
                 view.DrawLabel("シェイプキーを持つスロットがありません", -1, ROW_HEIGHT);
                 return;
             }
 
-            _slotNameComboBox.items = _slotNames;
+            _slotNameComboBox.items = slotNames;
             DrawLabeledComboBox("スロット", _slotNameComboBox, UpdateButtonWidth + view.margin, () =>
             {
                 // 着替えはウィンドウ側から検知できないため明示更新
                 if (view.DrawButton("更新", UpdateButtonWidth, ROW_HEIGHT))
                 {
-                    ClearSlotCache();
+                    _maidShapeKeyList.ClearCache();
                     maidCache.ClearBlendShapeCache();
                 }
             });
@@ -193,107 +184,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            UpdateTags(target, slotName);
+            var tags = _maidShapeKeyList.GetTags(target, slotName);
 
-            DrawSearchField();
+            _maidShapeKeyList.DrawSearchField(view, LABEL_WIDTH, ROW_HEIGHT);
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
 
-            view.SetEnabled(view.focusedComboBox == null);
-
-            var matchedCount = 0;
-
-            view.BeginScrollView();
-            {
-                foreach (var tag in _tags)
-                {
-                    if (!IsSearchMatched(tag))
-                    {
-                        continue;
-                    }
-
-                    var blendShape = maidCache.GetBlendShape(tag);
-                    if (!MaidShapeKeyRowDrawer.IsEditable(blendShape))
-                    {
-                        continue;
-                    }
-
-                    matchedCount++;
-
-                    MaidShapeKeyRowDrawer.Draw(
-                        view, target, maidCache, tag, blendShape, ROW_HEIGHT);
-                }
-
-                if (matchedCount == 0)
-                {
-                    view.DrawLabel("該当するシェイプキーがありません", -1, ROW_HEIGHT);
-                }
-            }
-            view.EndScrollView();
-        }
-
-        /// <summary>シェイプキー名の検索欄。スロット / 対象の行と列を揃える</summary>
-        private void DrawSearchField()
-        {
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("検索", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-                view.DrawTextField(_searchText, -1, ROW_HEIGHT, value => _searchText = value);
-            }
-            view.EndLayout();
-        }
-
-        /// <summary>検索欄の絞り込み判定。未入力なら素通し</summary>
-        private bool IsSearchMatched(string name)
-        {
-            return string.IsNullOrEmpty(_searchText)
-                || name.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        /// <summary>スロット/タグ一覧のキャッシュを捨てる。「更新」ボタンから呼ぶ</summary>
-        private void ClearSlotCache()
-        {
-            _slotNamesMaid = null;
-            _tagsSlotName = null;
-        }
-
-        /// <summary>スロット一覧を作り直す。全スロットの morph を走査するため対象が変わったときだけ</summary>
-        private void UpdateSlotNames(Maid target)
-        {
-            if (_slotNamesMaid == target)
-            {
-                return;
-            }
-            _slotNamesMaid = target;
-            _slotNames.Clear();
-            // 同名スロットでもメイドが違えばタグは別物
-            _tagsSlotName = null;
-
-            // COM3D2.5 の goSlot は直接列挙できないため、インデックス走査で両バージョンに対応する
-            var slotCount = Mathf.Min((int) TBody.SlotID.end, target.body0.goSlot.Count);
-            for (var i = 0; i < slotCount; i++)
-            {
-                var slot = target.body0.GetSlot(i);
-                if (slot != null && slot.morph != null && slot.morph.hash.Count > 0)
-                {
-                    _slotNames.Add(slot.Category);
-                }
-            }
-        }
-
-        /// <summary>選択スロットのタグ一覧を作り直す。GetTags() は毎回リストを作るため選択が変わったときだけ</summary>
-        private void UpdateTags(Maid target, string slotName)
-        {
-            if (_tagsSlotName == slotName)
-            {
-                return;
-            }
-            _tagsSlotName = slotName;
-
-            var morph = target.body0.GetSlot(slotName).morph;
-            _tags = morph != null ? morph.GetTags() : new List<string>();
-            _tags.Sort();
+            _maidShapeKeyList.DrawRows(view, target, maidCache, tags, ROW_HEIGHT);
         }
 
         /// <summary>モデルタブ。配置モデルが持つシェイプキーをそのまま列挙する</summary>
@@ -322,7 +220,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            DrawSearchField();
+            _maidShapeKeyList.DrawSearchField(view, LABEL_WIDTH, ROW_HEIGHT);
 
             view.DrawHorizontalLine(Color.gray);
             view.AddSpace(5);
@@ -336,7 +234,7 @@ namespace COM3D2.SceneEditor.Plugin
                 foreach (var blendShape in blendShapes)
                 {
                     var shapeKeyName = blendShape.shapeKeyName;
-                    if (!IsSearchMatched(shapeKeyName))
+                    if (!MaidShapeKeyListView.IsSearchMatched(shapeKeyName, _maidShapeKeyList.searchText))
                     {
                         continue;
                     }
