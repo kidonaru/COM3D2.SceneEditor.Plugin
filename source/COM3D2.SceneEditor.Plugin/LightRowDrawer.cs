@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -440,14 +441,11 @@ namespace COM3D2.SceneEditor.Plugin
 
                 _cookieImageComboBox.items = names;
                 _cookieImageComboBox.buttonSize = new Vector2(CookieImageComboWidth, rowHeight);
-                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す。
-                // XML 由来の値は大文字小文字や区切り文字が一覧と違いうるので、テクスチャのキャッシュと同じくゆるく照合する
-                var image = NormalizeImagePath(cookie.image);
-                _cookieImageComboBox.currentIndex = names.FindIndex(
-                    name => string.Equals(NormalizeImagePath(name), image, StringComparison.OrdinalIgnoreCase));
-                _cookieImageComboBox.defaultName = string.IsNullOrEmpty(cookie.image)
-                    ? "未選択"
-                    : cookie.image + " (見つかりません)";
+                // 履歴の復元等で外から変わるため、描画のたびに実体から選択位置を取り直す
+                string fallbackName;
+                _cookieImageComboBox.currentIndex =
+                    ResolveCookieImageSelection(names, cookie.image, out fallbackName);
+                _cookieImageComboBox.defaultName = fallbackName;
                 _cookieImageComboBox.onSelected = (name, _) =>
                 {
                     RecordLightEdit("輪郭画像");
@@ -468,6 +466,29 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 view.DrawLabel("PNG を置いてください: " + LightCookieTextures.directory, -1, rowHeight);
             }
+        }
+
+        /// <summary>
+        /// 輪郭画像コンボの選択位置を返す。XML 由来の値は大文字小文字や区切り文字が一覧と違いうるので、
+        /// テクスチャのキャッシュと同じくゆるく照合する。
+        /// fallbackName は一覧に無いときだけ表示する名前で、見つかったときは null
+        /// (GUIComboBox は defaultName が null でないと選択中の項目より優先して表示するため)
+        /// </summary>
+        public static int ResolveCookieImageSelection(List<string> names, string image, out string fallbackName)
+        {
+            var normalized = NormalizeImagePath(image);
+            var index = names.FindIndex(
+                name => string.Equals(NormalizeImagePath(name), normalized, StringComparison.OrdinalIgnoreCase));
+
+            if (index >= 0)
+            {
+                fallbackName = null;
+            }
+            else
+            {
+                fallbackName = string.IsNullOrEmpty(image) ? "未選択" : image + " (見つかりません)";
+            }
+            return index;
         }
 
         private static string NormalizeImagePath(string path)
