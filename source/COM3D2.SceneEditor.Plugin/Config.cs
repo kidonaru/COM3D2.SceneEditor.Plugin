@@ -64,6 +64,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         // GameView の最大化状態。プラグイン再有効化・再起動をまたいで復元する
         public bool gameViewMaximized = false;
+        // GameView の表示比率。RT は画面解像度のまま、表示とスクリーンショットだけ中央を切り出す
+        public GameViewAspectMode gameViewAspectMode = GameViewAspectMode.Screen;
+        // 比率「カスタム」の幅・高さ (px)。スクリーンショットはこのサイズちょうどで出力する
+        public int gameViewCustomWidth = 1080;
+        public int gameViewCustomHeight = 1920;
 
         // メニューバーウィンドウ (-1 は未初期化。初回は画面左上に配置)
         public int menuBarPosX = -1;
