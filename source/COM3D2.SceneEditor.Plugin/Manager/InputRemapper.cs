@@ -188,14 +188,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 描画領域内 → RTピクセル座標 (左下原点)
-            var drawRect = GameViewWindow.instance.drawRect;
-            var scaleX = rt.width / drawRect.width;
-            var scaleY = rt.height / drawRect.height;
-            __result = new Vector3(
-                (guiPos.x - drawRect.x) * scaleX,
-                rt.height - (guiPos.y - drawRect.y) * scaleY,
-                0f);
+            // 描画領域内 → RTピクセル座標 (左下原点)。表示範囲の切り出しを含め GameViewWindow と同じ変換を使う
+            var rtPoint = GameViewWindow.instance.GuiToRtPoint(guiPos);
+            __result = new Vector3(rtPoint.x, rtPoint.y, 0f);
         }
     }
 }

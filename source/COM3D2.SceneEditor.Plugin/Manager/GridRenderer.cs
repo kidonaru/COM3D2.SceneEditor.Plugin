@@ -47,6 +47,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>画面分割グリッドを描くか。構図用なので GameView 側でのみ有効にする</summary>
         public bool drawDisplayGrid = false;
 
+        /// <summary>
+        /// 画面分割グリッドを引く範囲 (0〜1)。null なら画面全体。
+        /// GameView が比率で切り出している間は、見えている範囲を等分するために使う
+        /// </summary>
+        public Func<Rect> getDisplayArea = null;
+
         /// <summary>床グリッド用。他のオブジェクトに隠れるよう深度テストは残す</summary>
         private Material _worldMaterial;
 
@@ -230,7 +236,7 @@ namespace COM3D2.SceneEditor.Plugin
             GL.Vertex(end - side);
         }
 
-        /// <summary>画面を等分する構図用グリッド。外周は画面端と重なるため内側の線だけ引く</summary>
+        /// <summary>画面 (または getDisplayArea の範囲) を等分する構図用グリッド。外周は画面端と重なるため内側の線だけ引く</summary>
         private void DrawDisplayGrid()
         {
             var count = Mathf.Clamp(config.gridCountInDisplay, 2, MaxDisplayGridCount);
@@ -249,19 +255,22 @@ namespace COM3D2.SceneEditor.Plugin
             GL.Begin(GL.QUADS);
             GL.Color(gridColor);
 
+            var area = getDisplayArea != null ? getDisplayArea() : new Rect(0f, 0f, 1f, 1f);
+
             for (var i = 1; i < count; i++)
             {
-                var ratio = (float)i / count;
+                var x = area.x + area.width * i / count;
+                var y = area.y + area.height * i / count;
 
-                GL.Vertex3(ratio - halfWidthX, 0f, 0f);
-                GL.Vertex3(ratio + halfWidthX, 0f, 0f);
-                GL.Vertex3(ratio + halfWidthX, 1f, 0f);
-                GL.Vertex3(ratio - halfWidthX, 1f, 0f);
+                GL.Vertex3(x - halfWidthX, area.yMin, 0f);
+                GL.Vertex3(x + halfWidthX, area.yMin, 0f);
+                GL.Vertex3(x + halfWidthX, area.yMax, 0f);
+                GL.Vertex3(x - halfWidthX, area.yMax, 0f);
 
-                GL.Vertex3(0f, ratio - halfWidthY, 0f);
-                GL.Vertex3(0f, ratio + halfWidthY, 0f);
-                GL.Vertex3(1f, ratio + halfWidthY, 0f);
-                GL.Vertex3(1f, ratio - halfWidthY, 0f);
+                GL.Vertex3(area.xMin, y - halfWidthY, 0f);
+                GL.Vertex3(area.xMin, y + halfWidthY, 0f);
+                GL.Vertex3(area.xMax, y + halfWidthY, 0f);
+                GL.Vertex3(area.xMax, y - halfWidthY, 0f);
             }
 
             GL.End();

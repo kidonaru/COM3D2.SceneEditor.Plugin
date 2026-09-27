@@ -59,7 +59,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 実際にRTを描画する矩形 (スクリーンGUI座標)。
-        /// 画面と同じアスペクト比を保って viewRect 内に収めるため、
+        /// RT のうち表示範囲 (cropUV) のアスペクトを保って viewRect 内に収めるため、
         /// 縦横比が合わない分は余白 (レターボックス) になる。
         /// picking の座標変換もこの矩形を基準にする
         /// </summary>
@@ -68,14 +68,15 @@ namespace COM3D2.SceneEditor.Plugin
             get
             {
                 var view = viewRect;
-                var screenAspect = (float)Screen.width / Screen.height;
+                var crop = gameViewManager.cropUV;
+                var displayAspect = (float)Screen.width * crop.width / (Screen.height * crop.height);
 
                 var width = view.width;
-                var height = width / screenAspect;
+                var height = width / displayAspect;
                 if (height > view.height)
                 {
                     height = view.height;
-                    width = height * screenAspect;
+                    width = height * displayAspect;
                 }
 
                 return new Rect(
@@ -185,7 +186,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // アルファ合成なしで描く。ポストエフェクト (被写界深度など) は RT のアルファへ
                 // CoC 等の作業値を書き残すため、合成ありだと合焦部分 (アルファ0) が背景色で
                 // 塗り潰されてしまう。RT は不透明画像として扱うのが正しい
-                GUI.DrawTexture(draw, rt, ScaleMode.StretchToFill, false);
+                GUI.DrawTextureWithTexCoords(draw, rt, gameViewManager.cropUV, false);
             }
 
             // 最大化ボタン (ヘッダー右端)。RT 描画をやめて画面へ直接描画するサブモードへ
@@ -289,7 +290,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// スクリーンGUI座標をRTピクセル座標へ変換する。
-        /// レターボックスの余白を除いた drawRect が基準
+        /// レターボックスの余白を除いた drawRect が基準。表示範囲の切り出しも反映する
         /// </summary>
         public Vector2 GuiToRtPoint(Vector2 guiPos)
         {
@@ -307,9 +308,11 @@ namespace COM3D2.SceneEditor.Plugin
                 return Vector2.zero;
             }
 
-            return new Vector2(
-                (guiPos.x - rect.x) * rt.width / rect.width,
-                rt.height - (guiPos.y - rect.y) * rt.height / rect.height);
+            // drawRect 内の相対位置 → 表示範囲 (cropUV) 内の位置 → RT ピクセル (左下原点)
+            var crop = gameViewManager.cropUV;
+            var u = crop.x + (guiPos.x - rect.x) / rect.width * crop.width;
+            var v = crop.y + (1f - (guiPos.y - rect.y) / rect.height) * crop.height;
+            return new Vector2(u * rt.width, v * rt.height);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
@@ -54,6 +54,24 @@ namespace COM3D2.SceneEditor.Plugin
         /// メインカメラ。シーン遷移直後など GameMain が未生成・破棄済みの
         /// タイミングがあるため null を返しうる
         /// </summary>
+        /// <summary>
+        /// RT のうち GameView に表示する範囲 (0〜1、中央寄せ)。
+        /// 直接描画中は画面へそのまま描くので切り出さない
+        /// </summary>
+        public Rect cropUV
+        {
+            get
+            {
+                float aspect;
+                if (isDirectRender || !GameViewAspect.TryGetAspect(config.gameViewAspectMode,
+                        config.gameViewCustomWidth, config.gameViewCustomHeight, out aspect))
+                {
+                    return new Rect(0f, 0f, 1f, 1f);
+                }
+                return GameViewAspect.GetCropUV((float)Screen.width / Screen.height, aspect);
+            }
+        }
+
         /// <summary>
         /// GameView がギズモの入力・描画ディスパッチを行える状態か。
         /// window mode でないとメインカメラに GizmoRenderer が付かず、
@@ -325,6 +343,8 @@ namespace COM3D2.SceneEditor.Plugin
             displayGridRenderer.isHostActive = IsGizmoHostActive;
             displayGridRenderer.drawWorldGrid = false;
             displayGridRenderer.drawDisplayGrid = true;
+            // 比率で切り出している間は、切り出した範囲を等分する
+            displayGridRenderer.getDisplayArea = () => cropUV;
         }
 
         /// <summary>直接描画中は GameView ウィンドウ非表示のままギズモ・骨格線を全画面で生かす</summary>
