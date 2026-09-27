@@ -31,7 +31,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>追加ライトの回転のリセット既定値（StudioLightManager.AddLight の生成時と同じ無回転）</summary>
         public static readonly Vector3 DefaultAdditionalRotation = Vector3.zero;
 
-        // 追加した平行光源の影のリセット既定値（メインライトの初期値に合わせる）
+        // 追加ライトの影のリセット既定値（メインライトの初期値に合わせる）
         public const float DefaultAdditionalShadowStrength = 0.098f;
         public const float DefaultAdditionalShadowBias = 0.01f;
 
@@ -239,8 +239,10 @@ namespace COM3D2.SceneEditor.Plugin
                 DrawCookieRows(view, labelWidth, rowHeight, light);
             }
 
-            // 影は平行光源だけが落とす（ライトレイヤーの表示条件に合わせる）
-            if (light.type == LightType.Directional)
+            DrawShadowTypeRow(view, labelWidth, rowHeight, light);
+
+            // 濃さと距離は影を落とすときだけ意味を持つ
+            if (light.shadows != LightShadows.None)
             {
                 DrawAxisSlider(view, labelWidth, "影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
                     DefaultAdditionalShadowStrength, value => light.shadowStrength = value);
@@ -382,6 +384,36 @@ namespace COM3D2.SceneEditor.Plugin
                 _lightTargetComboBox.DrawButton(view);
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// 影の種類。追加ライトは影なしで生成されるので、影を落とすにはここで種類を選ぶ。
+        /// 影を落とす灯が増えるほどシャドウマップの描画が増えて重くなる
+        /// </summary>
+        private static void DrawShadowTypeRow(GUIView view, float labelWidth, float rowHeight, Light light)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("影", labelWidth, rowHeight);
+                DrawShadowTypeButton(view, rowHeight, light, LightShadows.None, "なし");
+                DrawShadowTypeButton(view, rowHeight, light, LightShadows.Hard, "ハード");
+                DrawShadowTypeButton(view, rowHeight, light, LightShadows.Soft, "ソフト");
+            }
+            view.EndLayout();
+        }
+
+        private static void DrawShadowTypeButton(
+            GUIView view, float rowHeight, Light light, LightShadows shadows, string label)
+        {
+            var isCurrent = light.shadows == shadows;
+            if (view.DrawButton(label, TypeButtonWidth, rowHeight, true,
+                isCurrent ? Color.cyan : Color.white) && !isCurrent)
+            {
+                RecordLightEdit("影");
+                light.shadows = shadows;
+                // 影の種類もタイムラインのライト定義に載るので、直後の保存で古い値が書かれないよう即時に同期させる
+                MTEP.StudioLightManager.instance.LateUpdate(true);
+            }
         }
 
         /// <summary>
