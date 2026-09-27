@@ -36,8 +36,11 @@ namespace COM3D2.SceneEditor.Plugin
         public float pitchDivisor = 1f;
         public float yawDivisor = -1.5f;
 
+        /// <summary>ひねりの既定の感度 (px / 度)。肘・膝のロール (MaidIKDragPoint) も同じ値を使う</summary>
+        public const float DefaultTwistDivisor = 1.5f;
+
         /// <summary>ひねりの感度。delta.x / twistDivisor</summary>
-        public float twistDivisor = 1.5f;
+        public float twistDivisor = DefaultTwistDivisor;
 
         /// <summary>
         /// Shift ドラッグで平行移動するボーン（骨盤点なら中心 Bip01）。null なら移動モードなし。

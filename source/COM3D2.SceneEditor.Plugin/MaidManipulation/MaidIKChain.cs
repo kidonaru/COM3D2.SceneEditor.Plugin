@@ -62,6 +62,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>Solve 用の使い回しターゲット。ドラッグ用の外部 target とは別に持つ</summary>
         private Transform _solveTarget;
 
+        /// <summary>解く直前の肘 / 膝の骨軸 (ローカル X) まわりのひねり角。NaN なら復元しない</summary>
+        private float _midTwistBeforeSolve = float.NaN;
+
         /// <summary>
         /// チェーンを構成するボーン (root/mid/tip、胸は mid なし)。操作履歴の記録対象用。
         /// root/tip はコンストラクタで非 null が保証される
@@ -95,6 +98,63 @@ namespace COM3D2.SceneEditor.Plugin
             _fabrik.fixTransforms = false;
             _fabrik.solver.maxIterations = 1;
             _fabrik.solver.Initiate(_hierarchyRoot);
+
+            // 肘 / 膝のヒンジ制限は Z 軸まわりの回転しか返さないため、先端側まで含めて解くと
+            // 前腕 / すねのロール (骨軸まわりのひねり) が消える。解く前後で控えて掛け戻す
+            // (ドラッグの自動更新と Solve のどちらも solver.Update を通るのでここで挟める)
+            _fabrik.solver.OnPreUpdate += CaptureMidTwist;
+            _fabrik.solver.OnPostUpdate += RestoreMidTwist;
+        }
+
+        /// <summary>
+        /// 肘 / 膝がチェーンの途中にある (解いた回転が書き戻される) ときだけ、ひねり角を控える。
+        /// 末端にあるとき (肘 / 膝を掴んだとき) は回転が書き戻されないので控えない
+        /// </summary>
+        private void CaptureMidTwist()
+        {
+            _midTwistBeforeSolve = float.NaN;
+            if (_midBone == null)
+            {
+                return;
+            }
+
+            var chainBones = _fabrik.solver.bones;
+            for (var i = 0; i < chainBones.Length - 1; i++)
+            {
+                if (chainBones[i].transform == _midBone)
+                {
+                    _midTwistBeforeSolve = GetTwistX(_midBone.localRotation);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 解いた後の肘 / 膝へ、控えたひねり角を掛け戻す。
+        /// 子 (手首 / 足首) はほぼ骨軸上にあるため、先端の位置はほとんど変わらない
+        /// </summary>
+        private void RestoreMidTwist()
+        {
+            if (float.IsNaN(_midTwistBeforeSolve) || _midBone == null)
+            {
+                return;
+            }
+
+            var solved = _midBone.localRotation;
+            var delta = _midTwistBeforeSolve - GetTwistX(solved);
+            _midBone.localRotation = solved * Quaternion.AngleAxis(delta, Vector3.right);
+            _midTwistBeforeSolve = float.NaN;
+        }
+
+        /// <summary>回転をスイング・ツイスト分解したときの、ローカル X 軸まわりのツイスト角 (度)</summary>
+        private static float GetTwistX(Quaternion rotation)
+        {
+            var length = Mathf.Sqrt(rotation.x * rotation.x + rotation.w * rotation.w);
+            if (length < 1e-6f)
+            {
+                return 0f;
+            }
+            return 2f * Mathf.Atan2(rotation.x / length, rotation.w / length) * Mathf.Rad2Deg;
         }
 
         /// <summary>
@@ -252,6 +312,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (_fabrik != null)
             {
+                _fabrik.solver.OnPreUpdate -= CaptureMidTwist;
+                _fabrik.solver.OnPostUpdate -= RestoreMidTwist;
                 Object.Destroy(_fabrik);
                 _fabrik = null;
             }

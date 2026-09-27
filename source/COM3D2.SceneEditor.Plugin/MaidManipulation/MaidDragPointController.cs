@@ -242,7 +242,7 @@ namespace COM3D2.SceneEditor.Plugin
                 point.followBone = bone;
                 point.pitchDivisor = 1f;
                 point.yawDivisor = -1.5f;
-                point.twistDivisor = 1.5f;
+                point.twistDivisor = MaidBoneRotateDragPoint.DefaultTwistDivisor;
 
                 _dragPoints.Add(go);
             }

@@ -50,8 +50,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>直前のクリック確定時刻。ダブルクリック判定用</summary>
         private float _lastClickTime = NoClickTime;
 
-        /// <summary>ロールの感度 (度 / px)。手の甲・上体の Ctrl ひねりの既定値と揃える</summary>
-        private const float RollDivisor = 1.5f;
+        /// <summary>ロールの感度 (px / 度)。手の甲・上体の Ctrl ひねりの既定値と揃える</summary>
+        private const float RollDivisor = MaidBoneRotateDragPoint.DefaultTwistDivisor;
 
         /// <summary>
         /// 掴んだ時点でロールモードだったか (肘 / 膝の点 + Ctrl)。
@@ -211,11 +211,18 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var downPos = _mouseDownPos;
+            var isClick = (pointerPos - downPos).magnitude <= ClickThresholdPixels;
+            // クリック (微小移動) のロールは戻す。1px で約 0.7 度回るため、
+            // Ctrl のダブルクリックで固定を切り替えるたびに前腕 / すねが少しずつ回ってしまう
+            if (isClick && _isRollMode)
+            {
+                followBone.localRotation = _rollBaseRotation;
+            }
             CancelDrag();
             MaidDragBoneTracker.NotifyDragCompleted(maid);
 
             // 選択自体は BeginDrag 済み。クリック（微小移動）なら Inspector も開く
-            if ((pointerPos - downPos).magnitude > ClickThresholdPixels)
+            if (!isClick)
             {
                 _lastClickTime = NoClickTime;
                 return;
