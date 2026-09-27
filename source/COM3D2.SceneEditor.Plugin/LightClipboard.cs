@@ -75,6 +75,7 @@ namespace COM3D2.SceneEditor.Plugin
                 maidSlotNo = -1,
                 followOffset = Vector3.zero,
                 cookie = LightCookieData.Default,
+                // 輪郭と違いメインライトも影の種類を持つので、実値を写す
                 shadows = light.shadows,
             };
         }

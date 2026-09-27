@@ -410,9 +410,7 @@ namespace COM3D2.SceneEditor.Plugin
                 isCurrent ? Color.cyan : Color.white) && !isCurrent)
             {
                 RecordLightEdit("影");
-                light.shadows = shadows;
-                // 影の種類もタイムラインのライト定義に載るので、直後の保存で古い値が書かれないよう即時に同期させる
-                MTEP.StudioLightManager.instance.LateUpdate(true);
+                SetShadows(light, shadows);
             }
         }
 
@@ -535,6 +533,13 @@ namespace COM3D2.SceneEditor.Plugin
         private static void SetCookie(Light light, LightCookieData cookie)
         {
             LightCookie.Set(light, cookie);
+            MTEP.StudioLightManager.instance.LateUpdate(true);
+        }
+
+        /// <summary>影の種類を反映し、輪郭と同じくタイムラインのライト定義へ即時に同期させる</summary>
+        private static void SetShadows(Light light, LightShadows shadows)
+        {
+            light.shadows = shadows;
             MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
