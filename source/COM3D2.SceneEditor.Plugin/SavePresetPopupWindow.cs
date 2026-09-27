@@ -32,6 +32,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int WINDOW_WIDTH = 300;
         private static readonly int ROW_HEIGHT = 20;
         private static readonly int BUTTON_WIDTH = 80;
+        /// <summary>名前欄の左のラベル幅</summary>
+        private static readonly int NAME_LABEL_WIDTH = 40;
         /// <summary>名前欄の右の「日付」ボタンの幅</summary>
         private static readonly int DATE_BUTTON_WIDTH = 40;
         private static readonly int BUTTON_HEIGHT = 24;
@@ -195,11 +197,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginHorizontal();
             {
-                _view.DrawLabel("名前", 40, ROW_HEIGHT);
+                _view.DrawLabel("名前", NAME_LABEL_WIDTH, ROW_HEIGHT);
                 _view.DrawTextField(new GUIView.TextFieldOption
                 {
                     value = _presetName,
-                    width = contentWidth - 40 - DATE_BUTTON_WIDTH - GUIView.defaultMargin * 2,
+                    width = contentWidth - NAME_LABEL_WIDTH - DATE_BUTTON_WIDTH - GUIView.defaultMargin * 2,
                     hiddenButton = true,
                     // 入力し直したら前回の検証エラー表示を消す
                     onChanged = value =>

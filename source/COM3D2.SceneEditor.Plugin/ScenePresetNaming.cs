@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -14,7 +15,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static string CreateDateName(DateTime time)
         {
-            return time.ToString("yyyyMMdd_HHmmss");
+            return time.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
         }
     }
 }
