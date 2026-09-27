@@ -42,6 +42,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TransformDataLight.Index.MaidSlotNo,
             TransformDataLight.Index.Visible,
             TransformDataLight.Index.LightTarget,
+            // 旧 XML には無く全キーが既定値 (FromXml の補正) なので、補間せず引き継げば足りる
+            TransformDataLight.Index.CookieHardness,
         };
 
         /// <summary>旧 XML のトグル状態から変換が必要かを返す</summary>

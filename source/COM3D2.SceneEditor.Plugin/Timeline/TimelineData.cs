@@ -98,6 +98,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             cookie = new SE.LightCookieData
             {
                 mode = (SE.LightCookieMode)xml.cookieMode,
+                // 硬さはライトキー (index 19) で持つため、定義では既定値を入れておく
                 hardness = SE.LightCookieData.DefaultHardness,
                 image = xml.cookieImage,
             }.Normalized();
