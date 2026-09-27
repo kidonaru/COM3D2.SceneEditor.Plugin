@@ -43,6 +43,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public const int TweakModeRange = 0;
         public const int TweakModeExplicit = 1;
 
+        // CinematicDepthOfFieldEffect.ApertureShape の円形 (絞りの向きが効かない形状)
+        public const int ApertureShapeCircular = 0;
+
         public static TransformDataCinematicDepthOfField defaultTrans = new TransformDataCinematicDepthOfField();
 
         public override TransformType type => TransformType.CinematicDepthOfField;
@@ -313,7 +316,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 bokehIntensity = bokehIntensity,
                 bokehThreshold = bokehThreshold,
                 bokehSpawnHeuristic = bokehSpawnHeuristic,
-                // 被写界深度 (PostEffectManager.ApplyDepthOfField) と同じ規約で分ける
+                // 被写界深度 (PostEffectManager.ApplyDepthOfField) と同じ規約で分ける。
+                // 被写界深度はマネージャ層で変換するが、こちらは共有 DTO を直接流すためここで変換する
                 maidFocus = maidSlotNo >= 0,
                 maidIndex = maidSlotNo >= 0 ? maidSlotNo : 0,
             };

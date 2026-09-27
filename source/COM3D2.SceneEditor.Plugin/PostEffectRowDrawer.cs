@@ -868,7 +868,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             updateTransform |= view.DrawCustomValueBool(
                 defaultTrans.tweakModeInfo,
-                dof.tweakMode == TransformDataCinematicDepthOfField.TweakModeExplicit,
+                // 実体側は範囲外の値を定義域へ丸める (2 以上は Explicit) ので、判定の向きを揃える
+                dof.tweakMode != TransformDataCinematicDepthOfField.TweakModeRange,
                 newValue => dof.tweakMode = newValue
                     ? TransformDataCinematicDepthOfField.TweakModeExplicit
                     : TransformDataCinematicDepthOfField.TweakModeRange);
@@ -888,7 +889,7 @@ namespace COM3D2.SceneEditor.Plugin
                 sliderWidth: CustomSliderWidth);
 
             // 絞りの向きは円形以外 (方向性ぼかし) でのみ効く
-            if (dof.apertureShape != 0)
+            if (dof.apertureShape != TransformDataCinematicDepthOfField.ApertureShapeCircular)
             {
                 updateTransform |= view.DrawCustomValueFloat(
                     defaultTrans.apertureOrientationInfo,
@@ -902,6 +903,14 @@ namespace COM3D2.SceneEditor.Plugin
             if (isRange)
             {
                 // メイド追従はピント面と範囲モードでのみ効く (実体側と同じ条件)
+                var maidCaches = MTEP.MaidManager.instance.maidCaches;
+                _maidComboBox.items = maidCaches;
+                // 読込・Undo・PostEffects 側 UI で追従先が変わってもコンボ表示が追いつくよう、実データへ寄せる
+                if (dof.maidFocus)
+                {
+                    _maidComboBox.currentIndex = Mathf.Clamp(dof.maidIndex, 0, Mathf.Max(0, maidCaches.Count - 1));
+                }
+
                 view.BeginHorizontal();
                 {
                     view.DrawLabel("追従メイド", 70, 20);
@@ -909,11 +918,11 @@ namespace COM3D2.SceneEditor.Plugin
                     view.DrawToggle("", dof.maidFocus, 20, 20, newValue =>
                     {
                         dof.maidFocus = newValue;
+                        // currentIndex は currentItem 経由の設定で一覧外だと -1 になり得るため、負値を渡さない
                         dof.maidIndex = newValue ? Mathf.Max(0, _maidComboBox.currentIndex) : 0;
                         updateTransform = true;
                     });
 
-                    _maidComboBox.items = MTEP.MaidManager.instance.maidCaches;
                     _maidComboBox.onSelected = (maidCache, index) =>
                     {
                         dof.maidFocus = true;

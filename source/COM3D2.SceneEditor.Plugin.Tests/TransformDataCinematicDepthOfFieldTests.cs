@@ -33,6 +33,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             trans.Reset();
             var actual = trans.cinematicDepthOfField;
 
+            // enabled は比較しない。Reset は他のエフェクトと同じく visible を true (initialVisible) にする
             Assert.Equal(expected.tweakMode, actual.tweakMode);
             Assert.Equal(expected.filteringQuality, actual.filteringQuality);
             Assert.Equal(expected.apertureShape, actual.apertureShape);

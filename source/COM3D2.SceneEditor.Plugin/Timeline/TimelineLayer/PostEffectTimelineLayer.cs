@@ -230,6 +230,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
                     case PostEffectType.CinematicDepthOfField:
                     {
+                        // 旧版の PostEffects.Plugin では既定値しか取れないため、
+                        // キー全登録やコピーで既存のキーを既定値で上書きしないよう記録しない
+                        if (!postEffectManager.isCinematicDepthOfFieldAvailable)
+                        {
+                            break;
+                        }
+
                         var trans = CreateTransformData<TransformDataCinematicDepthOfField>(effectName);
                         trans.cinematicDepthOfField = postEffectManager.GetCinematicDepthOfFieldData();
 
