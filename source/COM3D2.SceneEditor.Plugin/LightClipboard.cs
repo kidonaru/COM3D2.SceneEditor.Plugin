@@ -26,6 +26,7 @@ namespace COM3D2.SceneEditor.Plugin
             public int maidSlotNo;
             public Vector3 followOffset;
             public LightCookieData cookie;
+            public LightShadows shadows;
         }
 
         private static Data _data = null;
@@ -51,6 +52,7 @@ namespace COM3D2.SceneEditor.Plugin
                 maidSlotNo = followLight != null ? followLight.maidSlotNo : -1,
                 followOffset = followLight != null ? followLight.offset : Vector3.zero,
                 cookie = LightCookie.Get(light),
+                shadows = light.shadows,
             };
         }
 
@@ -73,6 +75,7 @@ namespace COM3D2.SceneEditor.Plugin
                 maidSlotNo = -1,
                 followOffset = Vector3.zero,
                 cookie = LightCookieData.Default,
+                shadows = light.shadows,
             };
         }
 
@@ -96,6 +99,7 @@ namespace COM3D2.SceneEditor.Plugin
             light.shadowBias = _data.shadowBias;
             light.cullingMask = LightTarget.ToCullingMask(_data.target);
             LightCookie.Set(light, _data.cookie);
+            light.shadows = _data.shadows;
 
             if (followLight != null)
             {
@@ -103,7 +107,7 @@ namespace COM3D2.SceneEditor.Plugin
                 followLight.offset = _data.followOffset;
             }
 
-            // 輪郭はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
+            // 輪郭と影の種類はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
             MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 

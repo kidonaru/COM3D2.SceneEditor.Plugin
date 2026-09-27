@@ -167,6 +167,19 @@ namespace COM3D2.SceneEditor.Plugin
             cookieHardness = cookie.hardness;
             cookieImage = cookie.image;
         }
+
+        /// <summary>
+        /// 影の種類 (LightShadows の数値)。旧プリセットには無いので影なしで読み、影なしでは書き出さない。
+        /// 範囲外の値でもプリセット全体の読込を失敗させないよう int で持つ
+        /// </summary>
+        [XmlAttribute]
+        public int shadows = (int)LightShadows.None;
+
+        public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
+
+        public LightShadows GetShadows() { return LightShadowValues.FromInt(shadows); }
+
+        public void SetShadows(LightShadows value) { shadows = (int)value; }
     }
 
     /// <summary>ライトの状態。メインライトと追加ライト一式</summary>
@@ -1124,8 +1137,8 @@ namespace COM3D2.SceneEditor.Plugin
         // v36: pngPlacement の png に表示タイプ (displayType)、ブレンド方式 (blendMode)、彩度 (saturation)、
         //      デカール設定 (decalFadeAngle / decalProjectOnMaids) を追加。表示タイプとデカール設定は板では、
         //      ブレンド方式は通常、彩度は 1 のときは書き出さない。旧形式は属性が無く板・通常・彩度 1 として読める
-        // v37: 追加ライトに輪郭 (cookieMode / cookieHardness / cookieImage) を追加。既定の輪郭では書き出さない。
-        //      旧形式は属性が無く既定の輪郭として読める
+        // v37: 追加ライトに輪郭 (cookieMode / cookieHardness / cookieImage) と影の種類 (shadows) を追加。
+        //      既定の輪郭・影なしでは書き出さない。旧形式は属性が無く既定の輪郭・影なしとして読める
         public static readonly int CurrentVersion = 37;
 
         [XmlAttribute]

@@ -63,6 +63,7 @@ namespace COM3D2.SceneEditor.Plugin
                     followOffset = followLight != null ? followLight.offset : Vector3.zero,
                 };
                 lightState.SetCookie(LightCookie.Get(light));
+                lightState.SetShadows(light.shadows);
                 state.additionalLights.Add(lightState);
             }
 
@@ -129,7 +130,7 @@ namespace COM3D2.SceneEditor.Plugin
                 ApplyLightState(lights[i], state.additionalLights[i]);
             }
 
-            // 輪郭はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
+            // 輪郭と影の種類はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
             MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
@@ -153,6 +154,7 @@ namespace COM3D2.SceneEditor.Plugin
             light.shadowStrength = lightState.shadowStrength;
             light.shadowBias = lightState.shadowBias;
             LightCookie.Set(light, lightState.GetCookie());
+            light.shadows = lightState.GetShadows();
 
             // 追従はタイムライン側の収集後にしか触れない (未収集なら追従行も出ていない)
             var followLight = LightRowDrawer.FindFollowLight(light);
@@ -207,7 +209,8 @@ namespace COM3D2.SceneEditor.Plugin
                     || !Mathf.Approximately(a.shadowBias, b.shadowBias)
                     || a.maidSlotNo != b.maidSlotNo
                     || a.followOffset != b.followOffset
-                    || !a.GetCookie().Equals(b.GetCookie()))
+                    || !a.GetCookie().Equals(b.GetCookie())
+                    || a.GetShadows() != b.GetShadows())
                 {
                     return false;
                 }
