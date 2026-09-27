@@ -56,6 +56,18 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (material, _) => material.displayName,
         };
 
+        private readonly GUIComboBox<Shader> _shaderComboBox = new GUIComboBox<Shader>();
+
+        /// <summary>シェーダー候補。表示のたびに全 Shader を走査しないよう控え、「更新」で作り直す</summary>
+        private static List<Shader> _shaderCatalog;
+
+        // シェーダー行の対象。コンボの選択確定はポップアップ側 (別フレーム) で起きるため、
+        // 最後に描いた対象を控えて onSelected から引く
+        private MTEP.ModelMaterial _shaderTarget;
+        private MaterialTrackTarget _shaderTrack;
+        private Maid _shaderMaid;
+        private MTEP.ModelMaterial _shaderItemsTarget;
+
         private static MaterialEditWindow _instance = null;
         public static MaterialEditWindow instance
         {
@@ -71,6 +83,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         private MaterialEditWindow()
         {
+            _shaderComboBox.getName = (shader, _) => GetShaderDisplayName(shader);
+            _shaderComboBox.onSelected = (shader, _) => ApplyShader(shader);
         }
 
         protected override int windowId => WINDOW_ID;
@@ -302,7 +316,81 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            DrawShaderRow(material, track, maid);
             DrawMaterialProperties(material, track, maid);
+        }
+
+        /// <summary>
+        /// シェーダーの選択行。元シェーダーは「(元)」付きで並び、選べば元に戻る。
+        /// 候補は NPRShader などを後から読んだときのために「更新」で作り直せる
+        /// </summary>
+        private void DrawShaderRow(MTEP.ModelMaterial material, MaterialTrackTarget track, Maid maid)
+        {
+            _shaderTarget = material;
+            _shaderTrack = track;
+            _shaderMaid = maid;
+
+            var currentShader = material.material.shader;
+            if (_shaderItemsTarget != material || !_shaderComboBox.items.Contains(currentShader))
+            {
+                RefreshShaderItems(material, false);
+            }
+            _shaderComboBox.currentItem = currentShader;
+
+            DrawLabeledComboBox("シェーダー", _shaderComboBox, UpdateButtonWidth + view.margin, () =>
+            {
+                if (view.DrawButton("更新", UpdateButtonWidth, ROW_HEIGHT))
+                {
+                    RefreshShaderItems(material, true);
+                }
+            });
+        }
+
+        private void RefreshShaderItems(MTEP.ModelMaterial material, bool reloadCatalog)
+        {
+            if (_shaderCatalog == null || reloadCatalog)
+            {
+                _shaderCatalog = ShaderCatalog.GetShaders();
+            }
+
+            var items = new List<Shader>(_shaderCatalog.Count + 2);
+            // 元と現在のシェーダーは候補の接頭辞に合わなくても選べるようにする
+            foreach (var shader in new[] { material.originalShader, material.material.shader })
+            {
+                if (shader != null && !_shaderCatalog.Contains(shader) && !items.Contains(shader))
+                {
+                    items.Add(shader);
+                }
+            }
+            items.AddRange(_shaderCatalog);
+
+            _shaderComboBox.items = items;
+            _shaderItemsTarget = material;
+        }
+
+        private string GetShaderDisplayName(Shader shader)
+        {
+            if (shader == null)
+            {
+                return "";
+            }
+            return _shaderTarget != null && shader == _shaderTarget.originalShader
+                ? shader.name + " (元)"
+                : shader.name;
+        }
+
+        private void ApplyShader(Shader shader)
+        {
+            var material = _shaderTarget;
+            if (material == null || material.material == null || shader == null
+                || material.material.shader == shader)
+            {
+                return;
+            }
+
+            // シェーダーはキーではないので追跡チェックは付けない (タイムラインへは MaterialShaderManager が保存する)
+            MaterialPropertyRowsDrawer.RecordEdit(material, _shaderTrack, _shaderMaid, "シェーダー");
+            material.ChangeShader(shader);
         }
 
         /// <summary>マテリアル 1 件の色 / 数値プロパティを並べる</summary>

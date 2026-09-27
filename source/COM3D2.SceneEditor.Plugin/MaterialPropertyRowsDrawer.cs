@@ -36,6 +36,18 @@ namespace COM3D2.SceneEditor.Plugin
         private const float ClipboardButtonWidth = 60f;
 
         /// <summary>
+        /// 値を書き込む直前に呼ぶ。同じマテリアルへの連続変更はマウス解放まで 1 件に集約される。
+        /// maid はメイドタブでだけ渡り、自動キーフレーム登録の対象判定に使う
+        /// </summary>
+        public static void RecordEdit(MTEP.ModelMaterial material, MaterialTrackTarget track, Maid maid, string label)
+        {
+            var trackKey = track.isEnabled ? track.getKey(material) : null;
+            HistoryManager.instance.BeforeEdit(maid, HistoryScope.Material,
+                "マテリアル: " + material.displayName + " " + label,
+                material, () => MaterialSnapshot.Capture(material, track, trackKey));
+        }
+
+        /// <summary>
         /// 「[追跡チェック] マテリアル名 … [コピー][ペースト]」の 1 行。
         /// 追跡しない対象 (背景モデル) でも名前とボタンは出す。
         /// ラベルを自動幅 (-1) にするとボタンの余地が無くなるため、幅は手計算で求める
@@ -136,20 +148,15 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             };
 
-            // 値を書き込む直前に呼ぶ。同じマテリアルへの連続変更はマウス解放まで 1 件に集約される。
-            // maid はメイドタブでだけ渡り、自動キーフレーム登録の対象判定に使う
-            Action<string> recordEdit = label =>
-            {
-                HistoryManager.instance.BeforeEdit(maid, HistoryScope.Material,
-                    "マテリアル: " + material.displayName + " " + label,
-                    material, () => MaterialSnapshot.Capture(material, track, trackKey));
-            };
+            Action<string> recordEdit = label => RecordEdit(material, track, maid, label);
 
             DrawNameRow(view, material, track, trackKey, rowHeight, markTracked, recordEdit, drawTrailing);
 
             if (view.DrawButton("初期化", 80, rowHeight))
             {
                 recordEdit("初期化");
+                // シェーダーを先に戻す (値の初期値は元シェーダーのプロパティで控えている)
+                material.ResetShader();
                 material.Reset();
                 // 初期値へ戻したのだから追跡からも外す (チェック OFF と同じ意味)
                 if (trackKey != null)
