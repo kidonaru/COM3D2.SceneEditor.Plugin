@@ -4,17 +4,19 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// SceneView カメラの描画中だけ背景/メイド/モデルのレンダラーを無効化するフィルタ。
+    /// アタッチしたカメラの描画中だけ背景 / メイド / モデル / PNG のレンダラーを無効化するフィルタ。
+    /// SceneView カメラとメインカメラ (GameView の非表示トグル) で使う。
     /// OnPreCull/OnPostRender はアタッチ先カメラの描画時にのみ呼ばれるため、
-    /// ゲーム本体の画面には影響しない。
+    /// 他のカメラの描画には影響しない。
     /// GameObject の非アクティブ化やレイヤー変更はゲーム側の挙動を壊すため行わない
     /// </summary>
     [RequireComponent(typeof(Camera))]
-    public class SceneViewCullingFilter : MonoBehaviour
+    public class ViewCullingFilter : MonoBehaviour
     {
         public bool hideBg = false;
         public bool hideMaid = false;
         public bool hideModel = false;
+        public bool hidePng = false;
 
         // 列挙コストを抑えるためキャッシュし、破棄済み参照を見つけたら作り直す。
         // メイド追加・衣装変更等の「レンダラーが増える」変化は null 検出では捕捉できないため、
@@ -24,13 +26,18 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<Renderer> _bgRenderers = new List<Renderer>();
         private readonly List<Renderer> _maidRenderers = new List<Renderer>();
         private readonly List<Renderer> _modelRenderers = new List<Renderer>();
+        private readonly List<Renderer> _pngRenderers = new List<Renderer>();
+        // PNG のデカールは Renderer ではなく Projector で描かれるため別に持つ
+        private readonly List<Projector> _pngProjectors = new List<Projector>();
         private bool _bgCacheValid = false;
         private bool _maidCacheValid = false;
         private bool _modelCacheValid = false;
+        private bool _pngCacheValid = false;
         private int _lastRefreshFrame = -1;
 
         // OnPreCull で無効化したレンダラー (OnPostRender で復元する)
         private readonly List<Renderer> _disabled = new List<Renderer>();
+        private readonly List<Projector> _disabledProjectors = new List<Projector>();
 
         /// <summary>キャッシュを無効化する。トグル変更時・メイド構成変更が疑われるときに呼ぶ</summary>
         public void InvalidateCache()
@@ -38,6 +45,7 @@ namespace COM3D2.SceneEditor.Plugin
             _bgCacheValid = false;
             _maidCacheValid = false;
             _modelCacheValid = false;
+            _pngCacheValid = false;
         }
 
         private void OnPreCull()
@@ -62,6 +70,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DisableRenderers(_modelRenderers, ref _modelCacheValid, CollectModelRenderers);
             }
+            if (hidePng)
+            {
+                DisablePng();
+            }
         }
 
         private void OnPostRender()
@@ -75,6 +87,42 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _disabled.Clear();
+
+            for (var i = 0; i < _disabledProjectors.Count; i++)
+            {
+                var projector = _disabledProjectors[i];
+                if (projector != null)
+                {
+                    projector.enabled = true;
+                }
+            }
+            _disabledProjectors.Clear();
+        }
+
+        /// <summary>PNG の板 (Renderer) とデカール (Projector) を無効化する</summary>
+        private void DisablePng()
+        {
+            if (_pngCacheValid && HasDestroyedProjector(_pngProjectors))
+            {
+                _pngCacheValid = false;
+            }
+            var wasValid = _pngCacheValid;
+            DisableRenderers(_pngRenderers, ref _pngCacheValid, CollectPngRenderers);
+            if (!wasValid)
+            {
+                _pngProjectors.Clear();
+                CollectPngProjectors(_pngProjectors);
+            }
+
+            for (var i = 0; i < _pngProjectors.Count; i++)
+            {
+                var projector = _pngProjectors[i];
+                if (projector != null && projector.enabled)
+                {
+                    projector.enabled = false;
+                    _disabledProjectors.Add(projector);
+                }
+            }
         }
 
         private delegate void CollectAction(List<Renderer> results);
@@ -101,6 +149,18 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>破棄済みレンダラーの混入検出。見つけたらキャッシュ再構築のサイン</summary>
         private static bool HasDestroyedRenderer(List<Renderer> cache)
+        {
+            for (var i = 0; i < cache.Count; i++)
+            {
+                if (cache[i] == null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool HasDestroyedProjector(List<Projector> cache)
         {
             for (var i = 0; i < cache.Count; i++)
             {
@@ -156,6 +216,30 @@ namespace COM3D2.SceneEditor.Plugin
                 if (model != null && model.transform != null)
                 {
                     results.AddRange(model.transform.GetComponentsInChildren<Renderer>(true));
+                }
+            }
+        }
+
+        /// <summary>PNG 配置の各ルート配下のレンダラーを集める</summary>
+        private static void CollectPngRenderers(List<Renderer> results)
+        {
+            foreach (var png in PngPlacementManager.instance.pngObjects)
+            {
+                if (png != null && png.rootObject != null)
+                {
+                    results.AddRange(png.rootObject.GetComponentsInChildren<Renderer>(true));
+                }
+            }
+        }
+
+        /// <summary>PNG 配置の各ルート配下のデカール投影を集める</summary>
+        private static void CollectPngProjectors(List<Projector> results)
+        {
+            foreach (var png in PngPlacementManager.instance.pngObjects)
+            {
+                if (png != null && png.rootObject != null)
+                {
+                    results.AddRange(png.rootObject.GetComponentsInChildren<Projector>(true));
                 }
             }
         }

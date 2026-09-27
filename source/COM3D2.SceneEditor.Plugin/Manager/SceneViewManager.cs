@@ -14,7 +14,7 @@ namespace COM3D2.SceneEditor.Plugin
         public GizmoRenderer gizmoRenderer { get; private set; }
         public BoneLineRenderer boneLineRenderer { get; private set; }
         public GridRenderer gridRenderer { get; private set; }
-        public SceneViewCullingFilter cullingFilter { get; private set; }
+        public ViewCullingFilter cullingFilter { get; private set; }
         public RenderTexture renderTexture { get; private set; }
         public bool isActive { get; private set; }
 
@@ -158,7 +158,7 @@ namespace COM3D2.SceneEditor.Plugin
             boneLineRenderer = _cameraGo.AddComponent<BoneLineRenderer>();
             // 画面分割グリッドは構図合わせ用なので、drawDisplayGrid は既定の false のままにする
             gridRenderer = _cameraGo.AddComponent<GridRenderer>();
-            cullingFilter = _cameraGo.AddComponent<SceneViewCullingFilter>();
+            cullingFilter = _cameraGo.AddComponent<ViewCullingFilter>();
         }
 
         private void ReleaseRenderTexture()

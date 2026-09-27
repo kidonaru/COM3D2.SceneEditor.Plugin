@@ -234,7 +234,7 @@
     <Compile Include="Manager\ScenePresetManager.cs" />
     <Compile Include="Manager\ScenePresetProviderRegistry.cs" />
     <Compile Include="Manager\SceneCapturePresetLoader.cs" />
-    <Compile Include="Manager\SceneViewCullingFilter.cs" />
+    <Compile Include="Manager\ViewCullingFilter.cs" />
     <Compile Include="Manager\SceneViewManager.cs" />
     <Compile Include="Manager\SelectionManager.cs" />
     <Compile Include="Manager\HistoryManager.cs" />

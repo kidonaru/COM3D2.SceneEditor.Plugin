@@ -41,6 +41,45 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>画面分割グリッド担当。ポストエフェクトを避けるため gizmo カメラに付ける</summary>
         public GridRenderer displayGridRenderer { get; private set; }
 
+        /// <summary>メインカメラの描画から背景・モデル・PNG を隠すフィルタ。通常表示と撮影の両方に効く</summary>
+        public ViewCullingFilter cullingFilter { get; private set; }
+
+        // GameView ツールバーの表示トグル。隠したまま忘れて次回起動しないよう保存せず、
+        // エディタ有効化のたびに全表示へ戻す
+        private bool _showBg = true;
+        private bool _showModel = true;
+        private bool _showPng = true;
+
+        public bool showBg
+        {
+            get => _showBg;
+            set { _showBg = value; ApplyCullingSettings(); }
+        }
+
+        public bool showModel
+        {
+            get => _showModel;
+            set { _showModel = value; ApplyCullingSettings(); }
+        }
+
+        public bool showPng
+        {
+            get => _showPng;
+            set { _showPng = value; ApplyCullingSettings(); }
+        }
+
+        private void ApplyCullingSettings()
+        {
+            if (cullingFilter == null)
+            {
+                return;
+            }
+            cullingFilter.hideBg = !_showBg;
+            cullingFilter.hideModel = !_showModel;
+            cullingFilter.hidePng = !_showPng;
+            cullingFilter.InvalidateCache();
+        }
+
         private readonly List<Camera> _hiddenUICameras = new List<Camera>();
         private readonly List<UICamera> _disabledUICameraEvents = new List<UICamera>();
         private UICamera _systemUICamera = null;
@@ -118,6 +157,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
+
+            _showBg = _showModel = _showPng = true;
 
             var camera = mainCamera;
             if (camera == null)
@@ -336,6 +377,10 @@ namespace COM3D2.SceneEditor.Plugin
             worldGridRenderer = camera.gameObject.AddComponent<GridRenderer>();
             worldGridRenderer.isHostActive = IsGizmoHostActive;
 
+            // 非表示トグルはメインカメラの描画だけに効かせる (SceneView は自分のフィルタを持つ)
+            cullingFilter = camera.gameObject.AddComponent<ViewCullingFilter>();
+            ApplyCullingSettings();
+
             // 構図合わせ用の画面分割グリッドはゲーム画面側にだけ出す。
             // 深度を使わない画面空間の描画なのでオーバーレイ側へ回せる
             displayGridRenderer = host.AddComponent<GridRenderer>();
@@ -378,6 +423,12 @@ namespace COM3D2.SceneEditor.Plugin
                 Object.Destroy(displayGridRenderer);
             }
             displayGridRenderer = null;
+
+            if (cullingFilter != null)
+            {
+                Object.Destroy(cullingFilter);
+            }
+            cullingFilter = null;
         }
 
         /// <summary>

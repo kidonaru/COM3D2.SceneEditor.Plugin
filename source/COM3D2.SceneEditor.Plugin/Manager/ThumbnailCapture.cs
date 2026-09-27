@@ -53,9 +53,17 @@ namespace COM3D2.SceneEditor.Plugin
             var renderTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 24);
             var savedTargetTexture = camera.targetTexture;
             var savedActive = RenderTexture.active;
+            // サムネイルは一覧で見分けるための画像なので、GameView の非表示トグルを無視して全部写す
+            // (無効な MonoBehaviour には OnPreCull が届かない)
+            var cullingFilter = GameViewManager.instance.cullingFilter;
+            var filterWasEnabled = cullingFilter != null && cullingFilter.enabled;
             Texture2D texture = null;
             try
             {
+                if (filterWasEnabled)
+                {
+                    cullingFilter.enabled = false;
+                }
                 camera.targetTexture = renderTexture;
                 camera.Render();
 
@@ -70,6 +78,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
             finally
             {
+                if (filterWasEnabled)
+                {
+                    cullingFilter.enabled = true;
+                }
                 camera.targetTexture = savedTargetTexture;
                 RenderTexture.active = savedActive;
                 RenderTexture.ReleaseTemporary(renderTexture);
