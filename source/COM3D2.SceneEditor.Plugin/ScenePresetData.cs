@@ -562,6 +562,10 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public int index;
 
+        /// <summary>差し替えたシェーダー名。変更していなければ null で、書き出さない (null の属性は出ない)</summary>
+        [XmlAttribute]
+        public string shader;
+
         [XmlElement("color")]
         public List<ScenePresetMaterialColor> colors = new List<ScenePresetMaterialColor>();
 
@@ -569,7 +573,8 @@ namespace COM3D2.SceneEditor.Plugin
         public List<ScenePresetMaterialValue> values = new List<ScenePresetMaterialValue>();
 
         [XmlIgnore]
-        public bool isEmpty => (colors == null || colors.Count == 0) && (values == null || values.Count == 0);
+        public bool isEmpty => string.IsNullOrEmpty(shader)
+            && (colors == null || colors.Count == 0) && (values == null || values.Count == 0);
     }
 
     /// <summary>モデルのシェイプキー 1 件。modelName + pluginName で ModelProviderHost のモデルと照合する</summary>
@@ -1138,7 +1143,8 @@ namespace COM3D2.SceneEditor.Plugin
         //      デカール設定 (decalFadeAngle / decalProjectOnMaids) を追加。表示タイプとデカール設定は板では、
         //      ブレンド方式は通常、彩度は 1 のときは書き出さない。旧形式は属性が無く板・通常・彩度 1 として読める
         // v37: 追加ライトに輪郭 (cookieMode / cookieHardness / cookieImage) と影の種類 (shadows) を追加。
-        //      既定の輪郭・影なしでは書き出さない。旧形式は属性が無く既定の輪郭・影なしとして読める
+        //      既定の輪郭・影なしでは書き出さない。旧形式は属性が無く既定の輪郭・影なしとして読める。
+        //      マテリアル差分にシェーダー (shader) を追加。変更が無ければ書き出さず、無い場合はシェーダーを触らない
         public static readonly int CurrentVersion = 37;
 
         [XmlAttribute]

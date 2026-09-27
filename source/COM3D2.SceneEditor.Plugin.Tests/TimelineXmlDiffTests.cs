@@ -49,6 +49,23 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void シェーダー変更の違いだけなら部分適用可能()
+        {
+            // シェーダー変更は履歴の管理外で、Undo/Redo でも今の値を引き継ぐため比較しない
+            var after = CreateTimeline();
+            after.materialShaders.Add(new TimelineMaterialShaderXml
+            {
+                maidSlotNo = 0, owner = "wear", material = "a", shader = "com3d2mod/Standard_NPRToonV2_Lit_",
+            });
+
+            var diff = TimelineXmlDiff.Compute(CreateTimeline(), after);
+
+            Assert.True(diff.canApplyPartially);
+            Assert.Empty(diff.changedLayerIndices);
+            Assert.Single(after.materialShaders);
+        }
+
+        [Fact]
         public void 同一内容なら部分適用可能で変更レイヤーは無い()
         {
             var diff = TimelineXmlDiff.Compute(CreateTimeline(), CreateTimeline());

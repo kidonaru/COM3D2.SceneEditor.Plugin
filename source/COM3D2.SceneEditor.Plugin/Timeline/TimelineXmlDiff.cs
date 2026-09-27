@@ -174,6 +174,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             var layers = xml.layers;
             xml.layers = EmptyLayers;
+            // シェーダー変更は履歴の管理外で、Undo/Redo でも今の値を引き継ぐ (TimelineManager.UpdateTimeline)。
+            // 比較に含めると、変更後の最初のキー編集の Undo が毎回全再構築へ倒れる
+            var materialShaders = xml.materialShaders;
+            xml.materialShaders = null;
             try
             {
                 using (var writer = new StringWriter())
@@ -185,6 +189,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             finally
             {
                 xml.layers = layers;
+                xml.materialShaders = materialShaders;
             }
         }
     }

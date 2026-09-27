@@ -2362,6 +2362,11 @@ namespace COM3D2.SceneEditor.Plugin
                 index = index,
             };
 
+            if (material.isShaderChanged)
+            {
+                data.shader = material.material.shader.name;
+            }
+
             foreach (var propertyType in MTEP.ModelMaterial.ColorPropertyTypes)
             {
                 if (!material.HasColor(propertyType))
@@ -2401,9 +2406,23 @@ namespace COM3D2.SceneEditor.Plugin
             return data.isEmpty ? null : data;
         }
 
-        /// <summary>保存されたプロパティだけをマテリアルへ書き戻す。未知のプロパティ名は無視して互換を保つ</summary>
+        /// <summary>保存されたシェーダーとプロパティだけをマテリアルへ書き戻す。未知のプロパティ名は無視して互換を保つ</summary>
         private static void ApplyMaterial(MTEP.ModelMaterial material, ScenePresetMaterial state)
         {
+            // 新シェーダーにしか無いプロパティへ書けるよう、色・値より先に差し替える
+            if (!string.IsNullOrEmpty(state.shader))
+            {
+                var shader = ShaderCatalog.Find(state.shader);
+                if (shader == null)
+                {
+                    MTEUtils.LogWarning("シェーダーが見つかりません: {0}", state.shader);
+                }
+                else
+                {
+                    material.ChangeShader(shader);
+                }
+            }
+
             if (state.colors != null)
             {
                 foreach (var color in state.colors)
@@ -2437,12 +2456,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static MTEP.ModelMaterial FindMaterial(List<MTEP.ModelMaterial> materials, ScenePresetMaterial state)
         {
-            if (state.index >= 0 && state.index < materials.Count
-                && materials[state.index].displayName == state.material)
+            // 位置を保つため、破棄済みマテリアルも空名で残す (詰めると保存時の index がずれる)
+            var names = new List<string>(materials.Count);
+            foreach (var material in materials)
             {
-                return materials[state.index];
+                names.Add(material.material != null ? material.displayName : "");
             }
-            return materials.Find(m => m.displayName == state.material);
+            var index = MaterialLookup.FindIndex(names, state.material, state.index);
+            return index >= 0 ? materials[index] : null;
         }
 
         /// <summary>Enum.TryParse が使えない .NET 3.5 向けの安全なパース</summary>

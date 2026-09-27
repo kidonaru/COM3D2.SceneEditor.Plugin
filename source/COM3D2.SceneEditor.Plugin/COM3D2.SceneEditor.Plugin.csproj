@@ -337,6 +337,9 @@
     <Compile Include="LightCookie.cs" />
     <Compile Include="ImagePathResolver.cs" />
     <Compile Include="LightShadowValues.cs" />
+    <Compile Include="MaterialLookup.cs" />
+    <Compile Include="MaterialRenderQueue.cs" />
+    <Compile Include="ShaderCatalog.cs" />
     <Compile Include="ItemValueClipboard.cs" />
     <Compile Include="ItemClipboardMenu.cs" />
     <Compile Include="TimelineItemValueTransfer.cs" />
@@ -506,6 +509,7 @@
     <Compile Include="Timeline\Manager\CameraManager.cs" />
     <Compile Include="Timeline\Manager\MaidManager.cs" />
     <Compile Include="Timeline\Manager\ManagerBase.cs" />
+    <Compile Include="Timeline\Manager\MaterialShaderManager.cs" />
     <Compile Include="Timeline\Manager\StudioLightManager.cs" />
     <Compile Include="Timeline\Manager\StudioModelManager.cs" />
     <Compile Include="Timeline\Manager\ModelHackManager.cs" />
@@ -548,6 +552,8 @@
     <Compile Include="Timeline\ModelBoneController.cs" />
     <Compile Include="Timeline\BlendShapeController.cs" />
     <Compile Include="Timeline\ModelMaterial.cs" />
+    <Compile Include="Timeline\MaterialShaderSync.cs" />
+    <Compile Include="Timeline\TimelineMaterialShaderData.cs" />
     <Compile Include="Timeline\ModelMaterialController.cs" />
     <Compile Include="Timeline\LightHoldKeyConversion.cs" />
     <Compile Include="Timeline\TangentData.cs" />

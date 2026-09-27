@@ -75,6 +75,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public List<string> extendBoneNames;
     }
 
+    /// <summary>
+    /// マテリアルのシェーダー変更 1 件 (SE 独自)。メイドは MaidSlotNo + スロット名、
+    /// モデルは MaidSlotNo = -1 + タイムラインのモデル名で所有者を表す
+    /// </summary>
+    public class TimelineMaterialShaderXml
+    {
+        [XmlElement("MaidSlotNo")]
+        public int maidSlotNo = -1;
+        [XmlElement("Owner")]
+        public string owner;
+        [XmlElement("Material")]
+        public string material;
+        [XmlElement("Index")]
+        public int index;
+        [XmlElement("Shader")]
+        public string shader;
+    }
+
     public class TimelineBGModelXml
     {
         [XmlElement("SourceName")]
@@ -229,6 +247,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlArray("ExtendBones")]
         [XmlArrayItem("ExtendBone")]
         public List<TimelineExtendBoneXml> extendBones = new List<TimelineExtendBoneXml>();
+
+        // シェーダー変更は SE 独自。変更が無いタイムラインの XML を変えないよう、空なら書き出さない
+        [XmlArray("MaterialShaders")]
+        [XmlArrayItem("MaterialShader")]
+        public List<TimelineMaterialShaderXml> materialShaders = new List<TimelineMaterialShaderXml>();
+
+        public bool ShouldSerializematerialShaders() { return materialShaders != null && materialShaders.Count > 0; }
 
         [XmlElement("MaxFrameNo")]
         public int maxFrameNo;

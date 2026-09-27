@@ -551,6 +551,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _timeline.anmName = anmName;
                 _timeline.directoryName = directoryName;
                 _timeline.Initialize();
+                // 前のタイムラインやプリセットのシェーダー変更を、読んだタイムラインへ持ち込まない
+                MaterialShaderManager.instance.ResetShadersNotIn(_timeline.materialShaders);
                 mte.OnLoad();
                 // undo/redo の UpdateTimeline では呼ばない。ユーザーが選んだタブを奪わないため
                 PostEffectsClient.ShowTimelineMode();
@@ -621,10 +623,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void UpdateTimeline(TimelineXml xml)
         {
+            // シェーダー変更は履歴の管理外 (Undo は SE 側の MaterialSnapshot が担う)。
+            // 履歴の XML の値で上書きすると、無関係なキー編集の Undo でシェーダーが変わるため今の値を引き継ぐ
+            var materialShaders = _timeline != null ? _timeline.materialShaders : null;
+
             ClearTimeline();
 
             _timeline = new TimelineData();
             _timeline.FromXml(xml);
+            if (materialShaders != null)
+            {
+                _timeline.materialShaders = materialShaders;
+            }
 
             // 旧フォーマットの easing 補間を Tangent へ近似変換 (Tangent 統一)
             TangentUnification.ConvertTimeline(_timeline);

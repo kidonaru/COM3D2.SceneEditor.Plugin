@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using SE = COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -75,6 +76,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private HashSet<ValuePropertyType> hasValueProperties = new HashSet<ValuePropertyType>();
         private List<float> initialValues = new List<float>();
 
+        // 初期値を控え済みのプロパティ。シェーダー差し替えで初めて現れたプロパティは
+        // その時点の値を初期値にし、元シェーダーから引き継いだものは元の初期値を保つ
+        private HashSet<ColorPropertyType> capturedColors = new HashSet<ColorPropertyType>();
+        private HashSet<ValuePropertyType> capturedValues = new HashSet<ValuePropertyType>();
+
+        /// <summary>元のシェーダー。Init で掴み、ChangeShader では変えない (ゲーム側の差し替えは取り込む)</summary>
+        public Shader originalShader { get; private set; }
+
+        // 元シェーダーでの renderQueue。シェーダーを代入すると既定値へ戻るため控える
+        private int originalRenderQueue;
+
+        // 最後にこちらが設定したシェーダー。現在のシェーダーと食い違えば、
+        // ゲーム (menu の shader コマンド等) が既存の Material を差し替えたと判断する
+        private Shader appliedShader;
+
+        /// <summary>こちらで差し替えたシェーダーが効いているか。ゲーム側に上書きされていれば false</summary>
+        public bool isShaderChanged
+            => material != null && originalShader != null
+                && appliedShader != originalShader && material.shader == appliedShader;
+
+        // シェーダーを変えたマテリアル。タイムラインへの同期 (MaterialShaderManager) が全メイド・全モデルを
+        // 走査せずに済むよう、変更と戻しのたびに出し入れする
+        private static readonly HashSet<ModelMaterial> shaderChangedMaterials = new HashSet<ModelMaterial>();
+
+        /// <summary>shaderChangedMaterials の出し入れで増える。同期側の変更検出に使う</summary>
+        public static int shaderChangedVersion { get; private set; }
+
         public ModelMaterial(ModelMaterialController controller, Material material)
         {
             this.controller = controller;
@@ -90,40 +118,67 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Init()
         {
-            hasColorProperties.Clear();
+            originalShader = material.shader;
+            originalRenderQueue = material.renderQueue;
+            appliedShader = material.shader;
+
+            capturedColors.Clear();
+            capturedValues.Clear();
             initialColors.Clear();
-            hasValueProperties.Clear();
             initialValues.Clear();
+            for (int i = 0; i < ColorPropertyNameIds.Count; i++)
+            {
+                initialColors.Add(Color.black);
+            }
+            for (int i = 0; i < ValuePropertyNameIds.Count; i++)
+            {
+                initialValues.Add(0f);
+            }
+
+            RefreshProperties();
+            UpdateShaderChangedRegistry();
+
+            material.name = material.name.Replace(" (Instance)", "");
+        }
+
+        /// <summary>
+        /// 現在のシェーダーが持つプロパティを数え直す。
+        /// 初期値は初めて現れたプロパティだけ現在値で控え、既知のものは元の初期値を保つ
+        /// </summary>
+        private void RefreshProperties()
+        {
+            hasColorProperties.Clear();
+            hasValueProperties.Clear();
 
             for (int i = 0; i < ColorPropertyNameIds.Count; i++)
             {
                 var nameId = ColorPropertyNameIds[i];
-                if (material.HasProperty(nameId))
+                if (!material.HasProperty(nameId))
                 {
-                    hasColorProperties.Add((ColorPropertyType)i);
-                    initialColors.Add(material.GetColor(nameId));
+                    continue;
                 }
-                else
+                var type = (ColorPropertyType)i;
+                hasColorProperties.Add(type);
+                if (capturedColors.Add(type))
                 {
-                    initialColors.Add(Color.black);
+                    initialColors[i] = material.GetColor(nameId);
                 }
             }
 
             for (int i = 0; i < ValuePropertyNameIds.Count; i++)
             {
                 var nameId = ValuePropertyNameIds[i];
-                if (material.HasProperty(nameId))
+                if (!material.HasProperty(nameId))
                 {
-                    hasValueProperties.Add((ValuePropertyType)i);
-                    initialValues.Add(material.GetFloat(nameId));
+                    continue;
                 }
-                else
+                var type = (ValuePropertyType)i;
+                hasValueProperties.Add(type);
+                if (capturedValues.Add(type))
                 {
-                    initialValues.Add(0f);
+                    initialValues[i] = material.GetFloat(nameId);
                 }
             }
-
-            material.name = material.name.Replace(" (Instance)", "");
         }
 
         public void UpdateMaterial(Material material)
@@ -192,6 +247,102 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return initialValues[(int)type];
         }
 
+        /// <summary>
+        /// シェーダーを差し替える。同名プロパティの値は Unity が引き継ぐ。
+        /// renderQueue は代入で既定値へ戻るため、元シェーダーでの状態から決め直す
+        /// (直前のシェーダーから決めると、経由したシェーダーによって値が変わる)
+        /// </summary>
+        public void ChangeShader(Shader shader)
+        {
+            if (material == null || shader == null)
+            {
+                return;
+            }
+            AdoptExternalShader();
+            if (material.shader == shader)
+            {
+                return;
+            }
+
+            material.shader = shader;
+            material.renderQueue = SE.MaterialRenderQueue.Resolve(
+                originalRenderQueue, originalShader.renderQueue, shader.renderQueue);
+            appliedShader = shader;
+
+            RefreshProperties();
+            UpdateShaderChangedRegistry();
+        }
+
+        /// <summary>
+        /// ゲーム側が既存の Material のシェーダーを差し替えていたら、それを新しい元の状態として取り込む。
+        /// 取り込まないと「初期化」がゲームの入れたシェーダーを差し替え前へ戻してしまう
+        /// </summary>
+        private void AdoptExternalShader()
+        {
+            if (material.shader == appliedShader)
+            {
+                return;
+            }
+            originalShader = material.shader;
+            originalRenderQueue = material.renderQueue;
+            appliedShader = material.shader;
+            RefreshProperties();
+            UpdateShaderChangedRegistry();
+        }
+
+        /// <summary>元のシェーダーへ戻す。値は戻さない (値は Reset が戻す)</summary>
+        public void ResetShader()
+        {
+            if (material == null)
+            {
+                return;
+            }
+            // 引数の originalShader を評価する前に取り込む。後だとゲームが入れたシェーダーを差し替え前へ戻してしまう
+            AdoptExternalShader();
+            ChangeShader(originalShader);
+        }
+
+        private void UpdateShaderChangedRegistry()
+        {
+            var changed = isShaderChanged
+                ? shaderChangedMaterials.Add(this)
+                : shaderChangedMaterials.Remove(this);
+            if (changed)
+            {
+                shaderChangedVersion++;
+            }
+        }
+
+        /// <summary>
+        /// シェーダーを変えたマテリアルを result へ写す。
+        /// 着替え・モデル削除で破棄されたものと、ゲーム側にシェーダーを上書きされたものは
+        /// ここで落とす (落としたら version も進める)
+        /// </summary>
+        public static void CollectShaderChanged(List<ModelMaterial> result)
+        {
+            result.Clear();
+            var removed = shaderChangedMaterials.RemoveWhere(
+                m => m.material == null || m.controller == null || !m.isShaderChanged);
+            if (removed > 0)
+            {
+                shaderChangedVersion++;
+            }
+            result.AddRange(shaderChangedMaterials);
+        }
+
+        /// <summary>
+        /// コントローラの一覧から外されたときに呼ぶ。Material も controller も生きたままなので
+        /// CollectShaderChanged の破棄検出では落ちず、ここで抜かないとレジストリに残り続ける
+        /// </summary>
+        public void Release()
+        {
+            if (shaderChangedMaterials.Remove(this))
+            {
+                shaderChangedVersion++;
+            }
+        }
+
+        /// <summary>値を初期値へ戻す。シェーダーは戻さない (タイムラインのキー操作からも呼ばれるため)</summary>
         public void Reset()
         {
             foreach (var type in hasColorProperties)

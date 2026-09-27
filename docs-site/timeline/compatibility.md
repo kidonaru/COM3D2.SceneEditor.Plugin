@@ -18,6 +18,7 @@ MotionTimelineEditor（MTE）で作成したタイムライン XML は SceneEdit
 - モデルの表示レイヤー（ModItemExplorer の Default / Charactor）はモデル定義として保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むとレイヤーは ModItemExplorer の既定になります
 - スポットライトの `輪郭` の種類と画像はライト定義、`硬さ` はライトキーとして保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと既定の輪郭で表示されます
 - 追加ライトの `影` の種類もライト定義として保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと影なしになります
+- マテリアルの `シェーダー` の変更はタイムラインに保存されます（`MaterialShaders`）。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと元のシェーダーで表示されます。NPRShader のシェーダーは NPRShader が無い環境では適用されず、保存し直しても記録は残ります
 - 姿勢を表す回転はクォータニオンで保持するようになりました（version 35）。読み込み時に自動で変換されます
 
   対象は PNG 配置 / テキスト / リムライトの光源方向 / ステージライト本体 / レーザー本体と一括制御の本体姿勢 / サイリウムの手の姿勢です。この変換には次の影響があります。
