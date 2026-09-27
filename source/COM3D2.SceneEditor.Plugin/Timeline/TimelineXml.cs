@@ -53,6 +53,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
         }
+
+        // 影の種類 (LightShadows の数値) も SE 独自。影なしでは書き出さない。
+        // 範囲外の値でも読めるよう int で持ち、読込時に LightShadowValues.FromInt で丸める
+        [XmlElement("Shadows")]
+        public int shadows;
+
+        public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
     }
 
     public class TimelineMaidShapeKeyXml

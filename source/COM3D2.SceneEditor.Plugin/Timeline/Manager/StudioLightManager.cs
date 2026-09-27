@@ -114,7 +114,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var removedLights = new List<StudioLightStat>();
             var updatedLights = new List<StudioLightStat>();
             var refresh = false;
-            var cookieChanged = false;
+            var definitionChanged = false;
 
             foreach (var stat in lightList)
             {
@@ -148,11 +148,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                // 輪郭はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する
-                if (!cachedLight.cookie.Equals(stat.cookie))
+                // 輪郭と影の種類はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する
+                if (!cachedLight.cookie.Equals(stat.cookie) || cachedLight.shadows != stat.shadows)
                 {
                     cachedLight.cookie = stat.cookie;
-                    cookieChanged = true;
+                    cachedLight.shadows = stat.shadows;
+                    definitionChanged = true;
                 }
             }
 
@@ -185,7 +186,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 UpdateTimelineLights();
             }
-            else if (cookieChanged)
+            else if (definitionChanged)
             {
                 UpdateTimelineLights();
             }
@@ -249,10 +250,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     var stat = CreateLightStat(lightData.type, i);
                     var newLight = CreateLightInternal(stat);
-                    // メインライト (index 0) は輪郭を持たない (メインライトが取れないシーンでは index 0 もここを通る)
+                    // メインライト (index 0) は輪郭と影の種類を持たない (メインライトが取れないシーンでは index 0 もここを通る)
                     if (i > 0)
                     {
                         SceneEditor.Plugin.LightCookie.Set(newLight, lightData.cookie);
+                        newLight.shadows = lightData.shadows;
                     }
 
                     MTEUtils.LogDebug("Create light: type={0} displayName={1} name={2}",
@@ -266,10 +268,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     newStat.index = i;
                     ChangeLight(newStat);
 
-                    // メインライト (index 0) は輪郭を持たない
+                    // メインライト (index 0) は輪郭と影の種類を持たない
                     if (i > 0)
                     {
                         SceneEditor.Plugin.LightCookie.Set(stat.light, lightData.cookie);
+                        stat.light.shadows = lightData.shadows;
                     }
                 }
             }
