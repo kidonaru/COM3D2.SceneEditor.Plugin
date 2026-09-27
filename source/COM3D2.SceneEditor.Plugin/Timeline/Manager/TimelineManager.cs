@@ -551,8 +551,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _timeline.anmName = anmName;
                 _timeline.directoryName = directoryName;
                 _timeline.Initialize();
-                // 前のタイムラインやプリセットのシェーダー変更を、読んだタイムラインへ持ち込まない
-                MaterialShaderManager.instance.ResetShadersNotIn(_timeline.materialShaders);
+                // 前のタイムラインやプリセットのシェーダー・テクスチャ変更を、読んだタイムラインへ持ち込まない
+                MaterialShaderManager.instance.ResetChangesNotIn(_timeline.materialShaders);
                 mte.OnLoad();
                 // undo/redo の UpdateTimeline では呼ばない。ユーザーが選んだタブを奪わないため
                 PostEffectsClient.ShowTimelineMode();

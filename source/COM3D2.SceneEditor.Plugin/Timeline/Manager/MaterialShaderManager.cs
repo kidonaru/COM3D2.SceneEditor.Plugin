@@ -7,11 +7,12 @@ using SE = COM3D2.SceneEditor.Plugin;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
-    /// マテリアルのシェーダー変更をタイムラインへ保存・復元する。
+    /// マテリアルのシェーダー・テクスチャ変更をタイムラインへ保存・復元する。
     /// 保存は変更済みマテリアル (ModelMaterial のレジストリ) からの片方向同期で、
     /// 復元は読込時 (mte.OnLoad) の 1 回だけ行う。キーフレームは持たない。
     /// 適用できないエントリ (モデル未ロード・シェーダー未導入) は保留として持ち、
-    /// 保存にも残しつつ定期的に再試行する
+    /// 保存にも残しつつ定期的に再試行する。
+    /// 着替え等で作り直されたマテリアルのエントリも保留へ戻して再適用する
     /// </summary>
     public class MaterialShaderManager : ManagerBase
     {
@@ -40,6 +41,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private readonly List<TimelineMaterialShaderData> _live = new List<TimelineMaterialShaderData>();
         private readonly List<string> _names = new List<string>();
 
+        /// <summary>前回の同期で保存対象だったマテリアルと、そのときの Material・エントリ</summary>
+        private struct LiveRecord
+        {
+            public Material material;
+            public TimelineMaterialShaderData entry;
+        }
+
+        // 着替え等で Material が作り直されたら、前回のエントリを保留へ戻して再適用を待つ (仕様 #7・13)
+        private Dictionary<ModelMaterial, LiveRecord> _lastLive = new Dictionary<ModelMaterial, LiveRecord>();
+        private Dictionary<ModelMaterial, LiveRecord> _nextLive = new Dictionary<ModelMaterial, LiveRecord>();
+
         // シェーダー名 → Shader (見つからなければ null)。Find は全 Shader を走査するので、
         // 保留の再試行で同じ名前を毎回引き直さない。見つからない名前の警告もここで 1 回に抑える
         private readonly Dictionary<string, Shader> _resolvedShaders = new Dictionary<string, Shader>();
@@ -53,6 +65,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _lastTimeline = timeline;
             _resolvedShaders.Clear();
             _pending.Clear();
+            _lastLive.Clear();
             foreach (var entry in timeline.materialShaders)
             {
                 _pending.Add(entry.Clone());
@@ -107,14 +120,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                var shader = ResolveShader(entry.shader);
-                if (shader == null)
+                Shader shader = null;
+                if (entry.shader.Length > 0)
                 {
-                    // 保留に残して保存からは消さない (導入し直せば次の読込で効く)
-                    continue;
+                    shader = ResolveShader(entry.shader);
+                    if (shader == null)
+                    {
+                        // 保留に残して保存からは消さない (導入し直せば次の読込で効く)。
+                        // テクスチャも新シェーダーのプロパティへ貼るものなので一緒に待つ
+                        continue;
+                    }
                 }
 
-                material.ChangeShader(shader);
+                // エントリの内容に揃える (シェーダーが空なら元へ、載っていないテクスチャは外す)
+                if (shader != null)
+                {
+                    material.ChangeShader(shader);
+                }
+                else
+                {
+                    material.ResetShader();
+                }
+                // 見つからないファイルは指定だけ残るので、ここで保留から外してよい
+                material.SetTextureOverrides(entry.textures);
                 _pending.RemoveAt(i);
                 applied = true;
             }
@@ -137,12 +165,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// タイムラインのファイルを読む直前に呼ぶ。読むタイムラインに無いシェーダー変更は元へ戻し、
+        /// タイムラインのファイルを読む直前に呼ぶ。読むタイムラインに無いシェーダー・テクスチャ変更は元へ戻し、
         /// 前のタイムラインやプリセットの変更が読んだタイムラインへ紛れ込まないようにする。
         /// 背景とタイムライン管理外の対象はタイムラインが扱わないので触らない。
         /// Undo/Redo の差し替えと新規作成では呼ばない (シーンの今の見た目を保つ)
         /// </summary>
-        public void ResetShadersNotIn(List<TimelineMaterialShaderData> entries)
+        public void ResetChangesNotIn(List<TimelineMaterialShaderData> entries)
         {
             ModelMaterial.CollectChanged(_changedMaterials);
             foreach (var material in _changedMaterials)
@@ -151,6 +179,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (entry != null && !entries.Exists(e => e.IsSameTarget(entry)))
                 {
                     material.ResetShader();
+                    material.ResetTextures();
                 }
             }
         }
@@ -173,14 +202,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _lastVersion = ModelMaterial.changedVersion;
 
             _live.Clear();
+            _nextLive.Clear();
             foreach (var material in _changedMaterials)
             {
                 var entry = CreateEntry(material);
                 if (entry != null)
                 {
                     _live.Add(entry);
+                    _nextLive[material] = new LiveRecord { material = material.material, entry = entry };
                 }
             }
+
+            RequeueRebuilt();
 
             // 現在の状態が決まった対象の保留は、もう適用しない
             _pending.RemoveAll(p => _live.Exists(l => l.IsSameTarget(p)));
@@ -190,6 +223,35 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 timeline.materialShaders = merged;
             }
+        }
+
+        /// <summary>
+        /// 前回は保存対象だったのに今回消えたマテリアルのうち、Material が破棄・差し替え・一覧から除去された
+        /// (= 作り直された) ものは、前回のエントリを保留へ戻す。ユーザーの初期化やゲーム側の上書きは
+        /// Material が同じまま変更だけ消えるので戻さない
+        /// </summary>
+        private void RequeueRebuilt()
+        {
+            foreach (var pair in _lastLive)
+            {
+                var material = pair.Key;
+                if (_nextLive.ContainsKey(material))
+                {
+                    continue;
+                }
+                // 破棄済み同士は Unity の == で等しくなるため参照で比べる
+                var rebuilt = material.material == null
+                    || !ReferenceEquals(material.material, pair.Value.material)
+                    || material.isReleased;
+                if (rebuilt)
+                {
+                    MaterialShaderSync.Requeue(_pending, _live, pair.Value.entry);
+                }
+            }
+
+            var swap = _lastLive;
+            _lastLive = _nextLive;
+            _nextLive = swap;
         }
 
         /// <summary>
@@ -233,14 +295,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 return null;
             }
-            return new TimelineMaterialShaderData
+            var entry = new TimelineMaterialShaderData
             {
                 maidSlotNo = maidSlotNo,
                 owner = owner,
                 material = material.displayName,
                 index = index,
-                shader = material.material.shader.name,
+                shader = material.isShaderChanged ? material.material.shader.name : "",
             };
+            material.GetTextureOverrides(entry.textures);
+            return entry;
         }
 
         /// <summary>エントリの対象マテリアル。まだ無ければ null</summary>
@@ -279,11 +343,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
+            // 読み込んだテクスチャはシーン遷移で破棄する (タイムラインがあれば次の OnLoad が保留から再適用する)
+            ModelMaterial.ResetAllTextures();
             // シーン遷移でメイド・モデルが入れ替わるため、保留も捨てる。
             // タイムラインを開いていないと Update が回らないので、破棄済みの登録もここで落とす
             ModelMaterial.CollectChanged(_changedMaterials);
             _changedMaterials.Clear();
             _pending.Clear();
+            _lastLive.Clear();
             _lastTimeline = null;
             _lastVersion = -1;
         }
