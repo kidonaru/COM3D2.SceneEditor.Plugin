@@ -180,5 +180,22 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.False(mid.visible);
         }
+
+        [Fact]
+        public void 被写界深度の追従メイドは区間開始値になる()
+        {
+            var start = new TransformDataDepthOfField();
+            start.Initialize("DepthOfField");
+            var end = new TransformDataDepthOfField();
+            end.Initialize("DepthOfField");
+            // 追従なし (-1) → メイド 1。補間されると途中で 0 番メイドへ追従してしまう
+            start.maidSlotNoValue.value = -1f;
+            end.maidSlotNoValue.value = 1f;
+
+            var scratch = (TransformDataDepthOfField)start.Clone();
+            scratch.LerpFrom(start, end, 0f, 1f, 0.9f);
+
+            Assert.Equal(-1f, scratch.maidSlotNoValue.value);
+        }
     }
 }

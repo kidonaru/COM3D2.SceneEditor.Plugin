@@ -717,6 +717,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         continue;
                     }
+                    // 専用コンボで選ぶ値 (追従メイド番号など) は step 未指定で FloatValue と判定されるが、
+                    // 中間値に意味が無いので区間開始値のまま保つ
+                    if (info.uiType != CustomValueUIType.Default)
+                    {
+                        continue;
+                    }
                     if (info.type == CustomValueType.FloatValue || info.type == CustomValueType.FloatSlider)
                     {
                         kinds[info.index] = LerpKind.Tangent;
