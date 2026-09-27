@@ -26,9 +26,9 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<Renderer> _bgRenderers = new List<Renderer>();
         private readonly List<Renderer> _maidRenderers = new List<Renderer>();
         private readonly List<Renderer> _modelRenderers = new List<Renderer>();
+        // PNG のデカールは Renderer ではなく Projector で描かれるため、PngPlacementManager が
+        // デカールの更新後に止める (更新で Projector が有効へ戻るため、ここでは止められない)
         private readonly List<Renderer> _pngRenderers = new List<Renderer>();
-        // PNG のデカールは Renderer ではなく Projector で描かれるため別に持つ
-        private readonly List<Projector> _pngProjectors = new List<Projector>();
         private bool _bgCacheValid = false;
         private bool _maidCacheValid = false;
         private bool _modelCacheValid = false;
@@ -37,7 +37,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         // OnPreCull で無効化したレンダラー (OnPostRender で復元する)
         private readonly List<Renderer> _disabled = new List<Renderer>();
-        private readonly List<Projector> _disabledProjectors = new List<Projector>();
 
         /// <summary>キャッシュを無効化する。トグル変更時・メイド構成変更が疑われるときに呼ぶ</summary>
         public void InvalidateCache()
@@ -72,7 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             if (hidePng)
             {
-                DisablePng();
+                DisableRenderers(_pngRenderers, ref _pngCacheValid, CollectPngRenderers);
             }
         }
 
@@ -87,42 +86,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             _disabled.Clear();
-
-            for (var i = 0; i < _disabledProjectors.Count; i++)
-            {
-                var projector = _disabledProjectors[i];
-                if (projector != null)
-                {
-                    projector.enabled = true;
-                }
-            }
-            _disabledProjectors.Clear();
-        }
-
-        /// <summary>PNG の板 (Renderer) とデカール (Projector) を無効化する</summary>
-        private void DisablePng()
-        {
-            if (_pngCacheValid && HasDestroyedProjector(_pngProjectors))
-            {
-                _pngCacheValid = false;
-            }
-            var wasValid = _pngCacheValid;
-            DisableRenderers(_pngRenderers, ref _pngCacheValid, CollectPngRenderers);
-            if (!wasValid)
-            {
-                _pngProjectors.Clear();
-                CollectPngProjectors(_pngProjectors);
-            }
-
-            for (var i = 0; i < _pngProjectors.Count; i++)
-            {
-                var projector = _pngProjectors[i];
-                if (projector != null && projector.enabled)
-                {
-                    projector.enabled = false;
-                    _disabledProjectors.Add(projector);
-                }
-            }
         }
 
         private delegate void CollectAction(List<Renderer> results);
@@ -149,18 +112,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>破棄済みレンダラーの混入検出。見つけたらキャッシュ再構築のサイン</summary>
         private static bool HasDestroyedRenderer(List<Renderer> cache)
-        {
-            for (var i = 0; i < cache.Count; i++)
-            {
-                if (cache[i] == null)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private static bool HasDestroyedProjector(List<Projector> cache)
         {
             for (var i = 0; i < cache.Count; i++)
             {
@@ -228,18 +179,6 @@ namespace COM3D2.SceneEditor.Plugin
                 if (png != null && png.rootObject != null)
                 {
                     results.AddRange(png.rootObject.GetComponentsInChildren<Renderer>(true));
-                }
-            }
-        }
-
-        /// <summary>PNG 配置の各ルート配下のデカール投影を集める</summary>
-        private static void CollectPngProjectors(List<Projector> results)
-        {
-            foreach (var png in PngPlacementManager.instance.pngObjects)
-            {
-                if (png != null && png.rootObject != null)
-                {
-                    results.AddRange(png.rootObject.GetComponentsInChildren<Projector>(true));
                 }
             }
         }

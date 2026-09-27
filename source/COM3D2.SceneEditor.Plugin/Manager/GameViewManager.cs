@@ -90,10 +90,6 @@ namespace COM3D2.SceneEditor.Plugin
         private int _rtHeight = 0;
 
         /// <summary>
-        /// メインカメラ。シーン遷移直後など GameMain が未生成・破棄済みの
-        /// タイミングがあるため null を返しうる
-        /// </summary>
-        /// <summary>
         /// RT のうち GameView に表示する範囲 (0〜1、中央寄せ)。
         /// 直接描画中は画面へそのまま描くので切り出さない
         /// </summary>

@@ -42,7 +42,17 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(ASPECT_COMBO_WIDTH + 20, 160),
             // 前後の矢印を出すと帯の幅計算 (GetToolbarLocalRect) からはみ出すため、ボタンだけにする
             showArrow = false,
+            onSelected = (mode, _) =>
+            {
+                config.gameViewAspectMode = mode;
+                config.dirty = true;
+            },
         };
+
+        // OnGUI のたびにクロージャを作らないよう使い回す
+        private static readonly Action<bool> SetShowBg = value => gameViewManager.showBg = value;
+        private static readonly Action<bool> SetShowModel = value => gameViewManager.showModel = value;
+        private static readonly Action<bool> SetShowPng = value => gameViewManager.showPng = value;
 
         public int windowIndex { get; set; }
         public bool isShowWnd { get; set; }
@@ -485,19 +495,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             _aspectComboBox.currentIndex = Array.IndexOf(GameViewAspect.modes, config.gameViewAspectMode);
-            _aspectComboBox.onSelected = (mode, _) =>
-            {
-                config.gameViewAspectMode = mode;
-                config.dirty = true;
-            };
             _aspectComboBox.DrawButton(view);
 
             ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg), "背景",
-                gameViewManager.showBg, value => gameViewManager.showBg = value);
+                gameViewManager.showBg, SetShowBg);
             ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model), "モデル",
-                gameViewManager.showModel, value => gameViewManager.showModel = value);
+                gameViewManager.showModel, SetShowModel);
             ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Png), "PNG",
-                gameViewManager.showPng, value => gameViewManager.showPng = value);
+                gameViewManager.showPng, SetShowPng);
 
             view.EndLayout();
 

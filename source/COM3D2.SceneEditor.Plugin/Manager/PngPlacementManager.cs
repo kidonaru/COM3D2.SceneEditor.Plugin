@@ -591,6 +591,34 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 HideOverlayProjectors();
             }
+            else if (IsHiddenByGameView(camera))
+            {
+                HideAllProjectors();
+            }
+        }
+
+        /// <summary>
+        /// GameView の PNG 非表示トグルで、このカメラの描画からデカールを外すか。
+        /// 板は ViewCullingFilter が Renderer を切るので、ここでは Projector だけを扱う。
+        /// フィルタが無効な間 (サムネイル撮影中) は外さない
+        /// </summary>
+        private static bool IsHiddenByGameView(Camera camera)
+        {
+            var filter = GameViewManager.instance.cullingFilter;
+            return filter != null && filter.enabled && filter.hidePng
+                && camera == GameViewManager.mainCamera;
+        }
+
+        private void HideAllProjectors()
+        {
+            foreach (var data in _pngObjects)
+            {
+                if (data.isDecalShown && data.projector != null && data.projector.enabled)
+                {
+                    data.projector.enabled = false;
+                    _hiddenProjectors.Add(data.projector);
+                }
+            }
         }
 
         /// <summary>

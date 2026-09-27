@@ -35,9 +35,13 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static void GetCaptureLayout(out int renderWidth, out int renderHeight, out Rect cropRect)
         {
+            // 最大化・一時非表示 (直接描画) 中は表示が画面全体なので、撮影も切り出さず見た目に揃える
+            var mode = GameViewManager.instance.isDirectRender
+                ? GameViewAspectMode.Screen
+                : config.gameViewAspectMode;
             GameViewAspect.GetCaptureLayout(
                 Screen.width, Screen.height, Mathf.Clamp(config.screenshotScale, 1, MAX_SCALE),
-                config.gameViewAspectMode, config.gameViewCustomWidth, config.gameViewCustomHeight,
+                mode, config.gameViewCustomWidth, config.gameViewCustomHeight,
                 SystemInfo.maxTextureSize,
                 out renderWidth, out renderHeight, out cropRect);
         }
