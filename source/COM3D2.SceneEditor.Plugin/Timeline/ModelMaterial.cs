@@ -96,12 +96,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             => material != null && originalShader != null
                 && appliedShader != originalShader && material.shader == appliedShader;
 
-        // シェーダーを変えたマテリアル。タイムラインへの同期 (MaterialShaderManager) が全メイド・全モデルを
-        // 走査せずに済むよう、変更と戻しのたびに出し入れする
-        private static readonly HashSet<ModelMaterial> shaderChangedMaterials = new HashSet<ModelMaterial>();
+        // テクスチャ差し替え。読み込んだテクスチャの所有と破棄もここが持つ
+        private readonly ModelMaterialTextures _textures = new ModelMaterialTextures();
 
-        /// <summary>shaderChangedMaterials の出し入れで増える。同期側の変更検出に使う</summary>
-        public static int shaderChangedVersion { get; private set; }
+        public bool isTextureChanged => material != null && _textures.count > 0;
+
+        /// <summary>シェーダーかテクスチャを差し替えているか。タイムラインへ保存する対象</summary>
+        public bool isChanged => isShaderChanged || isTextureChanged;
+
+        /// <summary>コントローラの一覧から外された。作り直しの検出 (MaterialShaderManager) に使う</summary>
+        public bool isReleased { get; private set; }
+
+        // シェーダーかテクスチャを変えたマテリアル。タイムラインへの同期 (MaterialShaderManager) が
+        // 全メイド・全モデルを走査せずに済むよう、変更と戻しのたびに出し入れする
+        private static readonly HashSet<ModelMaterial> changedMaterials = new HashSet<ModelMaterial>();
+
+        /// <summary>changedMaterials の出し入れで増える。同期側の変更検出に使う</summary>
+        public static int changedVersion { get; private set; }
 
         public ModelMaterial(ModelMaterialController controller, Material material)
         {
@@ -118,6 +129,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Init()
         {
+            // Material が作り直された。前の Material 用に読んだテクスチャは要らない
+            // (再適用は MaterialShaderManager が保留から行う)
+            _textures.DestroyAll();
+
             originalShader = material.shader;
             originalRenderQueue = material.renderQueue;
             appliedShader = material.shader;
@@ -136,7 +151,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             RefreshProperties();
-            UpdateShaderChangedRegistry();
+            UpdateChangedRegistry();
 
             material.name = material.name.Replace(" (Instance)", "");
         }
@@ -270,7 +285,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             appliedShader = shader;
 
             RefreshProperties();
-            UpdateShaderChangedRegistry();
+            _textures.Reapply(material);
+            UpdateChangedRegistry();
         }
 
         /// <summary>
@@ -287,7 +303,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             originalRenderQueue = material.renderQueue;
             appliedShader = material.shader;
             RefreshProperties();
-            UpdateShaderChangedRegistry();
+            UpdateChangedRegistry();
         }
 
         /// <summary>元のシェーダーへ戻す。値は戻さない (値は Reset が戻す)</summary>
@@ -302,47 +318,128 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ChangeShader(originalShader);
         }
 
-        private void UpdateShaderChangedRegistry()
+        public string GetTextureFile(string property) => _textures.GetFile(property);
+
+        public bool IsTextureMissing(string property) => _textures.IsMissing(property);
+
+        public void GetTextureOverrides(List<SE.MaterialTextureOverride> result) => _textures.GetOverrides(result);
+
+        /// <summary>テクスチャを差し替える。file が空なら差し替え前へ戻す</summary>
+        public void ChangeTexture(string property, string file)
         {
-            var changed = isShaderChanged
-                ? shaderChangedMaterials.Add(this)
-                : shaderChangedMaterials.Remove(this);
+            if (material == null)
+            {
+                return;
+            }
+            _textures.DropExternallyReplaced(material);
+            if (string.IsNullOrEmpty(file))
+            {
+                _textures.Reset(material, property);
+            }
+            else
+            {
+                _textures.Change(material, property, file);
+            }
+            UpdateChangedRegistry();
+        }
+
+        /// <summary>全テクスチャを差し替え前へ戻す。値とシェーダーは戻さない</summary>
+        public void ResetTextures()
+        {
+            if (material == null)
+            {
+                return;
+            }
+            _textures.ResetAll(material);
+            UpdateChangedRegistry();
+        }
+
+        /// <summary>差し替えを overrides の内容に揃える (Undo・ペースト・タイムライン読込)</summary>
+        public void SetTextureOverrides(List<SE.MaterialTextureOverride> overrides)
+        {
+            if (material == null)
+            {
+                return;
+            }
+            _textures.DropExternallyReplaced(material);
+            _textures.SetAll(material, overrides);
+            UpdateChangedRegistry();
+        }
+
+        private void UpdateChangedRegistry()
+        {
+            var changed = isChanged
+                ? changedMaterials.Add(this)
+                : changedMaterials.Remove(this);
             if (changed)
             {
-                shaderChangedVersion++;
+                changedVersion++;
             }
         }
 
         /// <summary>
-        /// シェーダーを変えたマテリアルを result へ写す。
-        /// 着替え・モデル削除で破棄されたものと、ゲーム側にシェーダーを上書きされたものは
-        /// ここで落とす (落としたら version も進める)
+        /// シェーダーかテクスチャを変えたマテリアルを result へ写す。
+        /// 着替え・モデル削除で破棄されたものは読み込んだテクスチャを破棄して落とし、
+        /// ゲーム側に上書きされて変更が残っていないものも落とす (落としたら version も進める)
         /// </summary>
-        public static void CollectShaderChanged(List<ModelMaterial> result)
+        public static void CollectChanged(List<ModelMaterial> result)
         {
             result.Clear();
-            var removed = shaderChangedMaterials.RemoveWhere(
-                m => m.material == null || m.controller == null || !m.isShaderChanged);
+            var removed = changedMaterials.RemoveWhere(m =>
+            {
+                if (m.material == null || m.controller == null)
+                {
+                    m._textures.DestroyAll();
+                    return true;
+                }
+                m._textures.DropExternallyReplaced(m.material);
+                return !m.isChanged;
+            });
             if (removed > 0)
             {
-                shaderChangedVersion++;
+                changedVersion++;
             }
-            result.AddRange(shaderChangedMaterials);
+            result.AddRange(changedMaterials);
+        }
+
+        /// <summary>
+        /// シーン遷移で全マテリアルのテクスチャ差し替えを元へ戻し、読み込んだテクスチャを破棄する。
+        /// メイドはシーンをまたいで残るため、破棄したテクスチャを指したままにしない
+        /// </summary>
+        public static void ResetAllTextures()
+        {
+            foreach (var m in changedMaterials.ToList())
+            {
+                if (m.material != null)
+                {
+                    m._textures.ResetAll(m.material);
+                }
+                else
+                {
+                    m._textures.DestroyAll();
+                }
+            }
+            if (changedMaterials.RemoveWhere(m => m.material == null || !m.isChanged) > 0)
+            {
+                changedVersion++;
+            }
         }
 
         /// <summary>
         /// コントローラの一覧から外されたときに呼ぶ。Material も controller も生きたままなので
-        /// CollectShaderChanged の破棄検出では落ちず、ここで抜かないとレジストリに残り続ける
+        /// CollectChanged の破棄検出では落ちず、ここで抜かないとレジストリに残り続ける
         /// </summary>
         public void Release()
         {
-            if (shaderChangedMaterials.Remove(this))
+            isReleased = true;
+            _textures.DestroyAll();
+            if (changedMaterials.Remove(this))
             {
-                shaderChangedVersion++;
+                changedVersion++;
             }
         }
 
-        /// <summary>値を初期値へ戻す。シェーダーは戻さない (タイムラインのキー操作からも呼ばれるため)</summary>
+        /// <summary>値を初期値へ戻す。シェーダーとテクスチャは戻さない (タイムラインのキー操作からも呼ばれるため)</summary>
         public void Reset()
         {
             foreach (var type in hasColorProperties)

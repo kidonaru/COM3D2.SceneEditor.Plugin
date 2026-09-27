@@ -87,7 +87,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             // 破棄されたマテリアルは version を動かさないので、再試行と同じ間隔で拾いに行く
-            if (!isRetryFrame && ModelMaterial.shaderChangedVersion == _lastVersion)
+            if (!isRetryFrame && ModelMaterial.changedVersion == _lastVersion)
             {
                 return;
             }
@@ -144,7 +144,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public void ResetShadersNotIn(List<TimelineMaterialShaderData> entries)
         {
-            ModelMaterial.CollectShaderChanged(_changedMaterials);
+            ModelMaterial.CollectChanged(_changedMaterials);
             foreach (var material in _changedMaterials)
             {
                 var entry = CreateEntry(material);
@@ -168,9 +168,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private void SyncToTimeline()
         {
-            ModelMaterial.CollectShaderChanged(_changedMaterials);
+            ModelMaterial.CollectChanged(_changedMaterials);
             // Collect が破棄分を落とすと version が進むので、読むのは後
-            _lastVersion = ModelMaterial.shaderChangedVersion;
+            _lastVersion = ModelMaterial.changedVersion;
 
             _live.Clear();
             foreach (var material in _changedMaterials)
@@ -281,7 +281,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             // シーン遷移でメイド・モデルが入れ替わるため、保留も捨てる。
             // タイムラインを開いていないと Update が回らないので、破棄済みの登録もここで落とす
-            ModelMaterial.CollectShaderChanged(_changedMaterials);
+            ModelMaterial.CollectChanged(_changedMaterials);
             _changedMaterials.Clear();
             _pending.Clear();
             _lastTimeline = null;
