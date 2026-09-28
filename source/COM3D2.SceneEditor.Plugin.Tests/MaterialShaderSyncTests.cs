@@ -109,5 +109,48 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Single(merged);
             Assert.Equal("Toon/a.png", merged[0].textures[0].file);
         }
+
+        [Fact]
+        public void CopyForModelは元モデルのエントリを複製先の名前で写す()
+        {
+            var entries = new List<TimelineMaterialShaderData>
+            {
+                Entry(-1, "x.menu", "m0", 0, "com3d2mod/X"),
+                Entry(-1, "x.menu", "m1", 1, "com3d2mod/Y"),
+                Entry(-1, "other.menu", "m0", 0, "com3d2mod/Z"),
+            };
+
+            var copies = MaterialShaderSync.CopyForModel(entries, "x.menu", "x.menu (2)");
+
+            Assert.Equal(2, copies.Count);
+            Assert.All(copies, c => Assert.Equal("x.menu (2)", c.owner));
+            Assert.All(copies, c => Assert.Equal(-1, c.maidSlotNo));
+            Assert.Equal("m0", copies[0].material);
+            Assert.Equal(0, copies[0].index);
+            Assert.Equal("com3d2mod/X", copies[0].shader);
+            Assert.Equal("m1", copies[1].material);
+            Assert.Equal("com3d2mod/Y", copies[1].shader);
+        }
+
+        [Fact]
+        public void CopyForModelはメイドのエントリを写さない()
+        {
+            // メイドの所有者はスロット名。モデル名と同じ文字列でも別物
+            var entries = new List<TimelineMaterialShaderData> { Entry(0, "x.menu", "m0", 0, "s") };
+
+            Assert.Empty(MaterialShaderSync.CopyForModel(entries, "x.menu", "x.menu (2)"));
+        }
+
+        [Fact]
+        public void CopyForModelの結果は元のエントリと別インスタンス()
+        {
+            var entries = new List<TimelineMaterialShaderData> { Entry(-1, "x.menu", "m0", 0, "s") };
+
+            var copies = MaterialShaderSync.CopyForModel(entries, "x.menu", "x.menu (2)");
+            copies[0].shader = "changed";
+
+            Assert.Equal("x.menu", entries[0].owner);
+            Assert.Equal("s", entries[0].shader);
+        }
     }
 }

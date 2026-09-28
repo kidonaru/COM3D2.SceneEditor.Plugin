@@ -2498,6 +2498,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             timeline.OnCopyModel(model, newModel);
+            MaterialShaderManager.instance.CopyModelEntries(model.name, newModel.name);
             modelManager.CreateModel(newModel);
         }
 

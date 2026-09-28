@@ -60,6 +60,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
+        /// モデル複製用。元モデル (sourceOwner) のエントリを複製し、所有者だけ newOwner に変える。
+        /// エントリは Clone で丸ごと写すので、後からエントリへ足した項目 (テクスチャ差し替え等) も一緒に写る。
+        /// メイドのエントリ (maidSlotNo >= 0) は所有者がスロット名なので対象外
+        /// </summary>
+        public static List<TimelineMaterialShaderData> CopyForModel(
+            List<TimelineMaterialShaderData> entries, string sourceOwner, string newOwner)
+        {
+            var result = new List<TimelineMaterialShaderData>();
+            foreach (var entry in entries)
+            {
+                if (entry.maidSlotNo >= 0 || entry.owner != sourceOwner)
+                {
+                    continue;
+                }
+
+                var copy = entry.Clone();
+                copy.owner = newOwner;
+                result.Add(copy);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Material が作り直されて現在の状態から消えたエントリを保留へ戻す。
         /// 同じ対象が現在の状態か保留に既にあれば戻さない (そちらが新しい)。戻したら true
         /// </summary>

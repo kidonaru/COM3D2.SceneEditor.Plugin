@@ -184,6 +184,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// モデル複製で、元モデルのシェーダー変更を複製先の名前で写す。
+        /// 複製先の実体はプロバイダが遅れて作るため保留へ積み、定期の再試行で適用させる。
+        /// 保存が再試行より先に来ても載るよう、保存データへもすぐ併せる
+        /// </summary>
+        public void CopyModelEntries(string sourceOwner, string newOwner)
+        {
+            if (timeline == null)
+            {
+                return;
+            }
+
+            var copies = MaterialShaderSync.CopyForModel(timeline.materialShaders, sourceOwner, newOwner);
+            if (copies.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var copy in copies)
+            {
+                _pending.RemoveAll(p => p.IsSameTarget(copy));
+                _pending.Add(copy);
+            }
+
+            // Undo で消えた前回の複製先の保留が同名で残っていることがあるため、今回の複製を勝たせる
+            timeline.materialShaders = MaterialShaderSync.Merge(copies, timeline.materialShaders);
+        }
+
         private void ReapplyMaterialLayers()
         {
             foreach (var type in MaterialLayerTypes)
