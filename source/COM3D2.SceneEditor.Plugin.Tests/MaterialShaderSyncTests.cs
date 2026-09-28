@@ -152,5 +152,25 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal("x.menu", entries[0].owner);
             Assert.Equal("s", entries[0].shader);
         }
+
+        [Fact]
+        public void RemoveForModelはそのモデルのエントリだけを消す()
+        {
+            var entries = new List<TimelineMaterialShaderData>
+            {
+                Entry(-1, "x.menu (2)", "m0", 0, "a"),
+                Entry(-1, "x.menu (2)", "m1", 1, "b"),
+                Entry(-1, "x.menu", "m0", 0, "c"),
+                // メイドの所有者はスロット名。モデル名と同じ文字列でも消さない
+                Entry(0, "x.menu (2)", "m0", 0, "d"),
+            };
+
+            var removed = MaterialShaderSync.RemoveForModel(entries, "x.menu (2)");
+
+            Assert.Equal(2, removed);
+            Assert.Equal(2, entries.Count);
+            Assert.Equal("c", entries[0].shader);
+            Assert.Equal("d", entries[1].shader);
+        }
     }
 }

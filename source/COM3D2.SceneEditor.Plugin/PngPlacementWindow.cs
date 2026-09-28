@@ -30,6 +30,8 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int TAB_WIDTH = 100;
         /// <summary>フォルダ行の右端に並べる「開く」「更新」ボタン 1 つ分の幅</summary>
         private static readonly int FOLDER_BUTTON_WIDTH = 50;
+        /// <summary>配置済みタブの操作行の「複製」ボタンの幅</summary>
+        private static readonly int DUPLICATE_BUTTON_WIDTH = 50;
 
         private enum PngTab
         {
@@ -357,7 +359,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             _view.BeginHorizontal();
             {
-                if (_view.DrawButton("複製", FOLDER_BUTTON_WIDTH, ROW_HEIGHT, selected != null))
+                if (_view.DrawButton("複製", DUPLICATE_BUTTON_WIDTH, ROW_HEIGHT, selected != null))
                 {
                     PngDuplicator.Duplicate(selected);
                 }

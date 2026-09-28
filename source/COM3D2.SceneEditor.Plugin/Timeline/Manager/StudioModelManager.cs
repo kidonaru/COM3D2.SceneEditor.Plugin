@@ -623,6 +623,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void DeleteModel(StudioModelStat model)
         {
+            MaterialShaderManager.instance.RemoveModelEntries(model.name);
             modelHackManager.DeleteModel(model);
             LateUpdate(true);
 

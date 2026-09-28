@@ -82,6 +82,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
+        /// <summary>モデル (owner) のエントリを entries から消す。メイドのエントリは消さない。消した件数を返す</summary>
+        public static int RemoveForModel(List<TimelineMaterialShaderData> entries, string owner)
+        {
+            return entries.RemoveAll(e => e.maidSlotNo < 0 && e.owner == owner);
+        }
+
         /// <summary>
         /// Material が作り直されて現在の状態から消えたエントリを保留へ戻す。
         /// 同じ対象が現在の状態か保留に既にあれば戻さない (そちらが新しい)。戻したら true

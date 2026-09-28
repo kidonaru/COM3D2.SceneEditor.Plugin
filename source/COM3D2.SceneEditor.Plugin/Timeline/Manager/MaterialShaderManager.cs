@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using SE = COM3D2.SceneEditor.Plugin;
@@ -196,20 +197,50 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // Undo で消えた前回の複製先のエントリが同じ名前で残っていることがある。
+            // 写すものが無くても消しておかないと、今回の複製先に無関係な変更が付く
+            RemoveModelEntries(newOwner);
+
             var copies = MaterialShaderSync.CopyForModel(timeline.materialShaders, sourceOwner, newOwner);
             if (copies.Count == 0)
             {
                 return;
             }
 
-            foreach (var copy in copies)
+            _pending.AddRange(copies);
+            timeline.materialShaders = MaterialShaderSync.Merge(copies, timeline.materialShaders);
+        }
+
+        /// <summary>
+        /// モデルのシェーダー変更エントリを保留・保存データ・前回の同期記録から消す。
+        /// モデルの削除で呼ぶ (残すと、同じ名前で次に置いたモデルに付く)。
+        /// 未ロードのモデルの保留は残す方針なので、ユーザーが明示的に消したときだけ呼ぶこと
+        /// </summary>
+        public void RemoveModelEntries(string owner)
+        {
+            if (timeline == null || string.IsNullOrEmpty(owner))
             {
-                _pending.RemoveAll(p => p.IsSameTarget(copy));
-                _pending.Add(copy);
+                return;
             }
 
-            // Undo で消えた前回の複製先の保留が同名で残っていることがあるため、今回の複製を勝たせる
-            timeline.materialShaders = MaterialShaderSync.Merge(copies, timeline.materialShaders);
+            MaterialShaderSync.RemoveForModel(_pending, owner);
+
+            // 前回の記録に残すと、Material の破棄を作り直しとみなして保留へ戻してしまう
+            var stale = _lastLive
+                .Where(pair => pair.Value.entry.maidSlotNo < 0 && pair.Value.entry.owner == owner)
+                .Select(pair => pair.Key)
+                .ToList();
+            foreach (var material in stale)
+            {
+                _lastLive.Remove(material);
+            }
+
+            // 保存データは Undo の比較元と同じ参照のことがあるため、書き換えずに作り直す
+            var remaining = new List<TimelineMaterialShaderData>(timeline.materialShaders);
+            if (MaterialShaderSync.RemoveForModel(remaining, owner) > 0)
+            {
+                timeline.materialShaders = remaining;
+            }
         }
 
         private void ReapplyMaterialLayers()

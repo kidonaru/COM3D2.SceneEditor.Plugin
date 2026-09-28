@@ -112,7 +112,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void LateUpdate()
         {
-            RebuildIfChanged();
+            RebuildIfChanged(true);
         }
 
         /// <summary>
@@ -122,6 +122,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// MTE のタイムライン名規則 (imageName + GetGroupSuffix) と揃える
         /// </summary>
         public void RebuildIfChanged()
+        {
+            RebuildIfChanged(false);
+        }
+
+        /// <param name="recordHistory">
+        /// 実体の増減をタイムライン履歴へ積むか。PNG 配置ウィンドウ等でのユーザーの増減を拾う LateUpdate だけが true。
+        /// 積まないと増減が後の編集の履歴に紛れ、その編集の Undo で「XML に無い実体」として消されてしまう。
+        /// 読込・Undo の再構築・複製の登録は、呼び出し側が履歴を扱うので false
+        /// </param>
+        private void RebuildIfChanged(bool recordHistory)
         {
             var seObjects = sePngManager.pngObjects;
             if (!IsChanged(seObjects))
@@ -174,6 +184,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             pngObjects = seObjects.Select(d => _dataMap[d]).ToList();
             pngObjectNames = pngObjects.Select(e => e.name).ToList();
             _entryMap = pngObjects.ToDictionary(e => e.name);
+
+            // PNG配置レイヤーがあれば、この後の初期フレーム登録 (onObjectAdded) が文言を上書きし、履歴は 1 件のまま
+            if (recordHistory && timeline != null && (addedEntries.Count > 0 || removedEntries.Count > 0))
+            {
+                timelineManager.RequestHistory(addedEntries.Count > 0
+                    ? "PNGの追加: " + addedEntries[0].name
+                    : "PNGの削除: " + removedEntries[0].name);
+            }
 
             foreach (var entry in addedEntries)
             {
