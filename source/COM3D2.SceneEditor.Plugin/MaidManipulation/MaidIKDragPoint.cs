@@ -7,7 +7,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// IK のドラッグ点。手首/足首・肘/膝・胸に置く。
     /// 透明な球コライダを骨に追従させ、掴んでいる間は自分自身が FABRIK の target になる。
     /// 解くのは MaidIKChain 側で、この点はマウス位置をワールド座標へ変換して置くだけ。
-    /// 肩の点を Ctrl で掴んだときは FABRIK を使わず、上腕を骨の軸まわりにロールする
+    /// 肩・手首の点を Ctrl で掴んだときは FABRIK を使わず、上腕・手を骨の軸まわりにロールする。
+    /// 手首 / 足首の点を Shift で掴むと肘 / 膝を固定して解く
     /// </summary>
     public class MaidIKDragPoint : MonoBehaviour, IMaidDragPoint
     {
@@ -34,8 +35,14 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public bool isMune = false;
 
-        /// <summary>Ctrl で掴むと followBone をロールする点か。肩の点 (followBone = 上腕) で立てる</summary>
+        /// <summary>
+        /// Ctrl で掴むと followBone をロールする点か。肩の点 (followBone = 上腕) と
+        /// 手首の点 (followBone = 手。前腕のツイストボーンはゲームの AutoTwist が手の回転から追従させる) で立てる
+        /// </summary>
         public bool canRoll = false;
+
+        /// <summary>Shift で掴むと肘 / 膝を固定して解く点か。手首 / 足首の点で立てる</summary>
+        public bool canJointLock = false;
 
         /// <summary>これ以下の移動量ならドラッグではなくクリックとみなす (px)</summary>
         private const float ClickThresholdPixels = 5f;
@@ -54,11 +61,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>直前のクリック確定時刻。ダブルクリック判定用</summary>
         private float _lastClickTime = NoClickTime;
 
-        /// <summary>ロールの感度 (px / 度)。手の甲・上体の Ctrl ひねりの既定値と揃える</summary>
+        /// <summary>ロールの感度 (px / 度)。上体・骨盤の Ctrl ひねりの既定値と揃える</summary>
         private const float RollDivisor = MaidBoneRotateDragPoint.DefaultTwistDivisor;
 
         /// <summary>
-        /// 掴んだ時点でロールモードだったか (肩の点 + Ctrl)。
+        /// 掴んだ時点でロールモードだったか (肩・手首の点 + Ctrl)。
         /// 途中でキーを離しても切り替わらないよう開始時に固定する
         /// </summary>
         private bool _isRollMode = false;
@@ -103,10 +110,28 @@ namespace COM3D2.SceneEditor.Plugin
             return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
         }
 
-        /// <summary>ボーンギズモを掴む操作と取り合いにならないよう、Alt 中は IK ドラッグしない</summary>
+        /// <summary>
+        /// 修飾キーごとに、その操作を持つ点だけ掴ませる。
+        /// Alt はボーンギズモと取り合わないよう掴まない。Shift は肘 / 膝の固定、Ctrl はロールができる点だけ
+        /// </summary>
         public bool canDrag
         {
-            get { return !IsAltHeld(); }
+            get
+            {
+                if (IsAltHeld())
+                {
+                    return false;
+                }
+                if (IsShiftHeld())
+                {
+                    return canJointLock;
+                }
+                if (IsCtrlHeld())
+                {
+                    return canRoll;
+                }
+                return true;
+            }
         }
 
         /// <summary>
@@ -129,10 +154,17 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>Ctrl 押下中は肘/膝を固定する（MM の ikMode==2、ゲーム側の joint_lock と同じ割り当て）</summary>
         private static bool IsCtrlHeld()
         {
             return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        }
+
+        /// <summary>
+        /// Shift 押下中は肘/膝を固定する（Ctrl はひねり専用。骨盤の移動と同じ Shift）
+        /// </summary>
+        private static bool IsShiftHeld()
+        {
+            return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         }
 
         /// <summary>
@@ -159,8 +191,8 @@ namespace COM3D2.SceneEditor.Plugin
             _offset = transform.position - camera.ScreenToWorldPoint(
                 new Vector3(pointerPos.x, pointerPos.y, _screenPoint.z));
 
-            // 肩の点の Ctrl は上腕のロール。手首 / 足首の点の Ctrl (肘 / 膝の固定) とは別の意味になる
-            _isRollMode = canRoll && IsCtrlHeld();
+            // Shift+Ctrl は Shift 側 (肘 / 膝の固定) を優先するので、ロールは Shift なしのときだけ
+            _isRollMode = canRoll && IsCtrlHeld() && !IsShiftHeld();
 
             PrepareEdit(_isRollMode ? "ロール: " : "IK操作: ");
 
@@ -170,13 +202,13 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (_isRollMode)
             {
-                // ロールは FABRIK で解かない。チェーンを張ると target (この点) を追って鎖骨が動いてしまう
+                // ロールは FABRIK で解かない。チェーンを張ると target (この点) を追って鎖骨や肘が動いてしまう
                 _rollBaseRotation = followBone.localRotation;
             }
             else
             {
-                // 固定するかは掴んだ時点で決める。途中で Ctrl を離してもモードは変えない
-                chain.BeginDrag(pointType, IsCtrlHeld(), transform);
+                // 固定するかは掴んだ時点で決める。途中で Shift を離してもモードは変えない
+                chain.BeginDrag(pointType, canJointLock && IsShiftHeld(), transform);
             }
             _isDragging = true;
             MaidDragBoneTracker.BeginDrag(maid, sliderBoneName ?? followBone.name);
@@ -186,7 +218,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 掴んだ側のカメラ基準でポインタ位置へ点を移動する。
-        /// ロールモードでは点は動かさず、横方向の総移動量で上腕を骨の軸まわりに回す
+        /// ロールモードでは点は動かさず、横方向の総移動量で上腕 / 手を骨の軸まわりに回す
         /// </summary>
         public void UpdateDrag(Vector3 pointerPos)
         {
@@ -217,7 +249,7 @@ namespace COM3D2.SceneEditor.Plugin
             var downPos = _mouseDownPos;
             var isClick = (pointerPos - downPos).magnitude <= ClickThresholdPixels;
             // クリック (微小移動) のロールは戻す。1px で約 0.7 度回るため、
-            // Ctrl のクリックで Inspector を開くたびに上腕が少しずつ回ってしまう
+            // Ctrl のクリックで Inspector を開くたびに上腕 / 手が少しずつ回ってしまう
             if (isClick && _isRollMode)
             {
                 followBone.localRotation = _rollBaseRotation;
@@ -380,7 +412,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// ロールの履歴対象。手首を IK 固定していると、固定側が手首を引き戻して前腕・手も書き換えるため含める
+        /// ロールの履歴対象。肩のロールで手首を IK 固定していると、固定側が手首を引き戻して
+        /// 前腕・手も書き換えるため含める
         /// </summary>
         private List<Transform> GetRollHistoryBones()
         {
@@ -388,7 +421,7 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var name in new[] { "Forearm", "Hand" })
             {
                 var bone = CMT.SearchObjName(followBone, followBone.name.Replace("UpperArm", name), false);
-                if (bone != null)
+                if (bone != null && !bones.Contains(bone))
                 {
                     bones.Add(bone);
                 }

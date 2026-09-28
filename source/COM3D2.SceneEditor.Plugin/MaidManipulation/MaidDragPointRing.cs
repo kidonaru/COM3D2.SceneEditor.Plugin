@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -67,11 +67,35 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>同じ GameObject に載っているドラッグ点。掴めない間は円を描かない</summary>
         private IMaidDragPoint _dragPoint = null;
 
+        /// <summary>ドラッグ点の当たり判定。掴めない間は切る</summary>
+        private Collider _collider = null;
+
         // ドラッグ点は円より後に AddComponent されるため Awake ではまだ載っていない。
         // Start なら同フレームの Awake 群が済んだ後・初回の描画前に呼ばれるので確実に引ける
         private void Start()
         {
             _dragPoint = GetComponent<IMaidDragPoint>();
+            _collider = GetComponent<Collider>();
+        }
+
+        /// <summary>ゲーム画面か SceneView のどちらかで押下中か</summary>
+        private bool IsPressedAnywhere()
+        {
+            return _isPressed || _scenePressedObject == gameObject;
+        }
+
+        /// <summary>
+        /// 掴めない点のコライダを切る。ゲーム画面の OnMouseDown は最前面のコライダに届くため、
+        /// 隠れている点が手前にあると奥の掴める点を遮ってしまう (SceneView は canDrag で読み飛ばす)。
+        /// 押下中は切らない。途中で修飾キーを離しても OnMouseDrag / OnMouseUp を受け続けるため
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_dragPoint == null || _collider == null || IsPressedAnywhere())
+            {
+                return;
+            }
+            _collider.enabled = _dragPoint.canDrag;
         }
 
         /// <summary>常に手前に描く線用のマテリアル。全リングで共有する</summary>
@@ -140,8 +164,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 掴めない修飾キーの間は隠す。掴める点だけ残った方が探しやすい
-            if (_dragPoint != null && !_dragPoint.canDrag)
+            // 掴めない修飾キーの間は隠す。掴める点だけ残った方が探しやすい。
+            // 掴んでいる点は途中で修飾キーを離しても操作が続くので出したままにする
+            if (_dragPoint != null && !_dragPoint.canDrag && !IsPressedAnywhere())
             {
                 return;
             }

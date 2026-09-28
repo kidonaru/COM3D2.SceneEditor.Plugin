@@ -271,13 +271,19 @@ namespace COM3D2.SceneEditor.Plugin
             return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
         }
 
+        private static bool IsShiftHeld()
+        {
+            return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        }
+
         /// <summary>
         /// 頭のボーンギズモ（Alt グループ）と取り合いにならないよう、Alt 中はボーンを回さない。
-        /// 目線は Alt+Ctrl 固定で頭の点だけなので、頭の点はそのときだけ Alt 中でも受け付ける
+        /// 目線は Alt+Ctrl 固定で頭の点だけなので、頭の点はそのときだけ Alt 中でも受け付ける。
+        /// Shift（移動・肘膝固定）に対応する操作は無いので Shift 中も掴ませない
         /// </summary>
         public bool canDrag
         {
-            get { return (isHead && IsEyeModifierHeld()) || !IsAltHeld(); }
+            get { return (isHead && IsEyeModifierHeld()) || (!IsAltHeld() && !IsShiftHeld()); }
         }
 
         /// <summary>頭・首は IK 固定の対象外</summary>

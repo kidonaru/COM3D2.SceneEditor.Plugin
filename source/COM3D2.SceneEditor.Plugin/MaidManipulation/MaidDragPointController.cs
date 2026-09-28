@@ -5,7 +5,7 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ドラッグ点（IK 終端・頭部・首・上体・骨盤・胸）の生成・破棄。
+    /// ドラッグ点（IK 終端・頭部・首・上体・骨盤・胸・足の付け根）の生成・破棄。
     /// GizmoRender を使うギズモ系と違い、透明なコライダ + Unity のマウスメッセージで操作する
     /// </summary>
     public class MaidDragPointController
@@ -16,21 +16,23 @@ namespace COM3D2.SceneEditor.Plugin
             public string rootBone;   // UpperArm / Thigh
             public string midBone;    // Forearm / Calf
             public string tipBone;    // Hand / Foot
+            public bool isArm;        // 腕 (手首でロールできる) / 脚
 
-            public IKChainDef(string rootBone, string midBone, string tipBone)
+            public IKChainDef(string rootBone, string midBone, string tipBone, bool isArm)
             {
                 this.rootBone = rootBone;
                 this.midBone = midBone;
                 this.tipBone = tipBone;
+                this.isArm = isArm;
             }
         }
 
         private static readonly IKChainDef[] IKChainDefs =
         {
-            new IKChainDef("Bip01 L UpperArm", "Bip01 L Forearm", "Bip01 L Hand"),
-            new IKChainDef("Bip01 R UpperArm", "Bip01 R Forearm", "Bip01 R Hand"),
-            new IKChainDef("Bip01 L Thigh", "Bip01 L Calf", "Bip01 L Foot"),
-            new IKChainDef("Bip01 R Thigh", "Bip01 R Calf", "Bip01 R Foot"),
+            new IKChainDef("Bip01 L UpperArm", "Bip01 L Forearm", "Bip01 L Hand", true),
+            new IKChainDef("Bip01 R UpperArm", "Bip01 R Forearm", "Bip01 R Hand", true),
+            new IKChainDef("Bip01 L Thigh", "Bip01 L Calf", "Bip01 L Foot", false),
+            new IKChainDef("Bip01 R Thigh", "Bip01 R Calf", "Bip01 R Foot", false),
         };
 
         /// <summary>
@@ -74,6 +76,7 @@ namespace COM3D2.SceneEditor.Plugin
         private const float SpineDragPointScale = 0.04f;
         private const float PelvisDragPointScale = 0.04f;
         private const float MuneDragPointScale = 0.04f;
+        private const float ThighDragPointScale = 0.04f;
 
         private readonly List<GameObject> _dragPoints = new List<GameObject>();
 
@@ -133,9 +136,36 @@ namespace COM3D2.SceneEditor.Plugin
                 var chain = new MaidIKChain(root, mid, tip);
                 _chains.Add(chain);
 
-                CreateIKDragPoint(maid, chain, MaidIKChainPoint.Tip, tip);
+                var tipPoint = CreateIKDragPoint(maid, chain, MaidIKChainPoint.Tip, tip);
+                tipPoint.canJointLock = true;
+                // Ctrl のひねりは手首だけ。足の付け根は下の専用点でひねる
+                tipPoint.canRoll = def.isArm;
                 CreateIKDragPoint(maid, chain, MaidIKChainPoint.Joint, mid);
+
+                if (!def.isArm)
+                {
+                    CreateThighTwistDragPoint(maid, root, new[] { mid, tip });
+                }
             }
+        }
+
+        /// <summary>
+        /// 足の付け根のひねり専用点。腿を骨の軸まわりに回す (Ctrl 中だけ出る)。
+        /// 腿の振り上げは膝・足首の IK で済むので、通常ドラッグは持たせない
+        /// </summary>
+        private void CreateThighTwistDragPoint(Maid maid, Transform thigh, Transform[] lowerLegBones)
+        {
+            var go = CreateDragPointObject("MIE_ThighTwistDragPoint_" + thigh.name, ThighDragPointScale);
+
+            var point = go.AddComponent<MaidBoneRotateDragPoint>();
+            point.maid = maid;
+            point.entries = new[] { new MaidBoneRotateDragPoint.Entry(thigh, 0f, 1f) };
+            point.followBone = thigh;
+            point.twistOnly = true;
+            point.extraHistoryBones = lowerLegBones;
+            point.twistDivisor = MaidBoneRotateDragPoint.DefaultTwistDivisor;
+
+            _dragPoints.Add(go);
         }
 
         /// <summary>

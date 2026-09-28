@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -6,7 +7,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// ボーン回転用の汎用ドラッグ点（MultipleMaids の MouseDrag3/MouseDrag4 系を整理移植）。
     /// 通常ドラッグはカメラ基準の傾げ（重み付きで複数ボーンへ配分可能）、
     /// Ctrl ドラッグはローカル X 軸まわりのひねり。
-    /// 上体（4 ボーン配分）・骨盤・手の甲（_IK_hand）をこの 1 クラスで扱う。
+    /// 上体（4 ボーン配分）・骨盤・足の付け根（ひねり専用）をこの 1 クラスで扱う。
     /// <see cref="moveBone"/> を設定した点（骨盤）は Shift ドラッグでそのボーンを平行移動する
     /// </summary>
     public class MaidBoneRotateDragPoint : MonoBehaviour, IMaidDragPoint
@@ -47,6 +48,18 @@ namespace COM3D2.SceneEditor.Plugin
         /// 中心は骨盤と同じ位置にあり専用の点を置くと重なって掴めないため、骨盤点に同居させる
         /// </summary>
         public Transform moveBone;
+
+        /// <summary>
+        /// Ctrl のひねりだけを受け付ける点か。足の付け根（腿）のように、
+        /// 傾げは別の点（膝・足首の IK）で済むため通常ドラッグを持たせない点で立てる
+        /// </summary>
+        public bool twistOnly = false;
+
+        /// <summary>
+        /// 回転対象以外に履歴へ残すボーン。腿をひねると足首の IK 固定が足首を引き戻して
+        /// すね・足も書き換えるため、足の付け根の点ではそれらを入れる
+        /// </summary>
+        public Transform[] extraHistoryBones;
 
         private bool _isDragging = false;
 
@@ -91,13 +104,48 @@ namespace COM3D2.SceneEditor.Plugin
             return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         }
 
-        /// <summary>ボーンギズモを掴む操作と取り合いにならないよう、Alt 中はドラッグしない</summary>
+        /// <summary>
+        /// 修飾キーごとに、その操作を持つ点だけ掴ませる。
+        /// Alt はボーンギズモと取り合わないよう掴まない。Shift は移動対象がある点、
+        /// Ctrl はひねるボーンがある点だけ。ひねり専用の点は Ctrl 中しか掴まない
+        /// </summary>
         public bool canDrag
         {
-            get { return !IsAltHeld(); }
+            get
+            {
+                if (IsAltHeld())
+                {
+                    return false;
+                }
+                if (IsShiftHeld())
+                {
+                    return moveBone != null;
+                }
+                if (IsCtrlHeld())
+                {
+                    return HasTwistEntry();
+                }
+                return !twistOnly;
+            }
         }
 
-        /// <summary>上体・骨盤は IK 固定の対象外</summary>
+        private bool HasTwistEntry()
+        {
+            if (entries == null)
+            {
+                return false;
+            }
+            foreach (var entry in entries)
+            {
+                if (entry.twistWeight != 0f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>上体・骨盤・足の付け根は IK 固定の対象外</summary>
         public bool isHeld
         {
             get { return false; }
@@ -154,10 +202,14 @@ namespace COM3D2.SceneEditor.Plugin
                 _baseAngles[i] = entries[i].bone.localEulerAngles;
             }
 
-            var targetBones = new Transform[entries.Length];
+            var targetBones = new List<Transform>();
             for (var i = 0; i < entries.Length; i++)
             {
-                targetBones[i] = entries[i].bone;
+                targetBones.Add(entries[i].bone);
+            }
+            if (extraHistoryBones != null)
+            {
+                targetBones.AddRange(extraHistoryBones);
             }
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 "ボーン回転: " + (followBone != null ? followBone.name : GetPrimaryBoneName()),

@@ -84,10 +84,23 @@ namespace COM3D2.SceneEditor.Plugin
             return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
         }
 
-        /// <summary>ボーンギズモを掴む操作と取り合いにならないよう、Alt 中はドラッグしない</summary>
+        private static bool IsCtrlHeld()
+        {
+            return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        }
+
+        private static bool IsShiftHeld()
+        {
+            return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        }
+
+        /// <summary>
+        /// ボーンギズモを掴む操作と取り合いにならないよう、Alt 中はドラッグしない。
+        /// 指には Ctrl（ひねり）・Shift（移動・肘膝固定）に対応する操作が無いので、その間も掴ませない
+        /// </summary>
         public bool canDrag
         {
-            get { return !IsAltHeld(); }
+            get { return !IsAltHeld() && !IsCtrlHeld() && !IsShiftHeld(); }
         }
 
         /// <summary>指は IK 固定の対象外</summary>

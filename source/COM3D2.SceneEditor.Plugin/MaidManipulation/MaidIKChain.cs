@@ -215,7 +215,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 掴んだ点に応じてチェーンを張り、target を差す。
-        /// jointLock（Ctrl）では根元のボーンをチェーンから外すので肘/膝が動かない
+        /// jointLock（Shift）では根元のボーンをチェーンから外すので肘/膝が動かない
         /// </summary>
         public void BeginDrag(MaidIKChainPoint point, bool jointLock, Transform target)
         {
@@ -239,7 +239,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 solver.SetChain(new[] { _rootBone, _tipBone }, _hierarchyRoot);
             }
-            // Ctrl 固定中。根元を外すので肘/膝から先だけが動く
+            // Shift 固定中。根元を外すので肘/膝から先だけが動く
             else if (jointLock)
             {
                 solver.SetChain(new[] { _midBone, _tipBone }, _hierarchyRoot);
