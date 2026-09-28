@@ -390,7 +390,7 @@ namespace COM3D2.SceneEditor.Plugin
             var go = isMaidGizmoDragging ? null : gizmoTarget;
             _gizmo.target = go != null ? go.transform : null;
             _gizmo.tool = currentTool;
-            _gizmo.useLocalSpace = useLocalSpace;
+            _gizmo.space = gizmoSpace;
 
             // ドラッグ中に組み直すと、掴んでいるインスタンスが別のメイド・別のボーンへ
             // 使い回されて操作対象がすり替わる
@@ -450,10 +450,10 @@ namespace COM3D2.SceneEditor.Plugin
 
                 var gizmo = AcquirePooledGizmo(_boneGizmos, _boneGizmoTargets, _boneGizmoCount);
                 gizmo.target = bone;
-                // ボーンギズモは回転専用・ローカル軸固定。共有 UI 設定には追従させない
+                // ボーンギズモは回転専用・ローカル軸固定。共有 UI 設定 (座標系を含む) には追従させない
                 // (Alt を押した瞬間に移動ギズモが出てボーンが平行移動できてしまうため)
                 gizmo.tool = GizmoTool.Rotate;
-                gizmo.useLocalSpace = true;
+                gizmo.space = GizmoSpace.Local;
                 gizmo.sizeScale = BoneGizmoSizeScale;
 
                 _boneGizmoTargets[_boneGizmoCount] = bone;
@@ -512,7 +512,7 @@ namespace COM3D2.SceneEditor.Plugin
             var gizmo = AcquirePooledGizmo(_maidGizmos, _maidGizmoTargets, _maidGizmoCount);
             gizmo.target = go.transform;
             gizmo.tool = currentTool;
-            gizmo.useLocalSpace = useLocalSpace;
+            gizmo.space = gizmoSpace;
 
             _maidGizmoTargets[_maidGizmoCount] = go;
             _maidGizmoCount++;
