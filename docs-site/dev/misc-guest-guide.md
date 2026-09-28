@@ -48,6 +48,10 @@ if (GizmoToolClient.isAvailable)
 }
 ```
 
+SceneEditor 側の軸空間は `Local` / `Global` / `Camera` の 3 値ですが、`GizmoToolClient.useLocalSpace` は
+従来どおり bool です。SceneEditor が `Camera` のときは `false`（`Global` と同じ扱い）を返し、
+`false` を書き込んでも `Camera` は保たれます。`true` を書き込むと `Local` になります。
+
 注意点:
 
 - enum はアセンブリ間で別型になるため **int 経由で授受**する
