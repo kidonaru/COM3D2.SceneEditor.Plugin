@@ -169,25 +169,35 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void OnCopyModel(StudioModelStat sourceModel, StudioModelStat newModel)
         {
+            var sourceModelName = sourceModel.name;
             var sourceModelMaterials = sourceModel.materials;
             var newModelName = newModel.name;
             foreach (var keyFrame in keyFrames)
             {
                 foreach (var sourceModelMaterial in sourceModelMaterials)
                 {
-                    var sourceMaterial = keyFrame.GetBone(sourceModelMaterial.name);
+                    // ModelMaterial.name はモデル名で修飾済み。そのまま修飾すると "{new}/{src}/{mat}" になり効かない
+                    var sourceMaterialName = sourceModelMaterial.name;
+                    var sourceMaterial = keyFrame.GetBone(sourceMaterialName);
                     if (sourceMaterial == null)
                     {
                         continue;
                     }
 
-                    var baseName = sourceModelMaterial.name;
-                    var newMaterialName = string.Format("{0}/{1}", newModelName, baseName);
+                    var newMaterialName = ModelQualifiedNames.Requalify(
+                        sourceModelName, newModelName, sourceMaterialName);
+                    if (newMaterialName == null)
+                    {
+                        continue;
+                    }
 
                     var newMaterial = keyFrame.GetOrCreateBone(sourceMaterial.transform.type, newMaterialName);
                     newMaterial.transform.FromTransformData(sourceMaterial.transform);
                 }
             }
+
+            // 複製先のキーを追跡集合へ即座に反映する (ボーン・シェイプキーのレイヤーと揃える)
+            InvalidateTrackedBoneNames();
         }
 
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)

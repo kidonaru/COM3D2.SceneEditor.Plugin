@@ -66,5 +66,32 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Empty(result);
         }
+
+        [Fact]
+        public void Requalifyはモデル名の部分だけを差し替える()
+        {
+            Assert.Equal(
+                "x.menu (2)/mat01",
+                ModelQualifiedNames.Requalify("x.menu", "x.menu (2)", "x.menu/mat01"));
+        }
+
+        [Fact]
+        public void Requalifyは生名にスラッシュがあってもそのまま残す()
+        {
+            Assert.Equal(
+                "y.menu/a/b",
+                ModelQualifiedNames.Requalify("x.menu", "y.menu", "x.menu/a/b"));
+        }
+
+        [Theory]
+        [InlineData("x.menu2/mat01")]
+        [InlineData("other.menu/mat01")]
+        [InlineData("x.menu")]
+        [InlineData("")]
+        [InlineData(null)]
+        public void Requalifyは元のモデル名で修飾されていなければnullを返す(string qualifiedName)
+        {
+            Assert.Null(ModelQualifiedNames.Requalify("x.menu", "x.menu (2)", qualifiedName));
+        }
     }
 }

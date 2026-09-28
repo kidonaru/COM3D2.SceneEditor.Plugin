@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace COM3D2.SceneEditor.Plugin
@@ -19,6 +20,25 @@ namespace COM3D2.SceneEditor.Plugin
                 return null;
             }
             return modelName + "/" + boneName;
+        }
+
+        /// <summary>
+        /// 修飾名のモデル名部分を差し替える。モデル複製でキーを写す先の名前に使う。
+        /// qualifiedName が sourceModelName で修飾されていなければ null
+        /// </summary>
+        public static string Requalify(string sourceModelName, string newModelName, string qualifiedName)
+        {
+            if (string.IsNullOrEmpty(sourceModelName) || string.IsNullOrEmpty(qualifiedName))
+            {
+                return null;
+            }
+
+            var prefix = sourceModelName + "/";
+            if (!qualifiedName.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+            return Qualify(newModelName, qualifiedName.Substring(prefix.Length));
         }
 
         /// <summary>ボーン編集済みエントリを修飾名にして result へ積む (result はクリアしない)</summary>
