@@ -102,6 +102,8 @@ namespace COM3D2.SceneEditor.Plugin
         public int hierarchyWidth = 260;
         public int hierarchyHeight = 480;
         public bool hierarchyVisible = false;
+        // Hierarchy の表示。配置物 (メイド・モデル等のカテゴリ別) か、シーンの GameObject 階層か
+        public HierarchyViewMode hierarchyViewMode = HierarchyViewMode.PlacedObjects;
 
         public int inspectorPosX = -1;
         public int inspectorPosY = -1;
