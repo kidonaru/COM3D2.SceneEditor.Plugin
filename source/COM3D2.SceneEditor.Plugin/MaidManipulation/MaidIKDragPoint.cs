@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -6,7 +7,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// IK のドラッグ点。手首/足首・肘/膝・胸に置く。
     /// 透明な球コライダを骨に追従させ、掴んでいる間は自分自身が FABRIK の target になる。
     /// 解くのは MaidIKChain 側で、この点はマウス位置をワールド座標へ変換して置くだけ。
-    /// 肘 / 膝の点を Ctrl で掴んだときは FABRIK を使わず、子側のボーンを骨の軸まわりにロールする
+    /// 肩の点を Ctrl で掴んだときは FABRIK を使わず、上腕を骨の軸まわりにロールする
     /// </summary>
     public class MaidIKDragPoint : MonoBehaviour, IMaidDragPoint
     {
@@ -33,6 +34,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public bool isMune = false;
 
+        /// <summary>Ctrl で掴むと followBone をロールする点か。肩の点 (followBone = 上腕) で立てる</summary>
+        public bool canRoll = false;
+
         /// <summary>これ以下の移動量ならドラッグではなくクリックとみなす (px)</summary>
         private const float ClickThresholdPixels = 5f;
 
@@ -54,7 +58,7 @@ namespace COM3D2.SceneEditor.Plugin
         private const float RollDivisor = MaidBoneRotateDragPoint.DefaultTwistDivisor;
 
         /// <summary>
-        /// 掴んだ時点でロールモードだったか (肘 / 膝の点 + Ctrl)。
+        /// 掴んだ時点でロールモードだったか (肩の点 + Ctrl)。
         /// 途中でキーを離しても切り替わらないよう開始時に固定する
         /// </summary>
         private bool _isRollMode = false;
@@ -155,8 +159,8 @@ namespace COM3D2.SceneEditor.Plugin
             _offset = transform.position - camera.ScreenToWorldPoint(
                 new Vector3(pointerPos.x, pointerPos.y, _screenPoint.z));
 
-            // 肘 / 膝の点の Ctrl は子側 (前腕 / すね) のロール。先端の点の Ctrl (肘 / 膝の固定) とは別の意味になる
-            _isRollMode = pointType == MaidIKChainPoint.Joint && IsCtrlHeld();
+            // 肩の点の Ctrl は上腕のロール。手首 / 足首の点の Ctrl (肘 / 膝の固定) とは別の意味になる
+            _isRollMode = canRoll && IsCtrlHeld();
 
             PrepareEdit(_isRollMode ? "ロール: " : "IK操作: ");
 
@@ -166,7 +170,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (_isRollMode)
             {
-                // ロールは FABRIK で解かない。チェーンを張ると target (この点) を追って肘 / 膝が動いてしまう
+                // ロールは FABRIK で解かない。チェーンを張ると target (この点) を追って鎖骨が動いてしまう
                 _rollBaseRotation = followBone.localRotation;
             }
             else
@@ -182,7 +186,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 掴んだ側のカメラ基準でポインタ位置へ点を移動する。
-        /// ロールモードでは点は動かさず、横方向の総移動量で子側のボーンを骨の軸まわりに回す
+        /// ロールモードでは点は動かさず、横方向の総移動量で上腕を骨の軸まわりに回す
         /// </summary>
         public void UpdateDrag(Vector3 pointerPos)
         {
@@ -213,7 +217,7 @@ namespace COM3D2.SceneEditor.Plugin
             var downPos = _mouseDownPos;
             var isClick = (pointerPos - downPos).magnitude <= ClickThresholdPixels;
             // クリック (微小移動) のロールは戻す。1px で約 0.7 度回るため、
-            // Ctrl のダブルクリックで固定を切り替えるたびに前腕 / すねが少しずつ回ってしまう
+            // Ctrl のクリックで Inspector を開くたびに上腕が少しずつ回ってしまう
             if (isClick && _isRollMode)
             {
                 followBone.localRotation = _rollBaseRotation;
@@ -363,7 +367,7 @@ namespace COM3D2.SceneEditor.Plugin
             MaidMotionState.StopMotion(maid);
 
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                historyLabelPrefix + displayName, chain.bones);
+                historyLabelPrefix + displayName, _isRollMode ? GetRollHistoryBones() : chain.bones);
 
             if (isMune)
             {
@@ -373,6 +377,23 @@ namespace COM3D2.SceneEditor.Plugin
                 MaidManipulateManager.instance.muneYureController
                     .SetYure(maid, isMuneLeft, false);
             }
+        }
+
+        /// <summary>
+        /// ロールの履歴対象。手首を IK 固定していると、固定側が手首を引き戻して前腕・手も書き換えるため含める
+        /// </summary>
+        private List<Transform> GetRollHistoryBones()
+        {
+            var bones = new List<Transform>(chain.bones);
+            foreach (var name in new[] { "Forearm", "Hand" })
+            {
+                var bone = CMT.SearchObjName(followBone, followBone.name.Replace("UpperArm", name), false);
+                if (bone != null)
+                {
+                    bones.Add(bone);
+                }
+            }
+            return bones;
         }
 
         private void OnDestroy()

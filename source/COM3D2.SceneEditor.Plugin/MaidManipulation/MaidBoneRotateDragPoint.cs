@@ -36,7 +36,7 @@ namespace COM3D2.SceneEditor.Plugin
         public float pitchDivisor = 1f;
         public float yawDivisor = -1.5f;
 
-        /// <summary>ひねりの既定の感度 (px / 度)。肘・膝のロール (MaidIKDragPoint) も同じ値を使う</summary>
+        /// <summary>ひねりの既定の感度 (px / 度)。肩のロール (MaidIKDragPoint) も同じ値を使う</summary>
         public const float DefaultTwistDivisor = 1.5f;
 
         /// <summary>ひねりの感度。delta.x / twistDivisor</summary>

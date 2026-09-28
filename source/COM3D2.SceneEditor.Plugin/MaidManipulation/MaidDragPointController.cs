@@ -163,12 +163,13 @@ namespace COM3D2.SceneEditor.Plugin
                 var chain = new MaidIKChain(clavicle, null, upperArm);
                 _chains.Add(chain);
 
-                CreateIKDragPoint(maid, chain, MaidIKChainPoint.Tip, upperArm);
+                var point = CreateIKDragPoint(maid, chain, MaidIKChainPoint.Tip, upperArm);
+                point.canRoll = true;
             }
         }
 
         /// <summary>チェーン上の 1 点を作る。GameObject 名は追従先のボーン名で一意になる</summary>
-        private void CreateIKDragPoint(Maid maid, MaidIKChain chain,
+        private MaidIKDragPoint CreateIKDragPoint(Maid maid, MaidIKChain chain,
             MaidIKChainPoint pointType, Transform followBone)
         {
             var go = CreateDragPointObject("MIE_IKDragPoint_" + followBone.name, IKDragPointScale);
@@ -180,6 +181,7 @@ namespace COM3D2.SceneEditor.Plugin
             point.followBone = followBone;
 
             _dragPoints.Add(go);
+            return point;
         }
 
         /// <summary>
