@@ -55,6 +55,7 @@ PNG 画像オブジェクトの表示・位置・回転・拡縮・色・明る�
 - 画像は `Sybaris\UnityInjector\Config\PngPlacement\` と `PhotoModeData\Texture\` から探します（.png / .jpg）
 - 外部の PngPlacement プラグインは不要です
 - `PNG配置` レイヤーを削除すると、配置した PNG はすべて消えます
+- Inspector または PNG配置ウィンドウの `配置済み` タブの `複製` で、選択中の PNG を複製できます。複製元のキーがすべて複製先へコピーされます（名前は `画像名 (番号)`）
 
 | 値 | 補間 |
 |---|---|

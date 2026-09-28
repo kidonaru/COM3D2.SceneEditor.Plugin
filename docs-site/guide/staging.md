@@ -97,6 +97,8 @@ SceneView カメラは傾き（ロール）を持たないため、`SceneViewカ
 PNG 配置の画像は `Sybaris\UnityInjector\Config\PngPlacement\` と
 `PhotoModeData\Texture\` から読み込まれます。
 
+配置した PNG は `配置済み` タブに並びます。タイルのクリックで選択、`x` で削除、上の `複製` で選択中の PNG を複製します（Inspector の `複製` も同じ）。複製先は画像・位置・色・表示タイプなどの設定をすべて引き継ぎ、元と同じ位置に置かれます。
+
 ## 撮影
 
 メニューバー `その他` → 撮影、または `Alt` + `S` でスクリーンショットを撮影します。
