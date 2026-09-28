@@ -109,6 +109,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return data.name;
             }
 
+            // CM3D2 の背景は PhotoBGData に無いため、背景一覧の表示名で補う
+            var cm3d2Bg = SceneEditor.Plugin.BackgroundUtils.FindCm3d2Background(bgName);
+            if (cm3d2Bg != null)
+            {
+                return cm3d2Bg.name;
+            }
+
             return bgName;
         }
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using MyRoomCustom;
 using UnityEngine;
@@ -108,6 +109,130 @@ namespace COM3D2.SceneEditor.Plugin
                 // (一覧は空表示になり、開き直せば作り直される)
                 MTEUtils.LogException(e);
             }
+        }
+
+        private static readonly Cm3d2BgEntry[] EmptyCm3d2Backgrounds = new Cm3d2BgEntry[0];
+
+        /// <summary>CM3D2 の背景一覧のキャッシュ。互換モードの有無と CM3D2 側の一覧は起動中に変わらないため 1 度だけ読む</summary>
+        private static List<Cm3d2BgEntry> _cm3d2Backgrounds = null;
+
+        /// <summary>
+        /// ゲームの互換モードで読める CM3D2 の背景一覧。2.5 の一覧と prefab 名が重なるものは除いてある。
+        /// 重複を除くのに 2.5 の一覧を使うため、それが未構築のうちは空を返してキャッシュしない
+        /// </summary>
+        public static IList<Cm3d2BgEntry> cm3d2Backgrounds
+        {
+            get
+            {
+                if (_cm3d2Backgrounds == null)
+                {
+                    // 背景ウィンドウを開く前にプリセットやタイムラインで CM3D2 の背景が復元されても、
+                    // Inspector の表示名を引けるよう 2.5 の一覧を先に作っておく (GetBgIdByCategoryName と同じ)
+                    EnsureBgDataLoaded();
+                    if (PhotoBGData.data == null)
+                    {
+                        return EmptyCm3d2Backgrounds;
+                    }
+                    _cm3d2Backgrounds = LoadCm3d2Backgrounds();
+                }
+                return _cm3d2Backgrounds;
+            }
+        }
+
+        /// <summary>prefab 名 (BgMgr.GetBGName() の値) から CM3D2 の背景を引く。無ければ null</summary>
+        public static Cm3d2BgEntry FindCm3d2Background(string prefabName)
+        {
+            return Cm3d2BgList.Find(cm3d2Backgrounds, prefabName);
+        }
+
+        private static List<Cm3d2BgEntry> LoadCm3d2Backgrounds()
+        {
+            var fileSystem = GameUty.FileSystemOld;
+            // CM3D2 未導入 (互換モード無効) なら何も足さない
+            if (!GameUty.IsEnabledCompatibilityMode || fileSystem == null)
+            {
+                return new List<Cm3d2BgEntry>();
+            }
+
+            try
+            {
+                var existingPrefabNames = new List<string>();
+                foreach (var bgData in PhotoBGData.data)
+                {
+                    existingPrefabNames.Add(bgData.create_prefab_name);
+                }
+
+                var entries = Cm3d2BgList.Build(
+                    ReadCm3d2BgRows(fileSystem),
+                    ReadCm3d2EnabledIds(),
+                    pack => PluginData.IsEnabled(pack),
+                    existingPrefabNames);
+                MTEUtils.Log("CM3D2 の背景を {0} 件読み込みました", entries.Count);
+                return entries;
+            }
+            catch (Exception e)
+            {
+                // 読めなくても 2.5 の背景は使えるようにする。失敗も空としてキャッシュし毎回は読み直さない
+                MTEUtils.LogException(e);
+                return new List<Cm3d2BgEntry>();
+            }
+        }
+
+        /// <summary>CM3D2 側の phot_bg_list.nei を行ごとの文字列配列で読む。ファイルが無ければ空</summary>
+        private static List<string[]> ReadCm3d2BgRows(AFileSystemBase fileSystem)
+        {
+            var rows = new List<string[]>();
+            if (!fileSystem.IsExistentFile(Cm3d2BgList.ListFileName))
+            {
+                return rows;
+            }
+
+            using (var file = fileSystem.FileOpen(Cm3d2BgList.ListFileName))
+            using (var csv = new CsvParser())
+            {
+                if (!csv.Open(file))
+                {
+                    MTEUtils.LogError("CM3D2 の {0} を開けませんでした", Cm3d2BgList.ListFileName);
+                    return rows;
+                }
+
+                // 1 行目は見出し
+                for (var y = 1; y < csv.max_cell_y; y++)
+                {
+                    if (!csv.IsCellToExistData(Cm3d2BgList.ColumnId, y))
+                    {
+                        continue;
+                    }
+                    var cells = new string[Cm3d2BgList.ColumnCount];
+                    for (var x = 0; x < cells.Length; x++)
+                    {
+                        cells[x] = csv.IsCellToExistData(x, y) ? csv.GetCellAsString(x, y) : "";
+                    }
+                    rows.Add(cells);
+                }
+            }
+            return rows;
+        }
+
+        /// <summary>
+        /// CM3D2 側の有効 ID (phot_bg_enabled_list と、その DLC 別ファイル)。
+        /// 読めなければ空を返し、Cm3d2BgList.Build は空を「絞り込まない」と扱う
+        /// </summary>
+        private static HashSet<int> ReadCm3d2EnabledIds()
+        {
+            var ids = new HashSet<int>();
+            try
+            {
+                global::wf.CsvCommonIdManager.ReadEnabledIdList(
+                    global::wf.CsvCommonIdManager.FileSystemType.Old, true,
+                    Cm3d2BgList.EnabledListName, ref ids);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+                ids.Clear();
+            }
+            return ids;
         }
 
         /// <summary>
