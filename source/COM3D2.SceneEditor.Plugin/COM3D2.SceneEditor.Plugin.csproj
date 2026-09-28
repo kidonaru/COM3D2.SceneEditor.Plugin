@@ -380,6 +380,7 @@
     <Compile Include="ModelProviderHost.cs" />
     <Compile Include="ModelSelectHost.cs" />
     <Compile Include="MenuBarWindow.cs" />
+    <Compile Include="Cm3d2BgList.cs" />
     <Compile Include="BackgroundUtils.cs" />
     <Compile Include="BackgroundWindow.cs" />
     <Compile Include="BGModelTree.cs" />
