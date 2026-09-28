@@ -48,7 +48,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             public TimelineMaterialShaderData entry;
         }
 
-        // 着替え等で Material が作り直されたら、前回のエントリを保留へ戻して再適用を待つ (仕様 #7・13)
+        // 着替え等で Material が作り直されたら、前回のエントリを保留へ戻して再適用を待つ
         private Dictionary<ModelMaterial, LiveRecord> _lastLive = new Dictionary<ModelMaterial, LiveRecord>();
         private Dictionary<ModelMaterial, LiveRecord> _nextLive = new Dictionary<ModelMaterial, LiveRecord>();
 
@@ -205,12 +205,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _nextLive.Clear();
             foreach (var material in _changedMaterials)
             {
+                // CreateEntry が読む materials はレンダラーの Material 差し替えをその場で取り込み (Init)、
+                // 変更を消す。その場合は今回の対象から外し、前回のエントリを RequeueRebuilt で保留へ戻す
+                var before = material.material;
                 var entry = CreateEntry(material);
-                if (entry != null)
+                if (entry == null || !entry.hasChanges || !ReferenceEquals(before, material.material))
                 {
-                    _live.Add(entry);
-                    _nextLive[material] = new LiveRecord { material = material.material, entry = entry };
+                    continue;
                 }
+                _live.Add(entry);
+                _nextLive[material] = new LiveRecord { material = material.material, entry = entry };
             }
 
             RequeueRebuilt();

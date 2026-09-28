@@ -132,8 +132,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             for (var i = _slots.Count - 1; i >= 0; i--)
             {
                 var slot = _slots[i];
-                if (slot.loaded == null || !material.HasProperty(slot.property)
-                    || material.GetTexture(slot.property) == slot.loaded)
+                if (!material.HasProperty(slot.property))
+                {
+                    continue;
+                }
+                var current = material.GetTexture(slot.property);
+                if (slot.loaded == null)
+                {
+                    // 見つからない指定は元のテクスチャを貼ったまま。ゲームが作り直したら元として取り直し、
+                    // 以後の「(元)」や読み直しの失敗で古いテクスチャへ戻さない (指定は保存用に残す)
+                    if (current != slot.original)
+                    {
+                        slot.original = current;
+                    }
+                    continue;
+                }
+                if (current == slot.loaded)
                 {
                     continue;
                 }
@@ -154,6 +168,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     material.SetTexture(slot.property, slot.loaded);
                 }
             }
+        }
+
+        /// <summary>
+        /// Material が作り直されたとき。Unity が Material を複製すると読み込んだテクスチャも引き継がれるため、
+        /// 新しい Material がまだ指していれば元のテクスチャへ戻してから破棄する (破棄済みを指して白く抜けないように)
+        /// </summary>
+        public void DetachFrom(Material newMaterial)
+        {
+            if (newMaterial != null)
+            {
+                foreach (var slot in _slots)
+                {
+                    if (slot.loaded != null && newMaterial.HasProperty(slot.property)
+                        && newMaterial.GetTexture(slot.property) == slot.loaded)
+                    {
+                        newMaterial.SetTexture(slot.property, slot.original);
+                    }
+                }
+            }
+            DestroyAll();
         }
 
         /// <summary>Material が破棄・作り直されたとき。Material には触らず、読み込んだテクスチャだけ破棄する</summary>

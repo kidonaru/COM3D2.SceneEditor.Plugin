@@ -21,7 +21,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static readonly List<MaterialTextureOverride> _textures = new List<MaterialTextureOverride>();
 
-        public static bool hasData => _shader != null || _colors.Count > 0 || _values.Count > 0;
+        public static bool hasData => _shader != null || _colors.Count > 0 || _values.Count > 0 || _textures.Count > 0;
 
         public static void Copy(MTEP.ModelMaterial material)
         {

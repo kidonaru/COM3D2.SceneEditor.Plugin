@@ -131,7 +131,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             // Material が作り直された。前の Material 用に読んだテクスチャは要らない
             // (再適用は MaterialShaderManager が保留から行う)
-            _textures.DestroyAll();
+            _textures.DetachFrom(material);
 
             originalShader = material.shader;
             originalRenderQueue = material.renderQueue;
@@ -432,7 +432,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void Release()
         {
             isReleased = true;
-            _textures.DestroyAll();
+            // Material が生きていれば元のテクスチャへ戻してから破棄する (破棄済みを指したまま残さない)
+            if (material != null)
+            {
+                _textures.ResetAll(material);
+            }
+            else
+            {
+                _textures.DestroyAll();
+            }
             if (changedMaterials.Remove(this))
             {
                 changedVersion++;

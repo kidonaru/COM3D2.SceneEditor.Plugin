@@ -75,6 +75,7 @@ namespace COM3D2.SceneEditor.Plugin
                         {
                             return false;
                         }
+                        // PNG 署名(8) + チャンク長(4) + "IHDR"(4) = 16 から幅(4)・高さ(4) が続く
                         var d = result.data;
                         result.width = (d[16] << 24) | (d[17] << 16) | (d[18] << 8) | d[19];
                         result.height = (d[20] << 24) | (d[21] << 16) | (d[22] << 8) | d[23];

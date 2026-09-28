@@ -94,9 +94,14 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 texture.name = normalized;
-                texture.wrapMode = MaterialTextureCatalog.IsToonProperty(property)
-                    ? TextureWrapMode.Clamp
-                    : original != null ? original.wrapMode : TextureWrapMode.Repeat;
+                if (MaterialTextureCatalog.IsToonProperty(property))
+                {
+                    texture.wrapMode = TextureWrapMode.Clamp;
+                }
+                else
+                {
+                    texture.wrapMode = original != null ? original.wrapMode : TextureWrapMode.Repeat;
+                }
                 // 元テクスチャが無いスロットは Texture2D の既定 (Bilinear) のまま
                 if (original != null)
                 {
