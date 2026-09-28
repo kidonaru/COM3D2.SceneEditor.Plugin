@@ -19,21 +19,46 @@ namespace COM3D2.SceneEditor.Plugin
         /// 切り替え UI は Inspector のギズモ行にあり、軸空間は SceneView のツールバーからも切り替えられる。
         /// 軸空間と表示対象はゲーム再起動をまたいでも保持したい設定なので Config へ永続化する
         /// (バッキングを Config のフィールドにして、GizmoRenderer の生成順に依存させない)。
-        /// 操作種別はホットキーで頻繁に切り替える一時的なモードなので永続化しない
+        /// 操作種別はホットキーで頻繁に切り替える一時的なモードなので永続化しない。
+        /// 軸空間は Local / Global / Camera の 3 値 (gizmoSpace)。useLocalSpace は互換用
         /// </summary>
         public static GizmoTool currentTool { get; set; } = GizmoTool.Move;
 
-        public static bool useLocalSpace
+        /// <summary>
+        /// 軸の座標系。旧版互換の gizmoUseLocalSpace も同時に書き、
+        /// 旧版で開いたときに Camera が Global として読まれるようにする
+        /// </summary>
+        public static GizmoSpace gizmoSpace
         {
-            get => config.gizmoUseLocalSpace;
+            get => config.gizmoSpace;
             set
             {
-                if (config.gizmoUseLocalSpace == value)
+                if (config.gizmoSpace == value)
                 {
                     return;
                 }
-                config.gizmoUseLocalSpace = value;
+                config.gizmoSpace = value;
+                config.gizmoUseLocalSpace = value == GizmoSpace.Local;
                 config.dirty = true;
+            }
+        }
+
+        /// <summary>
+        /// 互換用の bool 表現 (true = Local)。ModItemExplorer の GizmoToolClient が
+        /// public static bool で setter を持つことをリフレクションで要求しているため、型・名前を変えないこと。
+        /// Camera は Local ではないので false を返し、Inspector の位置・回転の数値欄もワールドで表示する。
+        /// false の代入では Camera を保つ (bool しか知らない側が同期で Camera を消さないように)
+        /// </summary>
+        public static bool useLocalSpace
+        {
+            get => gizmoSpace == GizmoSpace.Local;
+            set
+            {
+                if (value == useLocalSpace)
+                {
+                    return;
+                }
+                gizmoSpace = value ? GizmoSpace.Local : GizmoSpace.Global;
             }
         }
 

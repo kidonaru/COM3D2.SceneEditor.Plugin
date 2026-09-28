@@ -95,7 +95,13 @@ namespace COM3D2.SceneEditor.Plugin
         // ギズモ設定。SceneView / GameView 双方のギズモが共有する。
         // 操作種別 (currentTool) はホットキーで頻繁に切り替える一時的なモードなので永続化しない
         public GizmoTargetType gizmoTargetType = GizmoTargetType.All;
+        /// <summary>
+        /// 旧版互換の軸空間 (true = Local)。旧版は gizmoSpace を知らずこちらだけを読み書きするため残す。
+        /// 書き込みは GizmoRenderer.gizmoSpace が gizmoSpace と揃えて行う (Camera は false)
+        /// </summary>
         public bool gizmoUseLocalSpace = true;
+        /// <summary>ギズモの軸の座標系 (Local / Global / Camera)</summary>
+        public GizmoSpace gizmoSpace = GizmoSpace.Local;
 
         public int hierarchyPosX = -1;
         public int hierarchyPosY = -1;
@@ -627,7 +633,24 @@ namespace COM3D2.SceneEditor.Plugin
                 keyBinds[KeyBindType.WindowsHiddenToggle] = new KeyBind("Tab");
                 dirty = true;
             }
+            ReconcileGizmoSpace();
             version = CurrentVersion;
+        }
+
+        /// <summary>
+        /// gizmoSpace と旧版互換の gizmoUseLocalSpace が食い違っていれば、旧版で bool だけ
+        /// 書き換えられたとみなして bool から作り直す。gizmoSpace の無い旧設定もここで移行される
+        /// (要素が無いと既定の Local になり、bool が false なら Global へ直る)。
+        /// Camera と false の組は正しい対応なので触らない
+        /// </summary>
+        private void ReconcileGizmoSpace()
+        {
+            if ((gizmoSpace == GizmoSpace.Local) == gizmoUseLocalSpace)
+            {
+                return;
+            }
+            gizmoSpace = gizmoUseLocalSpace ? GizmoSpace.Local : GizmoSpace.Global;
+            dirty = true;
         }
 
         public bool GetKey(KeyBindType keyBindType)
