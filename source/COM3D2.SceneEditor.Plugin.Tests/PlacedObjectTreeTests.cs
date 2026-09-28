@@ -275,5 +275,29 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 new[] { Src(PlacedObjectCategory.Model, 20, "a") },
                 new[] { Src(PlacedObjectCategory.Png, 20, "a") }));
         }
+
+        [Fact]
+        public void 変化検知_片方だけnullの要素は変化とみなす()
+        {
+            var x = Src(PlacedObjectCategory.Png, 40, "a");
+
+            Assert.False(PlacedObjectTree.SameSources(new[] { x }, new PlacedObjectSource[] { null }));
+            Assert.False(PlacedObjectTree.SameSources(new PlacedObjectSource[] { null }, new[] { x }));
+            Assert.True(PlacedObjectTree.SameSources(new PlacedObjectSource[] { null }, new PlacedObjectSource[] { null }));
+        }
+
+        [Fact]
+        public void nullの要素は読み飛ばして残りを出す()
+        {
+            var tree = PlacedObjectTree.Build(new[]
+            {
+                null,
+                Src(PlacedObjectCategory.Png, 40, "a"),
+            });
+
+            Assert.True(tree.Contains(40));
+            Assert.Single(tree.roots);
+            Assert.Single(tree.roots[0].children);
+        }
     }
 }

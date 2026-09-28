@@ -63,6 +63,9 @@ namespace COM3D2.SceneEditor.Plugin
         private int _selectedPlacedId = 0;
         // 選択したが対応する行がまだ無い (配置直後で次の収集前)。組み直した後に展開する
         private bool _placedRevealPending = false;
+        // 矢印キーやクリックで選んだカテゴリ見出しの ID。見出しは選ぶ物が無いので SelectionManager とは別に持つ。
+        // 持たないと GUITreeView が選択行を見失い、矢印キーで見出しを越えられない。無ければ 0
+        private int _selectedCategoryId = 0;
 
         private static bool isPlacedMode => config.hierarchyViewMode == HierarchyViewMode.PlacedObjects;
         // DontDestroyOnLoad シーンを掴むための番人。SceneManager からは列挙できないため、
@@ -139,11 +142,18 @@ namespace COM3D2.SceneEditor.Plugin
             _placedTreeView.isSelected = IsPlacedSelected;
             _placedTreeView.onSelected = node =>
             {
-                // 見出しは選ぶ物が無い。破棄済み (isAlive が次の描画で弾く前) も選ばない
-                if (node.isCategory || node.target == null)
+                if (node.isCategory)
+                {
+                    _selectedCategoryId = node.id;
+                    return;
+                }
+                // 破棄済み (isAlive が次の描画で弾く前) は選ばない
+                if (node.target == null)
                 {
                     return;
                 }
+                // 選択中の物へ戻る場合は選択イベントが来ないので、見出しの選択はここで外す
+                _selectedCategoryId = 0;
                 selectionManager.Select(node.target);
                 OnRowClicked(node.target);
             };
@@ -154,6 +164,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         private bool IsPlacedSelected(PlacedObjectNode node)
         {
+            if (_selectedCategoryId != 0)
+            {
+                return node.id == _selectedCategoryId;
+            }
             return !node.isCategory && node.id == _selectedPlacedId;
         }
 
@@ -175,9 +189,11 @@ namespace COM3D2.SceneEditor.Plugin
         private void OnSelectionChanged(GameObject go)
         {
             RevealInGameObjectTree(go);
+            _selectedCategoryId = 0;
 
-            // 配置直後の物を選んだ場合に行が間に合うよう、表示中なら先に集め直す (変化が無ければ組み直さない)
-            if (isShowWnd && isPlacedMode)
+            // 配置直後の物を選んだ場合に行が間に合うよう、今の木に無ければ先に集め直す。
+            // 大半は今の木で引けるので、選ぶたびに全配置物を集め直さない
+            if (isShowWnd && isPlacedMode && go != null && FindPlacedId(go) == 0)
             {
                 RefreshPlacedObjects();
             }
@@ -256,6 +272,7 @@ namespace COM3D2.SceneEditor.Plugin
             _placedRoots.Clear();
             _selectedPlacedId = 0;
             _placedRevealPending = false;
+            _selectedCategoryId = 0;
             _placedTreeView.Clear();
             // Clear は展開状態も捨てるので見出しを開き直す
             ExpandCategories();
@@ -294,6 +311,7 @@ namespace COM3D2.SceneEditor.Plugin
             _placedSources = _collectBuffer;
             _collectBuffer = previous;
 
+            var previousAncestors = _placedTree.GetAncestorIds(_selectedPlacedId);
             _placedTree = PlacedObjectTree.Build(_placedSources);
             _placedRoots.Clear();
             _placedRoots.AddRange(_placedTree.roots);
@@ -301,8 +319,11 @@ namespace COM3D2.SceneEditor.Plugin
             _placedTreeView.SetDirty();
 
             // 新しく出た行が選択中の物かもしれないので対応する行を引き直す。
-            // 選択時に行が無かった場合だけ、ここで展開・スクロールする
-            SyncPlacedSelection(selectionManager.selectedObject, _placedRevealPending);
+            // 選択時に行が無かった場合と、選択中の行の親が変わった場合 (メイドへのアタッチ等で
+            // 閉じた親の下へ移った) だけ、ここで展開・スクロールする
+            var reveal = _placedRevealPending
+                || !SameIds(previousAncestors, _placedTree.GetAncestorIds(_selectedPlacedId));
+            SyncPlacedSelection(selectionManager.selectedObject, reveal);
         }
 
         /// <summary>
@@ -330,6 +351,22 @@ namespace COM3D2.SceneEditor.Plugin
                 _placedTreeView.Expand(ancestorId);
             }
             _placedTreeView.Reveal(_selectedPlacedId);
+        }
+
+        private static bool SameIds(List<int> a, List<int> b)
+        {
+            if (a.Count != b.Count)
+            {
+                return false;
+            }
+            for (var i = 0; i < a.Count; i++)
+            {
+                if (a[i] != b[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private int FindPlacedId(GameObject go)
@@ -468,10 +505,11 @@ namespace COM3D2.SceneEditor.Plugin
         private void DrawViewModeTabs()
         {
             var current = (int)config.hierarchyViewMode;
+            var top = _view.currentPos.y;
             // string[] のままだとジェネリック版 (値の配列から選ぶ) に解決されるため、見出し版を明示する
             var next = _view.DrawTabs((IList<string>)ViewModeLabels, current, ModeTabWidth, RowHeight);
-            // DrawTabs 末尾の AddSpace(5) が縦レイアウトでは「5px + margin」になるため、通常の行間に詰める
-            _view.currentPos.y -= 5 + _view.margin;
+            // DrawTabs は末尾に独自の余白を足すので、通常の 1 行ぶんの行間へ置き直す
+            _view.currentPos.y = top + RowHeight + _view.margin;
 
             if (next == current)
             {
