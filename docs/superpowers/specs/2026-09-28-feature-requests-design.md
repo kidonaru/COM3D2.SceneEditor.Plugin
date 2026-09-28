@@ -16,7 +16,7 @@
 | 8 | PNG・モデルをタイムラインごと複製 | 実装・実機確認済み | [png-model-duplicate](../plans/2026-09-28-png-model-duplicate.md) |
 | 9 | 配置物のツリー表示ウィンドウ | 実装・実機確認済み | [hierarchy-placed-objects](../plans/2026-09-28-hierarchy-placed-objects.md) |
 | 10 | 首ボーンに白丸 | 実装・実機確認済み | [neck-drag-point](../plans/2026-09-28-neck-drag-point.md) |
-| 11 | ギズモの座標系にカメラ方向 | 仕様確定 | [gizmo-camera-space](../plans/2026-09-28-gizmo-camera-space.md) |
+| 11 | ギズモの座標系にカメラ方向 | 実装・実機確認済み | [gizmo-camera-space](../plans/2026-09-28-gizmo-camera-space.md) |
 | 12 | 表情の強制上書きを既定 ON | 実装・実機確認済み | #6 と同じ計画 |
 | 13 | マテリアル変更で toon・テクスチャも | 実装・実機確認済み | #7 と同じ計画 |
 | 14 | CM3D2 の背景も読み込む | 仕様確定 | [cm3d2-backgrounds](../plans/2026-09-28-cm3d2-backgrounds.md) |
@@ -253,6 +253,21 @@ GameView ウィンドウの左上（ヘッダーの直下）に、SceneView と�
 - 外部プラグイン連携は `useLocalSpace` が bool 型であることをリフレクションで要求しているので、bool のプロパティは互換用に残し、3 値の設定を別に足す。カメラのとき bool は false (ワールド) を返す
 - ModItemExplorer は 3 値に対応させない。SceneEditor でカメラを選んでも、ModItemExplorer 側ではワールドとして見えるだけで壊れない
 - 設定は既存の `gizmoUseLocalSpace` を残して `gizmoSpace` を足す。読み込み時に両者が食い違っていたら bool 側を正とし、これで旧設定からの移行も兼ねる
+
+実装メモ (#11):
+- MTEUtils サブモジュールに 4 コミット (`3e0adf2` / `69cd1a7` / `7c3f973` / `bc5705c`、ブランチ master)。push と、ModItemExplorer / PostEffects 側のサブモジュール参照の更新はしていない (ユーザー判断)
+- レビュー指摘で次を足した
+  - カメラ座標系で掴んでいる間は、描画も開始時の軸で行う (掴み中にカメラが動いたとき、描いた矢印と実際に動く向きが食い違わないように)
+  - 右・上リングの画面上の半径が取れない (原点がカメラの背後など) ときは掴まない
+  - 半周・全周の円の描画と距離判定を共通化した
+- 実機確認
+  - 回転の向き: 右リングを上へドラッグすると手前が上へ、上リングを右へドラッグすると手前が右へ動き、外周リングは視線まわりに回る
+  - 掴み中にカメラを 60° 回しても、回転軸は開始時のまま
+  - 移動ツールで中心付近をクリックすると、画面平行の面ハンドルを掴む (前軸の矢印は掴まない)
+  - 移動・回転・拡縮の見た目: カメラ軸の矢印と面、白い外周リングと赤の縦線・緑の横線、拡縮はローカル軸
+  - 設定: 既存の Global (旧版の bool だけの設定) が起動時に `gizmoSpace=Global` へ移行された。Camera が再起動後も保たれた
+  - ModItemExplorer 連携: ModItemExplorer からは false に見え、false を書き込んでも Camera のまま、true を書き込むと Local になる
+  - 以上は devbridge で `TransformGizmo` を直接操作して確認した。地球儀ボタンのクリックとマウスでのドラッグは確認していない (巡回順はテストで固定)
 
 ### 12. 表情の強制上書きを既定 ON
 
