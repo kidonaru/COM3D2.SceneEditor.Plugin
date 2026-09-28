@@ -170,7 +170,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return info.fileName + groupSuffix;
         }
 
-        public void FromModel(StudioModelStat model)
+        /// <param name="copyTransform">
+        /// false なら transform を写さない。transform を入れるとコントローラ (GameObject のコンポーネント) の
+        /// 所有者がこの stat へ移り、元のモデルのボーン・マテリアル名がこの stat の名前で引かれてしまう。
+        /// 別の実体を作るための定義 (複製) では false にする
+        /// </param>
+        public void FromModel(StudioModelStat model, bool copyTransform = true)
         {
             info = model.info;
             name = model.name;
@@ -183,7 +188,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             visible = model.visible;
             layer = model.layer;
 
-            transform = model.transform;
+            if (copyTransform)
+            {
+                transform = model.transform;
+            }
         }
 
         public void FixBlendValues()

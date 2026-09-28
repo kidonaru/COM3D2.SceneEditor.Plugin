@@ -2500,8 +2500,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // 実体はプロバイダが新しく作る。元の transform を写すと元のモデルのコントローラを奪い、
+            // 下の OnCopyModel が元のボーン・マテリアルを複製先の名前で引いてキーを写せなくなる
             var newModel = new StudioModelStat();
-            newModel.FromModel(model);
+            newModel.FromModel(model, false);
 
             var group = newModel.group;
             while (modelManager.GetModel(newModel.name) != null)
