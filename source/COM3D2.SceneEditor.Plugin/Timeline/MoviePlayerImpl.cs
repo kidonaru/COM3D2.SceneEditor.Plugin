@@ -20,6 +20,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private bool _metaUpdated = false;
         private Material _gridMaterial = null;
 
+        /// <summary>
+        /// 読込・デコードの失敗を受けたか。失敗したデコーダへ Seek/Pause 等を送り続けると
+        /// GPU の Present が返らずゲームごと固まることがあるため、以後は命令を送らず動画を閉じる。
+        /// 復帰は動画ウィンドウの「再読込」でプレイヤーを作り直す
+        /// </summary>
+        private bool _isFailed = false;
+
+        /// <summary>動画を閉じる処理待ちか</summary>
+        private bool _isClosePending = false;
+
+        /// <summary>ネイティブのプレイヤーへ命令を送ってよいか</summary>
+        private bool isPlayerAvailable => _mediaPlayer != null && !_isFailed;
+
         public enum SeekState
         {
             None,
@@ -90,7 +103,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             get
             {
-                var producer = _mediaPlayer != null ? _mediaPlayer.TextureProducer : null;
+                var producer = isPlayerAvailable ? _mediaPlayer.TextureProducer : null;
                 return producer != null ? producer.GetTexture() : null;
             }
         }
@@ -100,7 +113,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             get
             {
-                var producer = _mediaPlayer != null ? _mediaPlayer.TextureProducer : null;
+                var producer = isPlayerAvailable ? _mediaPlayer.TextureProducer : null;
                 return producer != null && producer.RequiresVerticalFlip();
             }
         }
@@ -131,7 +144,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public IMediaControl mediaControl
         {
-            get => _mediaPlayer != null ? _mediaPlayer.Control : null;
+            // デコード失敗後は null を返し、呼び出し側の null ガードでネイティブ呼び出しを止める
+            get => isPlayerAvailable ? _mediaPlayer.Control : null;
         }
 
         public float targetSeekTimeMs
@@ -245,6 +259,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 true);
 
             _isStarted = false;
+            _isFailed = false;
+            _isClosePending = false;
             _seekState = SeekState.None;
             // シーク所要時間は動画ごとに違うので覚え直す
             _playSeekStartTime = -1f;
@@ -326,6 +342,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_video == null)
             {
                 return;
+            }
+
+            // イベント通知の途中で閉じると MediaPlayer.Update の残り処理が閉じたデコーダを触るため、
+            // 同フレームの Update が一巡したここで閉じる
+            if (_isClosePending)
+            {
+                _isClosePending = false;
+                if (_mediaPlayer != null)
+                {
+                    // 閉じる処理自体がネイティブ側で止まるかを切り分けるため前後に残す
+                    MTEUtils.LogDebug("MoviePlayer：動画を閉じます");
+                    _mediaPlayer.CloseVideo();
+                    MTEUtils.LogDebug("MoviePlayer：動画を閉じました");
+                }
             }
 
             // 参照先は settings とカメラだけなので、タイムライン未読込でも最背面のカメラ追従を続ける
@@ -734,9 +764,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             //MTEUtils.LogDebug("MoviePlayer：EventType：" + et.ToString());
 
+            // 失敗後はエラーが毎フレーム再通知されうるうえ、同じ Update 内で後続のイベントも届く。
+            // それらを処理すると閉じる前のデコーダへ再びネイティブ呼び出しが走るため、全て捨てる
+            if (_isFailed)
+            {
+                return;
+            }
+
             if (errorCode != ErrorCode.None)
             {
                 MTEUtils.LogError("MoviePlayer：エラー EventType：" + et.ToString() + "  ErrorCode：" + errorCode.ToString());
+                MTEUtils.LogError("MoviePlayer：動画を閉じます。動画ウィンドウで「有効」にしてから「再読込」で開き直せます");
+                _isFailed = true;
+                _isClosePending = true;
+                _seekState = SeekState.None;
                 return;
             }
 
