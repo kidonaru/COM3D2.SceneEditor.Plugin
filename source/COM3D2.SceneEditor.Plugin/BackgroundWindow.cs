@@ -11,7 +11,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// 「背景」タブは一覧表示・切替・削除と背景色、「地面」タブは地面の表示と広さ、
     /// 「モデル」タブは背景モデルの配置数を扱う。
     /// 位置・回転の編集は背景を Inspector で選択して行う。
-    /// 背景一覧はフォトモードの PhotoBGData、適用は BgMgr.ChangeBg の同一経路を使う
+    /// 背景一覧はフォトモードの PhotoBGData、適用は BgMgr.ChangeBg の同一経路を使う。
+    /// 互換モードでは CM3D2 の背景 (BackgroundUtils.cm3d2Backgrounds) も並べる
     /// </summary>
     public class BackgroundWindow : EditorSubWindow
     {
@@ -72,6 +73,23 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>カテゴリ一覧のキャッシュ（先頭は ALL_CATEGORY）。毎フレームの再構築を避ける</summary>
         private List<string> _categories = null;
+
+        /// <summary>
+        /// カテゴリ一覧 (先頭は ALL_CATEGORY)。CM3D2 の背景のカテゴリは 2.5 のカテゴリの後ろに並べる
+        /// </summary>
+        private List<string> GetCategories()
+        {
+            if (_categories == null)
+            {
+                _categories = new List<string> { ALL_CATEGORY };
+                if (PhotoBGData.category_list != null)
+                {
+                    _categories.AddRange(PhotoBGData.category_list.Keys);
+                }
+                _categories.AddRange(Cm3d2BgList.GetCategories(BackgroundUtils.cm3d2Backgrounds));
+            }
+            return _categories;
+        }
 
         private readonly GUIView _rootView = new GUIView();
         private readonly GUIView _view = new GUIView();
@@ -196,8 +214,7 @@ namespace COM3D2.SceneEditor.Plugin
                 BackgroundUtils.ReloadBgData();
                 _categories = null;
                 // 作り直しで消えたカテゴリを選択したままだと一覧が空になる
-                if (PhotoBGData.category_list == null ||
-                    !PhotoBGData.category_list.ContainsKey(_category))
+                if (!GetCategories().Contains(_category))
                 {
                     _category = ALL_CATEGORY;
                 }
@@ -525,14 +542,9 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _view.DrawLabel("カテゴリ", LABEL_WIDTH, ROW_HEIGHT);
 
-                if (_categories == null)
-                {
-                    _categories = new List<string> { ALL_CATEGORY };
-                    _categories.AddRange(PhotoBGData.category_list.Keys);
-                }
-
-                _categoryComboBox.items = _categories;
-                _categoryComboBox.currentIndex = Mathf.Max(0, _categories.IndexOf(_category));
+                var categories = GetCategories();
+                _categoryComboBox.items = categories;
+                _categoryComboBox.currentIndex = Mathf.Max(0, categories.IndexOf(_category));
                 _categoryComboBox.onSelected = (name, _) => _category = name;
                 _categoryComboBox.DrawButton(_view);
             }
@@ -554,34 +566,60 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var bgData in PhotoBGData.data)
             {
-                if (_category != ALL_CATEGORY && bgData.category != _category)
+                if (!IsListed(bgData.category, bgData.name))
                 {
                     continue;
                 }
-                if (!string.IsNullOrEmpty(_searchText) &&
-                    bgData.name.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) < 0)
+                if (DrawBgButton(bgData.name, BackgroundUtils.IsCurrentBg(bgData, currentBgName)))
                 {
-                    continue;
+                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Background,
+                        "背景変更: " + bgData.name);
+                    bgData.Apply();
+                    // 配置直後から Inspector で位置・回転を編集できるようにする
+                    SelectBg(bgMgr);
                 }
+            }
 
-                var isCurrent = BackgroundUtils.IsCurrentBg(bgData, currentBgName);
-                if (_view.DrawButton(bgData.name, -1, ROW_HEIGHT, true,
-                    isCurrent ? Color.cyan : Color.white))
+            // CM3D2 の背景は PhotoBGData に入れられないため後ろに並べる。
+            // prefab 名で適用するので、保存 (プリセット・履歴・タイムライン) も prefab 名になる
+            foreach (var entry in BackgroundUtils.cm3d2Backgrounds)
+            {
+                if (!IsListed(entry.category, entry.name))
                 {
-                    // ChangeBg は同一背景でも再生成して位置・回転をリセットするため、
-                    // 適用済みの背景の再クリックは無視する
-                    if (!isCurrent)
-                    {
-                        HistoryManager.instance.BeforeEdit(null, HistoryScope.Background,
-                            "背景変更: " + bgData.name);
-                        bgData.Apply();
-                        // 配置直後から Inspector で位置・回転を編集できるようにする
-                        SelectBg(bgMgr);
-                    }
+                    continue;
+                }
+                var isCurrent = string.Equals(entry.prefabName, currentBgName, StringComparison.OrdinalIgnoreCase);
+                if (DrawBgButton(entry.name, isCurrent))
+                {
+                    HistoryManager.instance.BeforeEdit(null, HistoryScope.Background,
+                        "背景変更: " + entry.name);
+                    bgMgr.ChangeBg(entry.prefabName);
+                    SelectBg(bgMgr);
                 }
             }
 
             _view.EndScrollView();
+        }
+
+        /// <summary>カテゴリと検索文字列の絞り込みに通るか</summary>
+        private bool IsListed(string category, string name)
+        {
+            if (_category != ALL_CATEGORY && category != _category)
+            {
+                return false;
+            }
+            return string.IsNullOrEmpty(_searchText) ||
+                name.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// 背景ボタン。現在の背景はシアン表示。適用すべきとき (未適用の背景が押された) だけ true。
+        /// ChangeBg は同一背景でも再生成して位置・回転をリセットするため、適用済みの背景の再クリックは無視する
+        /// </summary>
+        private bool DrawBgButton(string name, bool isCurrent)
+        {
+            return _view.DrawButton(name, -1, ROW_HEIGHT, true, isCurrent ? Color.cyan : Color.white)
+                && !isCurrent;
         }
     }
 }
