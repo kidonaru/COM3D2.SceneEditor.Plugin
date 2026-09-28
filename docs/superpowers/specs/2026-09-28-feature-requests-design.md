@@ -12,13 +12,13 @@
 | 4 | GameView 左上のツールバー（マウスオーバー時のみ） | 実装・実機確認済み | 同上 |
 | 5 | 関節の玉＋キーで子側をロール | 実装・実機確認済み | [limb-joint-roll](../plans/2026-09-28-limb-joint-roll.md) |
 | 6 | 表情に Face のシェイプキー欄 | 実装・実機確認済み | [face-shapekey-tab](../plans/2026-09-28-face-shapekey-tab.md) |
-| 7 | マテリアルごとの影 ON/OFF・濃さ | 仕様確定 | [material-texture-override](../plans/2026-09-28-material-texture-override.md) |
+| 7 | マテリアルごとの影 ON/OFF・濃さ | 実装・実機確認済み | [material-texture-override](../plans/2026-09-28-material-texture-override.md) |
 | 8 | PNG・モデルをタイムラインごと複製 | 仕様確定 | [png-model-duplicate](../plans/2026-09-28-png-model-duplicate.md) |
 | 9 | 配置物のツリー表示ウィンドウ | 仕様確定 | [hierarchy-placed-objects](../plans/2026-09-28-hierarchy-placed-objects.md) |
 | 10 | 首ボーンに白丸 | 仕様確定 | [neck-drag-point](../plans/2026-09-28-neck-drag-point.md) |
 | 11 | ギズモの座標系にカメラ方向 | 仕様確定 | [gizmo-camera-space](../plans/2026-09-28-gizmo-camera-space.md) |
 | 12 | 表情の強制上書きを既定 ON | 実装・実機確認済み | #6 と同じ計画 |
-| 13 | マテリアル変更で toon・テクスチャも | 仕様確定 | #7 と同じ計画 |
+| 13 | マテリアル変更で toon・テクスチャも | 実装・実機確認済み | #7 と同じ計画 |
 | 14 | CM3D2 の背景も読み込む | 仕様確定 | [cm3d2-backgrounds](../plans/2026-09-28-cm3d2-backgrounds.md) |
 
 ---
@@ -157,6 +157,14 @@ GameView ウィンドウの左上（ヘッダーの直下）に、SceneView と�
 - 旧 SE はシェーダーが空のエントリを読まず、MTE は `<MaterialShaders>` ごと読み飛ばすので、どちらでも壊れない。ただし旧版で保存し直すとテクスチャ指定は消える
 - ファイルが見つからないエントリは指定だけ残し (「見つかりません」と表示)、保存し直しても消さない
 - 影を「落とす」側の ON/OFF (Renderer の影キャスト) は今回は作らない。受ける影は、白い `_ShadowRateToon` で消せる
+
+実装メモ (#7・#13):
+- アイテムを付け直すとスロットの GameObject ごと作り直され、コントローラは破棄されるが Material のインスタンスは残る。作り直しの判定に「コントローラの破棄」も入れた (計画の Material 破棄・差し替え・一覧からの除去だけでは検出できず、実機でエントリが消えた)
+- 同期中にレンダラーの Material 差し替えを取り込んだマテリアルは今回の対象から外し、前回のエントリを保留へ戻す
+- Unity が Material を複製して読み込み済みテクスチャを引き継いだ場合は、元へ戻してから破棄する。一覧から外すときも Material が生きていれば元へ戻す
+- 見つからない指定は、ゲームがテクスチャを作り直したら元テクスチャを取り直す
+- 肌の `_ToonRamp` を濃い toon にすると見た目がはっきり変わる。`_ShadowRateToon` は光の当たり方次第で差が見えにくい (実機で確認)
+- 見送り (LOW): `.tex` の中身の追加検証 (形式・データ長)、同じファイルの共有キャッシュと CPU 側コピーの破棄、タイムライン未読込時の破棄済みマテリアルのテクスチャ解放、テクスチャ行の毎フレームの一覧複製と大文字小文字の重複
 
 ### 8. PNG・モデルをタイムラインごと複製
 
