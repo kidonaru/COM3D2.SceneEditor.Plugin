@@ -155,8 +155,9 @@ namespace COM3D2.SceneEditor.Plugin
             if (view.DrawButton("初期化", 80, rowHeight))
             {
                 recordEdit("初期化");
-                // シェーダーを先に戻す (値の初期値は元シェーダーのプロパティで控えている)
+                // シェーダーとテクスチャを先に戻す (値の初期値は元シェーダーのプロパティで控えている)
                 material.ResetShader();
+                material.ResetTextures();
                 material.Reset();
                 // 初期値へ戻したのだから追跡からも外す (チェック OFF と同じ意味)
                 if (trackKey != null)

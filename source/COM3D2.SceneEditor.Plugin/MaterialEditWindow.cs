@@ -61,12 +61,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>シェーダー候補。表示のたびに全 Shader を走査しないよう控え、「更新」で作り直す</summary>
         private static List<Shader> _shaderCatalog;
 
-        // シェーダー行の対象。コンボの選択確定はポップアップ側 (別フレーム) で起きるため、
+        // シェーダー行・テクスチャ行の対象。コンボの選択確定はポップアップ側 (別フレーム) で起きるため、
         // 最後に描いた対象を控えて onSelected から引く
-        private MTEP.ModelMaterial _shaderTarget;
-        private MaterialTrackTarget _shaderTrack;
-        private Maid _shaderMaid;
+        private MTEP.ModelMaterial _editTarget;
+        private MaterialTrackTarget _editTrack;
+        private Maid _editMaid;
         private MTEP.ModelMaterial _shaderItemsTarget;
+
+        // テクスチャ行のコンボ。行ごとに onSelected の対象プロパティが違うため、プロパティごとに持つ
+        private readonly Dictionary<string, GUIComboBox<string>> _textureComboBoxes
+            = new Dictionary<string, GUIComboBox<string>>();
 
         private static MaterialEditWindow _instance = null;
         public static MaterialEditWindow instance
@@ -317,6 +321,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             DrawShaderRow(material, track, maid);
+            DrawTextureRows(material);
             DrawMaterialProperties(material, track, maid);
         }
 
@@ -326,9 +331,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void DrawShaderRow(MTEP.ModelMaterial material, MaterialTrackTarget track, Maid maid)
         {
-            _shaderTarget = material;
-            _shaderTrack = track;
-            _shaderMaid = maid;
+            _editTarget = material;
+            _editTrack = track;
+            _editMaid = maid;
 
             var currentShader = material.material.shader;
             if (_shaderItemsTarget != material || !_shaderComboBox.items.Contains(currentShader))
@@ -374,14 +379,14 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return "";
             }
-            return _shaderTarget != null && shader == _shaderTarget.originalShader
+            return _editTarget != null && shader == _editTarget.originalShader
                 ? shader.name + " (元)"
                 : shader.name;
         }
 
         private void ApplyShader(Shader shader)
         {
-            var material = _shaderTarget;
+            var material = _editTarget;
             if (material == null || material.material == null || shader == null
                 || material.material.shader == shader)
             {
@@ -389,8 +394,86 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             // シェーダーはキーではないので追跡チェックは付けない (タイムラインへは MaterialShaderManager が保存する)
-            MaterialPropertyRowsDrawer.RecordEdit(material, _shaderTrack, _shaderMaid, "シェーダー");
+            MaterialPropertyRowsDrawer.RecordEdit(material, _editTrack, _editMaid, "シェーダー");
             material.ChangeShader(shader);
+        }
+
+        /// <summary>
+        /// テクスチャの差し替え行。今のシェーダーが持つプロパティだけ出す。
+        /// 候補は参照フォルダのファイルで、先頭の「(元)」で差し替え前へ戻る
+        /// </summary>
+        private void DrawTextureRows(MTEP.ModelMaterial material)
+        {
+            foreach (var property in MaterialTextureCatalog.Properties)
+            {
+                if (!material.material.HasProperty(property))
+                {
+                    continue;
+                }
+
+                var comboBox = GetTextureComboBox(property);
+                var current = material.GetTextureFile(property) ?? "";
+                var choices = MaterialTextureFiles.GetChoices(MaterialTextureCatalog.GetFolder(property));
+                if (!choices.Contains(current))
+                {
+                    // 見つからない・フォルダから消えた指定も選択中として見せる (キャッシュは書き換えない)
+                    choices = new List<string>(choices) { current };
+                }
+                comboBox.items = choices;
+                comboBox.currentItem = current;
+
+                DrawLabeledComboBox(MaterialTextureCatalog.GetLabel(property), comboBox, UpdateButtonWidth + view.margin, () =>
+                {
+                    if (view.DrawButton("更新", UpdateButtonWidth, ROW_HEIGHT))
+                    {
+                        MaterialTextureFiles.Refresh();
+                    }
+                });
+            }
+        }
+
+        private GUIComboBox<string> GetTextureComboBox(string property)
+        {
+            GUIComboBox<string> comboBox;
+            if (!_textureComboBoxes.TryGetValue(property, out comboBox))
+            {
+                comboBox = new GUIComboBox<string>
+                {
+                    getName = (file, _) => GetTextureDisplayName(property, file),
+                    onSelected = (file, _) => ApplyTexture(property, file),
+                };
+                _textureComboBoxes[property] = comboBox;
+            }
+            return comboBox;
+        }
+
+        private string GetTextureDisplayName(string property, string file)
+        {
+            if (string.IsNullOrEmpty(file))
+            {
+                return "(元)";
+            }
+            var name = MaterialTextureCatalog.GetDisplayName(file);
+            var target = _editTarget;
+            if (target != null && target.GetTextureFile(property) == file && target.IsTextureMissing(property))
+            {
+                return name + " (見つかりません)";
+            }
+            return name;
+        }
+
+        private void ApplyTexture(string property, string file)
+        {
+            var material = _editTarget;
+            if (material == null || material.material == null
+                || (material.GetTextureFile(property) ?? "") == (file ?? ""))
+            {
+                return;
+            }
+
+            // テクスチャもキーではないので追跡チェックは付けない (タイムラインへは MaterialShaderManager が保存する)
+            MaterialPropertyRowsDrawer.RecordEdit(material, _editTrack, _editMaid, "テクスチャ");
+            material.ChangeTexture(property, file);
         }
 
         /// <summary>マテリアル 1 件の色 / 数値プロパティを並べる</summary>
