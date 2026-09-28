@@ -225,7 +225,10 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var ray = camera.ScreenPointToRay(new Vector3(rtPoint.x, rtPoint.y, 0f));
-            foreach (var hit in Physics.RaycastAll(ray, RaycastDistance, ~PluginUtils.NGUILayerMask))
+            var hits = Physics.RaycastAll(ray, RaycastDistance, ~PluginUtils.NGUILayerMask);
+            // RaycastAll の順序は不定。頭と首の点のように画面上で重なる点は手前を掴ませる
+            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var hit in hits)
             {
                 var point = hit.collider.GetComponent<IMaidDragPoint>();
                 if (point != null && point.canDrag)

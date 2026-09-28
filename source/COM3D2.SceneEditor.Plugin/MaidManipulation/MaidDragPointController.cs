@@ -198,7 +198,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var headGo = CreateDragPointObject("MIE_FaceDragPoint", FaceDragPointScale);
+            var headGo = CreateDragPointObject("MIE_HeadDragPoint", FaceDragPointScale);
             var headPoint = headGo.AddComponent<MaidFaceDragPoint>();
             headPoint.maid = maid;
             headPoint.rotateBone = head;

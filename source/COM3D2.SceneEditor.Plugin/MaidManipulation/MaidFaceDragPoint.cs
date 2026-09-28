@@ -29,7 +29,7 @@ namespace COM3D2.SceneEditor.Plugin
         public Transform headNubBone; // "Bip01 HeadNub"（頭の点の追従位置の算出用）
 
         /// <summary>頭の点か。瞳操作・頭頂寄りの配置・顔追従の即時停止は頭の点だけ</summary>
-        public bool isHead = true;
+        public bool isHead;
 
         private bool _isDragging = false;
 
@@ -52,6 +52,19 @@ namespace COM3D2.SceneEditor.Plugin
         private Vector3 _baseBoneAngles;
         private Vector3 _baseEyeAnglesL;
         private Vector3 _baseEyeAnglesR;
+
+        /// <summary>
+        /// 履歴に記録するボーン。首の点は顔追従のフェードを待つので、その間に追従で動く頭も記録して
+        /// Undo で確実に戻す (頭の点は割合を 0 にして止めるので頭だけでよい)
+        /// </summary>
+        private Transform[] GetHistoryBones()
+        {
+            if (isHead || headBone == null)
+            {
+                return new[] { rotateBone };
+            }
+            return new[] { rotateBone, headBone };
+        }
 
         private bool IsReady()
         {
@@ -94,7 +107,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 目線モードは quaDefEye のみで、ボーンは回すボーンだけ記録すればよい
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                 _isEyeMode ? "目線操作" : (isHead ? "顔向き操作" : "首操作"),
-                _isEyeMode ? null : new[] { rotateBone });
+                _isEyeMode ? null : GetHistoryBones());
 
             // 追従が効いたままだと LateUpdate で上書きされるため切る。戻すのは「メイド目線」の選び直し
             maid.body0.boHeadToCam = false;
@@ -295,27 +308,38 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (!isHead)
+            if (isHead)
             {
-                if (rotateBone == null)
-                {
-                    return;
-                }
-                transform.position = Vector3.Lerp(
-                    rotateBone.position, headBone.position, NeckPointHeadWeight);
-                return;
+                UpdateHeadPointPosition();
             }
+            else
+            {
+                UpdateNeckPointPosition();
+            }
+        }
 
+        /// <summary>頭頂寄りに置く（MM が gHead の位置を決めるときと同じ重み付け）</summary>
+        private void UpdateHeadPointPosition()
+        {
             if (headNubBone == null)
             {
                 return;
             }
 
-            // 頭頂寄りに置く（MM が gHead の位置を決めるときと同じ重み付け）
             transform.position = new Vector3(
                 headBone.position.x,
                 (headBone.position.y * 1.2f + headNubBone.position.y * 0.8f) / 2f,
                 headBone.position.z);
+        }
+
+        private void UpdateNeckPointPosition()
+        {
+            if (rotateBone == null)
+            {
+                return;
+            }
+
+            transform.position = Vector3.Lerp(rotateBone.position, headBone.position, NeckPointHeadWeight);
         }
     }
 }
