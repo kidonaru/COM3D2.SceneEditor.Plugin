@@ -71,7 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
             contentSize = new Vector2(150, 300),
         };
 
-        /// <summary>カテゴリ一覧のキャッシュ（先頭は ALL_CATEGORY）。毎フレームの再構築を避ける</summary>
+        /// <summary>カテゴリ一覧のキャッシュ。毎フレームの再構築を避ける (中身は GetCategories)</summary>
         private List<string> _categories = null;
 
         /// <summary>
@@ -554,7 +554,7 @@ namespace COM3D2.SceneEditor.Plugin
                 value => _searchText = value);
         }
 
-        /// <summary>フィルタ適用済みの背景ボタン一覧。現在の背景はシアン表示</summary>
+        /// <summary>フィルタ適用済みの背景ボタン一覧 (2.5 + CM3D2)。現在の背景はシアン表示</summary>
         private void DrawBgList(BgMgr bgMgr)
         {
             var currentBgName = bgMgr.GetBGName();

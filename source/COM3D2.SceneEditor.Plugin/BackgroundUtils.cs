@@ -128,8 +128,9 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // 背景ウィンドウを開く前にプリセットやタイムラインで CM3D2 の背景が復元されても、
                     // Inspector の表示名を引けるよう 2.5 の一覧を先に作っておく (GetBgIdByCategoryName と同じ)
-                    EnsureBgDataLoaded();
-                    if (PhotoBGData.data == null)
+                    // 2.5 の一覧の構築が途中で失敗すると空のリストが残る。そのまま作ると重複を除けない一覧が
+                    // 起動中ずっと残るため、中身があるときだけ作る
+                    if (!EnsureBgDataLoaded())
                     {
                         return EmptyCm3d2Backgrounds;
                     }
