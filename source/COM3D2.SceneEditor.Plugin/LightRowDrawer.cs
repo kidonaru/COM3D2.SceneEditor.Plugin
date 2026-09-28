@@ -82,7 +82,7 @@ namespace COM3D2.SceneEditor.Plugin
                 showArrow = false,
             };
 
-        /// <summary>輪郭画像のコンボ。PNG 配置の画像フォルダ (Config/PngPlacement) からの相対パスを並べる</summary>
+        /// <summary>輪郭画像のコンボ。輪郭画像フォルダ (Config/SceneEditor/LightCookie) からの相対パスを並べる</summary>
         private readonly GUIComboBox<string> _cookieImageComboBox =
             new GUIComboBox<string>
             {

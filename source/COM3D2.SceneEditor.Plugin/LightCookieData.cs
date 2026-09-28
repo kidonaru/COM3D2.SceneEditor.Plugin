@@ -9,7 +9,7 @@ namespace COM3D2.SceneEditor.Plugin
         Default = 0,
         // 硬さから円形の cookie を生成する
         Generated = 1,
-        // PNG 配置と同じ Config/PngPlacement の PNG を使う
+        // Config/SceneEditor/LightCookie の PNG を使う
         Image = 2,
     }
 
@@ -24,7 +24,7 @@ namespace COM3D2.SceneEditor.Plugin
         public LightCookieMode mode;
         /// <summary>0 で中心から滑らかに減衰、1 で縁だけぼかす</summary>
         public float hardness;
-        /// <summary>PNG 配置の画像フォルダ (Config/PngPlacement) からの相対パス</summary>
+        /// <summary>輪郭画像フォルダ (Config/SceneEditor/LightCookie) からの相対パス</summary>
         public string image;
 
         public static LightCookieData Default => new LightCookieData

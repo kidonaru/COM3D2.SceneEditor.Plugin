@@ -23,9 +23,7 @@ namespace COM3D2.SceneEditor.Plugin
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
         private static List<string> _imageNames = null;
 
-        // 窓枠などの模様は PNG 配置の素材と共用できるので、同じフォルダから選ぶ
-        public static string directory =>
-            PngPlacementManager.GetSourceDirectory(PngPlacementManager.SOURCE_CONFIG);
+        public static readonly string directory = Path.Combine(PluginUtils.PluginDataPath, "LightCookie");
 
         public static Texture2D GetGenerated(float hardness)
         {
@@ -130,14 +128,12 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var result = new List<string>();
             var dir = directory;
-            if (!Directory.Exists(dir))
-            {
-                return result;
-            }
 
             // 一覧は描画のたびに参照するので、失敗しても空で覚えて毎フレーム例外を出さない
             try
             {
+                // 置き場所が分かるよう、無ければ作っておく
+                Directory.CreateDirectory(dir);
                 var rootPath = Path.GetFullPath(dir).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
                 foreach (var path in Directory.GetFiles(dir, "*.png", SearchOption.AllDirectories))
                 {
