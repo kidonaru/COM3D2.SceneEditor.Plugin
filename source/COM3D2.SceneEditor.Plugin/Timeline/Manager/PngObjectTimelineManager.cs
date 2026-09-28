@@ -88,6 +88,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         // 書き戻しは SE 実体から作り直すため、別に持って保存データへ残す
         private readonly List<TimelinePngObjectData> _unresolved = new List<TimelinePngObjectData>();
 
+        // 次の RebuildIfChanged で実体に割り当てる番号の希望。読込では XML の番号、複製では写したキーの番号。
+        // 希望が無い実体は同名画像内で空いている最小の番号になる
+        private readonly Dictionary<SE.PngObjectData, int> _requestedGroups
+            = new Dictionary<SE.PngObjectData, int>();
+
         public static event UnityAction<TimelinePngObjectEntry> onObjectAdded;
         public static event UnityAction<TimelinePngObjectEntry> onObjectRemoved;
 
@@ -112,7 +117,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// SE 側の PNG 配置一覧と同期する。
-        /// 名前は imageName (relativePath のファイル名) + groupSuffix (同名の出現順) で採番し、
+        /// 名前は imageName (relativePath のファイル名) + groupSuffix で採番する。既存の名前は維持し、
+        /// 新規実体には予約した番号か、同名画像内で空いている最小の番号を割り当てる。
         /// MTE のタイムライン名規則 (imageName + GetGroupSuffix) と揃える
         /// </summary>
         public void RebuildIfChanged()
@@ -135,7 +141,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _dataMap.Remove(data);
             }
 
-            // 追加検出: 既存の名前は維持し、新規実体には同名画像内で空いている最小 group を割り当てる
+            // 追加検出: 既存の名前は維持し、新規実体には予約した番号か、同名画像内で空いている最小 group を割り当てる
             var addedEntries = new List<TimelinePngObjectEntry>();
             foreach (var data in seObjects)
             {
@@ -144,13 +150,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
                 var imageName = Path.GetFileNameWithoutExtension(data.relativePath ?? "");
-                var usedGroups = new HashSet<int>(
-                    _dataMap.Values.Where(e => e.imageName == imageName).Select(e => e.group));
-                var group = 0;
-                while (usedGroups.Contains(group))
+                int requestedGroup;
+                if (!_requestedGroups.TryGetValue(data, out requestedGroup))
                 {
-                    group++;
+                    requestedGroup = -1;
                 }
+                var group = AssignGroup(GetUsedGroups(imageName), requestedGroup);
 
                 var entry = new TimelinePngObjectEntry
                 {
@@ -162,6 +167,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 _dataMap[data] = entry;
                 addedEntries.Add(entry);
             }
+
+            // 希望は割り当てた時点で役目を終える。消えた実体の希望も残さない
+            _requestedGroups.Clear();
 
             pngObjects = seObjects.Select(d => _dataMap[d]).ToList();
             pngObjectNames = pngObjects.Select(e => e.name).ToList();
@@ -179,6 +187,51 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 配置の増減をタイムライン保存データへ即時反映する
             // (保存フックは無いため、変更検知のこのタイミングで書き戻すのが唯一の経路)
             UpdateTimelineData();
+        }
+
+        /// <summary>
+        /// 同名画像内の番号を決める。requestedGroup (0 以上) が空いていればそれを、
+        /// 希望が無いか使用中なら空いている最小の番号を返す
+        /// </summary>
+        public static int AssignGroup(ICollection<int> usedGroups, int requestedGroup)
+        {
+            if (requestedGroup >= 0 && !usedGroups.Contains(requestedGroup))
+            {
+                return requestedGroup;
+            }
+
+            var group = 0;
+            while (usedGroups.Contains(group))
+            {
+                group++;
+            }
+            return group;
+        }
+
+        /// <summary>XML の定義に無い実体名。Undo/Redo の再構築で消す対象</summary>
+        public static List<string> GetSurplusNames(
+            IEnumerable<string> currentNames, IEnumerable<TimelinePngObjectData> sources)
+        {
+            var sourceNames = new HashSet<string>(sources.Select(d => d.name));
+            return currentNames.Where(name => !sourceNames.Contains(name)).ToList();
+        }
+
+        /// <summary>
+        /// 同名画像内で使用中の番号。画像が見つからず保留にした定義の番号も含める
+        /// (実体に取られると、保留の定義のキーがその実体へ効いてしまうため)
+        /// </summary>
+        private HashSet<int> GetUsedGroups(string imageName)
+        {
+            var used = new HashSet<int>(
+                _dataMap.Values.Where(e => e.imageName == imageName).Select(e => e.group));
+            foreach (var data in _unresolved)
+            {
+                if (data.imageName == imageName)
+                {
+                    used.Add(data.group);
+                }
+            }
+            return used;
         }
 
         private bool IsChanged(List<SE.PngObjectData> seObjects)
@@ -201,9 +254,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// タイムライン読込時に PNG 実体を再生成する。
         /// 画像は SE の既知ソース (config → photo) からファイル名一致で探索し、
         /// 見つからない場合は警告してスキップする (キーフレームは XML に保持されたまま)。
+        /// 作った実体には XML の番号を予約し、欠番のある XML でもキーとの対応を崩さない。
+        /// removeSurplus なら XML に無い実体を消す (Undo/Redo の再構築用。追加・複製の Undo で実体を残さない)。
         /// 最後に XML の実体設定 (表示順・表示タイプ・ブレンド方式・デカール設定) を SE 実体へ適用する
         /// </summary>
-        public void Setup(List<TimelinePngObjectData> pngObjectDatas)
+        public void Setup(List<TimelinePngObjectData> pngObjectDatas, bool removeSurplus)
         {
             // 引数は timeline.pngObjects そのもので、途中の RebuildIfChanged → UpdateTimelineData が
             // 同じリストを消して SE 側の状態で書き直しうる。XML の値を失わないよう先に複製する
@@ -211,6 +266,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _unresolved.Clear();
 
             RebuildIfChanged();
+
+            if (removeSurplus)
+            {
+                RemoveSurplus(sources);
+            }
 
             // ソースディレクトリの走査は 1 回にまとめ、画像名 → (source, relativePath) の辞書で解決する
             Dictionary<string, KeyValuePair<string, string>> imageIndex = null;
@@ -243,7 +303,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     MTEUtils.LogWarning("PNG の生成に失敗しました: {0}", data.imageName);
                     _unresolved.Add(data);
+                    continue;
                 }
+                _requestedGroups[created] = data.group;
             }
 
             RebuildIfChanged();
@@ -257,6 +319,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     ApplyEntitySettings(entry.data, data);
                 }
             }
+        }
+
+        /// <summary>XML に無い実体を消す。消す実体が選択中なら Inspector に残さない</summary>
+        private void RemoveSurplus(List<TimelinePngObjectData> sources)
+        {
+            var surplusNames = GetSurplusNames(pngObjectNames, sources);
+            if (surplusNames.Count == 0)
+            {
+                return;
+            }
+
+            var selection = SE.SelectionManager.instance;
+            foreach (var name in surplusNames)
+            {
+                var entry = GetPngObject(name);
+                if (entry == null || entry.data == null)
+                {
+                    continue;
+                }
+                if (entry.data.rootObject != null && selection.selectedObject == entry.data.rootObject)
+                {
+                    selection.Select(null);
+                }
+                sePngManager.RemovePng(entry.data);
+            }
+
+            // 消した実体の名前を空けてから XML の定義を作る (同じ名前を取り直せるように)
+            RebuildIfChanged();
         }
 
         private static void ApplyEntitySettings(SE.PngObjectData target, TimelinePngObjectData source)
@@ -349,7 +439,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             if (timeline != null)
             {
-                Setup(timeline.pngObjects);
+                // 余りを消すのは Undo/Redo の再構築だけ。新規作成・ファイル読込ではシーンの PNG を残す
+                Setup(timeline.pngObjects, timelineManager.isRestoringHistory);
             }
         }
 
@@ -366,6 +457,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _dataMap.Clear();
             _syncedSettingsRevision = -1;
             _unresolved.Clear();
+            _requestedGroups.Clear();
         }
     }
 }

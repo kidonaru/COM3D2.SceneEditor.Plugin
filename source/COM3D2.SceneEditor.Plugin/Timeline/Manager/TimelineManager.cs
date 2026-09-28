@@ -621,6 +621,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             MTEUtils.ShowDialog("タイムライン「" + timeline.anmName + "」を保存しました");
         }
 
+        /// <summary>
+        /// Undo/Redo の全再構築 (UpdateTimeline) で mte.OnLoad を回している最中か。
+        /// 読み込み・新規作成と違い、履歴の XML に無い実体 (PNG) を消す判断に使う
+        /// </summary>
+        public bool isRestoringHistory { get; private set; }
+
         public void UpdateTimeline(TimelineXml xml)
         {
             // シェーダー変更は履歴の管理外 (Undo は SE 側の MaterialSnapshot が担う)。
@@ -649,7 +655,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 currentLayerIndex = 0;
             }
 
-            mte.OnLoad();
+            isRestoringHistory = true;
+            try
+            {
+                mte.OnLoad();
+            }
+            finally
+            {
+                isRestoringHistory = false;
+            }
             _timeline.LayerInit();
 
             CreateAndApplyAnmAll();
