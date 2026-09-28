@@ -384,6 +384,7 @@
     <Compile Include="BackgroundWindow.cs" />
     <Compile Include="BGModelTree.cs" />
     <Compile Include="PlacedObjectTree.cs" />
+    <Compile Include="PlacedObjectCollector.cs" />
     <Compile Include="BGModelManageRowDrawer.cs" />
     <Compile Include="BgmUtils.cs" />
     <Compile Include="CameraWindow.cs" />
