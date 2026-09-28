@@ -151,5 +151,22 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             gizmo.useLocalSpace = false;
             Assert.Equal(GizmoSpace.Global, gizmo.space);
         }
+
+        [Theory]
+        [InlineData(GizmoSpace.Local, GizmoSpace.Global)]
+        [InlineData(GizmoSpace.Global, GizmoSpace.Camera)]
+        [InlineData(GizmoSpace.Camera, GizmoSpace.Local)]
+        public void 軸空間ボタンはLocalからGlobalCameraの順に巡回する(GizmoSpace current, GizmoSpace expected)
+        {
+            Assert.Equal(expected, GizmoToolRowDrawer.NextSpace(current));
+        }
+
+        [Fact]
+        public void 座標系の表示名()
+        {
+            Assert.Equal("Local", GizmoToolRowDrawer.GetSpaceName(GizmoSpace.Local));
+            Assert.Equal("Global", GizmoToolRowDrawer.GetSpaceName(GizmoSpace.Global));
+            Assert.Equal("Camera", GizmoToolRowDrawer.GetSpaceName(GizmoSpace.Camera));
+        }
     }
 }

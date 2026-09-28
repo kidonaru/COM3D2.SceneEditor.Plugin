@@ -93,6 +93,9 @@ namespace COM3D2.SceneEditor.Plugin
                 setTool = value => currentTool = value,
                 getUseLocalSpace = () => useLocalSpace,
                 setUseLocalSpace = value => useLocalSpace = value,
+                getSpace = () => gizmoSpace,
+                setSpace = value => gizmoSpace = value,
+                cameraIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Camera),
                 globalIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Global),
             };
         }
