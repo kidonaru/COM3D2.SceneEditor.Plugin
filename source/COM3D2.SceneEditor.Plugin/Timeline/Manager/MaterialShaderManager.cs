@@ -226,8 +226,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// 前回は保存対象だったのに今回消えたマテリアルのうち、Material が破棄・差し替え・一覧から除去された
-        /// (= 作り直された) ものは、前回のエントリを保留へ戻す。ユーザーの初期化やゲーム側の上書きは
+        /// 前回は保存対象だったのに今回消えたマテリアルのうち、Material が破棄・差し替え・一覧から除去された、
+        /// またはコントローラが破棄された (= 作り直された) ものは、前回のエントリを保留へ戻す。ユーザーの初期化やゲーム側の上書きは
         /// Material が同じまま変更だけ消えるので戻さない
         /// </summary>
         private void RequeueRebuilt()
@@ -239,10 +239,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     continue;
                 }
-                // 破棄済み同士は Unity の == で等しくなるため参照で比べる
+                // 破棄済み同士は Unity の == で等しくなるため参照で比べる。
+                // メイドのアイテムを付け直すとスロットの GameObject ごと作り直され、コントローラは破棄されるが
+                // Material のインスタンスは残る (参照は同じまま) ので、コントローラの破棄も作り直しとみなす
                 var rebuilt = material.material == null
                     || !ReferenceEquals(material.material, pair.Value.material)
-                    || material.isReleased;
+                    || material.isReleased
+                    || material.controller == null;
                 if (rebuilt)
                 {
                     MaterialShaderSync.Requeue(_pending, _live, pair.Value.entry);
