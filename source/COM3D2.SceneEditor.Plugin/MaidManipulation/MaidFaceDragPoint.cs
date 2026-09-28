@@ -3,10 +3,10 @@
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 頭部のドラッグ点。通常ドラッグで顔向き（首ボーンの回転）、
-    /// Ctrl ドラッグで横方向の回転軸を鉛直軸（左右の振り向き）に切り替え、
-    /// Alt+Ctrl ドラッグで瞳の向きを操作する（MultipleMaids の gHead 相当）。
-    /// 回すのは Bip01 Head ではなく Bip01 Neck で、これは MM と同じ
+    /// 頭・首のドラッグ点。通常ドラッグで rotateBone を傾け、
+    /// Ctrl ドラッグで横方向の回転軸を鉛直軸（左右の振り向き）に切り替える（MultipleMaids の gHead 相当）。
+    /// 頭の点（isHead）だけ、Alt+Ctrl ドラッグで瞳の向きを操作する。
+    /// MM の gHead は首を回すが、ここでは頭の点が Bip01 Head、首の点が Bip01 Neck を回す
     /// </summary>
     public class MaidFaceDragPoint : MonoBehaviour, IMaidDragPoint
     {
@@ -17,10 +17,19 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>瞳の感度。MM の MouseDrag3（ido==7）と同じ除数</summary>
         private const float EyeDivisor = 10f;
 
+        /// <summary>
+        /// 首の点を首から頭へ寄せる割合。首の原点は付け根にあり上体・肩の点と近いため、
+        /// 頭との中点に置いて首の見た目の中央で掴ませる（回転の支点は首の原点のまま）
+        /// </summary>
+        private const float NeckPointHeadWeight = 0.5f;
+
         public Maid maid;
-        public Transform neckBone;    // "Bip01 Neck"
+        public Transform rotateBone;  // 回すボーン。頭の点は "Bip01 Head"、首の点は "Bip01 Neck"
         public Transform headBone;    // "Bip01 Head"（追従位置の算出用）
-        public Transform headNubBone; // "Bip01 HeadNub"（同上）
+        public Transform headNubBone; // "Bip01 HeadNub"（頭の点の追従位置の算出用）
+
+        /// <summary>頭の点か。瞳操作・頭頂寄りの配置・顔追従の即時停止は頭の点だけ</summary>
+        public bool isHead = true;
 
         private bool _isDragging = false;
 
@@ -40,13 +49,13 @@ namespace COM3D2.SceneEditor.Plugin
         private const float ClickThresholdPixels = 5f;
 
         private Vector3 _mouseDownPos;
-        private Vector3 _baseNeckAngles;
+        private Vector3 _baseBoneAngles;
         private Vector3 _baseEyeAnglesL;
         private Vector3 _baseEyeAnglesR;
 
         private bool IsReady()
         {
-            return maid != null && maid.body0 != null && neckBone != null;
+            return maid != null && maid.body0 != null && rotateBone != null;
         }
 
         /// <summary>コードベース共通の参照経路。Camera.main はシーン走査を伴うため使わない</summary>
@@ -72,23 +81,31 @@ namespace COM3D2.SceneEditor.Plugin
 
             _dragCamera = camera;
             _mouseDownPos = pointerPos;
-            _isEyeMode = IsEyeModifierHeld();
+            // 瞳は頭の点だけ。首の点は canDrag で Alt 中は掴めないので、ここに来るのは Alt なしのとき
+            _isEyeMode = isHead && IsEyeModifierHeld();
             _isYawMode = !_isEyeMode && IsCtrlHeld();
 
-            _baseNeckAngles = neckBone.localEulerAngles;
+            _baseBoneAngles = rotateBone.localEulerAngles;
             _baseEyeAnglesL = maid.body0.quaDefEyeL.eulerAngles;
             _baseEyeAnglesR = maid.body0.quaDefEyeR.eulerAngles;
 
             MaidMotionState.StopMotion(maid);
 
-            // 目線モードは quaDefEye のみで、ボーンは首だけ記録すればよい
+            // 目線モードは quaDefEye のみで、ボーンは回すボーンだけ記録すればよい
             HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
-                _isEyeMode ? "目線操作" : "顔向き操作",
-                _isEyeMode ? null : new[] { neckBone });
+                _isEyeMode ? "目線操作" : (isHead ? "顔向き操作" : "首操作"),
+                _isEyeMode ? null : new[] { rotateBone });
 
             // 追従が効いたままだと LateUpdate で上書きされるため切る。戻すのは「メイド目線」の選び直し
             maid.body0.boHeadToCam = false;
             maid.body0.boEyeToCam = false;
+            if (isHead && !_isEyeMode)
+            {
+                // TBody.MoveHeadAndEye は割合 HeadToCamPer で頭の localRotation を Slerp で上書きする。
+                // フラグを倒すだけではフェードし終えるまで回した頭が引き戻されるため、割合も 0 にする
+                // (頭ギズモの StopHeadToCamWhileGrabbingHead と同じ)。首はこの Slerp の対象外
+                maid.body0.HeadToCamPer = 0f;
+            }
 
             _isDragging = true;
 
@@ -97,7 +114,7 @@ namespace COM3D2.SceneEditor.Plugin
             // アニメブレンドの解除も要らない
             if (!_isEyeMode)
             {
-                MaidDragBoneTracker.BeginDrag(maid, neckBone.name);
+                MaidDragBoneTracker.BeginDrag(maid, rotateBone.name);
             }
             return true;
         }
@@ -133,11 +150,11 @@ namespace COM3D2.SceneEditor.Plugin
             CancelDrag();
             MaidDragBoneTracker.NotifyDragCompleted(maid);
 
-            // クリック（微小移動）なら首を Inspector の選択対象にする。
-            // 目線操作は首を回していないので選択を変えない
+            // クリック（微小移動）なら回すボーンを Inspector の選択対象にする。
+            // 目線操作はボーンを回していないので選択を変えない
             if (!wasEyeMode && (pointerPos - downPos).magnitude <= ClickThresholdPixels)
             {
-                SelectNeckInInspector();
+                SelectBoneInInspector();
             }
         }
 
@@ -153,10 +170,10 @@ namespace COM3D2.SceneEditor.Plugin
             MaidDragBoneTracker.EndDrag();
         }
 
-        /// <summary>顔向きの実体は首の回転なので、Inspector には「首」のスライダーを出す</summary>
-        private void SelectNeckInInspector()
+        /// <summary>回したボーン（頭 / 首）のスライダーを Inspector に出す</summary>
+        private void SelectBoneInInspector()
         {
-            var def = MaidBoneSliderController.FindDef(neckBone.name);
+            var def = MaidBoneSliderController.FindDef(rotateBone.name);
             if (def == null)
             {
                 return;
@@ -198,7 +215,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 首ボーンを掴んだカメラ基準の水平軸・前後軸で回す（MouseDrag3 ido==1 と同型）。
+        /// rotateBone を掴んだカメラ基準の水平軸・前後軸で回す（MouseDrag3 ido==1 と同型）。
         /// Ctrl モードでは横ドラッグの軸を前後軸から鉛直軸に替え、通常ドラッグでは出せない左右の振り向きにする
         /// </summary>
         private void ApplyHeadRotation(Vector3 delta)
@@ -212,11 +229,11 @@ namespace COM3D2.SceneEditor.Plugin
             var right = cameraTransform.TransformDirection(Vector3.right);
             var forward = cameraTransform.TransformDirection(Vector3.forward);
 
-            neckBone.localEulerAngles = _baseNeckAngles;
-            neckBone.RotateAround(neckBone.position,
+            rotateBone.localEulerAngles = _baseBoneAngles;
+            rotateBone.RotateAround(rotateBone.position,
                 new Vector3(right.x, 0f, right.z), delta.y / HeadPitchDivisor);
             var yawAxis = _isYawMode ? Vector3.up : new Vector3(forward.x, 0f, forward.z);
-            neckBone.RotateAround(neckBone.position, yawAxis, -delta.x / HeadYawDivisor);
+            rotateBone.RotateAround(rotateBone.position, yawAxis, -delta.x / HeadYawDivisor);
         }
 
         /// <summary>左右の瞳を逆向きに振って寄り目にならないようにする（MouseDrag3 ido==7 と同型）</summary>
@@ -242,15 +259,15 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 頭のボーンギズモ（Alt グループ）と取り合いにならないよう、Alt 中は顔向きを回さない。
-        /// 目線は Alt+Ctrl 固定なのでこちらは Alt 中でも受け付ける
+        /// 頭のボーンギズモ（Alt グループ）と取り合いにならないよう、Alt 中はボーンを回さない。
+        /// 目線は Alt+Ctrl 固定で頭の点だけなので、頭の点はそのときだけ Alt 中でも受け付ける
         /// </summary>
         public bool canDrag
         {
-            get { return IsEyeModifierHeld() || !IsAltHeld(); }
+            get { return (isHead && IsEyeModifierHeld()) || !IsAltHeld(); }
         }
 
-        /// <summary>頭部は IK 固定の対象外</summary>
+        /// <summary>頭・首は IK 固定の対象外</summary>
         public bool isHeld
         {
             get { return false; }
@@ -272,8 +289,24 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void LateUpdate()
         {
-            // ドラッグ中も追従させる（首が回ると頭の位置も動くため）
-            if (headBone == null || headNubBone == null)
+            // ドラッグ中も追従させる（首・頭が回ると点の位置も動くため）
+            if (headBone == null)
+            {
+                return;
+            }
+
+            if (!isHead)
+            {
+                if (rotateBone == null)
+                {
+                    return;
+                }
+                transform.position = Vector3.Lerp(
+                    rotateBone.position, headBone.position, NeckPointHeadWeight);
+                return;
+            }
+
+            if (headNubBone == null)
             {
                 return;
             }

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ドラッグ点（IK 終端・頭部・上体・骨盤・胸）の生成・破棄。
+    /// ドラッグ点（IK 終端・頭部・首・上体・骨盤・胸）の生成・破棄。
     /// GizmoRender を使うギズモ系と違い、透明なコライダ + Unity のマウスメッセージで操作する
     /// </summary>
     public class MaidDragPointController
@@ -69,6 +69,7 @@ namespace COM3D2.SceneEditor.Plugin
         private const float IKDragPointScale = 0.04f;
 
         private const float FaceDragPointScale = 0.04f;
+        private const float NeckDragPointScale = 0.04f;
 
         private const float SpineDragPointScale = 0.04f;
         private const float PelvisDragPointScale = 0.04f;
@@ -181,6 +182,9 @@ namespace COM3D2.SceneEditor.Plugin
             _dragPoints.Add(go);
         }
 
+        /// <summary>
+        /// 頭と首のドラッグ点。同じ MaidFaceDragPoint で、頭の点は頭ボーン、首の点は首ボーンを回す
+        /// </summary>
         private void CreateFaceDragPoint(Maid maid)
         {
             var bones = maid.body0.m_Bones.transform;
@@ -194,15 +198,23 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var go = CreateDragPointObject("MIE_FaceDragPoint", FaceDragPointScale);
+            var headGo = CreateDragPointObject("MIE_FaceDragPoint", FaceDragPointScale);
+            var headPoint = headGo.AddComponent<MaidFaceDragPoint>();
+            headPoint.maid = maid;
+            headPoint.rotateBone = head;
+            headPoint.headBone = head;
+            headPoint.headNubBone = headNub;
+            headPoint.isHead = true;
+            _dragPoints.Add(headGo);
 
-            var point = go.AddComponent<MaidFaceDragPoint>();
-            point.maid = maid;
-            point.neckBone = neck;
-            point.headBone = head;
-            point.headNubBone = headNub;
-
-            _dragPoints.Add(go);
+            var neckGo = CreateDragPointObject("MIE_NeckDragPoint", NeckDragPointScale);
+            var neckPoint = neckGo.AddComponent<MaidFaceDragPoint>();
+            neckPoint.maid = maid;
+            neckPoint.rotateBone = neck;
+            neckPoint.headBone = head;
+            neckPoint.headNubBone = headNub;
+            neckPoint.isHead = false;
+            _dragPoints.Add(neckGo);
         }
 
         /// <summary>
