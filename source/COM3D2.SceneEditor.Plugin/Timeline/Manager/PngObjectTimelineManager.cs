@@ -234,6 +234,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return used;
         }
 
+        /// <summary>
+        /// 複製した実体を、元のキーを写した名前で対応表へ載せる。
+        /// 番号を予約してキーを写してから RebuildIfChanged を回すので、初期フレームの自動登録は
+        /// 写した 0F のキーを上書きしない。履歴は「PNGの複製」1 件。
+        /// 元の実体が対応表に無い (タイムライン未読込など) ときは何もせず null を返す
+        /// </summary>
+        public string RegisterDuplicate(SE.PngObjectData source, SE.PngObjectData created)
+        {
+            TimelinePngObjectEntry sourceEntry;
+            if (timeline == null || source == null || created == null
+                || !_dataMap.TryGetValue(source, out sourceEntry)
+                || _dataMap.ContainsKey(created))
+            {
+                return null;
+            }
+
+            var group = AssignGroup(GetUsedGroups(sourceEntry.imageName), -1);
+            _requestedGroups[created] = group;
+            var newName = sourceEntry.imageName + PluginUtils.GetGroupSuffix(group);
+
+            timeline.OnCopyPngObject(sourceEntry.name, newName);
+            RebuildIfChanged();
+
+            // 対応表へ載せたときの「初期フレーム登録」より後に呼び、履歴の文言をこちらにする
+            timelineManager.RequestHistory("PNGの複製: " + newName);
+            return newName;
+        }
+
         private bool IsChanged(List<SE.PngObjectData> seObjects)
         {
             if (seObjects.Count != pngObjects.Count)

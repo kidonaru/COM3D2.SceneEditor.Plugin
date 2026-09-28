@@ -65,6 +65,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         void OnMaidChanged(Maid maid);
         void OnCopyModel(StudioModelStat sourceModel, StudioModelStat newModel);
         void OnCopyLight(StudioLightStat sourceLight, StudioLightStat newLight);
+        void OnCopyPngObject(string sourceName, string newName);
         void OnShapeKeyAdded(string shapeKey);
         void OnShapeKeyRemoved(string shapeKey);
         void UpdateFrame(FrameData frame, bool initialEdit = false, bool force = false);

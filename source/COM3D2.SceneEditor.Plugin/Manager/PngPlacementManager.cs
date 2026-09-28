@@ -300,6 +300,30 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 配置物を 1 枚複製して一覧の末尾へ置く。写す項目はシーンプリセットと同じ
+        /// (PngPlacementSnapshot の 1 枚分の記録・適用を使うので、項目を足しても複製だけ漏れない)。
+        /// 末尾に置くのは、タイムライン未読込の Undo (並び順で照合する) で後ろの実体を作り直させないため。
+        /// 画像が読めなければ null
+        /// </summary>
+        public PngObjectData DuplicatePng(PngObjectData source)
+        {
+            if (source == null || source.rootObject == null)
+            {
+                return null;
+            }
+
+            var state = PngPlacementSnapshot.CaptureObject(source);
+            var data = AddPng(state.source, state.relativePath);
+            if (data == null)
+            {
+                return null;
+            }
+
+            PngPlacementSnapshot.ApplyObject(this, data, state);
+            return data;
+        }
+
+        /// <summary>
         /// 透過画像かどうか。全ピクセル走査は大きな画像だと重いため、
         /// 同じ画像の再配置では走査結果を使い回す
         /// </summary>

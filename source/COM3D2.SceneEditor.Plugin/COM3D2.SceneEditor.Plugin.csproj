@@ -272,6 +272,7 @@
     <Compile Include="Manager\SkirtHookDriftPatch.cs" />
     <Compile Include="Manager\PngBlendModes.cs" />
     <Compile Include="Manager\PngDecalProjection.cs" />
+    <Compile Include="Manager\PngDuplicator.cs" />
     <Compile Include="Manager\PngPlacementManager.cs" />
     <Compile Include="Manager\StudioLightManager.cs" />
     <Compile Include="Manager\ToastManager.cs" />

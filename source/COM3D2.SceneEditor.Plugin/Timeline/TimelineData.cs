@@ -696,6 +696,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        public void OnCopyPngObject(string sourceName, string newName)
+        {
+            foreach (var layer in layers)
+            {
+                layer.OnCopyPngObject(sourceName, newName);
+            }
+        }
+
         public bool HasMaidShapeKey(int maidSlotNo, string shapeKey)
         {
             var shapeKeys = GetMaidShapeKeys(maidSlotNo);

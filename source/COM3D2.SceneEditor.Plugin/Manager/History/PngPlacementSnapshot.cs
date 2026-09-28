@@ -26,26 +26,49 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                state.objects.Add(new ScenePresetPngObject
-                {
-                    source = data.source,
-                    relativePath = data.relativePath,
-                    position = data.transform.position,
-                    rotation = data.transform.eulerAngles,
-                    scale = data.transform.localScale,
-                    billboard = data.billboard,
-                    brightness = data.brightness,
-                    saturation = data.saturation,
-                    color = data.color,
-                    renderQueue = data.renderQueue,
-                    visible = data.visible,
-                    displayType = data.displayType,
-                    blendMode = data.blendMode,
-                    decalFadeAngle = data.decalFadeAngle,
-                    decalProjectOnMaids = data.decalProjectOnMaids,
-                });
+                state.objects.Add(CaptureObject(data));
             }
             return state;
+        }
+
+        /// <summary>配置物 1 枚分の記録。複製 (PngPlacementManager.DuplicatePng) も同じ項目を写す</summary>
+        public static ScenePresetPngObject CaptureObject(PngObjectData data)
+        {
+            return new ScenePresetPngObject
+            {
+                source = data.source,
+                relativePath = data.relativePath,
+                position = data.transform.position,
+                rotation = data.transform.eulerAngles,
+                scale = data.transform.localScale,
+                billboard = data.billboard,
+                brightness = data.brightness,
+                saturation = data.saturation,
+                color = data.color,
+                renderQueue = data.renderQueue,
+                visible = data.visible,
+                displayType = data.displayType,
+                blendMode = data.blendMode,
+                decalFadeAngle = data.decalFadeAngle,
+                decalProjectOnMaids = data.decalProjectOnMaids,
+            };
+        }
+
+        /// <summary>配置物 1 枚へ記録を適用する。画像 (source / relativePath) は呼び出し側で合わせておくこと</summary>
+        public static void ApplyObject(PngPlacementManager manager, PngObjectData data, ScenePresetPngObject objState)
+        {
+            data.transform.position = objState.position;
+            data.transform.eulerAngles = objState.rotation;
+            data.transform.localScale = objState.scale;
+            manager.SetBillboard(data, objState.billboard);
+            manager.SetColor(data, objState.color, objState.brightness);
+            manager.SetSaturation(data, objState.saturation);
+            manager.SetRenderQueue(data, objState.renderQueue);
+            manager.SetVisible(data, objState.visible);
+            manager.SetDisplayType(data, objState.displayType);
+            manager.SetBlendMode(data, objState.blendMode);
+            manager.SetDecalFadeAngle(data, objState.decalFadeAngle);
+            manager.SetDecalProjectOnMaids(data, objState.decalProjectOnMaids);
         }
 
         /// <summary>
@@ -104,18 +127,7 @@ namespace COM3D2.SceneEditor.Plugin
                     manager.MovePng(data, index);
                 }
 
-                data.transform.position = objState.position;
-                data.transform.eulerAngles = objState.rotation;
-                data.transform.localScale = objState.scale;
-                manager.SetBillboard(data, objState.billboard);
-                manager.SetColor(data, objState.color, objState.brightness);
-                manager.SetSaturation(data, objState.saturation);
-                manager.SetRenderQueue(data, objState.renderQueue);
-                manager.SetVisible(data, objState.visible);
-                manager.SetDisplayType(data, objState.displayType);
-                manager.SetBlendMode(data, objState.blendMode);
-                manager.SetDecalFadeAngle(data, objState.decalFadeAngle);
-                manager.SetDecalProjectOnMaids(data, objState.decalProjectOnMaids);
+                ApplyObject(manager, data, objState);
                 index++;
             }
 

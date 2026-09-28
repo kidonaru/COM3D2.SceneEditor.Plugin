@@ -21,6 +21,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         private const float COMBO_WIDTH = 100f;
         private const float FADE_ANGLE_STEP = 1f;
+        private const float DUPLICATE_BUTTON_WIDTH = 45f;
 
         // PngDisplayType / PngBlendMode の値順に並べる
         private static readonly List<PngDisplayType> DisplayTypes =
@@ -84,6 +85,11 @@ namespace COM3D2.SceneEditor.Plugin
                         RecordPngEdit("ビルボード切替");
                         pngManager.SetBillboard(data, value);
                     });
+                }
+
+                if (view.DrawButton("複製", DUPLICATE_BUTTON_WIDTH, ROW_HEIGHT))
+                {
+                    PngDuplicator.Duplicate(data);
                 }
             }
             view.EndLayout();

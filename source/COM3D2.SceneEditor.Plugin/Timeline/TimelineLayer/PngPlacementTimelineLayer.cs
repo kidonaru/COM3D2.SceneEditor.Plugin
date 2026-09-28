@@ -189,6 +189,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ApplyCurrentFrame(true);
         }
 
+        /// <summary>
+        /// 複製元のキーを全フレーム分、新しい名前へ写す。
+        /// 対応表へ載せる (onObjectAdded → 0F の自動登録) より前に呼ばれるので、0F も元のキーの値になる
+        /// </summary>
+        public override void OnCopyPngObject(string sourceName, string newName)
+        {
+            foreach (var keyFrame in keyFrames)
+            {
+                var sourceBone = keyFrame.GetBone(sourceName);
+                if (sourceBone == null)
+                {
+                    continue;
+                }
+
+                var newBone = keyFrame.GetOrCreateBone(sourceBone.transform.type, newName);
+                newBone.transform.FromTransformData(sourceBone.transform);
+            }
+        }
+
         public override void UpdateFrame(FrameData frame, bool initialEdit, bool force)
         {
             foreach (var pngObject in pngTimelineManager.pngObjects)

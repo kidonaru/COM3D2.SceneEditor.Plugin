@@ -309,7 +309,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 配置済みタイル。クリックで選択し、パラメータの編集は Inspector で行う。
-        /// x ボタンで削除する
+        /// x ボタンで削除し、上の操作行で選択中を複製する
         /// </summary>
         private void DrawPlacedTiles()
         {
@@ -324,6 +324,8 @@ namespace COM3D2.SceneEditor.Plugin
                     textColor: Color.gray);
                 return;
             }
+
+            DrawPlacedActionRow();
 
             _view.DrawTileView(_placedRoot, -1, -1, TILE_WIDTH, TILE_HEIGHT,
                 content =>
@@ -343,6 +345,26 @@ namespace COM3D2.SceneEditor.Plugin
                         RemovePng(placed.data);
                     }
                 });
+        }
+
+        /// <summary>
+        /// 選択中の配置物への操作行。タイルの角に置ける操作は削除 (x) だけで、
+        /// タイルの描画は共有サブモジュール (MTEUtils の GUIView) にあるため、複製はここに置く
+        /// </summary>
+        private void DrawPlacedActionRow()
+        {
+            var selected = pngManager.FindByRoot(SelectionManager.instance.selectedObject);
+
+            _view.BeginHorizontal();
+            {
+                if (_view.DrawButton("複製", FOLDER_BUTTON_WIDTH, ROW_HEIGHT, selected != null))
+                {
+                    PngDuplicator.Duplicate(selected);
+                }
+                _view.DrawLabel(selected != null ? selected.name : "複製する PNG を選択してください",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+            }
+            _view.EndLayout();
         }
 
         /// <summary>
