@@ -131,5 +131,27 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(-180f, r.x, 3);
             Assert.Equal(10f, r.y, 3);
         }
+
+        [Fact]
+        public void 倍率が変わったときだけ通知する()
+        {
+            var count = 0;
+            System.Action handler = () => count++;
+            GUIScale.scaleChanged += handler;
+            try
+            {
+                GUIScale.scale = 1f;
+                Assert.Equal(0, count);
+                GUIScale.scale = 1.5f;
+                Assert.Equal(1, count);
+                GUIScale.scale = 1.5f;
+                Assert.Equal(1, count);
+            }
+            finally
+            {
+                GUIScale.scaleChanged -= handler;
+                GUIScale.scale = 1f;
+            }
+        }
     }
 }
