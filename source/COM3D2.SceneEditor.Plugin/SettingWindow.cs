@@ -23,10 +23,17 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int TAB_WIDTH = 70;
         // 横並びトグルの左側の幅。ラベルが見切れない程度に固定する
         private static readonly int TOGGLE_WIDTH = 130;
+        private static readonly int UI_SCALE_BUTTON_WIDTH = 50;
+
+        /// <summary>UI 倍率の選択肢。スライダーだとドラッグ中に設定ウィンドウ自身が拡大縮小してつまみが逃げるためボタンにする</summary>
+        private static readonly float[] UIScalePresets = { 0.8f, 0.9f, 1f, 1.1f, 1.25f, 1.5f, 1.75f, 2f };
+        private static readonly string[] UIScaleLabels = Array.ConvertAll(
+            UIScalePresets, value => Mathf.RoundToInt(value * 100f) + "%");
 
         /// <summary>ウィンドウ内の内部タブ</summary>
         private enum SettingTabType
         {
+            表示,
             撮影,
             ビュー,
             グリッド,
@@ -103,6 +110,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             switch (_tabType)
             {
+                case SettingTabType.表示:
+                    DrawDisplaySection();
+                    break;
                 case SettingTabType.撮影:
                     DrawScreenshotSection();
                     break;
@@ -127,6 +137,33 @@ namespace COM3D2.SceneEditor.Plugin
 
             // ボタン押下で _view に登録されたコンボのフォーカスをポップアップへ引き渡す
             ComboBoxPopupWindow.instance.ProcessFocus(_view, this);
+        }
+
+        /// <summary>UI 倍率。全ウィンドウの文字・行の高さ・幅をまとめて変える</summary>
+        private void DrawDisplaySection()
+        {
+            _view.DrawLabel("UI 倍率", -1, ROW_HEIGHT);
+
+            // 倍率を上げると横幅が足りなくなるため折り返す
+            _view.BeginHorizontal(true);
+            {
+                for (var i = 0; i < UIScalePresets.Length; i++)
+                {
+                    var isSelected = Mathf.Approximately(config.uiScale, UIScalePresets[i]);
+                    if (_view.DrawButton(
+                        UIScaleLabels[i], UI_SCALE_BUTTON_WIDTH, ROW_HEIGHT,
+                        true, null,
+                        isSelected ? GUIView.gsSelectedButton : null) && !isSelected)
+                    {
+                        config.uiScale = UIScalePresets[i];
+                        config.dirty = true;
+                    }
+                }
+            }
+            _view.EndLayout();
+
+            _view.DrawLabel("ウィンドウの大きさは変わらず、中に入る量が変わる", -1, ROW_HEIGHT,
+                textColor: Color.gray);
         }
 
         /// <summary>スクリーンショットの解像度倍率・表示比率と撮影ボタン</summary>
