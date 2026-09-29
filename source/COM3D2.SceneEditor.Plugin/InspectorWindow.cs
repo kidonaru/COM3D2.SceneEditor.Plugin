@@ -670,6 +670,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// TryDrawModel が go を共通のモデル表示で描くか (InspectorHost.DrawsModel の実体)。
+        /// 描く条件は StudioModelManager / BGModelManager の一覧に載っていることで、
+        /// 一覧はタイムライン読込中しか更新されない
+        /// </summary>
+        internal bool DrawsModel(GameObject go)
+        {
+            return _modelInspector.CanDrawSelected(go)
+                || _bgModelInspector.CanDrawSelected(go);
+        }
+
+        /// <summary>
         /// アクティブトグル + オブジェクト名 + 右端のフォーカスボタンの 1 行。
         /// メイド本体は SetActive で消すと Maid.Update が止まりメイド一覧からも外れるため、
         /// 表示/非表示を退避方式 (MaidManipulateManager.SetVisibleByUser) で切り替える

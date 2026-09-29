@@ -79,6 +79,12 @@ namespace COM3D2.SceneEditor.Plugin
             PruneAllCaches();
         }
 
+        /// <summary>選択中のオブジェクトを TryDrawSelected が描くか (モデル本体か)</summary>
+        public bool CanDrawSelected(GameObject selected)
+        {
+            return FindModelByObject(selected) != null;
+        }
+
         /// <summary>
         /// 選択中のオブジェクトがモデル本体なら、タイムラインのメニュー項目選択と
         /// 同じ表示を描いて true を返す。子オブジェクト (メッシュ・ボーン) は
