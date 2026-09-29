@@ -6,7 +6,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メインカメラの構図 (注視点・ヨー/ピッチ/ロール・距離・FOV) の行描画。
+    /// メインカメラの構図 (注視点・横回転 (ヨー)/縦回転 (ピッチ)/ロール・距離・FOV) の行描画。
     /// CameraWindow と TimelineItemInspector (カメラレイヤーの項目表示) で共有する。
     /// 編集は UltimateOrbitCamera を包む CameraMain の API 経由で行う。
     /// 履歴 (HistoryScope.Camera) を記録するのは RecordCameraEdit を呼ぶ行だけで、
@@ -74,23 +74,23 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (follow != null && follow.isFollow && follow.state.followRotation)
             {
-                DrawAxisSlider(view, "ヨー", AngleUtils.NormalizeAngle(follow.state.yawOffset),
+                DrawAxisSlider(view, "横回転", AngleUtils.NormalizeAngle(follow.state.yawOffset),
                     -180f, 180f, 0.1f, 0f, labelWidth, rowHeight,
                     value => follow.state.yawOffset = value);
             }
             else
             {
-                DrawAxisSlider(view, "ヨー", yaw, -180f, 180f, 0.1f,
+                DrawAxisSlider(view, "横回転", yaw, -180f, 180f, 0.1f,
                     AngleUtils.NormalizeAngle(DefaultAroundAngle.x), labelWidth, rowHeight, value =>
                     {
-                        RecordCameraEdit("ヨー");
+                        RecordCameraEdit("横回転");
                         mainCamera.SetAroundAngle(new Vector2(value, pitch));
                     });
             }
-            DrawAxisSlider(view, "ピッチ", pitch, -90f, 90f, 0.1f,
+            DrawAxisSlider(view, "縦回転", pitch, -90f, 90f, 0.1f,
                 DefaultAroundAngle.y, labelWidth, rowHeight, value =>
                 {
-                    RecordCameraEdit("ピッチ");
+                    RecordCameraEdit("縦回転");
                     mainCamera.SetAroundAngle(new Vector2(yaw, value));
                 });
             DrawAxisSlider(view, "ロール", roll, -180f, 180f, 0.1f, 0f,
