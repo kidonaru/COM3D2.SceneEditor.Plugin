@@ -78,12 +78,8 @@ namespace COM3D2.SceneEditor.Plugin
             set => _windowRect = value;
         }
 
-        // RT表示領域 (スクリーンGUI座標、左上原点)
-        public Rect viewRect => new Rect(
-            _windowRect.x + FRAME,
-            _windowRect.y + HEADER_HEIGHT,
-            _windowRect.width - FRAME * 2,
-            _windowRect.height - HEADER_HEIGHT - FRAME);
+        // RT表示領域 (スクリーンGUI座標の実矩形、左上原点)。ヘッダーと枠は UI 倍率ぶん厚くなる
+        public Rect viewRect => EditorWindowGeometry.GetContentRect(_windowRect, HEADER_HEIGHT, FRAME, GUIScale.scale);
 
         /// <summary>
         /// 実際にRTを描画する矩形 (スクリーンGUI座標)。
@@ -115,9 +111,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        // 表示領域のピクセルサイズ (config への保存用)
-        public int viewPixelWidth => (int)viewRect.width;
-        public int viewPixelHeight => (int)viewRect.height;
+        // config・レイアウトへ保存する表示領域サイズ。倍率によらず同じ実サイズへ復元するため倍率を掛けない
+        public int placementViewWidth =>
+            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT, FRAME).x;
+        public int placementViewHeight =>
+            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT, FRAME).y;
 
         private readonly WindowResizeController _resize = new WindowResizeController();
 
@@ -151,8 +149,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private void RestorePlacement()
         {
-            var width = Mathf.Max(config.gameViewWidth + FRAME * 2, MIN_WIDTH);
-            var height = Mathf.Max(config.gameViewHeight + HEADER_HEIGHT + FRAME, MIN_HEIGHT);
+            var size = EditorWindowGeometry.GetWindowSize(
+                new Vector2(config.gameViewWidth, config.gameViewHeight), HEADER_HEIGHT, FRAME);
+            var width = Mathf.Max((int)size.x, MIN_WIDTH);
+            var height = Mathf.Max((int)size.y, MIN_HEIGHT);
             var x = config.gameViewPosX >= 0 ? config.gameViewPosX : (Screen.width - width) / 2;
             var y = config.gameViewPosY >= 0 ? config.gameViewPosY : (Screen.height - height) / 2;
             _windowRect = new Rect(x, y, width, height);
@@ -185,7 +185,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _windowRect = GUI.Window(WINDOW_ID, _windowRect, DrawWindow, "GameView", GUIView.gsWin);
+            // 窓ごと UI 倍率で拡大する。RT は drawRect (実矩形) に合わせて描くので拡大でぼやけない
+            var result = GUIScale.Window(
+                WINDOW_ID, GUIScale.ToWindowRect(_windowRect), DrawWindow, "GameView", GUIView.gsWin);
+            _windowRect.position = result.position;
 
             // 画面外へ出ないようクランプ。
             // 連結中はメンバー間のオフセットを壊さないよう個別クランプせず、
@@ -231,8 +234,10 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 最大化ボタン (ヘッダー右端)。RT 描画をやめて画面へ直接描画するサブモードへ
             // 切り替える。プラグインの終了はメニューバーの「Editor終了」から行う
+            // 窓内は論理座標なので、右端のボタン位置とドラッグ範囲は論理幅で求める
+            var localWidth = _windowRect.width / GUIScale.scale;
             var maximizeRect = new Rect(
-                _windowRect.width - MAXIMIZE_BUTTON_WIDTH - HEADER_BUTTON_MARGIN * 2,
+                localWidth - MAXIMIZE_BUTTON_WIDTH - HEADER_BUTTON_MARGIN * 2,
                 (HEADER_HEIGHT - HEADER_BUTTON_HEIGHT) * 0.5f,
                 MAXIMIZE_BUTTON_WIDTH,
                 HEADER_BUTTON_HEIGHT);
@@ -270,8 +275,9 @@ namespace COM3D2.SceneEditor.Plugin
             // モード終了ボタンは先に描いているので、重なる右上角より優先して押せる。
             // 右ドラッグ (カメラ回転) でリサイズが始まらないよう左ボタンに限定する
             var e = Event.current;
+            // つかみ範囲は実ピクセルで判定する (UI 倍率で太らせない)。窓内のマウス座標は論理座標なので戻す
             if (e.type == EventType.MouseDown && e.button == 0 &&
-                _resize.TryBegin(_windowRect, e.mousePosition))
+                _resize.TryBegin(_windowRect, e.mousePosition * GUIScale.scale))
             {
                 e.Use();
             }
@@ -288,7 +294,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (!_resize.isResizing &&
                 !WindowConnectManager.instance.IsSnapDragging(this))
             {
-                GUI.DragWindow(new Rect(0, 0, _windowRect.width, HEADER_HEIGHT));
+                GUI.DragWindow(new Rect(0, 0, localWidth, HEADER_HEIGHT));
             }
         }
 
@@ -305,7 +311,7 @@ namespace COM3D2.SceneEditor.Plugin
         // スクリーンGUI座標の矩形を GUI.Window 内のローカル座標へ変換する
         private Rect ToLocalRect(Rect rect)
         {
-            return new Rect(rect.x - _windowRect.x, rect.y - _windowRect.y, rect.width, rect.height);
+            return GUIScale.ScreenToLocal(_windowRect.position, rect);
         }
 
         public bool isResizing => _resize.isResizing;
@@ -420,8 +426,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             config.gameViewPosX = (int)_windowRect.x;
             config.gameViewPosY = (int)_windowRect.y;
-            config.gameViewWidth = viewPixelWidth;
-            config.gameViewHeight = viewPixelHeight;
+            config.gameViewWidth = placementViewWidth;
+            config.gameViewHeight = placementViewHeight;
             config.SetWindowScreenSize(WINDOW_ID, Screen.width, Screen.height);
             config.dirty = true;
         }
@@ -434,8 +440,9 @@ namespace COM3D2.SceneEditor.Plugin
             int x, int y, int viewWidth, int viewHeight,
             int baseScreenWidth, int baseScreenHeight)
         {
-            var width = Mathf.Max(viewWidth + FRAME * 2, MIN_WIDTH);
-            var height = Mathf.Max(viewHeight + HEADER_HEIGHT + FRAME, MIN_HEIGHT);
+            var size = EditorWindowGeometry.GetWindowSize(new Vector2(viewWidth, viewHeight), HEADER_HEIGHT, FRAME);
+            var width = Mathf.Max((int)size.x, MIN_WIDTH);
+            var height = Mathf.Max((int)size.y, MIN_HEIGHT);
             _windowRect = WindowPlacementScaler.Scale(
                 new Rect(x, y, width, height),
                 baseScreenWidth, baseScreenHeight, Screen.width, Screen.height,
@@ -479,9 +486,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return false;
             }
-            var local = GetToolbarLocalRect();
-            return new Rect(_windowRect.x + local.x, _windowRect.y + local.y, local.width, local.height)
-                .Contains(guiPos);
+            return GUIScale.LocalToScreen(_windowRect.position, GetToolbarLocalRect()).Contains(guiPos);
         }
 
         /// <summary>撮影・表示比率・背景 / モデル / PNG 表示のトグル列。シーン描画に重ねる</summary>
