@@ -119,6 +119,8 @@ namespace COM3D2.SceneEditor.Plugin
         public Rect headerRect => new Rect(
             _windowRect.x, _windowRect.y, _windowRect.width, HEADER_HEIGHT * GUIScale.scale);
 
+        public float guiScale => GUIScale.scale;
+
         /// <summary>タブ表示名 (windowTitle は protected のためグループ描画用に公開する)</summary>
         public string windowTitleForTab => windowTitle;
 
@@ -483,7 +485,8 @@ namespace COM3D2.SceneEditor.Plugin
             TabBarDrawer.Draw(
                 windowId, _tabTitles, _tabActiveIndex, geo,
                 ref scrollX,
-                (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos),
+                // つまみ位置は切り離し後の追従 (スクリーン座標) に使うため実ピクセルへ戻す
+                (index, pos) => TabGroupManager.instance.OnTabPressed(this, index, pos * GUIScale.scale),
                 index => TabGroupManager.instance.ActivateTabIndex(this, index));
 
             // 描画中のコールバック (タブ切替) がグループ側を書き換えていたらそちらが新しい。

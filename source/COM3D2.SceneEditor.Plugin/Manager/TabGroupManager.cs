@@ -241,13 +241,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // タブ幅は描画側と同じレイアウト計算 (TabBarLayout に集約) で求める。
-            // スクロール位置は幅の算出に関与しないため 0 を渡す
-            var available = TabBarLayout.CalcAvailableWidth(group.activeWindow.headerRect.width);
-            var layout = TabBarLayout.Calc(group.windows.Count, available, 0f);
-            // TabBarLayout.Calc は tabWidth >= MIN_TAB_WIDTH を保証するので step は必ず正
-            // (0 だと下の while が無限ループになる)
-            var step = layout.tabWidth + TabBarDrawer.TAB_MARGIN;
+            var active = group.activeWindow;
+            var step = TabReorderMath.GetStep(active.headerRect.width, group.windows.Count, active.guiScale);
 
             var dx = guiPos.x - _tabReorderBaseX;
             while (Mathf.Abs(dx) >= step)

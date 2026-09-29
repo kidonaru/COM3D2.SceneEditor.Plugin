@@ -15,6 +15,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             public TabGroup group { get; set; }
             public Rect windowRect { get; set; }
             public Rect headerRect => windowRect;
+            public float guiScale => 1f;
             public bool isShowWnd => true;
             public bool isTabVisible => group == null || group.activeWindow == this;
             public string[] lastTitles;
