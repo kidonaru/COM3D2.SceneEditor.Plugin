@@ -32,6 +32,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 配置の矩形_端数は整数ピクセルへ丸める()
+        {
+            // 画面サイズ変更のスケーリングで端数が出ても、内容領域の幅がドラッグで ±1px 揺れないよう整数にそろえる
+            var r = EditorWindowGeometry.RoundRect(new Rect(100.6f, 50.4f, 500.6f, 300.5f));
+            Assert.Equal(new Rect(101f, 50f, 501f, 300f), r);
+        }
+
+        [Fact]
         public void 配置用サイズと窓サイズの往復は倍率によらず一致する()
         {
             // 保存 (GetPlacementContentSize) → 復元 (GetWindowSize) で元の窓の実サイズへ戻る。

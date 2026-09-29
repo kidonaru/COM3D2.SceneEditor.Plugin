@@ -71,6 +71,7 @@ namespace COM3D2.SceneEditor.Plugin
         public TabGroup group => null;
         public int tabWindowId => WINDOW_ID;
 
+        // 画面上の実矩形 (サイズも実ピクセル)。GUI.Window へは ToWindowRect で窓矩形へ直して渡す
         private Rect _windowRect;
         public Rect windowRect
         {
@@ -112,10 +113,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         // config・レイアウトへ保存する表示領域サイズ。倍率によらず同じ実サイズへ復元するため倍率を掛けない
-        public int placementViewWidth =>
-            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT, FRAME).x;
-        public int placementViewHeight =>
-            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT, FRAME).y;
+        public Vector2 placementViewSize =>
+            EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT, FRAME);
 
         private readonly WindowResizeController _resize = new WindowResizeController();
 
@@ -161,8 +160,9 @@ namespace COM3D2.SceneEditor.Plugin
             if (config.gameViewPosX >= 0 &&
                 config.TryGetWindowScreenSize(WINDOW_ID, out baseW, out baseH))
             {
-                _windowRect = WindowPlacementScaler.Scale(
-                    _windowRect, baseW, baseH, Screen.width, Screen.height, MIN_WIDTH, MIN_HEIGHT);
+                // 端数を残すと表示領域の幅がドラッグで ±1px 揺れるため整数へそろえる
+                _windowRect = EditorWindowGeometry.RoundRect(WindowPlacementScaler.Scale(
+                    _windowRect, baseW, baseH, Screen.width, Screen.height, MIN_WIDTH, MIN_HEIGHT));
             }
         }
 
@@ -275,7 +275,7 @@ namespace COM3D2.SceneEditor.Plugin
             // モード終了ボタンは先に描いているので、重なる右上角より優先して押せる。
             // 右ドラッグ (カメラ回転) でリサイズが始まらないよう左ボタンに限定する
             var e = Event.current;
-            // つかみ範囲は実ピクセルで判定する (UI 倍率で太らせない)。窓内のマウス座標は論理座標なので戻す
+            // 窓内のマウス座標は論理座標なので実ピクセルへ戻す (理由は EditorSubWindow.HandleDragInput と同じ)
             if (e.type == EventType.MouseDown && e.button == 0 &&
                 _resize.TryBegin(_windowRect, e.mousePosition * GUIScale.scale))
             {
@@ -426,8 +426,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             config.gameViewPosX = (int)_windowRect.x;
             config.gameViewPosY = (int)_windowRect.y;
-            config.gameViewWidth = placementViewWidth;
-            config.gameViewHeight = placementViewHeight;
+            var size = placementViewSize;
+            config.gameViewWidth = (int)size.x;
+            config.gameViewHeight = (int)size.y;
             config.SetWindowScreenSize(WINDOW_ID, Screen.width, Screen.height);
             config.dirty = true;
         }
@@ -443,10 +444,10 @@ namespace COM3D2.SceneEditor.Plugin
             var size = EditorWindowGeometry.GetWindowSize(new Vector2(viewWidth, viewHeight), HEADER_HEIGHT, FRAME);
             var width = Mathf.Max((int)size.x, MIN_WIDTH);
             var height = Mathf.Max((int)size.y, MIN_HEIGHT);
-            _windowRect = WindowPlacementScaler.Scale(
+            _windowRect = EditorWindowGeometry.RoundRect(WindowPlacementScaler.Scale(
                 new Rect(x, y, width, height),
                 baseScreenWidth, baseScreenHeight, Screen.width, Screen.height,
-                MIN_WIDTH, MIN_HEIGHT);
+                MIN_WIDTH, MIN_HEIGHT));
 
             _resize.Cancel();
             SavePlacement();

@@ -169,6 +169,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        // 画面上の実矩形 (サイズも実ピクセル)。GUI.Window へは ToWindowRect で窓矩形へ直して渡す
         private Rect _windowRect;
         public Rect windowRect
         {
@@ -193,10 +194,8 @@ namespace COM3D2.SceneEditor.Plugin
         public int contentPixelHeight => (int)contentRect.height;
 
         // config・レイアウトへ保存する内容サイズ。倍率によらず同じ実サイズへ復元するため倍率を掛けない
-        public int placementContentWidth =>
-            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT + contentTopMargin, FRAME).x;
-        public int placementContentHeight =>
-            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT + contentTopMargin, FRAME).y;
+        public Vector2 placementContentSize =>
+            EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT + contentTopMargin, FRAME);
 
         /// <summary>窓内の描画に使う論理サイズの窓全体 (左上原点)。拡大行列の下で実矩形いっぱいになる</summary>
         protected Rect localWindowRect => new Rect(
@@ -249,8 +248,9 @@ namespace COM3D2.SceneEditor.Plugin
             int baseW, baseH;
             if (x >= 0 && config.TryGetWindowScreenSize(windowId, out baseW, out baseH))
             {
-                _windowRect = WindowPlacementScaler.Scale(
-                    _windowRect, baseW, baseH, Screen.width, Screen.height, minWidth, minHeight);
+                // 端数を残すと内容領域の幅がドラッグで ±1px 揺れて RT とずれるため整数へそろえる
+                _windowRect = EditorWindowGeometry.RoundRect(WindowPlacementScaler.Scale(
+                    _windowRect, baseW, baseH, Screen.width, Screen.height, minWidth, minHeight));
             }
         }
 
@@ -558,7 +558,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         public void SavePlacement()
         {
-            StorePlacement((int)_windowRect.x, (int)_windowRect.y, placementContentWidth, placementContentHeight);
+            var size = placementContentSize;
+            StorePlacement((int)_windowRect.x, (int)_windowRect.y, (int)size.x, (int)size.y);
             config.SetWindowScreenSize(windowId, Screen.width, Screen.height);
             savedVisible = _isShowWnd;
             config.dirty = true;
@@ -576,10 +577,10 @@ namespace COM3D2.SceneEditor.Plugin
                 new Vector2(contentWidth, contentHeight), HEADER_HEIGHT + contentTopMargin, FRAME);
             var width = Mathf.Max((int)size.x, minWidth);
             var height = Mathf.Max((int)size.y, minHeight);
-            _windowRect = WindowPlacementScaler.Scale(
+            _windowRect = EditorWindowGeometry.RoundRect(WindowPlacementScaler.Scale(
                 new Rect(x, y, width, height),
                 baseScreenWidth, baseScreenHeight, Screen.width, Screen.height,
-                minWidth, minHeight);
+                minWidth, minHeight));
 
             // リサイズドラッグの追跡が残っていると次フレームで上書きされるため中断する
             _resize.Cancel();

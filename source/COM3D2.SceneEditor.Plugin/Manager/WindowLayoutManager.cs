@@ -190,8 +190,8 @@ namespace COM3D2.SceneEditor.Plugin
                     windowId = GameViewWindow.WINDOW_ID,
                     x = (int)gameView.windowRect.x,
                     y = (int)gameView.windowRect.y,
-                    width = gameView.placementViewWidth,
-                    height = gameView.placementViewHeight,
+                    width = (int)gameView.placementViewSize.x,
+                    height = (int)gameView.placementViewSize.y,
                 },
                 menuBarPosX = (int)menuBar.windowRect.x,
                 menuBarPosY = (int)menuBar.windowRect.y,
@@ -204,8 +204,8 @@ namespace COM3D2.SceneEditor.Plugin
                     windowId = subWindow.tabWindowId,
                     x = (int)subWindow.windowRect.x,
                     y = (int)subWindow.windowRect.y,
-                    width = subWindow.placementContentWidth,
-                    height = subWindow.placementContentHeight,
+                    width = (int)subWindow.placementContentSize.x,
+                    height = (int)subWindow.placementContentSize.y,
                     visible = subWindow.isShowWnd,
                 });
             }

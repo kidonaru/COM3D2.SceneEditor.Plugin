@@ -116,6 +116,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 画面中央_実サイズで中央へ置きサイズは論理のまま()
+        {
+            // 論理 400x200 を 1.5 倍 → 実 600x300。1920x1080 の中央は (660, 390)
+            var r = GUIScale.CenterOnScreen(400f, 200f, 1.5f, 1920f, 1080f);
+            Assert.Equal(new Rect(660f, 390f, 400f, 200f), r);
+        }
+
+        [Fact]
         public void 画面内へ収める_画面より大きい窓は従来どおり右下を優先する()
         {
             // MTEUtils.AdjustWindowPosition と同じく負の座標を先に直し、そのあと右下へ寄せる

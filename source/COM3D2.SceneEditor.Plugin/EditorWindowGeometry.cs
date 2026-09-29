@@ -4,7 +4,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// EditorSubWindow / GameView の矩形計算 (UI 倍率の影響を受ける部分) を純関数にまとめる。
-    /// headerHeight はツールバー用の上余白 (contentTopMargin) を含めた値を渡す
+    /// EditorSubWindow の headerHeight はツールバー用の上余白 (contentTopMargin) を含めた値を渡す
     /// </summary>
     public static class EditorWindowGeometry
     {
@@ -28,6 +28,15 @@ namespace COM3D2.SceneEditor.Plugin
         public static Vector2 GetPlacementContentSize(Rect windowRect, float headerHeight, float frame)
         {
             return new Vector2(windowRect.width - frame * 2f, windowRect.height - headerHeight - frame);
+        }
+
+        /// <summary>
+        /// 配置の矩形を整数ピクセルへそろえる。画面サイズ変更のスケーリングで端数が残ると、
+        /// 内容領域の縁を別々に丸めるため、ドラッグで位置が整数へ丸まったときに幅が ±1px 変わり RT とずれる
+        /// </summary>
+        public static Rect RoundRect(Rect rect)
+        {
+            return new Rect(Mathf.Round(rect.x), Mathf.Round(rect.y), Mathf.Round(rect.width), Mathf.Round(rect.height));
         }
 
         /// <summary>配置保存値から窓の実サイズを求める (GetPlacementContentSize の逆)。最小サイズは呼び出し側で掛ける</summary>
