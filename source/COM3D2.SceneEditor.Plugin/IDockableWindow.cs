@@ -23,6 +23,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>スクリーンGUI座標のヘッダー矩形。ドロップ判定に使う</summary>
         Rect headerRect { get; }
 
+        /// <summary>
+        /// ヘッダー・タブ列を描く UI 倍率。SceneEditor の窓は GUIScale.scale、
+        /// 外部プラグインの窓は倍率の対象外なので 1
+        /// </summary>
+        float guiScale { get; }
+
         /// <summary>タブの可視状態の変化を検知して通知を発火する (差分がなければ何もしない)</summary>
         void NotifyTabVisibleChanged();
 

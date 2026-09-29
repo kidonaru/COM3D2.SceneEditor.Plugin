@@ -143,6 +143,7 @@
     <Compile Include="MTEUtils\HistoryClient.cs" />
     <Compile Include="MTEUtils\GUIComboBox.cs" />
     <Compile Include="MTEUtils\GUITreeView.cs" />
+    <Compile Include="MTEUtils\GUIScale.cs" />
     <Compile Include="MTEUtils\GUIView.cs" />
     <Compile Include="MTEUtils\GearMenu.cs" />
     <Compile Include="MTEUtils\GizmoTargetRowDrawer.cs" />
@@ -289,6 +290,7 @@
     <Compile Include="AutoKeyFrameGate.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="EditorSubWindow.cs" />
+    <Compile Include="EditorWindowGeometry.cs" />
     <Compile Include="EditorStateHost.cs" />
     <Compile Include="AutoEditModeHost.cs" />
     <Compile Include="MaidSelectHost.cs" />
@@ -425,6 +427,8 @@
     <Compile Include="TimelineWindow.cs" />
     <Compile Include="ToolbarIcons.cs" />
     <Compile Include="TabGroup.cs" />
+    <Compile Include="TabReorderMath.cs" />
+    <Compile Include="UIScaleSetting.cs" />
     <Compile Include="WindowPlacementScaler.cs" />
     <Compile Include="ManagerBase.cs" />
     <Compile Include="SceneViewCameraController.cs" />

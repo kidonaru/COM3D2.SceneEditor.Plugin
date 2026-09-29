@@ -216,17 +216,9 @@ namespace COM3D2.SceneEditor.Plugin
         public bool IsSceneViewActiveAt(Vector2 guiPos)
         {
             // ツールバーはシーンに重なっているため、その上ではシーンへの入力を無効にする
-            var toolbarRect = new Rect(
-                windowRect.x + _toolbarLocalRect.x,
-                windowRect.y + _toolbarLocalRect.y,
-                _toolbarLocalRect.width,
-                _toolbarLocalRect.height);
-
-            var toolbarRightRect = new Rect(
-                windowRect.x + _toolbarRightLocalRect.x,
-                windowRect.y + _toolbarRightLocalRect.y,
-                _toolbarRightLocalRect.width,
-                _toolbarRightLocalRect.height);
+            // ツールバーは窓内の論理座標なので UI 倍率を掛けてスクリーン座標へ戻す
+            var toolbarRect = GUIScale.LocalToScreen(windowRect.position, _toolbarLocalRect);
+            var toolbarRightRect = GUIScale.LocalToScreen(windowRect.position, _toolbarRightLocalRect);
 
             var rect = drawRect;
             return isWndVisible &&
@@ -285,7 +277,7 @@ namespace COM3D2.SceneEditor.Plugin
             ViewToolbarDrawer.DrawBackground(_toolbarLocalRect);
 
             var view = _toolbarView;
-            view.Init(0, HEADER_HEIGHT, windowRect.width, ViewToolbarDrawer.TOOLBAR_HEIGHT);
+            view.Init(0, HEADER_HEIGHT, localWindowRect.width, ViewToolbarDrawer.TOOLBAR_HEIGHT);
             view.BeginHorizontal();
 
             DrawToolbarToggle(view, bgIcon, "背景", config.sceneViewShowBg,
@@ -318,7 +310,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 帯の幅: ボタン 3 個 + 項目間マージン 2 箇所
             var totalWidth = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 2 + VIEW_PRESET_BUTTON_WIDTH * 3;
             _toolbarRightLocalRect = new Rect(
-                windowRect.width - totalWidth, HEADER_HEIGHT, totalWidth, ViewToolbarDrawer.TOOLBAR_HEIGHT);
+                localWindowRect.width - totalWidth, HEADER_HEIGHT, totalWidth, ViewToolbarDrawer.TOOLBAR_HEIGHT);
 
             ViewToolbarDrawer.DrawBackground(_toolbarRightLocalRect);
 

@@ -129,14 +129,10 @@ namespace COM3D2.SceneEditor.Plugin
             var windowHeight = PADDING
                 + (ROW_HEIGHT + GUIView.defaultMargin) * rowCount
                 + BUTTON_SPACING + GUIView.defaultMargin + BUTTON_HEIGHT + PADDING;
-            _windowRect = new Rect(
-                (Screen.width - WINDOW_WIDTH) / 2,
-                (Screen.height - windowHeight) / 2,
-                WINDOW_WIDTH,
-                windowHeight);
+            _windowRect = GUIScale.CenterOnScreen(WINDOW_WIDTH, windowHeight);
 
             // ModalWindow で背後のウィンドウ操作をブロックする
-            GUI.ModalWindow(WINDOW_ID, _windowRect, DrawWindow, "", GUIView.gsWin);
+            GUIScale.ModalWindow(WINDOW_ID, _windowRect, DrawWindow, "", GUIView.gsWin);
             GUI.BringWindowToFront(WINDOW_ID);
         }
 

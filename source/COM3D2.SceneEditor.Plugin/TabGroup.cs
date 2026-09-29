@@ -157,7 +157,7 @@ namespace COM3D2.SceneEditor.Plugin
                     // (収まっているならスクロール位置は動かさない)
                     tabScrollX = TabBarLayout.ScrollToShow(
                         windows.Count,
-                        TabBarLayout.CalcAvailableWidth(_activeWindow.windowRect.width),
+                        TabBarLayout.CalcAvailableWidth(_activeWindow.windowRect.width / _activeWindow.guiScale),
                         tabScrollX, activeIndex);
                 }
             }

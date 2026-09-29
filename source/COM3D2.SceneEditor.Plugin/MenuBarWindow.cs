@@ -397,22 +397,21 @@ namespace COM3D2.SceneEditor.Plugin
             // 表示条件付きトグルが増えても追従できるよう、バー幅は毎フレーム計算する
             _windowRect.width = CalcBarWidth();
 
-            _windowRect = GUI.Window(WINDOW_ID, _windowRect, DrawBar, "", GUIView.gsWin);
+            _windowRect = GUIScale.Window(WINDOW_ID, _windowRect, DrawBar, "", GUIView.gsWin);
 
-            // 画面外へ出ないようクランプ
-            _windowRect.x = Mathf.Clamp(_windowRect.x, 0, Screen.width - _windowRect.width);
-            _windowRect.y = Mathf.Clamp(_windowRect.y, 0, Screen.height - BAR_HEIGHT);
+            // 画面外へ出ないようクランプ (判定は UI 倍率を掛けた実サイズ)
+            _windowRect = GUIScale.ClampToScreen(_windowRect);
 
             if (_openMenuIndex >= 0)
             {
                 var popupRect = GetPopupRect(_openMenuIndex);
-                GUI.Window(POPUP_WINDOW_ID, popupRect, DrawPopup, "", GUIView.gsPopupWin);
+                GUIScale.Window(POPUP_WINDOW_ID, popupRect, DrawPopup, "", GUIView.gsPopupWin);
                 // GameView 以外のウィンドウにも隠されないよう最前面へ
                 GUI.BringWindowToFront(POPUP_WINDOW_ID);
 
                 if (_openSubItemIndex >= 0)
                 {
-                    GUI.Window(SUB_POPUP_WINDOW_ID, GetSubPopupRect(), DrawSubPopup, "", GUIView.gsPopupWin);
+                    GUIScale.Window(SUB_POPUP_WINDOW_ID, GetSubPopupRect(), DrawSubPopup, "", GUIView.gsPopupWin);
                     GUI.BringWindowToFront(SUB_POPUP_WINDOW_ID);
                 }
             }
@@ -504,18 +503,21 @@ namespace COM3D2.SceneEditor.Plugin
             _subPopupView.scrollPosition = Vector2.zero;
         }
 
+        /// <summary>ポップアップの窓矩形 (位置はスクリーン座標、サイズは論理サイズ)</summary>
         private Rect GetPopupRect(int menuIndex)
         {
-            var x = _windowRect.x + FRAME + GRIP_WIDTH + MENU_BUTTON_MARGIN
-                + (MENU_BUTTON_WIDTH + MENU_BUTTON_MARGIN) * menuIndex;
-            var y = _windowRect.y + BAR_HEIGHT;
+            // バー内の位置は論理座標なので UI 倍率を掛けてスクリーン座標へ直す
+            var s = GUIScale.scale;
+            var x = _windowRect.x + (FRAME + GRIP_WIDTH + MENU_BUTTON_MARGIN
+                + (MENU_BUTTON_WIDTH + MENU_BUTTON_MARGIN) * menuIndex) * s;
+            var y = _windowRect.y + BAR_HEIGHT * s;
 
             // 項目数が画面高を超えた分はスクロールで辿れるため、ここでは画面内に収める
-            var height = Mathf.Min(GetPopupHeight(_menus[menuIndex].items), Screen.height);
+            var height = Mathf.Min(GetPopupHeight(_menus[menuIndex].items), Screen.height / s);
 
             // バーが画面端にあってもポップアップが画面外へ出ないようクランプ
-            x = Mathf.Clamp(x, 0, Screen.width - POPUP_WIDTH);
-            y = Mathf.Clamp(y, 0, Screen.height - height);
+            x = Mathf.Clamp(x, 0, Screen.width - POPUP_WIDTH * s);
+            y = Mathf.Clamp(y, 0, Screen.height - height * s);
 
             return new Rect(x, y, POPUP_WIDTH, height);
         }
@@ -608,19 +610,20 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>サブポップアップの矩形。親項目の右横に出し、入り切らなければ左側へ出す</summary>
         private Rect GetSubPopupRect()
         {
+            var s = GUIScale.scale;
             var popupRect = GetPopupRect(_openMenuIndex);
-            var height = Mathf.Min(GetPopupHeight(_subItems), Screen.height);
+            var height = Mathf.Min(GetPopupHeight(_subItems), Screen.height / s);
 
-            var x = popupRect.x + POPUP_WIDTH;
-            var y = popupRect.y + FRAME
-                + ITEM_HEIGHT * _openSubItemIndex - _popupView.scrollPosition.y;
+            var x = popupRect.x + POPUP_WIDTH * s;
+            var y = popupRect.y + (FRAME
+                + ITEM_HEIGHT * _openSubItemIndex - _popupView.scrollPosition.y) * s;
 
-            if (x + POPUP_WIDTH > Screen.width)
+            if (x + POPUP_WIDTH * s > Screen.width)
             {
-                x = popupRect.x - POPUP_WIDTH;
+                x = popupRect.x - POPUP_WIDTH * s;
             }
-            x = Mathf.Clamp(x, 0, Screen.width - POPUP_WIDTH);
-            y = Mathf.Clamp(y, 0, Screen.height - height);
+            x = Mathf.Clamp(x, 0, Screen.width - POPUP_WIDTH * s);
+            y = Mathf.Clamp(y, 0, Screen.height - height * s);
 
             return new Rect(x, y, POPUP_WIDTH, height);
         }
@@ -631,8 +634,9 @@ namespace COM3D2.SceneEditor.Plugin
             if (_openMenuIndex >= 0 && Input.GetMouseButtonDown(0))
             {
                 var pos = InputRemapper.rawGuiPosition;
-                if (!_windowRect.Contains(pos) && !GetPopupRect(_openMenuIndex).Contains(pos)
-                    && (_openSubItemIndex < 0 || !GetSubPopupRect().Contains(pos)))
+                if (!GUIScale.ToScreenRect(_windowRect).Contains(pos)
+                    && !GUIScale.ToScreenRect(GetPopupRect(_openMenuIndex)).Contains(pos)
+                    && (_openSubItemIndex < 0 || !GUIScale.ToScreenRect(GetSubPopupRect()).Contains(pos)))
                 {
                     CloseMenu();
                 }

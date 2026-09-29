@@ -555,6 +555,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        public float guiScale => 1f;
+
         public Rect headerRect
         {
             get

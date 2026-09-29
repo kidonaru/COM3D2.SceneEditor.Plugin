@@ -100,14 +100,10 @@ namespace COM3D2.SceneEditor.Plugin
             var windowWidth = Mathf.Max(MIN_WINDOW_WIDTH,
                 GUIView.CalcWidth(GUIView.gsLabel, PluginInfo.DocumentUrl) + PADDING * 2);
 
-            _windowRect = new Rect(
-                (Screen.width - windowWidth) / 2,
-                (Screen.height - windowHeight) / 2,
-                windowWidth,
-                windowHeight);
+            _windowRect = GUIScale.CenterOnScreen(windowWidth, windowHeight);
 
             // ModalWindow で背後のウィンドウ操作をブロックする
-            GUI.ModalWindow(WINDOW_ID, _windowRect, DrawWindow, "", GUIView.gsWin);
+            GUIScale.ModalWindow(WINDOW_ID, _windowRect, DrawWindow, "", GUIView.gsWin);
             GUI.BringWindowToFront(WINDOW_ID);
         }
 

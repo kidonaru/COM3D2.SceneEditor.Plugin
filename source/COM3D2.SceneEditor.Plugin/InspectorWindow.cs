@@ -128,7 +128,7 @@ namespace COM3D2.SceneEditor.Plugin
             // 描かれなくなった項目メニューのボタンを捨てる
             ItemClipboardMenu.instance.BeginFrame();
 
-            _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
+            _rootView.Init(localWindowRect);
             // 内容ビューを子にして、どちらに描いたコンボもフォーカス状態を共有させる
             _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
