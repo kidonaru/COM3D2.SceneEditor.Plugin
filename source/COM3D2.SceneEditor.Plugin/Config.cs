@@ -52,7 +52,8 @@ namespace COM3D2.SceneEditor.Plugin
         public float keyRepeatTimeFirst = 0.15f;
         public float keyRepeatTime = 1f / 30f;
         public bool useHSVColor = false;
-        // UI 倍率。全ウィンドウの文字・行の高さ・幅をまとめて拡大縮小する (範囲は GUIScale.ClampScale)
+        // UI 倍率 (1 = 100%)。全ウィンドウの文字・行の高さ・幅をまとめて拡大縮小する。
+        // 設定ウィンドウで選べる範囲は UIScaleSetting、手編集値の安全範囲は GUIScale.ClampScale
         public float uiScale = 1f;
 
         // SceneEditor の有効/無効へ外部プラグインを追従させるか

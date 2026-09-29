@@ -23,12 +23,16 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly int TAB_WIDTH = 70;
         // 横並びトグルの左側の幅。ラベルが見切れない程度に固定する
         private static readonly int TOGGLE_WIDTH = 130;
-        private static readonly int UI_SCALE_BUTTON_WIDTH = 50;
 
-        /// <summary>UI 倍率の選択肢。スライダーだとドラッグ中に設定ウィンドウ自身が拡大縮小してつまみが逃げるためボタンにする</summary>
-        private static readonly float[] UIScalePresets = { 0.8f, 0.9f, 1f, 1.1f, 1.25f, 1.5f, 1.75f, 2f };
-        private static readonly string[] UIScaleLabels = Array.ConvertAll(
-            UIScalePresets, value => Mathf.RoundToInt(value * 100f) + "%");
+        /// <summary>
+        /// 操作中の UI 倍率 (%、刻みへ丸める前の値。null は操作なし)。
+        /// その場で反映すると設定ウィンドウ自身が拡大縮小し、ドラッグ中のつまみがカーソルから逃げ、
+        /// 入力欄では打ちかけの値 (「1」→ 下限) が反映されてしまうため、操作が終わるまで値だけを動かす
+        /// </summary>
+        private float? _pendingUIScalePercent;
+
+        /// <summary>保留中の値がマウス操作 (スライダー・ラベルドラッグ・R) 由来か。false は入力欄のキー入力</summary>
+        private bool _pendingUIScaleByMouse;
 
         /// <summary>ウィンドウ内の内部タブ</summary>
         private enum SettingTabType
@@ -95,6 +99,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void DrawContent()
         {
+            // 内部タブを切り替えても保留が残らないよう、タブに関係なく毎回判定する
+            CommitPendingUIScaleIfDone();
+
             _view.Init(ToLocalRect(contentRect));
 
             // タブはスクロールビューの外に置き、どこまでスクロールしても切り替えられるようにする
@@ -142,28 +149,70 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>UI 倍率。全ウィンドウの文字・行の高さ・幅をまとめて変える</summary>
         private void DrawDisplaySection()
         {
-            _view.DrawLabel("UI 倍率", -1, ROW_HEIGHT);
-
-            // 倍率を上げると横幅が足りなくなるため折り返す
-            _view.BeginHorizontal(true);
+            // 値は % で見せる (設定ファイルの uiScale は倍率のまま)。保留中は丸める前の値を渡し、
+            // ラベルドラッグの 1 段ずつの増分が刻みへ丸め戻されて進まなくなるのを防ぐ
+            _view.DrawSliderValue(new GUIView.SliderOption
             {
-                for (var i = 0; i < UIScalePresets.Length; i++)
+                label = "UI 倍率 %",
+                labelWidth = LABEL_WIDTH,
+                width = -1,
+                fieldType = FloatFieldType.Int,
+                min = UIScaleSetting.Min * 100f,
+                max = UIScaleSetting.Max * 100f,
+                defaultValue = 100f,
+                value = _pendingUIScalePercent ?? Mathf.Round(config.uiScale * 100f),
+                onChanged = value =>
                 {
-                    var isSelected = Mathf.Approximately(config.uiScale, UIScalePresets[i]);
-                    if (_view.DrawButton(
-                        UIScaleLabels[i], UI_SCALE_BUTTON_WIDTH, ROW_HEIGHT,
-                        true, null,
-                        isSelected ? GUIView.gsSelectedButton : null) && !isSelected)
-                    {
-                        config.uiScale = UIScalePresets[i];
-                        config.dirty = true;
-                    }
-                }
-            }
-            _view.EndLayout();
+                    _pendingUIScalePercent = value;
+                    _pendingUIScaleByMouse = Event.current.isMouse;
+                },
+            });
 
             _view.DrawLabel("ウィンドウの大きさは変わらず、中に入る量が変わる", -1, ROW_HEIGHT,
                 textColor: Color.gray);
+        }
+
+        // 描かれない間は操作の終わりを判定できないため、保留中の値は反映せず捨てる
+        protected override void OnShowChanged(bool visible)
+        {
+            _pendingUIScalePercent = null;
+        }
+
+        protected override void OnTabVisibleChanged(bool visible)
+        {
+            _pendingUIScalePercent = null;
+        }
+
+        /// <summary>
+        /// 保留中の UI 倍率を、操作が終わっていれば刻みへ丸めて反映する。
+        /// マウス操作はボタンを離したとき、入力欄は Enter かフォーカスが外れたときに終わったとみなす
+        /// </summary>
+        private void CommitPendingUIScaleIfDone()
+        {
+            if (!_pendingUIScalePercent.HasValue || Input.GetMouseButton(0))
+            {
+                return;
+            }
+
+            var e = Event.current;
+            var isEnter = e.type == EventType.KeyDown &&
+                (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter);
+            if (!_pendingUIScaleByMouse && GUIUtility.keyboardControl != 0 && !isEnter)
+            {
+                return;
+            }
+            if (isEnter)
+            {
+                GUIUtility.keyboardControl = 0;
+            }
+
+            var scale = UIScaleSetting.Snap(_pendingUIScalePercent.Value / 100f);
+            _pendingUIScalePercent = null;
+            if (scale != config.uiScale)
+            {
+                config.uiScale = scale;
+                config.dirty = true;
+            }
         }
 
         /// <summary>スクリーンショットの解像度倍率・表示比率と撮影ボタン</summary>
