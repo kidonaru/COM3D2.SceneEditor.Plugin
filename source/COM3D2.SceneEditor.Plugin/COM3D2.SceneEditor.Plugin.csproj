@@ -146,6 +146,7 @@
     <Compile Include="MTEUtils\GUIScale.cs" />
     <Compile Include="MTEUtils\GUIView.cs" />
     <Compile Include="MTEUtils\UIScaleSliderRow.cs" />
+    <Compile Include="MTEUtils\UIScaleClient.cs" />
     <Compile Include="MTEUtils\GearMenu.cs" />
     <Compile Include="MTEUtils\GizmoTargetRowDrawer.cs" />
     <Compile Include="MTEUtils\GizmoToolRowDrawer.cs" />
@@ -293,6 +294,7 @@
     <Compile Include="EditorSubWindow.cs" />
     <Compile Include="EditorWindowGeometry.cs" />
     <Compile Include="EditorStateHost.cs" />
+    <Compile Include="UIScaleHost.cs" />
     <Compile Include="AutoEditModeHost.cs" />
     <Compile Include="MaidSelectHost.cs" />
     <Compile Include="DockingHost.cs" />
