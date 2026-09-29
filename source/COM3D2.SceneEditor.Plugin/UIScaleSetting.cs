@@ -1,4 +1,4 @@
-using UnityEngine;
+using COM3D2.MotionTimelineEditor;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -12,13 +12,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>倍率を刻みへ丸めて範囲へ収める</summary>
         public static float Snap(float value)
         {
-            return Mathf.Clamp(Mathf.Round(value / Step) * Step, Min, Max);
-        }
-
-        /// <summary>% 表記の値を刻みへ丸めて範囲へ収める (スライダー・入力欄の表示用)</summary>
-        public static float SnapPercent(float percent)
-        {
-            return Mathf.Round(Snap(percent / 100f) * 100f);
+            return SliderSnap.Snap(value, Step, Min, Max);
         }
     }
 }

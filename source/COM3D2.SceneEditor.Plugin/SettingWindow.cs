@@ -149,29 +149,24 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>UI 倍率。全ウィンドウの文字・行の高さ・幅をまとめて変える</summary>
         private void DrawDisplaySection()
         {
-            // 値は % で見せる (設定ファイルの uiScale は倍率のまま)。表示は操作中も刻みへ丸め、保留には届いた値をそのまま持つ。
-            // ラベルは DrawSliderValue に渡さず自前で描く。ラベルドラッグは表示値からの相対増分 (1 ずつ) で届くため、
-            // 表示を刻みへ丸めると増分が丸め戻されて進まない。スライダー・入力欄・R はどれも絶対値なのでこれで揃う
-            var raw = _pendingUIScalePercent ?? Mathf.Round(config.uiScale * 100f);
-            _view.BeginHorizontal();
+            // 値は % で見せる (設定ファイルの uiScale は倍率のまま)
+            _view.DrawSliderValue(new GUIView.SliderOption
             {
-                _view.DrawLabel("UI 倍率 %", LABEL_WIDTH, ROW_HEIGHT);
-                _view.DrawSliderValue(new GUIView.SliderOption
+                label = "UI 倍率 %",
+                labelWidth = LABEL_WIDTH,
+                width = -1,
+                fieldType = FloatFieldType.Int,
+                min = UIScaleSetting.Min * 100f,
+                max = UIScaleSetting.Max * 100f,
+                snapStep = UIScaleSetting.Step * 100f,
+                defaultValue = 100f,
+                value = _pendingUIScalePercent ?? Mathf.Round(config.uiScale * 100f),
+                onChanged = value =>
                 {
-                    width = -1,
-                    fieldType = FloatFieldType.Int,
-                    min = UIScaleSetting.Min * 100f,
-                    max = UIScaleSetting.Max * 100f,
-                    defaultValue = 100f,
-                    value = UIScaleSetting.SnapPercent(raw),
-                    onChanged = value =>
-                    {
-                        _pendingUIScalePercent = value;
-                        _pendingUIScaleByMouse = Event.current.isMouse;
-                    },
-                });
-            }
-            _view.EndLayout();
+                    _pendingUIScalePercent = value;
+                    _pendingUIScaleByMouse = Event.current.isMouse;
+                },
+            });
 
             _view.DrawLabel("ウィンドウの大きさは変わらず、中に入る量が変わる", -1, ROW_HEIGHT,
                 textColor: Color.gray);
