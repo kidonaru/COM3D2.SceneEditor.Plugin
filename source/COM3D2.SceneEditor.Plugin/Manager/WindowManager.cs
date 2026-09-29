@@ -166,11 +166,6 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             GameViewWindow.instance.OnUIScaleChanged();
-
-            // 開いた時点のボタン位置と実サイズで配置しているため、倍率が変わると位置がずれ画面外へはみ出しうる。
-            // 開き直せば新しい倍率で置かれるので閉じる
-            ColorPickerWindow.instance.Close();
-            CurveEditorWindow.instance.Close();
         }
 
         /// <summary>

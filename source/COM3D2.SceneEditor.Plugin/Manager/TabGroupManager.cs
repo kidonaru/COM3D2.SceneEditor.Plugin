@@ -70,7 +70,7 @@ namespace COM3D2.SceneEditor.Plugin
             _headerDragStartPos = InputRemapper.rawGuiPosition;
         }
 
-        /// <summary>タブつまみドラッグの開始候補を記録する。grabOffset はウィンドウローカルの押下位置</summary>
+        /// <summary>タブつまみドラッグの開始候補を記録する。grabOffset はウィンドウ左上からの押下位置 (実ピクセル)</summary>
         public void OnTabMouseDown(IDockableWindow window, Vector2 grabOffset)
         {
             _tabDragWindow = window;
@@ -82,7 +82,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// タブ押下の集約処理。内部窓は直接、外部窓は DockingHost.NotifyTabMouseDown 経由で呼ぶ。
-        /// index はタブ並び順 (TabGroup.windows のリスト順)、grabOffset はウィンドウローカルの押下位置
+        /// index はタブ並び順 (TabGroup.windows のリスト順)、grabOffset はウィンドウ左上からの押下位置 (実ピクセル)
         /// </summary>
         public void OnTabPressed(IDockableWindow member, int tabIndex, Vector2 grabOffset)
         {

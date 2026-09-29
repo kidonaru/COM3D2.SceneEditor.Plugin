@@ -60,6 +60,8 @@ public class MyWindow : DockableWindowBase
   コネクトボタンの描画、連結中の個別クランプ抑止）。ホストが未対応バージョンなら自動で無効化される
 - タブバー協調一式（`EnableTabBar` の宣言、push された状態のヘッダー描画、
   タブ押下の `NotifyTabMouseDown` 通知、グループ加入中のタイトル非表示）
+- UI 倍率への対応（`windowRect` は実矩形のまま窓ごと拡大し、`EnableGuiScale` で倍率をホストへ渡す）。
+  派生側は `contentRect` / `localWindowRect`（論理サイズ）で描けばよい。詳細は下記「UI 倍率」
 
 寸法（`HEADER_HEIGHT = 26` 等）はホストの `EditorSubWindow` と揃えてあり、
 **変更してはならない**（内部窓とタブ列の見た目・位置を揃える前提）。
@@ -130,6 +132,12 @@ Rect SnapResize(object handle, Rect rect, int edges);
                                           // リサイズ中の矩形へ辺スナップを適用して返す。
                                           // edges はつかんでいる辺のビット
                                           // (Left=1, Right=2, Top=4, Bottom=8)
+
+// --- UI 倍率（後発。旧ホストには存在しない） ---
+void EnableGuiScale(object handle, Func<float> getScale);
+                                          // 自窓の UI 倍率の登録。Register 直後に呼ぶ。
+                                          // ホストはこの倍率でタブ幅・ヘッダー高さ・
+                                          // 並び替え判定を計算する (未登録なら倍率 1)
 ```
 
 ゲスト側の実装義務:
@@ -232,6 +240,33 @@ Rect SnapResize(object handle, Rect rect, int edges);
 3. 移動ドラッグと違い矩形はマウス位置から毎フレーム組み直されるため、
    吸着結果が次フレームの入力へ混入せず、ヒステリシス（解除距離）は不要
 
+## UI 倍率
+
+SceneEditor の UI 倍率（設定ウィンドウの `表示` タブ）にゲスト窓を合わせる仕組み。
+`EnableGuiScale` は SceneEditor `960df57` 以降、`UIScaleHost` は `372ac0b` 以降が必要
+（旧ホストでは見つからず、ゲストは倍率 1 または自前の設定で動く）。
+
+**倍率の出どころ**: ホスト型 `UIScaleHost` の static プロパティ `float uiScale` が、
+SceneEditor が有効（`pluginEnabled`）なら倍率（`GUIScale` の許容範囲内）、無効なら `0` を返す。
+MTEUtils の `UIScaleClient.Resolve(自前の倍率)` は、`uiScale` が 0 より大きければそれ、
+そうでなければ自前の倍率を返す（SceneEditor 不在・旧版も自前の倍率）。
+ゲストは毎フレームこの結果を自分の `GUIScale.scale` へ入れる
+（MTEUtils はプラグインごとに別々にコンパイルされるため、`GUIScale.scale` もプラグインごとの static）。
+設定画面の行は MTEUtils の `UIScaleSliderRow` を使うと SceneEditor と同じ操作になる。
+
+**`DockableWindowBase` を使うゲスト**は、`GUIScale.scale` を設定するだけで対応する。
+派生側は `windowRect.width` の代わりに `contentRect` / `localWindowRect`（論理サイズ）で描き、
+`OnSizeChanged` も論理サイズで受け取る。MTEUtils のポップアップ類（コンボ・カラー / カーブ / テクスチャピッカー・
+ダイアログ）の `windowRect` は画面上の実矩形を返す。
+
+**自前実装のゲスト**が守る契約:
+
+1. `getRect` / `setRect` でやり取りする矩形は**画面上の実矩形**のままにする。
+   窓の中は `GUIScale.Window`（窓の左上を中心とした拡大行列）で描き、窓内の座標は論理座標になる
+2. **`Register` 直後に `EnableGuiScale(handle, () => 自窓の倍率)`** を呼ぶ。
+   呼ばないとホストは倍率 1 として扱い、タブ幅・ヘッダー高さ・タブの並び替え判定が見た目とずれる
+3. `NotifyTabMouseDown` の `x` / `y` は**実ピクセル**（窓内の論理座標 × 倍率）で渡す
+
 ## 挙動の詳細・注意点
 
 - **`setRect` はホスト都合で呼ばれる**: タブグループ所属中は矩形がグループと常時同期される。
@@ -301,6 +336,7 @@ t.GetMethod("Unregister").Invoke(null, new object[] { handle });
 |---|---|---|---|
 | `HistoryAPI` | `HistoryClient` | 操作履歴（undo/redo）への参加 | [操作履歴連携](history-guest-guide.md) |
 | `EditorStateHost` | `EditorStateClient` | SceneEditor の有効/無効への追従 | [有効/無効の連動](editor-state-guest-guide.md) |
+| `UIScaleHost` | `UIScaleClient` | SceneEditor の UI 倍率への追従 | 本ページ「UI 倍率」 |
 | `MaidSelectHost` | `MaidSelectClient` | 選択中メイドの共有（読み取り・購読・外部からの選択変更） | [選択中メイドの共有](maid-select-guest-guide.md) |
 | `ModelSelectHost` | `ModelSelectClient` | 選択中モデル（外部提供モデル）の共有（読み取り・購読・外部からの選択変更） | [選択中モデルの共有](model-select-guest-guide.md) |
 | `GizmoHost` | `GizmoHostClient` | 外部ギズモを SceneView / GameView の入力・描画へ参加させる | [ギズモ連携](gizmo-guest-guide.md) |
