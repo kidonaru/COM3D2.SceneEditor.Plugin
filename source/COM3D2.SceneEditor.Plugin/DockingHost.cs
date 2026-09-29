@@ -176,7 +176,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ゲストが描いたタブの押下通知。アクティブ切替とつまみドラッグ候補の処理はホスト側で行う。
-        /// x/y はゲストウィンドウローカルの押下位置
+        /// x/y はゲストウィンドウ左上からの押下位置 (実ピクセル = 窓内の論理座標 × UI 倍率)
         /// </summary>
         public static void NotifyTabMouseDown(object handle, int tabIndex, float x, float y)
         {
