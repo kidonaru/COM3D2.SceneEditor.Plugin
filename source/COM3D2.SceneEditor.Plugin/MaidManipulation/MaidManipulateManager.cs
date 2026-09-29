@@ -386,7 +386,8 @@ namespace COM3D2.SceneEditor.Plugin
             // 非表示の間はギズモコンポーネントを付けたままにしない
             // (呼出済みの全メイドへ常時アタッチされ、描画・ログのコストが残るため)
             boneGizmoController.SetTarget(isBoneEditing ? movableMaid : null);
-            boneGizmoController.Update(isBoneEditing);
+            // 指の個別編集中は同じ修飾キーで指関節のギズモへ切り替える
+            boneGizmoController.Update(isBoneEditing, isFingerEditMode);
 
             // 白丸ドラッグ点は SceneView では編集モード外でも出す (isDragPointActive)。
             // GameView 側の描画・掴みは isGameViewDragPointVisible で絞る

@@ -7,6 +7,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// ボーン回転ギズモ。修飾キーで表示対象グループを切り替える（MultipleMaids 準拠）。
     /// Alt=手首/足首/頭/中心、Alt+Ctrl=肘/膝、Alt+Shift=肩/腿/鎖骨。
+    /// 指の個別編集中は同じ修飾キーで指関節へ切り替える（先端/中間/根本関節）。
     ///
     /// ギズモの実体はカメラごとの GizmoRenderer が持つ TransformGizmo で、
     /// ここは「どのボーンに出すか」を供給するだけ。
@@ -29,6 +30,24 @@ namespace COM3D2.SceneEditor.Plugin
             { BoneGroup.Mid, "肘/膝" },
             { BoneGroup.Root, "肩/腿/鎖骨" },
         };
+
+        /// <summary>指の個別編集中のグループ表示名。体のグループと修飾キーの割り当ては同じ</summary>
+        private static readonly Dictionary<BoneGroup, string> FingerGroupDisplayNames
+            = new Dictionary<BoneGroup, string>
+        {
+            { BoneGroup.Tip, "指の先端関節" },
+            { BoneGroup.Mid, "指の中間関節" },
+            { BoneGroup.Root, "指の根本関節" },
+        };
+
+        /// <summary>
+        /// 指ギズモの体のギズモに対する表示倍率。指は関節間が数 cm しかなく、
+        /// 体と同じ大きさでは隣の指のギズモと重なって掴み分けられない
+        /// </summary>
+        private const float FingerGizmoSizeRatio = 0.5f;
+
+        private const int HandDigitCount = 5;
+        private const int FootDigitCount = 3;
 
         private const string HeadBoneName = "Bip01 Head";
 
@@ -53,10 +72,17 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Dictionary<BoneGroup, List<Transform>> _bones
             = new Dictionary<BoneGroup, List<Transform>>();
 
+        /// <summary>指の個別編集中に使うグループごとの指関節。SetTarget で 1 回だけ解決する</summary>
+        private readonly Dictionary<BoneGroup, List<Transform>> _fingerBones
+            = new Dictionary<BoneGroup, List<Transform>>();
+
         private Transform _headBone = null;
 
         /// <summary>いま表示しているグループ。非表示なら null</summary>
         private BoneGroup? _visibleGroup = null;
+
+        /// <summary>表示中のグループが指関節か（指の個別編集中か）</summary>
+        private bool _isFingerMode = false;
 
         /// <summary>ギズモに渡す一覧。毎フレームの確保を避けるため使い回す</summary>
         private readonly List<Transform> _visibleBones = new List<Transform>();
@@ -69,6 +95,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             GizmoRenderer.boneGizmoTargetsProvider = GetVisibleBones;
             GizmoRenderer.onBoneGizmoDragBegin = OnDragBegin;
+            GizmoRenderer.boneGizmoSizeRatioProvider = GetSizeRatio;
         }
 
         public void SetTarget(Maid maid)
@@ -88,28 +115,80 @@ namespace COM3D2.SceneEditor.Plugin
 
             _maid = maid;
 
+            var bones = maid.body0.m_Bones.transform;
             foreach (var pair in BoneNames)
             {
-                var list = new List<Transform>();
-                foreach (var boneName in pair.Value)
-                {
-                    var bone = CMT.SearchObjName(maid.body0.m_Bones.transform, boneName, false);
-                    if (bone == null)
-                    {
-                        // ボーンが見つからない部位はスキップする
-                        MTEUtils.LogWarning("ボーンが見つかりません: {0}", boneName);
-                        continue;
-                    }
-
-                    list.Add(bone);
-
-                    if (boneName == HeadBoneName)
-                    {
-                        _headBone = bone;
-                    }
-                }
-                _bones[pair.Key] = list;
+                _bones[pair.Key] = FindBones(bones, pair.Value);
             }
+            foreach (BoneGroup group in System.Enum.GetValues(typeof(BoneGroup)))
+            {
+                _fingerBones[group] = FindBones(bones, GetFingerBoneNames(group));
+            }
+
+            _headBone = CMT.SearchObjName(bones, HeadBoneName, false);
+        }
+
+        /// <summary>ボーン名の一覧を解決する。見つからない部位はスキップする</summary>
+        private static List<Transform> FindBones(Transform bones, IList<string> boneNames)
+        {
+            var list = new List<Transform>();
+            foreach (var boneName in boneNames)
+            {
+                var bone = CMT.SearchObjName(bones, boneName, false);
+                if (bone == null)
+                {
+                    MTEUtils.LogWarning("ボーンが見つかりません: {0}", boneName);
+                    continue;
+                }
+                list.Add(bone);
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// 指の個別編集中にグループへ出す指関節のボーン名。
+        /// 手指は根本 "Finger0" → 中間 "Finger01" → 先端 "Finger02"、
+        /// 足指は根本 "Toe0" → 先端 "Toe01" の 2 関節なので中間グループには出さない
+        /// </summary>
+        public static List<string> GetFingerBoneNames(BoneGroup group)
+        {
+            string handSuffix;
+            string footSuffix;
+            switch (group)
+            {
+                case BoneGroup.Tip:
+                    handSuffix = "2";
+                    footSuffix = "1";
+                    break;
+                case BoneGroup.Mid:
+                    handSuffix = "1";
+                    // 足指は 2 関節のため中間グループには出さない
+                    footSuffix = null;
+                    break;
+                case BoneGroup.Root:
+                default:
+                    handSuffix = "";
+                    footSuffix = "";
+                    break;
+            }
+
+            var names = new List<string>();
+            foreach (var prefix in new[] { "Bip01 R ", "Bip01 L " })
+            {
+                for (var digit = 0; digit < HandDigitCount; digit++)
+                {
+                    names.Add(prefix + "Finger" + digit + handSuffix);
+                }
+                if (footSuffix == null)
+                {
+                    continue;
+                }
+                for (var digit = 0; digit < FootDigitCount; digit++)
+                {
+                    names.Add(prefix + "Toe" + digit + footSuffix);
+                }
+            }
+            return names;
         }
 
         /// <summary>
@@ -125,10 +204,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>毎フレーム呼ぶ。修飾キーの状態で表示グループを切り替える</summary>
-        public void Update(bool enabled)
+        /// <summary>
+        /// 毎フレーム呼ぶ。修飾キーの状態で表示グループを切り替える。
+        /// isFingerMode（指の個別編集中）なら体のボーンの代わりに指関節へ出す
+        /// </summary>
+        public void Update(bool enabled, bool isFingerMode)
         {
             _visibleGroup = enabled ? GetVisibleGroup() : null;
+            _isFingerMode = isFingerMode;
             StopHeadToCamWhileGrabbingHead();
         }
 
@@ -145,8 +228,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             _visibleBones.Clear();
 
+            var groups = _isFingerMode ? _fingerBones : _bones;
             List<Transform> bones;
-            if (!_visibleGroup.HasValue || !_bones.TryGetValue(_visibleGroup.Value, out bones))
+            if (!_visibleGroup.HasValue || !groups.TryGetValue(_visibleGroup.Value, out bones))
             {
                 return _visibleBones;
             }
@@ -172,9 +256,16 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            var displayNames = _isFingerMode ? FingerGroupDisplayNames : GroupDisplayNames;
             MaidMotionState.StopMotion(_maid);
             HistoryManager.instance.BeforeEdit(_maid, HistoryScope.Pose,
-                "ギズモ操作: " + GroupDisplayNames[_visibleGroup.Value], new[] { bone });
+                "ギズモ操作: " + displayNames[_visibleGroup.Value], new[] { bone });
+        }
+
+        /// <summary>表示中のボーンギズモの大きさ（体のギズモ比）。GizmoRenderer から毎フレーム呼ばれる</summary>
+        private float GetSizeRatio()
+        {
+            return _isFingerMode ? FingerGizmoSizeRatio : 1f;
         }
 
         /// <summary>
@@ -258,8 +349,10 @@ namespace COM3D2.SceneEditor.Plugin
         public void Destroy()
         {
             _bones.Clear();
+            _fingerBones.Clear();
             _visibleBones.Clear();
             _visibleGroup = null;
+            _isFingerMode = false;
             _headBone = null;
             _maid = null;
         }

@@ -234,6 +234,13 @@ namespace COM3D2.SceneEditor.Plugin
         public static Action<Transform> onBoneGizmoDragBegin;
 
         /// <summary>
+        /// ボーン回転ギズモの大きさを BoneGizmoSizeScale に対する比で返す外部フック。
+        /// 指関節のように関節が詰まった部位ではギズモを小さくして掴み分けられるようにする。
+        /// 未設定なら 1 (体のボーンと同じ大きさ)
+        /// </summary>
+        public static Func<float> boneGizmoSizeRatioProvider;
+
+        /// <summary>
         /// ボーン回転ギズモ。非選択メイド用と同じく List は縮めず、有効件数だけ持ち回す
         /// </summary>
         private readonly List<TransformGizmo> _boneGizmos = new List<TransformGizmo>();
@@ -442,6 +449,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            var sizeScale = BoneGizmoSizeScale
+                * (boneGizmoSizeRatioProvider != null ? boneGizmoSizeRatioProvider() : 1f);
+
             var selectedBone = _gizmo.target;
             for (var i = 0; i < targets.Count; i++)
             {
@@ -457,7 +467,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // (Alt を押した瞬間に移動ギズモが出てボーンが平行移動できてしまうため)
                 gizmo.tool = GizmoTool.Rotate;
                 gizmo.space = GizmoSpace.Local;
-                gizmo.sizeScale = BoneGizmoSizeScale;
+                gizmo.sizeScale = sizeScale;
 
                 _boneGizmoTargets[_boneGizmoCount] = bone;
                 _boneGizmoCount++;
