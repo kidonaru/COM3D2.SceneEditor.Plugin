@@ -204,8 +204,8 @@ namespace COM3D2.SceneEditor.Plugin
                     windowId = subWindow.tabWindowId,
                     x = (int)subWindow.windowRect.x,
                     y = (int)subWindow.windowRect.y,
-                    width = subWindow.contentPixelWidth,
-                    height = subWindow.contentPixelHeight,
+                    width = subWindow.placementContentWidth,
+                    height = subWindow.placementContentHeight,
                     visible = subWindow.isShowWnd,
                 });
             }

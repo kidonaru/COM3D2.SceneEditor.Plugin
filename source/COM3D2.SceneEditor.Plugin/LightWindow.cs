@@ -96,7 +96,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void DrawContent()
         {
-            _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
+            _rootView.Init(localWindowRect);
             _view.parent = _rootView;
             _view.Init(ToLocalRect(contentRect));
 

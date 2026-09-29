@@ -141,7 +141,31 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void OnAfterUpdate()
         {
+            SyncUIScale();
             UpdateCameraControl();
+        }
+
+        /// <summary>
+        /// config の UI 倍率を描画側へ反映する。変わった瞬間だけ各ウィンドウへ通知し、
+        /// 表示領域の実サイズに追従する描画バッファ (SceneView の RT 等) を作り直させる
+        /// </summary>
+        private void SyncUIScale()
+        {
+            var target = GUIScale.ClampScale(ConfigManager.instance.config.uiScale);
+            if (target == GUIScale.scale)
+            {
+                return;
+            }
+            GUIScale.scale = target;
+            foreach (var window in windows)
+            {
+                var subWindow = window as EditorSubWindow;
+                if (subWindow != null)
+                {
+                    subWindow.OnUIScaleChanged();
+                }
+            }
+            GameViewWindow.instance.OnUIScaleChanged();
         }
 
         /// <summary>

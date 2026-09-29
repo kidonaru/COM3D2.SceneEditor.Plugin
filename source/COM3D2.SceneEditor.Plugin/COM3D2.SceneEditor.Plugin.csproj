@@ -290,6 +290,7 @@
     <Compile Include="AutoKeyFrameGate.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="EditorSubWindow.cs" />
+    <Compile Include="EditorWindowGeometry.cs" />
     <Compile Include="EditorStateHost.cs" />
     <Compile Include="AutoEditModeHost.cs" />
     <Compile Include="MaidSelectHost.cs" />

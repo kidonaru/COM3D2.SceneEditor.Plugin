@@ -775,7 +775,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override void DrawContent()
         {
-            _rootView.Init(new Rect(0f, 0f, windowRect.width, windowRect.height));
+            _rootView.Init(localWindowRect);
             // 各ビューを子にして、どこに描いたコンボもフォーカス状態を共有させる
             contentView.parent = _rootView;
             timelineView.parent = _rootView;
@@ -920,7 +920,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (_menuWidthSplitter.isDragging)
             {
                 var width = _menuWidthSplitter.startValue
-                    + (MTEUtils.rawGuiPosition.x - _menuWidthSplitter.startMousePos);
+                    + (MTEUtils.rawGuiPosition.x - _menuWidthSplitter.startMousePos) / GUIScale.scale;
                 var newWidth = Mathf.Clamp((int)width, MIN_MENU_WIDTH, MAX_MENU_WIDTH);
                 if (tc.menuWidth != newWidth)
                 {
@@ -941,7 +941,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 // 上へ引くほどペインを高くする
                 var height = _curveHeightSplitter.startValue
-                    - (MTEUtils.rawGuiPosition.y - _curveHeightSplitter.startMousePos);
+                    - (MTEUtils.rawGuiPosition.y - _curveHeightSplitter.startMousePos) / GUIScale.scale;
                 curveEditor.SetPaneHeight(height);
                 _curveHeightSplitter.isDragging = Input.GetMouseButton(0);
             }
@@ -977,7 +977,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 var local = ToLocalRect(contentRect);
-                var localPos = new Vector2(guiPos.x - windowRect.x, guiPos.y - windowRect.y);
+                var localPos = ToLocalPoint(guiPos);
                 if (GetMenuSplitterRect(local).Contains(localPos)) return ResizeCursor.Kind.Horizontal;
                 if (GetCurveSplitterRect(local).Contains(localPos)) return ResizeCursor.Kind.Vertical;
                 return ResizeCursor.Kind.None;

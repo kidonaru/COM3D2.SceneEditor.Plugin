@@ -172,6 +172,12 @@ namespace COM3D2.SceneEditor.Plugin
             RestorePlacement();
         }
 
+        /// <summary>UI 倍率が変わったときに呼ばれる。ドラッグ中のリサイズは基準がずれるので中断する</summary>
+        public void OnUIScaleChanged()
+        {
+            _resize.Cancel();
+        }
+
         public void OnGUI()
         {
             if (!isShowWnd)

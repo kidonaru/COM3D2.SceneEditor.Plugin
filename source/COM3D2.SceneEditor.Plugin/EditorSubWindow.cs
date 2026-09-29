@@ -116,7 +116,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>スクリーンGUI座標のヘッダー矩形。ドロップ判定に使う</summary>
-        public Rect headerRect => new Rect(_windowRect.x, _windowRect.y, _windowRect.width, HEADER_HEIGHT);
+        public Rect headerRect => new Rect(
+            _windowRect.x, _windowRect.y, _windowRect.width, HEADER_HEIGHT * GUIScale.scale);
 
         /// <summary>タブ表示名 (windowTitle は protected のためグループ描画用に公開する)</summary>
         public string windowTitleForTab => windowTitle;
@@ -181,16 +182,23 @@ namespace COM3D2.SceneEditor.Plugin
             _resize.snapper = (rect, edges) => WindowConnectManager.instance.SnapResize(this, rect, edges);
         }
 
-        /// <summary>内容の描画領域 (スクリーンGUI座標、左上原点)</summary>
-        public Rect contentRect => new Rect(
-            _windowRect.x + FRAME,
-            _windowRect.y + HEADER_HEIGHT + contentTopMargin,
-            _windowRect.width - FRAME * 2,
-            _windowRect.height - HEADER_HEIGHT - contentTopMargin - FRAME);
+        /// <summary>内容の描画領域 (スクリーンGUI座標の実矩形、左上原点)。ヘッダーと枠は UI 倍率ぶん厚くなる</summary>
+        public Rect contentRect => EditorWindowGeometry.GetContentRect(
+            _windowRect, HEADER_HEIGHT + contentTopMargin, FRAME, GUIScale.scale);
 
-        // 内容領域のピクセルサイズ (config への保存用)
+        // 内容領域の実ピクセルサイズ (SceneView の RT サイズ用)
         public int contentPixelWidth => (int)contentRect.width;
         public int contentPixelHeight => (int)contentRect.height;
+
+        // config・レイアウトへ保存する内容サイズ。倍率によらず同じ実サイズへ復元するため倍率を掛けない
+        public int placementContentWidth =>
+            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT + contentTopMargin, FRAME).x;
+        public int placementContentHeight =>
+            (int)EditorWindowGeometry.GetPlacementContentSize(_windowRect, HEADER_HEIGHT + contentTopMargin, FRAME).y;
+
+        /// <summary>窓内の描画に使う論理サイズの窓全体 (左上原点)。拡大行列の下で実矩形いっぱいになる</summary>
+        protected Rect localWindowRect => new Rect(
+            0f, 0f, _windowRect.width / GUIScale.scale, _windowRect.height / GUIScale.scale);
 
         /// <summary>config から配置を読む。座標が負なら未初期化 (画面中央へ配置する)</summary>
         protected abstract void LoadPlacement(out int x, out int y, out int width, out int height);
@@ -225,9 +233,10 @@ namespace COM3D2.SceneEditor.Plugin
             int x, y, contentWidth, contentHeight;
             LoadPlacement(out x, out y, out contentWidth, out contentHeight);
 
-            var width = Mathf.Max(contentWidth + FRAME * 2, minWidth);
-            var height = Mathf.Max(
-                contentHeight + HEADER_HEIGHT + (int)contentTopMargin + FRAME, minHeight);
+            var size = EditorWindowGeometry.GetWindowSize(
+                new Vector2(contentWidth, contentHeight), HEADER_HEIGHT + contentTopMargin, FRAME);
+            var width = Mathf.Max((int)size.x, minWidth);
+            var height = Mathf.Max((int)size.y, minHeight);
             _windowRect = new Rect(
                 x >= 0 ? x : (Screen.width - width) / 2,
                 y >= 0 ? y : (Screen.height - height) / 2,
@@ -275,7 +284,10 @@ namespace COM3D2.SceneEditor.Plugin
             GUI.color = WithAlpha(prevColor, prevColor.a * windowAlpha);
             try
             {
-                _windowRect = GUI.Window(windowId, _windowRect, DrawWindow, title, GUIView.gsWin);
+                // 窓ごと UI 倍率で拡大する。窓矩形 (論理サイズ) を渡し、移動だけを実矩形へ戻す
+                var result = GUIScale.Window(
+                    windowId, GUIScale.ToWindowRect(_windowRect), DrawWindow, title, GUIView.gsWin);
+                _windowRect.position = result.position;
             }
             finally
             {
@@ -321,7 +333,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 閉じるボタン (ヘッダー右端)。ヘッダー高さを変えても縦中央に来るようにする
             var closeRect = new Rect(
-                _windowRect.width - CLOSE_BUTTON_WIDTH - CLOSE_BUTTON_MARGIN * 2,
+                localWindowRect.width - CLOSE_BUTTON_WIDTH - CLOSE_BUTTON_MARGIN * 2,
                 (HEADER_HEIGHT - CLOSE_BUTTON_HEIGHT) * 0.5f,
                 CLOSE_BUTTON_WIDTH,
                 CLOSE_BUTTON_HEIGHT);
@@ -389,7 +401,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             var oldColor = GUI.color;
             GUI.color = WithAlpha(ACCENT_COLOR, 0.4f * oldColor.a);
-            GUI.DrawTexture(new Rect(0, 0, _windowRect.width, HEADER_HEIGHT), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, localWindowRect.width, HEADER_HEIGHT), Texture2D.whiteTexture);
             GUI.color = oldColor;
         }
 
@@ -400,8 +412,9 @@ namespace COM3D2.SceneEditor.Plugin
             // 判定のたびに e.type を読み直す。リサイズ開始やコントロールが
             // e.Use() で押下を消費した後は MouseDown ではなくなり、後続が空振りするのが正しい
             var e = Event.current;
+            // つかみ範囲は実ピクセルで判定する (UI 倍率で太らせない)。窓内のマウス座標は論理座標なので戻す
             if (e.type == EventType.MouseDown && e.button == 0 &&
-                _resize.TryBegin(_windowRect, e.mousePosition))
+                _resize.TryBegin(_windowRect, e.mousePosition * GUIScale.scale))
             {
                 e.Use();
             }
@@ -435,9 +448,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            var local = localWindowRect;
             var dragRect = allowContentDrag
-                ? new Rect(0, 0, _windowRect.width, _windowRect.height)
-                : new Rect(0, 0, _windowRect.width, HEADER_HEIGHT);
+                ? local
+                : new Rect(0, 0, local.width, HEADER_HEIGHT);
             GUI.DragWindow(dragRect);
         }
 
@@ -458,7 +472,7 @@ namespace COM3D2.SceneEditor.Plugin
                 x = FRAME,
                 y = (HEADER_HEIGHT - TabBarDrawer.TAB_HEIGHT) * 0.5f,
                 headerHeight = HEADER_HEIGHT,
-                availableWidth = TabBarLayout.CalcAvailableWidth(_windowRect.width),
+                availableWidth = TabBarLayout.CalcAvailableWidth(localWindowRect.width),
             };
 
             // スクロール位置はグループの状態。タブバーを描くのはアクティブな窓だけなので、
@@ -489,10 +503,16 @@ namespace COM3D2.SceneEditor.Plugin
             return !isLocked && _resize.IsOverHandle(_windowRect, guiPos);
         }
 
-        /// <summary>スクリーンGUI座標の矩形を GUI.Window 内のローカル座標へ変換する</summary>
+        /// <summary>スクリーンGUI座標の矩形を GUI.Window 内のローカル座標 (論理座標) へ変換する</summary>
         protected Rect ToLocalRect(Rect rect)
         {
-            return new Rect(rect.x - _windowRect.x, rect.y - _windowRect.y, rect.width, rect.height);
+            return GUIScale.ScreenToLocal(_windowRect.position, rect);
+        }
+
+        /// <summary>スクリーンGUI座標の点を GUI.Window 内のローカル座標 (論理座標) へ変換する</summary>
+        protected Vector2 ToLocalPoint(Vector2 screenPos)
+        {
+            return GUIScale.ScreenToLocal(_windowRect.position, screenPos);
         }
 
         public bool isResizing => _resize.isResizing;
@@ -523,9 +543,19 @@ namespace COM3D2.SceneEditor.Plugin
         {
         }
 
+        /// <summary>
+        /// UI 倍率が変わったときに呼ばれる。ヘッダーの厚みが変わり内容領域の実サイズも変わるため、
+        /// リサイズ確定と同じ後処理 (SceneView の RT 作り直し等) を走らせる
+        /// </summary>
+        public void OnUIScaleChanged()
+        {
+            _resize.Cancel();
+            OnResizeEnd();
+        }
+
         public void SavePlacement()
         {
-            StorePlacement((int)_windowRect.x, (int)_windowRect.y, contentPixelWidth, contentPixelHeight);
+            StorePlacement((int)_windowRect.x, (int)_windowRect.y, placementContentWidth, placementContentHeight);
             config.SetWindowScreenSize(windowId, Screen.width, Screen.height);
             savedVisible = _isShowWnd;
             config.dirty = true;
@@ -539,9 +569,10 @@ namespace COM3D2.SceneEditor.Plugin
             int x, int y, int contentWidth, int contentHeight,
             int baseScreenWidth, int baseScreenHeight)
         {
-            var width = Mathf.Max(contentWidth + FRAME * 2, minWidth);
-            var height = Mathf.Max(
-                contentHeight + HEADER_HEIGHT + (int)contentTopMargin + FRAME, minHeight);
+            var size = EditorWindowGeometry.GetWindowSize(
+                new Vector2(contentWidth, contentHeight), HEADER_HEIGHT + contentTopMargin, FRAME);
+            var width = Mathf.Max((int)size.x, minWidth);
+            var height = Mathf.Max((int)size.y, minHeight);
             _windowRect = WindowPlacementScaler.Scale(
                 new Rect(x, y, width, height),
                 baseScreenWidth, baseScreenHeight, Screen.width, Screen.height,
