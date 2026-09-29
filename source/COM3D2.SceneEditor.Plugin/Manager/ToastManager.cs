@@ -90,33 +90,45 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var savedColor = GUI.color;
-            var x = Screen.width - ToastWidth - MarginRight;
-            var y = MarginTop;
-
-            foreach (var toast in _toasts)
+            var savedMatrix = GUI.matrix;
+            // 右上に積むため、画面右上を中心に UI 倍率で拡大する
+            if (GUIScale.isScaled)
             {
-                var textWidth = ToastWidth - PaddingX * 2f;
-                var height = _gsToast.CalcHeight(toast.content, textWidth) + PaddingY * 2f;
-
-                // 残り時間がフェード時間を切ったら徐々に薄くする
-                var remain = toast.expireTime - now;
-                var alpha = remain < FadeSeconds ? Mathf.Clamp01(remain / FadeSeconds) : 1f;
-
-                var bgColor = GetBackgroundColor(toast.type);
-                bgColor.a *= alpha;
-
-                GUI.color = bgColor;
-                GUI.DrawTexture(new Rect(x, y, ToastWidth, height), Texture2D.whiteTexture);
-
-                GUI.color = new Color(1f, 1f, 1f, alpha);
-                GUI.Label(
-                    new Rect(x + PaddingX, y + PaddingY, textWidth, height - PaddingY * 2f),
-                    toast.content, _gsToast);
-
-                y += height + Spacing;
+                GUI.matrix = GUIScale.PivotScaleMatrix(new Vector2(Screen.width, 0f), GUIScale.scale) * savedMatrix;
             }
+            try
+            {
+                var x = Screen.width - ToastWidth - MarginRight;
+                var y = MarginTop;
 
-            GUI.color = savedColor;
+                foreach (var toast in _toasts)
+                {
+                    var textWidth = ToastWidth - PaddingX * 2f;
+                    var height = _gsToast.CalcHeight(toast.content, textWidth) + PaddingY * 2f;
+
+                    // 残り時間がフェード時間を切ったら徐々に薄くする
+                    var remain = toast.expireTime - now;
+                    var alpha = remain < FadeSeconds ? Mathf.Clamp01(remain / FadeSeconds) : 1f;
+
+                    var bgColor = GetBackgroundColor(toast.type);
+                    bgColor.a *= alpha;
+
+                    GUI.color = bgColor;
+                    GUI.DrawTexture(new Rect(x, y, ToastWidth, height), Texture2D.whiteTexture);
+
+                    GUI.color = new Color(1f, 1f, 1f, alpha);
+                    GUI.Label(
+                        new Rect(x + PaddingX, y + PaddingY, textWidth, height - PaddingY * 2f),
+                        toast.content, _gsToast);
+
+                    y += height + Spacing;
+                }
+            }
+            finally
+            {
+                GUI.matrix = savedMatrix;
+                GUI.color = savedColor;
+            }
         }
 
         private static Color GetBackgroundColor(ToastType type)
