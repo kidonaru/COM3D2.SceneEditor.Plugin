@@ -25,7 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ヘッダー・タブ列を描く UI 倍率。SceneEditor の窓は GUIScale.scale、
-        /// 外部プラグインの窓は倍率の対象外なので 1
+        /// 外部窓はゲストが EnableGuiScale で渡した倍率。未対応の旧ゲストは 1
         /// </summary>
         float guiScale { get; }
 

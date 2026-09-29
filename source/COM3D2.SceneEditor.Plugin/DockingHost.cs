@@ -160,6 +160,21 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// ゲスト窓の UI 倍率の登録。Register 直後に呼ぶ。
+        /// ホストはこの倍率でタブ幅・ヘッダー高さ・並び替え判定を計算し、ゲストの見た目と合わせる。
+        /// 未登録の旧ゲストは倍率 1 として扱う
+        /// </summary>
+        public static void EnableGuiScale(object handle, Func<float> getScale)
+        {
+            var adapter = handle as ExternalWindowAdapter;
+            if (adapter == null || getScale == null)
+            {
+                return;
+            }
+            adapter.SetGuiScaleGetter(getScale);
+        }
+
+        /// <summary>
         /// ゲストが描いたタブの押下通知。アクティブ切替とつまみドラッグ候補の処理はホスト側で行う。
         /// x/y はゲストウィンドウローカルの押下位置
         /// </summary>
@@ -555,14 +570,41 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        public float guiScale => 1f;
+        /// <summary>EnableGuiScale で登録されたゲストの UI 倍率。null は未対応の旧ゲスト (倍率 1)</summary>
+        private Func<float> _getGuiScale;
+
+        internal void SetGuiScaleGetter(Func<float> getScale)
+        {
+            _getGuiScale = getScale;
+        }
+
+        public float guiScale
+        {
+            get
+            {
+                if (_getGuiScale == null)
+                {
+                    return 1f;
+                }
+                try
+                {
+                    return GUIScale.ClampScale(_getGuiScale());
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                    _getGuiScale = null;
+                    return 1f;
+                }
+            }
+        }
 
         public Rect headerRect
         {
             get
             {
                 var rect = windowRect;
-                return new Rect(rect.x, rect.y, rect.width, EditorSubWindow.HEADER_HEIGHT);
+                return new Rect(rect.x, rect.y, rect.width, EditorSubWindow.HEADER_HEIGHT * guiScale);
             }
         }
 
