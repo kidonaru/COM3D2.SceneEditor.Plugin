@@ -37,6 +37,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override string pluginName => _provider.id;
 
+        public override bool canAttachToModel => _provider.attachModelToModel != null;
+
         public ExternalModelHack(ModelPlacerProvider provider)
         {
             _provider = provider;
@@ -141,7 +143,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // プロバイダ側で直接置かれたモデルは生成を経ないのでここで控える。
             // 既にメイドへアタッチ済みならボーンを拾ってしまうため、親の上位にメイドがいないときだけ
             var parent = obj.transform.parent;
-            if (_unattachedParent == null && parent != null && parent.GetComponentInParent<Maid>() == null)
+            if (_unattachedParent == null && parent != null && parent.GetComponentInParent<Maid>() == null
+                && !IsUnderModel(parent))
             {
                 _unattachedParent = parent;
             }
@@ -211,6 +214,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // 同じ列挙の中で親の stat がまだ作られていない。部位としては解けないので、警告せず次の同期で取り込む
+            if (bone != null && _aliveObjects.Contains(bone.gameObject) && !_statMap.ContainsKey(bone.gameObject))
+            {
+                return;
+            }
+
+            StudioModelStat parentStat;
+            if (bone != null && _statMap.TryGetValue(bone.gameObject, out parentStat))
+            {
+                // 親の採番前は名前が仮なので、次の同期で取り込む (仮名をキーへ書くと参照が切れる)
+                if (parentStat.group == StudioModelStat.UnassignedGroup)
+                {
+                    return;
+                }
+                _unresolvedAttachBones.Remove(obj);
+                stat.attachPoint = AttachPoint.Head;
+                stat.attachMaidSlotNo = ModelAttachTarget.ModelSlotNo;
+                stat.attachModelName = parentStat.name;
+                return;
+            }
+
             AttachPoint point;
             int slotNo;
             if (!TryResolveAttach(bone, out point, out slotNo))
@@ -230,6 +254,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _unresolvedAttachBones.Remove(obj);
             stat.attachPoint = point;
             stat.attachMaidSlotNo = slotNo;
+            stat.attachModelName = "";
+        }
+
+        /// <summary>transform か祖先がプロバイダの配置モデルか (別モデルへアタッチ中の子の親は配置ルートではない)</summary>
+        private bool IsUnderModel(Transform transform)
+        {
+            for (var t = transform; t != null; t = t.parent)
+            {
+                if (_aliveObjects.Contains(t.gameObject))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -362,11 +400,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 cached.attachPoint = model.attachPoint;
                 cached.attachMaidSlotNo = model.attachMaidSlotNo;
+                cached.attachModelName = model.attachModelName;
+            }
+
+            if (model.isAttachedToModel && TryAttachToModel(obj, model))
+            {
+                return;
             }
 
             // アタッチ先ボーンの解決は SE 側が行い、プロバイダへはボーン名だけ渡す。
             // AttachPoint enum → IKManager.BoneType の対応表をゲスト側に持たせずに済む
-            var maidCache = maidManager.GetMaidCache(model.attachMaidSlotNo);
+            var maidCache = model.isAttachedToModel ? null : maidManager.GetMaidCache(model.attachMaidSlotNo);
             var boneTransform = maidCache?.GetAttachPointTransform(model.attachPoint);
             var maid = boneTransform != null ? maidCache.maid : null;
             _provider.attachModel(obj, maid, boneTransform != null ? boneTransform.name : "");
@@ -376,6 +420,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 _unattachedParent = obj.transform.parent;
             }
+        }
+
+        /// <summary>
+        /// アタッチ先モデルの実体を引いてプロバイダへ渡す。付けられなければ false (呼び出し側で解除へ落とす)
+        /// </summary>
+        private bool TryAttachToModel(GameObject obj, StudioModelStat model)
+        {
+            if (_provider.attachModelToModel == null)
+            {
+                return false;
+            }
+
+            string parentName, boneName;
+            if (!ModelAttachTarget.TryResolveReference(
+                model.attachModelName, name => modelManager.GetModel(name) != null, out parentName, out boneName))
+            {
+                return false;
+            }
+
+            var parentObj = modelManager.GetModel(parentName)?.obj as GameObject;
+            if (parentObj == null || parentObj == obj)
+            {
+                return false;
+            }
+
+            _provider.attachModelToModel(obj, parentObj, boneName);
+            return true;
         }
 
         /// <summary>タイムライン読込のような一括操作をプロバイダへ伝える（任意メンバ）</summary>

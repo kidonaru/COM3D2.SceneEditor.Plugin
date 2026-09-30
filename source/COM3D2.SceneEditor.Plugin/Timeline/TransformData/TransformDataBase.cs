@@ -1006,7 +1006,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     return null;
                 }
-                return strValues;
+                // 操作履歴は書き出した XML を変更前の控えとして持つ。
+                // 配列を共有すると、あとでキーの文字列値を書き換えたときに控えまで変わる
+                return (string[])strValues.Clone();
             }
             set
             {

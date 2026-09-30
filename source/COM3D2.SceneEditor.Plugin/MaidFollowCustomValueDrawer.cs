@@ -68,6 +68,9 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly Dictionary<RowKey, GUIComboBox<string>> _attachPointComboBoxes =
             new Dictionary<RowKey, GUIComboBox<string>>();
 
+        private readonly Dictionary<RowKey, GUIComboBox<AttachTargetChoice>> _attachTargetComboBoxes =
+            new Dictionary<RowKey, GUIComboBox<AttachTargetChoice>>();
+
         /// <summary>このフレームで描いた行。EndFrame の掃除に使う</summary>
         private readonly HashSet<RowKey> _usedKeys = new HashSet<RowKey>();
         private readonly List<RowKey> _unusedKeys = new List<RowKey>();
@@ -132,6 +135,7 @@ namespace COM3D2.SceneEditor.Plugin
             Sweep(_maidComboBoxes);
             Sweep(_pointComboBoxes);
             Sweep(_attachPointComboBoxes);
+            Sweep(_attachTargetComboBoxes);
             _usedKeys.Clear();
         }
 
@@ -141,6 +145,7 @@ namespace COM3D2.SceneEditor.Plugin
             _maidComboBoxes.Clear();
             _pointComboBoxes.Clear();
             _attachPointComboBoxes.Clear();
+            _attachTargetComboBoxes.Clear();
             _usedKeys.Clear();
         }
 
@@ -160,6 +165,48 @@ namespace COM3D2.SceneEditor.Plugin
                 comboBoxes.Remove(rowKey);
             }
             _unusedKeys.Clear();
+        }
+
+        /// <summary>
+        /// アタッチ先 (なし / メイド / モデル) のコンボ。スロット値とモデル名を組で編集する。
+        /// slotValue が NaN または modelName が null なら「混在」と出す
+        /// </summary>
+        public void DrawAttachTarget(
+            GUIView view,
+            object owner,
+            MTEP.CustomValueInfo info,
+            float slotValue,
+            string modelName,
+            MTEP.StudioModelStat self,
+            float labelWidth,
+            float rowHeight,
+            Action<int, string> onChanged)
+        {
+            var rowKey = new RowKey(owner, "attachTarget");
+            _usedKeys.Add(rowKey);
+
+            GUIComboBox<AttachTargetChoice> comboBox;
+            if (!_attachTargetComboBoxes.TryGetValue(rowKey, out comboBox))
+            {
+                comboBox = new GUIComboBox<AttachTargetChoice>
+                {
+                    getName = (choice, _) => choice.label,
+                    items = new List<AttachTargetChoice>(),
+                };
+                _attachTargetComboBoxes[rowKey] = comboBox;
+            }
+
+            // メイド・モデルの出入りで選択肢が変わるため毎回作り直す
+            AttachTargetChoices.Fill(comboBox.items, self);
+
+            var isMixed = float.IsNaN(slotValue) || modelName == null;
+            comboBox.defaultName = isMixed ? MixedName : null;
+            comboBox.currentIndex = isMixed
+                ? MixedIndex
+                : AttachTargetChoices.IndexOf(comboBox.items, Mathf.RoundToInt(slotValue), modelName);
+            comboBox.onSelected = (choice, _) => onChanged(choice.slotNo, choice.modelName);
+
+            LabeledComboRow.Draw(view, info.name, comboBox, labelWidth, rowHeight);
         }
 
         private void DrawMaidSlotCombo(

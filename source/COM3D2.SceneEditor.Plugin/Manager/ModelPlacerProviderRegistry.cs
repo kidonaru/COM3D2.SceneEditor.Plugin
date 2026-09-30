@@ -46,6 +46,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public Func<GameObject, Transform> getModelAttachBone;
 
+        /// <summary>
+        /// (obj, parent, boneName)。obj を別モデル parent へアタッチする (任意メンバ)。
+        /// boneName は parent 内のボーン名で、空ならモデルの原点。今の SE は常に空を渡す
+        /// </summary>
+        public Action<GameObject, GameObject, string> attachModelToModel;
+
         /// <summary>モデルの表示レイヤー (Unity のレイヤー番号)。管理外・不明なら -1 (任意メンバ)</summary>
         public Func<GameObject, int> getModelLayer;
 
@@ -147,6 +153,14 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 provider.getModelAttachBone = (Func<GameObject, Transform>)Delegate.CreateDelegate(
                     typeof(Func<GameObject, Transform>), getAttachBone);
+            }
+
+            var attachToModel = type.GetMethod("AttachModelToModel", flags, null,
+                new[] { typeof(GameObject), typeof(GameObject), typeof(string) }, null);
+            if (attachToModel != null && attachToModel.ReturnType == typeof(void))
+            {
+                provider.attachModelToModel = (Action<GameObject, GameObject, string>)Delegate.CreateDelegate(
+                    typeof(Action<GameObject, GameObject, string>), attachToModel);
             }
 
             // 保存 (取得) と読込 (設定) は対で使うため、片方だけなら両方とも無効にする

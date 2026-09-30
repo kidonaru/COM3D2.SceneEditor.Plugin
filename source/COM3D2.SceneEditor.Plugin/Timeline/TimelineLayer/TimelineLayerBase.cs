@@ -187,7 +187,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Dictionary<string, List<BoneData>> timelineRowsMap => _timelineBonesMap;
         protected Dictionary<string, List<BoneData>> _timelineBonesMap = new Dictionary<string, List<BoneData>>(32);
 
-        protected Dictionary<string, MotionPlayData> _playDataMap = new Dictionary<string, MotionPlayData>(32);
+        // 派生クラスが ContainsKey のデリゲートを控えることがあるので差し替えない
+        protected readonly Dictionary<string, MotionPlayData> _playDataMap = new Dictionary<string, MotionPlayData>(32);
 
         protected static TimelineManager timelineManager => TimelineManager.instance;
         protected static TimelineData timeline => timelineManager.timeline;

@@ -83,6 +83,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         MaidPoint,
         /// <summary>モデルのアタッチ部位 (PhotoTransTargetObject.AttachPoint)</summary>
         AttachPoint,
+        /// <summary>モデルのアタッチ先 (メイドのスロット番号、ModelAttachTarget.ModelSlotNo はモデル。モデル名は文字列値)</summary>
+        AttachTarget,
     }
 
     public class CustomValueInfo
@@ -124,6 +126,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int index;
         public string name;
         public string defaultValue;
+        /// <summary>汎用の文字列欄を出さない (専用の UI で編集する値)</summary>
+        public bool hidden;
     }
 
     /// <summary>

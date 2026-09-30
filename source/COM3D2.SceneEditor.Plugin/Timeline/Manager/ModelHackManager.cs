@@ -220,6 +220,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return modelHack != null ? modelHack.unattachedParent : null;
         }
 
+        public bool CanAttachToModel(StudioModelStat model)
+        {
+            var modelHack = GetOrDefault(model.pluginName);
+            return modelHack != null && modelHack.canAttachToModel;
+        }
+
         public void SetModelVisible(StudioModelStat model, bool visible)
         {
             try

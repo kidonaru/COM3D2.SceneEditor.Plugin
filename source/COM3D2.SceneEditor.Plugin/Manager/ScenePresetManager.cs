@@ -912,7 +912,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                var controller = entry.obj.GetComponentInChildren<MTEP.ModelMaterialController>(true);
+                // コントローラはモデルの根に付く。子孫を探すと、アタッチした別モデルのものを拾う
+                var controller = entry.obj.GetComponent<MTEP.ModelMaterialController>();
                 if (controller == null)
                 {
                     continue;

@@ -371,6 +371,38 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>全キーで同じアタッチ先モデル名ならそれ、混在なら null</summary>
+        private static string UniformModelName(Group group)
+        {
+            string result = null;
+            foreach (var bone in group.bones)
+            {
+                var name = (bone.transform as MTEP.TransformDataModel)?.attachModelName ?? "";
+                if (result == null)
+                {
+                    result = name;
+                }
+                else if (result != name)
+                {
+                    return null;
+                }
+            }
+            return result ?? "";
+        }
+
+        private static bool AllAttachedToModel(Group group)
+        {
+            foreach (var bone in group.bones)
+            {
+                var trans = bone.transform as MTEP.TransformDataModel;
+                if (trans == null || !trans.isAttachedToModel)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private void DrawCustomValueRow(
             GUIView view,
             Group group,
@@ -387,6 +419,44 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 Apply(group);
             };
+
+            if (info.uiType == MTEP.CustomValueUIType.AttachTarget)
+            {
+                var modelName = UniformModelName(group);
+                _followValueDrawer.DrawAttachTarget(
+                    view, group.type, info, value, modelName, null, CustomLabelWidth, RowHeight,
+                    (slotNo, newModelName) =>
+                    {
+                        foreach (var bone in group.bones)
+                        {
+                            (bone.transform as MTEP.TransformDataModel)?.SetAttachTarget(slotNo, newModelName);
+                        }
+                        Apply(group);
+                    });
+                return;
+            }
+
+            if (info.uiType == MTEP.CustomValueUIType.AttachPoint)
+            {
+                if (AllAttachedToModel(group))
+                {
+                    return;
+                }
+
+                // モデルへアタッチしたキーの部位は Head 固定 (差分判定を安定させるため) なので書き換えない
+                setAll = newValue =>
+                {
+                    foreach (var bone in group.bones)
+                    {
+                        var trans = bone.transform as MTEP.TransformDataModel;
+                        if (trans == null || !trans.isAttachedToModel)
+                        {
+                            bone.transform.GetCustomValue(customKey).value = newValue;
+                        }
+                    }
+                    Apply(group);
+                };
+            }
 
             if (MaidFollowCustomValueDrawer.IsComboValue(info))
             {
@@ -443,6 +513,11 @@ namespace COM3D2.SceneEditor.Plugin
             var first = group.bones[0].transform;
             foreach (var pair in first.GetStrValueInfoMap())
             {
+                if (pair.Value.hidden)
+                {
+                    continue;
+                }
+
                 var strKey = pair.Key;
                 if (!AllHave(group, t => t.HasStrValue(strKey)))
                 {

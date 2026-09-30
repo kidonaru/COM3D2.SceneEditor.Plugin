@@ -43,7 +43,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class StudioModelManager : ManagerBase
     {
-        private Dictionary<string, StudioModelStat> modelMap = new Dictionary<string, StudioModelStat>();
+        // modelExists が ContainsKey のデリゲートを控えるので差し替えない
+        private readonly Dictionary<string, StudioModelStat> modelMap = new Dictionary<string, StudioModelStat>();
         public Dictionary<string, ModelBone> boneMap = new Dictionary<string, ModelBone>();
         public Dictionary<string, ModelBlendShape> blendShapeMap = new Dictionary<string, ModelBlendShape>();
         public Dictionary<string, ModelMaterial> materialMap = new Dictionary<string, ModelMaterial>(); 
@@ -69,6 +70,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// キーの値が同じでも、メイドの出入りで解決先が変われば付け替え直すために控える
         /// </summary>
         private readonly Dictionary<string, Transform> _appliedAttachParents = new Dictionary<string, Transform>();
+
+        /// <summary>
+        /// 全モデルの直近のワールド姿勢 (モデル名 → 姿勢)。
+        /// 親が削除された後で、子のキーを配置ルート基準へ変換するのに使う。
+        /// MIE 側で付け替えた直後や再生中は stat のアタッチ状態が遅れて同期されるため、
+        /// 「親になっているモデル」に絞らず全モデルを控える
+        /// </summary>
+        private readonly Dictionary<string, ModelAttachPose> _modelPoses = new Dictionary<string, ModelAttachPose>();
+
+        /// <summary>modelMap.ContainsKey のデリゲート。毎回のメソッドグループ変換による割り当てを避ける</summary>
+        private System.Func<string, bool> _modelExists;
+        private System.Func<string, bool> modelExists => _modelExists ?? (_modelExists = modelMap.ContainsKey);
+
+        private System.Func<string, string> _getParentModelName;
+        private System.Func<string, string> getParentModelName
+            => _getParentModelName ?? (_getParentModelName = GetParentModelName);
 
         private static StudioModelManager _instance = null;
         public static StudioModelManager instance
@@ -236,6 +253,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // 判定は破棄済みかを見るだけで軽いので、間引きや再生中の停止より先に毎フレーム行う
             var replacedModels = ReloadReplacedModels();
 
+            // 親の削除を検知するのは間引き後の同期なので、削除直前の姿勢が残るよう毎フレーム控える
+            RecordModelPoses();
+
             if (!force && replacedModels.Count == 0)
             {
                 if (Time.frameCount < _prevUpdateFrame + 30 || currentLayer.isAnmPlaying)
@@ -285,7 +305,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
 
                 var attachChanged = cachedModel.attachPoint != model.attachPoint ||
-                    cachedModel.attachMaidSlotNo != model.attachMaidSlotNo;
+                    cachedModel.attachMaidSlotNo != model.attachMaidSlotNo ||
+                    cachedModel.attachModelName != model.attachModelName;
                 if (attachChanged || cachedModel.visible != model.visible
                     || cachedModel.layer != model.layer)
                 {
@@ -560,6 +581,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             boneNames.Clear();
             blendShapeNames.Clear();
             materialNames.Clear();
+            _appliedAttachParents.Clear();
+            _modelPoses.Clear();
             _prevUpdateFrame = -1;
 
             modelHackManager.DeleteAllModels();
@@ -649,32 +672,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// 現在と同じなら何もせず false を返す (プロバイダは付け替えでローカル位置・回転を 0 に戻すため、
         /// true のときは呼び出し側でローカル値を入れ直すこと)
         /// </summary>
-        public bool ApplyAttach(StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo)
+        public bool ApplyAttach(
+            StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo, string attachModelName)
         {
             Transform parent = null;
-            if (TransformDataModel.IsAttached(attachPoint, attachMaidSlotNo))
+            if (TransformDataModel.IsAttached(attachPoint, attachMaidSlotNo, attachModelName))
             {
-                parent = GetAttachParent(model, attachPoint, attachMaidSlotNo);
+                parent = GetAttachParent(model, attachPoint, attachMaidSlotNo, attachModelName);
             }
 
-            // メイドやボーンが居なければアタッチなしとして扱う。
+            // メイド・ボーン・モデルが居なければアタッチなしとして扱う。
             // 要求値のまま控えると、キー登録で配置ルート基準の位置に「アタッチ中」の値が付いてしまう
             if (parent == null)
             {
                 attachPoint = AttachPoint.Null;
                 attachMaidSlotNo = -1;
+                attachModelName = "";
             }
+            attachModelName = attachModelName ?? "";
 
             Transform appliedParent;
             _appliedAttachParents.TryGetValue(model.name, out appliedParent);
             if (model.attachPoint == attachPoint && model.attachMaidSlotNo == attachMaidSlotNo &&
-                appliedParent == parent)
+                model.attachModelName == attachModelName && appliedParent == parent)
             {
                 return false;
             }
 
             model.attachPoint = attachPoint;
             model.attachMaidSlotNo = attachMaidSlotNo;
+            model.attachModelName = attachModelName;
             modelHackManager.UpdateAttachPointSilently(model);
             _appliedAttachParents[model.name] = parent;
             return true;
@@ -682,10 +709,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// キーのアタッチ先に対応する親 Transform。ワールド補間の座標変換に使う。
-        /// メイドやボーンが見つからなければ null
+        /// メイド・ボーン・モデルが見つからなければ null
         /// </summary>
-        public Transform GetAttachParent(StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo)
+        public Transform GetAttachParent(
+            StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo, string attachModelName)
         {
+            if (ModelAttachTarget.IsModelTarget(attachMaidSlotNo, attachModelName))
+            {
+                return GetModelAttachParent(model, attachModelName);
+            }
             if (!TransformDataModel.IsAttached(attachPoint, attachMaidSlotNo))
             {
                 return modelHackManager.GetUnattachedParent(model);
@@ -693,6 +725,67 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var maidCache = maidManager.GetMaidCache(attachMaidSlotNo);
             return maidCache != null ? maidCache.GetAttachPointTransform(attachPoint) : null;
+        }
+
+        /// <summary>今のアタッチ先モデル名。モデルへアタッチしていなければ null</summary>
+        public string GetParentModelName(string modelName)
+        {
+            var model = GetModel(modelName);
+            if (model == null || !model.isAttachedToModel)
+            {
+                return null;
+            }
+            string parentName, boneName;
+            return ModelAttachTarget.TryResolveReference(
+                model.attachModelName, modelExists, out parentName, out boneName) ? parentName : null;
+        }
+
+        /// <summary>UI の選択肢に出せるか。同じプロバイダで、対応していて、自分自身・子孫でないこと</summary>
+        public bool CanAttachToModel(StudioModelStat child, StudioModelStat parent)
+        {
+            return child != null && parent != null && parent.transform != null
+                && child.pluginName == parent.pluginName
+                && modelHackManager.CanAttachToModel(child)
+                && !ModelAttachTarget.WouldCreateCycle(child.name, parent.name, getParentModelName);
+        }
+
+        /// <summary>アタッチ先モデルの Transform。付けられない (未ロード・別プロバイダ・循環) なら null</summary>
+        private Transform GetModelAttachParent(StudioModelStat model, string reference)
+        {
+            string parentName, boneName;
+            if (!ModelAttachTarget.TryResolveReference(reference, modelExists, out parentName, out boneName))
+            {
+                return null;
+            }
+            var parent = GetModel(parentName);
+            // モデル内のボーンは将来対応。今は原点だけを返す
+            return CanAttachToModel(model, parent) ? parent.transform : null;
+        }
+
+        /// <summary>
+        /// 全モデルのワールド姿勢を控える。毎フレーム (間引き・再生中の早期 return より前に) 呼ぶ。
+        /// 破棄済み (transform が無い) のモデルは上書きせず、最後の姿勢を残す
+        /// </summary>
+        private void RecordModelPoses()
+        {
+            foreach (var model in models)
+            {
+                if (model.transform != null)
+                {
+                    _modelPoses[model.name] = ModelAttachPose.From(model.transform);
+                }
+            }
+        }
+
+        public bool TryGetAttachParentPose(string parentName, out ModelAttachPose pose)
+        {
+            return _modelPoses.TryGetValue(parentName, out pose);
+        }
+
+        /// <summary>削除されたモデルの控えを捨てる。キーの変換を終えてから呼ぶ</summary>
+        public void ForgetAttachParentPose(string parentName)
+        {
+            _modelPoses.Remove(parentName);
         }
 
         public void SetModelVisible(StudioModelStat model, bool visible)

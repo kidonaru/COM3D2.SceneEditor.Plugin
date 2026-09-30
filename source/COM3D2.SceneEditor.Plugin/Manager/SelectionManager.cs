@@ -403,11 +403,19 @@ namespace COM3D2.SceneEditor.Plugin
         /// メイド・PNG 配置・提供モデルはいずれもルートに描画物を持たず、
         /// クリックでヒットするのは配下のメッシュなので、そのままだと
         /// ギズモが子だけを動かし Inspector にも固有パラメータが出ない。
-        /// 背景モデルは入れ子の各ノードを個別に選ぶ作りなので丸めない
+        /// 背景モデルは入れ子の各ノードを個別に選ぶ作りなので丸めない。
+        /// メイドへアタッチしたモデルはメイドではなくモデルとして選ぶ
         /// </summary>
         private static GameObject ResolveSelectionRoot(
             GameObject go, List<ExternalModelEntry> models)
         {
+            // メイドへアタッチしたモデルはメイドの配下にあるため、メイドより先に見る
+            var model = ModelSelectHost.ResolveModel(go, models);
+            if (model != null)
+            {
+                return model;
+            }
+
             var maid = go.GetComponentInParent<Maid>();
             if (maid != null)
             {
@@ -415,13 +423,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var pngData = PngPlacementManager.instance.FindByDescendant(go);
-            if (pngData != null)
-            {
-                return pngData.rootObject;
-            }
-
-            var model = ModelSelectHost.ResolveModel(go, models);
-            return model != null ? model : go;
+            return pngData != null ? pngData.rootObject : go;
         }
 
         public void ClearSelection()

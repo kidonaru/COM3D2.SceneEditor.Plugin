@@ -546,6 +546,28 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var value = transform.GetCustomValue(customKey).value;
 
+            var modelTransform = transform as MTEP.TransformDataModel;
+            if (info.uiType == MTEP.CustomValueUIType.AttachTarget && modelTransform != null)
+            {
+                _followValueDrawer.DrawAttachTarget(
+                    view, bone, info, value, modelTransform.attachModelName,
+                    MTEP.StudioModelManager.instance.GetModel(bone.name),
+                    CustomLabelWidth, RowHeight,
+                    (slotNo, modelName) =>
+                    {
+                        modelTransform.SetAttachTarget(slotNo, modelName);
+                        Apply(bone);
+                    });
+                return;
+            }
+
+            // モデルへのアタッチは原点に付けるので部位を出さない
+            if (info.uiType == MTEP.CustomValueUIType.AttachPoint
+                && modelTransform != null && modelTransform.isAttachedToModel)
+            {
+                return;
+            }
+
             if (MaidFollowCustomValueDrawer.IsComboValue(info))
             {
                 _followValueDrawer.Draw(
@@ -600,6 +622,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var pair in transform.GetStrValueInfoMap())
             {
+                if (pair.Value.hidden)
+                {
+                    continue;
+                }
+
                 var strKey = pair.Key;
                 if (!transform.HasStrValue(strKey))
                 {

@@ -25,6 +25,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>アタッチしていないモデルの親。ワールド補間でアタッチなし側の座標系に使う。不明なら null</summary>
         Transform unattachedParent { get; }
+
+        /// <summary>別モデルへのアタッチに対応するか</summary>
+        bool canAttachToModel { get; }
     }
 
     public abstract class ModelHackBase : IModelHack
@@ -125,5 +128,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         public virtual Transform unattachedParent => null;
+
+        public virtual bool canAttachToModel => false;
     }
 }
