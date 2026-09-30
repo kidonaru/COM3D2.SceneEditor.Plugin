@@ -35,6 +35,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string displayName { get; private set; }
         public AttachPoint attachPoint { get; set; }
         public int attachMaidSlotNo { get; set; }
+
+        /// <summary>アタッチ先モデルの参照 (ModelAttachTarget の取り決め)。モデル以外へのアタッチでは空</summary>
+        public string attachModelName { get; set; } = "";
+
+        public bool isAttachedToModel => ModelAttachTarget.IsModelTarget(attachMaidSlotNo, attachModelName);
         public object obj { get; set; }
         public string pluginName { get; set; }
         public bool visible { get; set; }
@@ -183,6 +188,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             group = model.group;
             attachPoint = model.attachPoint;
             attachMaidSlotNo = model.attachMaidSlotNo;
+            attachModelName = model.attachModelName;
             obj = model.obj;
             pluginName = model.pluginName;
             visible = model.visible;
