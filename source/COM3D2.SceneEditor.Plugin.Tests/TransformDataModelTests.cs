@@ -121,13 +121,14 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void モデルへのアタッチは目印のスロットと部位Headにそろう()
+        public void モデルへのアタッチはメイドのスロットをなしに部位をHeadにそろえる()
         {
             var trans = Create();
+            trans.attachMaidSlotNo = 1;
             trans.attachPoint = AttachPoint.Hand_R;
             trans.SetAttachedToModel("desk.menu (2)");
 
-            Assert.Equal(ModelAttachTarget.ModelSlotNo, trans.attachMaidSlotNo);
+            Assert.Equal(-1, trans.attachMaidSlotNo);
             Assert.Equal(AttachPoint.Head, trans.attachPoint);
             Assert.Equal("desk.menu (2)", trans.attachModelName);
             Assert.True(trans.isAttachedToModel);
@@ -152,23 +153,38 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void 目印のスロットでモデル名が空のキーはアタッチなしへ補正される()
+        public void UIでモデル名付きの選択はスロットよりモデルを優先する()
         {
-            var values = new float[15];
-            values[(int)TransformDataModel.Index.AttachMaidSlotNo] = ModelAttachTarget.ModelSlotNo;
             var trans = Create();
-            trans.FromXml(new TransformXml { name = "test.menu", type = TransformType.Model, values = values });
+            trans.attachPoint = AttachPoint.Hand_R;
+            trans.SetAttachTarget(1, "desk.menu");
 
+            Assert.True(trans.isAttachedToModel);
             Assert.Equal(-1, trans.attachMaidSlotNo);
             Assert.Equal(AttachPoint.Head, trans.attachPoint);
         }
 
         [Fact]
-        public void メイドへのアタッチに残ったモデル名は捨てる()
+        public void 負のスロットでモデル名が無いキーはアタッチなしの値へそろえる()
         {
+            // 同じ「なし」でも値が違うと、同値区間や一括編集の混在判定がずれる
+            var values = new float[15];
+            values[(int)TransformDataModel.Index.AttachMaidSlotNo] = -2f;
+            values[(int)TransformDataModel.Index.AttachPoint] = (float)AttachPoint.Head;
+            var trans = Create();
+            trans.FromXml(new TransformXml { name = "test.menu", type = TransformType.Model, values = values });
+
+            Assert.Equal(-1, trans.attachMaidSlotNo);
+            Assert.False(trans.isAttachedToModel);
+        }
+
+        [Fact]
+        public void モデル名とメイドのスロットが両方あるキーはモデルへのアタッチにそろえる()
+        {
+            // 手編集などで食い違ったキー。モデル名を優先し、取り決めどおりの形へ直す
             var values = new float[15];
             values[(int)TransformDataModel.Index.AttachMaidSlotNo] = 0f;
-            values[(int)TransformDataModel.Index.AttachPoint] = (float)AttachPoint.Head;
+            values[(int)TransformDataModel.Index.AttachPoint] = (float)AttachPoint.Hand_R;
             var trans = Create();
             trans.FromXml(new TransformXml
             {
@@ -178,8 +194,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 strValues = new[] { "desk.menu" },
             });
 
-            Assert.Equal(0, trans.attachMaidSlotNo);
-            Assert.Equal("", trans.attachModelName);
+            Assert.True(trans.isAttachedToModel);
+            Assert.Equal(-1, trans.attachMaidSlotNo);
+            Assert.Equal(AttachPoint.Head, trans.attachPoint);
+            Assert.Equal("desk.menu", trans.attachModelName);
         }
 
         [Fact]

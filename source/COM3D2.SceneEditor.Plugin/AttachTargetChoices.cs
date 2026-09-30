@@ -5,7 +5,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     using AttachPoint = PhotoTransTargetObject.AttachPoint;
 
-    /// <summary>アタッチ先の選択肢 1 つ。slotNo が ModelAttachTarget.ModelSlotNo ならモデル</summary>
+    /// <summary>アタッチ先の選択肢 1 つ。modelName が空でなければモデル (slotNo は -1)</summary>
     public class AttachTargetChoice
     {
         public string label;
@@ -45,7 +45,7 @@ namespace COM3D2.SceneEditor.Plugin
                 items.Add(new AttachTargetChoice
                 {
                     label = "モデル: " + model.displayName,
-                    slotNo = MTEP.ModelAttachTarget.ModelSlotNo,
+                    slotNo = -1,
                     modelName = model.name,
                 });
             }
@@ -54,7 +54,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>今のアタッチ先に当たる添字。一覧に無ければ 0 (未選択)</summary>
         public static int IndexOf(List<AttachTargetChoice> items, int slotNo, string modelName)
         {
-            var isModel = MTEP.ModelAttachTarget.IsModelTarget(slotNo, modelName);
+            var isModel = MTEP.ModelAttachTarget.IsModelTarget(modelName);
             for (var i = 0; i < items.Count; i++)
             {
                 var item = items[i];
@@ -76,9 +76,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>Inspector のモデル行用。stat へ選択を書く (キーは呼び出し側で自動登録する)</summary>
         public static void ApplyTo(MTEP.StudioModelStat model, AttachTargetChoice choice)
         {
-            if (MTEP.ModelAttachTarget.IsModelTarget(choice.slotNo, choice.modelName))
+            if (MTEP.ModelAttachTarget.IsModelTarget(choice.modelName))
             {
-                model.attachMaidSlotNo = choice.slotNo;
+                model.attachMaidSlotNo = -1;
                 model.attachPoint = AttachPoint.Head;
                 model.attachModelName = choice.modelName;
                 return;

@@ -230,7 +230,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
                 _unresolvedAttachBones.Remove(obj);
                 stat.attachPoint = AttachPoint.Head;
-                stat.attachMaidSlotNo = ModelAttachTarget.ModelSlotNo;
+                stat.attachMaidSlotNo = -1;
                 stat.attachModelName = parentStat.name;
                 return;
             }

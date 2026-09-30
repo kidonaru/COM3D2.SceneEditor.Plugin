@@ -24,15 +24,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     /// <summary>
     /// アタッチ先として別のモデルを指す取り決め。
-    /// モデルキーの index 12 (アタッチ先スロット) に ModelSlotNo を入れ、アタッチ先は文字列値でモデル名を参照する。
+    /// アタッチ先モデルの参照 (モデルキーの文字列値) が空でなければモデルへのアタッチとし、
+    /// メイドのスロット (index 12) は -1 (なし) にそろえる。
     /// 参照は今は "{モデル名}" (原点) だけだが、モデル内のボーンへ広げるときは "{モデル名}/{ボーン名}" にする。
     /// テストから呼ぶため Unity のネイティブ関数を使わない
     /// </summary>
     public static class ModelAttachTarget
     {
-        /// <summary>アタッチ先がモデルであることを表すスロット番号。旧 SE・MTE は負数を「アタッチなし」と読む</summary>
-        public const int ModelSlotNo = -2;
-
         /// <summary>循環したデータでも止まるよう、親をたどる深さの上限</summary>
         private const int MaxDepth = 64;
 
@@ -40,9 +38,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static readonly List<KeyValuePair<string, int>> _depths = new List<KeyValuePair<string, int>>();
         private static readonly Dictionary<string, int> _depthMemo = new Dictionary<string, int>();
 
-        public static bool IsModelTarget(int slotNo, string reference)
+        public static bool IsModelTarget(string reference)
         {
-            return slotNo == ModelSlotNo && !string.IsNullOrEmpty(reference);
+            return !string.IsNullOrEmpty(reference);
         }
 
         /// <summary>
