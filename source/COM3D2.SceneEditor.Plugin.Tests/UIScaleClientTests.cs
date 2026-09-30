@@ -26,5 +26,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(1f, UIScaleClient.ResolveScale(0f, float.NaN), 4);
             Assert.Equal(GUIScale.MaxScale, UIScaleClient.ResolveScale(9f, 1f), 4);
         }
+
+        [Fact]
+        public void 自前の設定を使う間は設定行を操作できる()
+        {
+            Assert.True(UIScaleClient.IsScaleEditable(false, false));
+            Assert.True(UIScaleClient.IsScaleEditable(false, true));
+        }
+
+        [Fact]
+        public void SceneEditorに従う間は書き込みAPIがあるときだけ操作できる()
+        {
+            // 書き込み API (UIScaleHost.SetUIScale) の無い旧版では、変えても反映先が無いため操作させない
+            Assert.True(UIScaleClient.IsScaleEditable(true, true));
+            Assert.False(UIScaleClient.IsScaleEditable(true, false));
+        }
     }
 }

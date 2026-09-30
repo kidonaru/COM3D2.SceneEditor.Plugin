@@ -21,6 +21,10 @@
     <Reference Include="UnityEngine.CoreModule" Condition="Exists('$(PluginBin)\UnityEngine.CoreModule.dll')">
       <HintPath>$(PluginBin)\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <!-- Event / EventType は COM3D2.5 (Unity 2022) では IMGUIModule にある -->
+    <Reference Include="UnityEngine.IMGUIModule" Condition="Exists('$(PluginBin)\UnityEngine.IMGUIModule.dll')">
+      <HintPath>$(PluginBin)\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(PluginBin)\Assembly-CSharp.dll</HintPath>
     </Reference>

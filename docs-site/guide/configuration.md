@@ -49,7 +49,8 @@
 - SceneView・GameView の 3D 描画は拡大せず、表示領域の実ピクセルで描きます
 - 保存されるウィンドウの配置は倍率に依存しません。倍率を変えて再起動してもウィンドウの大きさは同じです
 - 高い倍率で小さなウィンドウを使うと、ヘッダーのボタンとタブ列が重なることがあります
-- 対応版の ModItemExplorer・PostEffects のウィンドウも SceneEditor の UI 倍率に従います（SceneEditor が無効なときは各プラグインの設定）
+- 対応版の ModItemExplorer・PostEffects のウィンドウも SceneEditor の UI 倍率に従います（SceneEditor が無効なときは各プラグインの設定）。
+  各プラグインの設定画面で UI 倍率を変えると SceneEditor の UI 倍率も変わります
 
 ## ウィンドウの配置
 

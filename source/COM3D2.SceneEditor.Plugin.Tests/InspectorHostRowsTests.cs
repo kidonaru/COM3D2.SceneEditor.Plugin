@@ -6,7 +6,7 @@ using Xunit;
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
     /// <summary>
-    /// InspectorHost の行の委譲 (RegisterRows / DrawRows) を固定する。
+    /// InspectorHost の行の委譲 (RegisterRows / DrawRows / DrawsModel) を固定する。
     /// 登録表は static なので、テストごとに一意な名前で登録し finally で解除する
     /// </summary>
     public class InspectorHostRowsTests
@@ -164,6 +164,23 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(typeof(string), parameters[0].ParameterType);
             Assert.Equal(typeof(Func<GameObject, bool>), parameters[1].ParameterType);
             Assert.Equal(typeof(Func<GameObject, Rect, float>), parameters[2].ParameterType);
+        }
+
+        [Fact]
+        public void DrawsModel_の公開シグネチャ()
+        {
+            // InspectorHostClient は Func<GameObject, bool> として CreateDelegate する
+            var method = typeof(InspectorHost).GetMethod("DrawsModel",
+                BindingFlags.Public | BindingFlags.Static);
+
+            Assert.True(method != null, "DrawsModel が public static で見つかりません");
+            Assert.NotNull(Delegate.CreateDelegate(typeof(Func<GameObject, bool>), method));
+        }
+
+        [Fact]
+        public void DrawsModel_は_null_に_false()
+        {
+            Assert.False(InspectorHost.DrawsModel(null));
         }
     }
 }

@@ -70,6 +70,17 @@ namespace COM3D2.SceneEditor.Plugin
             return InspectorWindow.instance.DrawDelegatedHeader(go, rect);
         }
 
+        /// <summary>
+        /// go をホストが共通のモデル表示 (RegisterRows の行を足す先) で描くか (後発 API)。
+        /// 行の登録者が、描かれない間だけ全面委譲で代わりに描く判定に使う。
+        /// 全面委譲はホストの共通表示より先に判定されるため、これが true の go は引き受けないこと。
+        /// Inspector を生成してしまうため、canDraw の中 (Inspector 描画中) からだけ呼ぶこと
+        /// </summary>
+        public static bool DrawsModel(GameObject go)
+        {
+            return go != null && InspectorWindow.instance.DrawsModel(go);
+        }
+
         public static object Register(
             string name,
             Func<GameObject, bool> canDraw,

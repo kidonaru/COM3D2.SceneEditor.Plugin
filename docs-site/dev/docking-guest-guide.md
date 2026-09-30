@@ -254,6 +254,13 @@ MTEUtils の `UIScaleClient.Resolve(自前の倍率)` は、`uiScale` が 0 よ�
 （MTEUtils はプラグインごとに別々にコンパイルされるため、`GUIScale.scale` もプラグインごとの static）。
 設定画面の行は MTEUtils の `UIScaleSliderRow` を使うと SceneEditor と同じ操作になる。
 
+**ゲストからの変更**: `UIScaleHost` の static メソッド `bool SetUIScale(float scale)`（後発。旧ホストには無い）は、
+SceneEditor が有効なら倍率を設定画面と同じ刻み・範囲へ丸めて SceneEditor の設定へ書き、`true` を返す。
+無効なら書かずに `false` を返す。
+ゲストの設定行は `UIScaleClient.isScaleEditable` で有効・無効を決め、確定した値を
+`UIScaleClient.TrySetHostScale(倍率)` へ渡す。`false` が返ったら自前の設定へ書く。
+SceneEditor に従っている間の案内文は `UIScaleClient.followingHostMessage` で、旧ホストかどうかに応じて変わる。
+
 **`DockableWindowBase` を使うゲスト**は、`GUIScale.scale` を設定するだけで対応する。
 派生側は `windowRect.width` の代わりに `contentRect` / `localWindowRect`（論理サイズ）で描き、
 `OnSizeChanged` も論理サイズで受け取る。MTEUtils のポップアップ類（コンボ・カラー / カーブ / テクスチャピッカー・
