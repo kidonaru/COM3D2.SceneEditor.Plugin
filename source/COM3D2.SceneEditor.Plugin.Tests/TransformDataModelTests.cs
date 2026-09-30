@@ -183,6 +183,19 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 書き出したXMLはあとからキーを変えても変わらない()
+        {
+            // 操作履歴は変更前の XML を控えておき Undo で戻す。配列を共有すると控えまで書き換わる
+            var trans = Create();
+            trans.SetAttachedToModel("desk.menu");
+            var xml = trans.ToXml();
+
+            trans.SetUnattached();
+
+            Assert.Equal("desk.menu", xml.strValues[(int)TransformDataModel.StrIndex.AttachModel]);
+        }
+
+        [Fact]
         public void モデルへのアタッチはXMLを往復する()
         {
             var trans = Create();
