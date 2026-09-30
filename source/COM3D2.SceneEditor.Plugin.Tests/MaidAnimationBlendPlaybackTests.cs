@@ -54,6 +54,28 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void ベース停止中に止めていた層は有効なまま速度0で戻す()
+        {
+            bool enabled;
+            float speed;
+            MaidAnimationBlendController.GetRestoredPlayback(false, true, false, 1.5f, out enabled, out speed);
+
+            Assert.True(enabled);
+            Assert.Equal(0f, speed);
+        }
+
+        [Fact]
+        public void ベース再生中は層を残す条件でも控えた速度で戻す()
+        {
+            bool enabled;
+            float speed;
+            MaidAnimationBlendController.GetRestoredPlayback(true, true, true, 0.5f, out enabled, out speed);
+
+            Assert.True(enabled);
+            Assert.Equal(0.5f, speed);
+        }
+
+        [Fact]
         public void 層を残さない停止中は層を無効にする()
         {
             bool enabled;

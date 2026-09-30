@@ -1046,13 +1046,19 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             var keep = ShouldKeepLayersWhileStopped(IsLayerSelected(maid), isEditMode);
-            if (keep)
+            var wasKeeping = ShouldKeepLayersWhileStopped(IsLayerSelected(maid), !isEditMode);
+            // レイヤータブは編集モードに関わらず層を残すので触らない。
+            // KeepLayersAfterStop を通すと、層だけ流していた段が止まって控えた位置へ巻き戻る
+            if (keep != wasKeeping)
             {
-                KeepLayersAfterStop(maid);
-            }
-            else
-            {
-                DisableLayers(maid, anim);
+                if (keep)
+                {
+                    KeepLayersAfterStop(maid);
+                }
+                else
+                {
+                    DisableLayers(maid, anim);
+                }
             }
             SampleStopped(maid, anim);
         }
@@ -1210,7 +1216,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (!basePlaying)
             {
-                // 有効状態と速度はループで書き済み。ベースをそろえてサンプルし直す
+                // 停止中はベースをそろえてサンプルし直す
                 SampleStopped(maid, anim);
             }
         }

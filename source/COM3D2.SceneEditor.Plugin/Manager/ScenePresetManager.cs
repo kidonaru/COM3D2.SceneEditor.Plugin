@@ -2093,8 +2093,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                     if (state.animationLayers != null)
                     {
-                        // ベースの適用後に載せる (層の enabled/speed はベースの再生中かで決まる)。
-                        // 停止中なら層は速度 0 で残り、編集モード外なのでブレンドが見える
+                        // ベースの適用後に載せる。停止中なら層は速度 0 で残り、編集モード外なのでブレンドが見える
                         var basePlaying = MaidMotionState.IsPlaying(maid);
                         var layerStates = new List<MaidAnimationBlendController.LayerState>();
                         foreach (var layer in state.animationLayers)

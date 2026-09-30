@@ -485,7 +485,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 InvalidateIsPlayingCache(maid);
                 // 停止中に層だけ流していた段は今の位置から続ける
-                MaidAnimationBlendController.ResumeAfterPlay(maid, true);
+                MaidAnimationBlendController.ResumeAfterPlay(maid, continueRunningLayers: true);
                 MaidBoneSliderController.ClearBasePose(maid);
             }
             catch (Exception e)
