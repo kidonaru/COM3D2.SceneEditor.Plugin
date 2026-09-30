@@ -17,14 +17,12 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Theory]
-        [InlineData(-2, "cup.menu", true)]
-        [InlineData(-2, "", false)]
-        [InlineData(-2, null, false)]
-        [InlineData(-1, "cup.menu", false)]
-        [InlineData(0, "cup.menu", false)]
-        public void モデル参照は目印のスロットと空でない名前の組(int slotNo, string reference, bool expected)
+        [InlineData("cup.menu", true)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void モデル名があればモデルへのアタッチ(string reference, bool expected)
         {
-            Assert.Equal(expected, ModelAttachTarget.IsModelTarget(slotNo, reference));
+            Assert.Equal(expected, ModelAttachTarget.IsModelTarget(reference));
         }
 
         [Fact]

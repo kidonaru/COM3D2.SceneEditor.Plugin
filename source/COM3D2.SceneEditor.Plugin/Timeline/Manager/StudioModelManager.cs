@@ -714,7 +714,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Transform GetAttachParent(
             StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo, string attachModelName)
         {
-            if (ModelAttachTarget.IsModelTarget(attachMaidSlotNo, attachModelName))
+            if (ModelAttachTarget.IsModelTarget(attachModelName))
             {
                 return GetModelAttachParent(model, attachModelName);
             }

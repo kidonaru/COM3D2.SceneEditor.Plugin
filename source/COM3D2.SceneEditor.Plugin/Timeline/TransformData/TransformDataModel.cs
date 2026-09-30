@@ -148,7 +148,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => strValues[(int)StrIndex.AttachModel] = value ?? "";
         }
 
-        public bool isAttachedToModel => ModelAttachTarget.IsModelTarget(attachMaidSlotNo, attachModelName);
+        public bool isAttachedToModel => ModelAttachTarget.IsModelTarget(attachModelName);
 
         /// <summary>メイドへアタッチしているか (旧 SE と同じ判定。モデルへのアタッチは含まない)</summary>
         public static bool IsAttached(AttachPoint point, int maidSlotNo)
@@ -159,16 +159,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>メイドまたはモデルへアタッチしているか</summary>
         public static bool IsAttached(AttachPoint point, int maidSlotNo, string reference)
         {
-            return ModelAttachTarget.IsModelTarget(maidSlotNo, reference) || IsAttached(point, maidSlotNo);
+            return ModelAttachTarget.IsModelTarget(reference) || IsAttached(point, maidSlotNo);
         }
 
         /// <summary>
-        /// モデルへアタッチする。部位は使わないので、アタッチなしと同じく既定の Head にそろえる
+        /// モデルへアタッチする。メイドのスロットと部位は使わないので、アタッチなしと同じ -1 と既定の Head にそろえる
         /// (値が揺れるとキーの差分や同値区間の判定がずれるため)
         /// </summary>
         public void SetAttachedToModel(string reference)
         {
-            attachMaidSlotNo = ModelAttachTarget.ModelSlotNo;
+            attachMaidSlotNo = -1;
             attachPoint = AttachPoint.Head;
             attachModelName = reference;
         }
@@ -178,7 +178,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         public void SetAttachTarget(int slotNo, string reference)
         {
-            if (ModelAttachTarget.IsModelTarget(slotNo, reference))
+            if (ModelAttachTarget.IsModelTarget(reference))
             {
                 SetAttachedToModel(reference);
                 return;
@@ -242,14 +242,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 worldLerp = false;
             }
 
-            // 手編集などで目印とモデル名が食い違ったキーは、取り決めどおりの形へそろえる
-            if (attachMaidSlotNo == ModelAttachTarget.ModelSlotNo && string.IsNullOrEmpty(attachModelName))
+            // モデル名があるキーは、スロットや部位が食い違っていても (手編集など) モデル名を優先してそろえる。
+            // 名前が無く負のスロットのキーも、同じ「なし」が値の違いで別物に見えないよう -1 へそろえる
+            if (isAttachedToModel)
             {
-                SetUnattached();
+                SetAttachedToModel(attachModelName);
             }
-            else if (attachMaidSlotNo != ModelAttachTarget.ModelSlotNo)
+            else if (attachMaidSlotNo < 0)
             {
-                attachModelName = "";
+                attachMaidSlotNo = -1;
             }
         }
     }

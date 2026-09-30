@@ -108,7 +108,7 @@ namespace COM3D2.SceneEditor.Plugin
                 _targetComboBox.DrawButton(view);
 
                 // モデルへのアタッチは原点に付けるので部位を選ばせない
-                if (model.attachMaidSlotNo >= 0)
+                if (!model.isAttachedToModel && model.attachMaidSlotNo >= 0)
                 {
                     _attachPointComboBox.currentIndex = (int)model.attachPoint;
                     _attachPointComboBox.onSelected = (_, index) => ChangeAttach(model, () =>

@@ -83,7 +83,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         MaidPoint,
         /// <summary>モデルのアタッチ部位 (PhotoTransTargetObject.AttachPoint)</summary>
         AttachPoint,
-        /// <summary>モデルのアタッチ先 (メイドのスロット番号、ModelAttachTarget.ModelSlotNo はモデル。モデル名は文字列値)</summary>
+        /// <summary>モデルのアタッチ先 (メイドのスロット番号)。モデルへのアタッチはスロット -1 とモデル名の文字列値 (ModelAttachTarget の取り決め)</summary>
         AttachTarget,
     }
 

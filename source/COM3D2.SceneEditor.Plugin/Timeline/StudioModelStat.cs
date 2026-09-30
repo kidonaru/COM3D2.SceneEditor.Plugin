@@ -39,7 +39,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>アタッチ先モデルの参照 (ModelAttachTarget の取り決め)。モデル以外へのアタッチでは空</summary>
         public string attachModelName { get; set; } = "";
 
-        public bool isAttachedToModel => ModelAttachTarget.IsModelTarget(attachMaidSlotNo, attachModelName);
+        public bool isAttachedToModel => ModelAttachTarget.IsModelTarget(attachModelName);
         public object obj { get; set; }
         public string pluginName { get; set; }
         public bool visible { get; set; }
