@@ -32,6 +32,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         public static void BeginBatch() { }
         public static void EndBatch() { }
         public static Transform GetModelAttachBone(GameObject obj) => null;
+        public static void AttachModelToModel(GameObject obj, GameObject parent, string boneName) { }
         public static int GetModelLayer(GameObject obj) => -1;
         public static void SetModelLayer(GameObject obj, int layer) { }
     }
@@ -122,6 +123,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.NotNull(provider.beginBatch);
             Assert.NotNull(provider.endBatch);
             Assert.NotNull(provider.getModelAttachBone);
+            Assert.NotNull(provider.attachModelToModel);
             Assert.NotNull(provider.getModelLayer);
             Assert.NotNull(provider.setModelLayer);
         }
@@ -138,6 +140,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Null(provider.endBatch);
             // 旧版のプロバイダはアタッチを返さない。SE は同期しないだけで、これまでどおり動く
             Assert.Null(provider.getModelAttachBone);
+            Assert.Null(provider.attachModelToModel);
             Assert.Null(provider.getModelLayer);
             Assert.Null(provider.setModelLayer);
         }

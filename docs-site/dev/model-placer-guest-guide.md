@@ -99,6 +99,7 @@ public static class ModelPlacerProvider
 | `GetModelDisplayName` | `string GetModelDisplayName(GameObject)` | 一覧に出す表示名 |
 | `BeginBatch` / `EndBatch` | `void BeginBatch()` / `void EndBatch()` | タイムライン読込のような一括操作の開始・終了通知。**2 つ揃っているときだけ**バインドされる |
 | `GetModelAttachBone` | `Transform GetModelAttachBone(GameObject)` | アタッチ中の親ボーン（未アタッチなら null）。実装すると、ゲスト側の UI で付け替えたアタッチが SceneEditor のモデルキーへ取り込まれる。UI での付け替えの前に `AutoEditModeClient.Enter("ModelTimelineLayer")` を呼ぶこと（呼ばないとタイムラインの再生値で元に戻る） |
+| `AttachModelToModel` | `void AttachModelToModel(GameObject obj, GameObject parent, string boneName)` | `obj` を別のモデル `parent`（同じプロバイダの配置モデル）へ追従させる。`boneName` は `parent` 内のボーン名で、空ならモデルの原点（今の SceneEditor は常に空を渡す）。実装すると、SceneEditor のモデルキーでモデルをアタッチ先に選べる。`GetModelAttachBone` が `parent` の Transform を返せば、ゲスト側の UI で付け替えたモデルへのアタッチもキーへ取り込まれる |
 | `GetModelLayer` | `int GetModelLayer(GameObject)` | モデルの表示レイヤー（Unity のレイヤー番号）。管理外・不明なら -1。`SetModelLayer` と対で実装すると、SceneEditor がタイムラインのモデル定義（`<ModelLayer>`）として保存・復元する |
 | `SetModelLayer` | `void SetModelLayer(GameObject, int)` | 表示レイヤーを変える。タイムライン読込・モデル複製から呼ばれる。0〜31 以外は無視すること。`GetModelLayer` と片方だけでは無効 |
 
@@ -141,6 +142,15 @@ SceneEditor 側が `AttachPoint` からボーンの `Transform` まで解決し�
   一覧に無い名前でもアタッチできるようにしておくこと
 
 SceneEditor が付ける部位は、ゲームの `PhotoTransTargetObject.AttachPoint` の部位に胸（`Bip01 Spine1a`）と骨盤（`Bip01 Pelvis`）を足したものです。`GetModelAttachBone` が返すボーンがこの一覧に無い場合、SceneEditor はそのアタッチをキーへ取り込みません。
+
+### `AttachModelToModel`
+
+別の配置モデルへのアタッチ。SceneEditor はアタッチ先モデルの GameObject まで解決して `parent` に渡す。
+
+- 付けるときはメイドへのアタッチと同じく、ローカル位置・回転を 0 にする（拡縮は保つ）
+- 解除は既存の `AttachModel(obj, null, "")` で行う
+- `parent` を削除するときは、付いている子をワールド位置を保ったまま配置ルートへ戻してから破棄する（戻さないと子も一緒に破棄される）
+- 自分自身や子孫を親にする指定は SceneEditor 側で弾くが、ゲスト側でも無視すること
 
 ### `BeginBatch` / `EndBatch`
 
