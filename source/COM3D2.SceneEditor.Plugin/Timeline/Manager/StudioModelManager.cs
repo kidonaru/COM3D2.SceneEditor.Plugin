@@ -669,17 +669,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// 現在と同じなら何もせず false を返す (プロバイダは付け替えでローカル位置・回転を 0 に戻すため、
         /// true のときは呼び出し側でローカル値を入れ直すこと)
         /// </summary>
-        // Task 5 で ModelTimelineLayer の呼び出しを 4 引数へ移したら削除する
-        public bool ApplyAttach(StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo)
-        {
-            return ApplyAttach(model, attachPoint, attachMaidSlotNo, "");
-        }
-
-        public Transform GetAttachParent(StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo)
-        {
-            return GetAttachParent(model, attachPoint, attachMaidSlotNo, "");
-        }
-
         public bool ApplyAttach(
             StudioModelStat model, AttachPoint attachPoint, int attachMaidSlotNo, string attachModelName)
         {

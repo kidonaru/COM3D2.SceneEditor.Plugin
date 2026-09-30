@@ -81,6 +81,73 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        // 毎フレーム使うので作業用のコレクションとデリゲートを使い回す
+        private readonly Dictionary<string, bool> _indexUpdatedMap = new Dictionary<string, bool>();
+        private readonly List<string> _playNames = new List<string>();
+        private readonly List<string> _applyOrder = new List<string>();
+        private Func<string, string> _getPlayingParentName;
+        private Func<string, bool> _hasPlayData;
+
+        /// <summary>
+        /// 親モデルを子より先に適用する。ワールド補間は親の今フレームの姿勢を読むため、
+        /// 辞書順のままだと子が 1 フレーム前の親を基準にしてしまう
+        /// </summary>
+        protected override void ApplyPlayData()
+        {
+            var maid = this.maid;
+            if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
+            {
+                return;
+            }
+
+            var playingFrameNoFloat = this.playingFrameNoFloat;
+
+            _indexUpdatedMap.Clear();
+            _playNames.Clear();
+            foreach (var pair in _playDataMap)
+            {
+                _indexUpdatedMap[pair.Key] = pair.Value.Update(playingFrameNoFloat);
+                _playNames.Add(pair.Key);
+            }
+
+            if (_getPlayingParentName == null)
+            {
+                _getPlayingParentName = GetPlayingParentName;
+                _hasPlayData = _playDataMap.ContainsKey;
+            }
+            ModelAttachTarget.SortParentsFirst(_playNames, _getPlayingParentName, _applyOrder);
+
+            foreach (var name in _applyOrder)
+            {
+                var playData = _playDataMap[name];
+                var current = playData.current;
+                if (current != null)
+                {
+                    ApplyMotion(current, playData.lerpFrame, _indexUpdatedMap[name], playData);
+                }
+            }
+        }
+
+        /// <summary>再生位置で有効なキーのアタッチ先モデル名 (ApplyMotion と同じく区間の 99% までは始点)</summary>
+        private string GetPlayingParentName(string name)
+        {
+            MotionPlayData playData;
+            if (!_playDataMap.TryGetValue(name, out playData) || playData.current == null)
+            {
+                return null;
+            }
+
+            var key = (playData.lerpFrame < StepEndThreshold ? playData.current.start : playData.current.end)
+                as TransformDataModel;
+            if (key == null || !key.isAttachedToModel)
+            {
+                return null;
+            }
+            string parentName, boneName;
+            return ModelAttachTarget.TryResolveReference(
+                key.attachModelName, _hasPlayData, out parentName, out boneName) ? parentName : null;
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             var model = modelManager.GetModel(motion.name);
@@ -98,7 +165,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             var attachKey = t < StepEndThreshold ? start : end;
             var attachChanged = modelManager.ApplyAttach(
-                model, attachKey.attachPoint, attachKey.attachMaidSlotNo);
+                model, attachKey.attachPoint, attachKey.attachMaidSlotNo, attachKey.attachModelName);
 
             // 付け替えはローカル位置・回転を 0 に戻すので、区間頭と同じく入れ直す
             if (indexUpdated || attachChanged)
@@ -178,8 +245,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             TransformDataModel start,
             TransformDataModel end)
         {
-            var startParent = modelManager.GetAttachParent(model, start.attachPoint, start.attachMaidSlotNo);
-            var endParent = modelManager.GetAttachParent(model, end.attachPoint, end.attachMaidSlotNo);
+            var startParent = modelManager.GetAttachParent(
+                model, start.attachPoint, start.attachMaidSlotNo, start.attachModelName);
+            var endParent = modelManager.GetAttachParent(
+                model, end.attachPoint, end.attachMaidSlotNo, end.attachModelName);
             if (startParent == null || endParent == null)
             {
                 return false;
@@ -216,8 +285,68 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void OnModelRemoved(StudioModelStat model)
         {
             InitMenuItems();
+            DetachKeysFromRemovedParent(model.name);
             RemoveAllBones(new List<string> { model.name });
             ApplyCurrentFrame(true);
+        }
+
+        /// <summary>
+        /// 削除された親を指すキーを、親の最後の姿勢で配置ルート基準の値へ直してアタッチなしにする (ワールド位置を保つ)。
+        /// 親が動いていた場合も削除時点の姿勢を全キーに使う近似。タンジェントは変換しない
+        /// </summary>
+        private void DetachKeysFromRemovedParent(string parentName)
+        {
+            ModelAttachPose parentPose;
+            var hasPose = modelManager.TryGetAttachParentPose(parentName, out parentPose);
+
+            foreach (var keyFrame in keyFrames)
+            {
+                foreach (var bone in keyFrame.bones)
+                {
+                    var trans = bone.transform as TransformDataModel;
+                    if (trans == null || !trans.isAttachedToModel)
+                    {
+                        continue;
+                    }
+
+                    string referencedName, boneName;
+                    ModelAttachTarget.TryResolveReference(
+                        trans.attachModelName, name => name == parentName, out referencedName, out boneName);
+                    if (referencedName != parentName)
+                    {
+                        continue;
+                    }
+
+                    var child = modelManager.GetModel(bone.name);
+                    var root = child != null
+                        ? modelManager.GetAttachParent(child, AttachPoint.Null, -1, "")
+                        : null;
+                    if (hasPose && root != null)
+                    {
+                        var position = trans.position;
+                        var rotation = trans.rotation;
+                        var scale = trans.scale;
+                        ModelAttachTarget.ConvertToRoot(
+                            parentPose, ModelAttachPose.From(root), ref position, ref rotation, ref scale);
+                        trans.position = position;
+                        trans.rotation = rotation;
+                        trans.scale = scale;
+                    }
+                    else if (!hasPose)
+                    {
+                        MTEUtils.LogWarning(
+                            "削除されたアタッチ先の姿勢が分からないため、位置を変換せずアタッチなしにします: {0}", bone.name);
+                    }
+                    else
+                    {
+                        MTEUtils.LogWarning(
+                            "配置ルートが見つからないため、位置を変換せずアタッチなしにします: {0}", bone.name);
+                    }
+                    trans.SetUnattached();
+                }
+            }
+
+            modelManager.ForgetAttachParentPose(parentName);
         }
 
         public override void OnCopyModel(StudioModelStat sourceModel, StudioModelStat newModel)
@@ -251,7 +380,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 trans.rotation = model.transform.localRotation;
                 trans.scale = model.transform.localScale;
                 trans.visible = model.visible;
-                if (TransformDataModel.IsAttached(model.attachPoint, model.attachMaidSlotNo))
+                if (model.isAttachedToModel)
+                {
+                    trans.SetAttachedToModel(model.attachModelName);
+                }
+                else if (TransformDataModel.IsAttached(model.attachPoint, model.attachMaidSlotNo))
                 {
                     trans.attachMaidSlotNo = model.attachMaidSlotNo;
                     trans.attachPoint = model.attachPoint;
