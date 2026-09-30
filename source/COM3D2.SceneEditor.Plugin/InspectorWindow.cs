@@ -697,7 +697,9 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            InspectorHeaderRowDrawer.Draw(view, go.activeSelf, go.name, RowHeight, value =>
+            // 外部プラグインのモデルは GameObject 名がファイル名なので、提供者の表示名を優先する
+            var name = ModelProviderHost.GetDisplayName(go) ?? go.name;
+            InspectorHeaderRowDrawer.Draw(view, go.activeSelf, name, RowHeight, value =>
             {
                 ObjectTransformRowDrawer.RecordEdit(go);
                 go.SetActive(value);

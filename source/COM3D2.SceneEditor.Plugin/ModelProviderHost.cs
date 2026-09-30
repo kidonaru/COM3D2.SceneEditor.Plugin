@@ -34,6 +34,9 @@ namespace COM3D2.SceneEditor.Plugin
             public string pluginName;
             public Func<List<GameObject>> getModels;
             public Func<GameObject, string> getDisplayName;
+
+            /// <summary>GetDisplayName で例外を出した。毎フレーム呼ばれるため、以降は呼ばずにログの連続出力を防ぐ</summary>
+            public bool displayNameFailed;
         }
 
         private static readonly List<Provider> _providers = new List<Provider>();
@@ -114,6 +117,43 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// 提供者が go に付けた表示名。無ければ null (呼び出し側で GameObject 名にする)
+        /// </summary>
+        internal static string GetDisplayName(GameObject go)
+        {
+            if (go == null)
+            {
+                return null;
+            }
+
+            // OnGUI から毎回呼ばれるため、GetModels と違って複製を取らずに回す
+            for (var i = 0; i < _providers.Count; i++)
+            {
+                var provider = _providers[i];
+                if (provider.getDisplayName == null || provider.displayNameFailed)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var name = provider.getDisplayName(go);
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        return name;
+                    }
+                }
+                catch (Exception e)
+                {
+                    provider.displayNameFailed = true;
+                    MTEUtils.LogError("表示名の取得に失敗したため、以降は GameObject 名で表示します。{0}", provider.pluginName);
+                    MTEUtils.LogException(e);
+                }
+            }
+            return null;
         }
     }
 }
