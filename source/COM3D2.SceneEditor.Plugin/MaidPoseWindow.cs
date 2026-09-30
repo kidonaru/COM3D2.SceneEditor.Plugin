@@ -239,38 +239,56 @@ namespace COM3D2.SceneEditor.Plugin
                 view.AddRightAlignSpace(
                     isLayerTarget ? 30 + 50 + view.margin : 30, ROW_HEIGHT);
 
-                // 再生中は停止、停止中は再生と、状態に応じて 1 つのボタンを切り替える。
-                // 適用先に関わらずベースと全レイヤーをまとめて動かす
-                // (PlayMotion の ResumeAfterPlay と anim.Stop() が層も一緒に扱う)
-                var isPlaying = MaidMotionState.IsPlaying(maid);
-                if (view.DrawButton(isPlaying ? "■" : "▶", 30, ROW_HEIGHT,
-                    enabled: isPlaying || MaidMotionState.CanPlayMotion(maid)))
-                {
-                    if (isPlaying)
-                    {
-                        MaidMotionState.StopMotion(maid);
-                    }
-                    else
-                    {
-                        // 再生するなら編集モードは畳む
-                        // (止めたポーズを基準にする編集と再生は両立しない)
-                        AutoEditMode.Exit();
-                        MaidMotionState.PlayMotion(maid);
-                    }
-                }
-
                 if (isLayerTarget)
                 {
+                    // レイヤータブはその段だけを再生 / 停止する。ベースが止まっていても
+                    // 層だけ流せる (ベースは止めたポーズのまま)。編集モードは畳まない
+                    // (レイヤータブではボーン編集が止まっていて、流しても編集と衝突しない)
+                    var layer = MaidAnimationBlendController.GetSelectedLayer(maid);
+                    var layerPlaying = MaidAnimationBlendController.IsLayerPlaying(maid, layer);
+                    if (view.DrawButton(layerPlaying ? "■" : "▶", 30, ROW_HEIGHT,
+                        enabled: layerPlaying || MaidAnimationBlendController.CanPlayLayer(maid, layer)))
+                    {
+                        if (layerPlaying)
+                        {
+                            MaidAnimationBlendController.Stop(maid, layer);
+                        }
+                        else
+                        {
+                            MaidAnimationBlendController.Play(maid, layer);
+                        }
+                    }
+
                     var hasState = layerInfo != null && layerInfo.state != null
                         && !string.IsNullOrEmpty(layerInfo.anmName);
                     if (view.DrawButton("削除", 50, ROW_HEIGHT, enabled: hasState))
                     {
-                        var layer = MaidAnimationBlendController.GetSelectedLayer(maid);
                         AutoEditMode.Enter();
                         HistoryManager.instance.BeforeEdit(maid, HistoryScope.Pose,
                             "ブレンド削除: レイヤー" + layer,
                             () => PoseSnapshot.GetAllBodyBones(maid));
                         MaidAnimationBlendController.RemoveLayer(maid, layer);
+                    }
+                }
+                else
+                {
+                    // ベースタブはベースと全レイヤーをまとめて動かす
+                    // (PlayMotion の ResumeAfterPlay と anim.Stop() が層も一緒に扱う)
+                    var isPlaying = MaidMotionState.IsPlaying(maid);
+                    if (view.DrawButton(isPlaying ? "■" : "▶", 30, ROW_HEIGHT,
+                        enabled: isPlaying || MaidMotionState.CanPlayMotion(maid)))
+                    {
+                        if (isPlaying)
+                        {
+                            MaidMotionState.StopMotion(maid);
+                        }
+                        else
+                        {
+                            // 再生するなら編集モードは畳む
+                            // (止めたポーズを基準にする編集と再生は両立しない)
+                            AutoEditMode.Exit();
+                            MaidMotionState.PlayMotion(maid);
+                        }
                     }
                 }
             }
