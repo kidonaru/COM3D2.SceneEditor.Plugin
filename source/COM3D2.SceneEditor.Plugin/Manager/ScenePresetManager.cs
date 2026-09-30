@@ -2095,13 +2095,15 @@ namespace COM3D2.SceneEditor.Plugin
                     {
                         // ベースの適用後に載せる (層の enabled/speed はベースの再生中かで決まる)。
                         // 停止中なら層は速度 0 で残り、編集モード外なのでブレンドが見える
+                        var basePlaying = MaidMotionState.IsPlaying(maid);
                         var layerStates = new List<MaidAnimationBlendController.LayerState>();
                         foreach (var layer in state.animationLayers)
                         {
                             var layerState = layer.ToLayerState();
-                            // プリセットは層ごとの停止を持たない。ベースが再生中なら層も流す
-                            // (Restore は basePlaying && playing で速度を決める。履歴と共有なので Restore 側は変えない)
-                            layerState.playing = true;
+                            // プリセットは層ごとの停止を持たないので、ベースの再生状態にそろえる。
+                            // Restore はベース停止中でも playing の層を流すため、停止中に true を渡すと
+                            // 止めたポーズの上で層が流れ出してしまう
+                            layerState.playing = basePlaying;
                             layerStates.Add(layerState);
                         }
                         MaidAnimationBlendController.ApplyLayerStates(maid, layerStates);

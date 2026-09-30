@@ -120,6 +120,33 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 層を単独で流せるか。ベース再生中か、停止中でも層を残す条件なら流せる。
+        /// 層を残す停止中はベースが有効 / 速度 0 で残っているので、止めたポーズの上で層だけ動く
+        /// </summary>
+        public static bool CanPlayLayer(bool basePlaying, bool keepLayersWhileStopped)
+        {
+            return basePlaying || keepLayersWhileStopped;
+        }
+
+        /// <summary>層に何か載っていて、いま流せるか。レイヤータブの ▶ の有効判定に使う</summary>
+        public static bool CanPlayLayer(Maid maid, int layer)
+        {
+            return GetLiveInfo(maid, layer) != null
+                && CanPlayLayer(MaidMotionState.IsPlaying(maid), ShouldKeepLayersWhileStopped(maid));
+        }
+
+        /// <summary>
+        /// 履歴の復元で層の state へ戻す有効状態と速度。
+        /// ベースを止めたまま層だけ流していた状態も、層を残す条件なら流したまま戻す
+        /// </summary>
+        public static void GetRestoredPlayback(bool basePlaying, bool keepLayersWhileStopped,
+            bool wasPlaying, float speed, out bool enabled, out float stateSpeed)
+        {
+            enabled = CanPlayLayer(basePlaying, keepLayersWhileStopped);
+            stateSpeed = enabled && wasPlaying ? speed : 0f;
+        }
+
+        /// <summary>
         /// そのレイヤーへキーを登録すると、ブレンドの寄与が焼き込まれてしまうか。
         /// 適用先がブレンド層の間はボーンを触れない代わりに層が有効なままで、
         /// 実ボーンにはブレンドが乗っている。この状態でボーン由来のレイヤーへ登録すると
@@ -793,19 +820,25 @@ namespace COM3D2.SceneEditor.Plugin
             info.overrideTime = overrideTime;
         }
 
-        /// <summary>層が動いているか。ベースが止まっていれば層も止まっている扱い</summary>
+        /// <summary>
+        /// 層が動いているか。ベースが止まっていても層だけ流していれば true。
+        /// 層を残さない停止中 (ベースタブの編集モード) は層が無効なので false
+        /// </summary>
         public static bool IsLayerPlaying(Maid maid, int layer)
         {
             var info = GetLiveInfo(maid, layer);
-            return info != null && MaidMotionState.IsPlaying(maid)
-                && info.state.enabled && info.state.speed > 0f;
+            return info != null && IsRunning(info);
         }
 
-        /// <summary>層だけ流す。ベースが停止中なら何もしない (停止編集を崩さない)</summary>
+        /// <summary>
+        /// 層だけ流す。ベースが停止中でも、層を残す条件なら止めたポーズの上で流す
+        /// (層を残さない条件では層自体が外れているので何もしない)
+        /// </summary>
         public static void Play(Maid maid, int layer)
         {
             var info = GetLiveInfo(maid, layer);
-            if (info == null || !MaidMotionState.IsPlaying(maid))
+            var basePlaying = MaidMotionState.IsPlaying(maid);
+            if (info == null || !CanPlayLayer(basePlaying, ShouldKeepLayersWhileStopped(maid)))
             {
                 return;
             }
@@ -818,6 +851,12 @@ namespace COM3D2.SceneEditor.Plugin
             // 速度 0 のまま流すと ▶ が効かないように見えるため等速へ戻す
             // (速度 0 で止めたいときは ■ を使う)
             info.state.speed = info.speed > 0f ? info.speed : 1f;
+            if (!basePlaying)
+            {
+                // ベースを有効 / 速度 0 にそろえる。層だけ有効だと
+                // Unity の自動サンプルがベース抜きで走ってポーズが崩れる
+                SampleStopped(maid, GetAnimation(maid));
+            }
         }
 
         /// <summary>層だけ止める (speed=0 で現在フレームを保つ)</summary>
@@ -830,6 +869,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
             info.startTime = info.state.GetPlayingTime();
             info.state.speed = 0f;
+            if (!MaidMotionState.IsPlaying(maid))
+            {
+                // 止めた位置のポーズをボーンスライダーの基準として取り直す
+                SampleStopped(maid, GetAnimation(maid));
+            }
         }
 
         /// <summary>
@@ -855,9 +899,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// ベース再生の再開後に層を流し直す。anim.Play(clip) は同じレイヤーしか止めないが、
-        /// 直前の anim.Stop() で層は無効化済みのためここで戻す
+        /// 直前の anim.Stop() で層は無効化済みのためここで戻す。
+        /// continueRunningLayers は停止からの全体再生 (PlayMotion) 用: ベースを止めたまま
+        /// 層だけ流していた段は無効化されずに動いているので、今の位置から続ける
+        /// (履歴の復元やリセットでは控えた位置へ戻すのが正しいので false のまま)
         /// </summary>
-        public static void ResumeAfterPlay(Maid maid)
+        public static void ResumeAfterPlay(Maid maid, bool continueRunningLayers = false)
         {
             var anim = GetAnimation(maid);
             var infos = GetLayerInfos(maid);
@@ -871,8 +918,19 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
+                if (continueRunningLayers && IsRunning(info))
+                {
+                    // 控えた startTime (前回止めた位置) へ書き戻すと飛ぶので、今の位置を控え直す
+                    info.startTime = info.state.GetPlayingTime();
+                }
                 ApplyLayerValues(info, true, info.speed);
             }
+        }
+
+        /// <summary>state が有効で流れているか。呼び出し側で state が生きていることを確かめておくこと</summary>
+        private static bool IsRunning(AnimationLayerInfo info)
+        {
+            return info.state.enabled && info.state.speed > 0f;
         }
 
         /// <summary>
@@ -927,6 +985,20 @@ namespace COM3D2.SceneEditor.Plugin
                 return MaidPoseFileManager.CapturePoseBinary(maid);
             }
             var keep = ShouldKeepLayersWhileStopped(maid);
+            // 層だけ流していた段は、ベースだけのポーズを取り終えたら流し直す
+            // (KeepLayersAfterStop は速度 0 で戻すため、そのままだと保存しただけで止まる)
+            var runningLayers = new List<int>();
+            var infos = GetLayerInfos(maid);
+            if (infos != null)
+            {
+                foreach (var info in infos)
+                {
+                    if (info.layer >= MinLayer && IsStateAlive(anim, info) && IsRunning(info))
+                    {
+                        runningLayers.Add(info.layer);
+                    }
+                }
+            }
             DisableLayers(maid, anim);
             var baseState = MaidMotionState.GetCurrentAnimationState(maid);
             if (baseState != null)
@@ -941,6 +1013,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 KeepLayersAfterStop(maid);
                 SampleStopped(maid, anim);
+                foreach (var layer in runningLayers)
+                {
+                    Play(maid, layer);
+                }
             }
             return binary;
         }
@@ -1014,6 +1090,12 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (info.layer >= MinLayer && IsStateAlive(anim, info))
                 {
+                    if (IsRunning(info))
+                    {
+                        // 層だけ流していた段は位置を控える。戻すときの KeepLayersAfterStop が
+                        // startTime へ書き戻すので、控えないと前回 Play / Stop した位置へ飛ぶ
+                        info.startTime = info.state.GetPlayingTime();
+                    }
                     info.state.enabled = false;
                 }
             }
@@ -1063,6 +1145,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
+            var basePlaying = MaidMotionState.IsPlaying(maid);
+            var keepLayers = ShouldKeepLayersWhileStopped(maid);
 
             for (var layer = MinLayer; layer <= MaxLayer; layer++)
             {
@@ -1116,19 +1200,17 @@ namespace COM3D2.SceneEditor.Plugin
                 info.state.wrapMode = target.loop ? WrapMode.Loop : WrapMode.Once;
                 info.state.weight = target.weight;
                 info.state.time = target.time;
-                var basePlaying = MaidMotionState.IsPlaying(maid);
-                info.state.enabled = basePlaying;
-                info.state.speed = basePlaying && target.playing ? target.speed : 0f;
+                bool enabled;
+                float stateSpeed;
+                GetRestoredPlayback(basePlaying, keepLayers, target.playing, target.speed,
+                    out enabled, out stateSpeed);
+                info.state.enabled = enabled;
+                info.state.speed = stateSpeed;
             }
 
-            if (!MaidMotionState.IsPlaying(maid))
+            if (!basePlaying)
             {
-                // 上のループは停止中の層を一律 enabled=false にする。
-                // 層を見せる条件 (停止中・レイヤータブ or 編集モード外) なら戻してからサンプルする
-                if (ShouldKeepLayersWhileStopped(maid))
-                {
-                    KeepLayersAfterStop(maid);
-                }
+                // 有効状態と速度はループで書き済み。ベースをそろえてサンプルし直す
                 SampleStopped(maid, anim);
             }
         }
