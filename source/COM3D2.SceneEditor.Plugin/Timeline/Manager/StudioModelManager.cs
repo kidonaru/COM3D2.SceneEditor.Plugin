@@ -43,7 +43,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class StudioModelManager : ManagerBase
     {
-        private Dictionary<string, StudioModelStat> modelMap = new Dictionary<string, StudioModelStat>();
+        // modelExists が ContainsKey のデリゲートを控えるので差し替えない
+        private readonly Dictionary<string, StudioModelStat> modelMap = new Dictionary<string, StudioModelStat>();
         public Dictionary<string, ModelBone> boneMap = new Dictionary<string, ModelBone>();
         public Dictionary<string, ModelBlendShape> blendShapeMap = new Dictionary<string, ModelBlendShape>();
         public Dictionary<string, ModelMaterial> materialMap = new Dictionary<string, ModelMaterial>(); 
@@ -580,6 +581,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             boneNames.Clear();
             blendShapeNames.Clear();
             materialNames.Clear();
+            _appliedAttachParents.Clear();
+            _modelPoses.Clear();
             _prevUpdateFrame = -1;
 
             modelHackManager.DeleteAllModels();

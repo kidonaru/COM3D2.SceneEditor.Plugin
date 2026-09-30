@@ -36,7 +36,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>循環したデータでも止まるよう、親をたどる深さの上限</summary>
         private const int MaxDepth = 64;
 
+        // SortParentsFirst 専用の作業用コレクション (メインスレッドのみ)
         private static readonly List<KeyValuePair<string, int>> _depths = new List<KeyValuePair<string, int>>();
+        private static readonly Dictionary<string, int> _depthMemo = new Dictionary<string, int>();
 
         public static bool IsModelTarget(int slotNo, string reference)
         {
@@ -93,25 +95,33 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// 親が子より先に来る順へ並べて result へ入れる (result はクリアする)。
-        /// 同じ深さの中では元の順を保つ。循環している分は上限の深さで打ち切って並べる
+        /// 同じ深さの中では元の順を保つ。循環している分は途中で打ち切って並べる
         /// </summary>
         public static void SortParentsFirst(
             List<string> names, Func<string, string> getParentModelName, List<string> result)
         {
+            SortParentsFirst(names, getParentModelName, null, result);
+        }
+
+        /// <summary>
+        /// 親を 2 系統 (ワールド補間の始点側と終点側) 持てる版。
+        /// どちらの親よりも後に来るよう、深い方に合わせる
+        /// </summary>
+        public static void SortParentsFirst(
+            List<string> names,
+            Func<string, string> getParentModelName,
+            Func<string, string> getSecondParentModelName,
+            List<string> result)
+        {
             result.Clear();
-            // 毎フレーム呼ばれるので作業リストを使い回す (メインスレッド専用)
+            // 毎フレーム呼ばれるので作業用のコレクションを使い回す (メインスレッド専用)
             var depths = _depths;
             depths.Clear();
+            _depthMemo.Clear();
             var maxDepth = 0;
             foreach (var name in names)
             {
-                var depth = 0;
-                for (var parent = getParentModelName(name);
-                    !string.IsNullOrEmpty(parent) && depth < MaxDepth;
-                    parent = getParentModelName(parent))
-                {
-                    depth++;
-                }
+                var depth = GetDepth(name, getParentModelName, getSecondParentModelName, 0);
                 depths.Add(new KeyValuePair<string, int>(name, depth));
                 maxDepth = Math.Max(maxDepth, depth);
             }
@@ -126,6 +136,40 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 親をたどった深さ (親なしは 0)。親が 2 系統あれば深い方。
+        /// 求めた値は _depthMemo に控え、2 系統で枝分かれしても同じモデルを何度もたどらない。
+        /// 循環は、たどっている途中のモデルへ戻ったところ (控えの仮値 0) で打ち切る
+        /// </summary>
+        private static int GetDepth(
+            string name, Func<string, string> getParent, Func<string, string> getSecondParent, int level)
+        {
+            int depth;
+            if (_depthMemo.TryGetValue(name, out depth))
+            {
+                return depth;
+            }
+            if (level >= MaxDepth)
+            {
+                return 0;
+            }
+
+            _depthMemo[name] = 0;
+            depth = GetParentDepth(getParent(name), getParent, getSecondParent, level);
+            if (getSecondParent != null)
+            {
+                depth = Math.Max(depth, GetParentDepth(getSecondParent(name), getParent, getSecondParent, level));
+            }
+            _depthMemo[name] = depth;
+            return depth;
+        }
+
+        private static int GetParentDepth(
+            string parent, Func<string, string> getParent, Func<string, string> getSecondParent, int level)
+        {
+            return string.IsNullOrEmpty(parent) ? 0 : 1 + GetDepth(parent, getParent, getSecondParent, level + 1);
         }
 
         /// <summary>

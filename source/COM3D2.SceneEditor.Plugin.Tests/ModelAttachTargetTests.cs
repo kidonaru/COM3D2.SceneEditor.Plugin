@@ -81,6 +81,27 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 終点側の親も子より先に並ぶ()
+        {
+            // ワールド補間は始点と終点の両方の親の今フレームの姿勢を読む
+            var none = Parents(new Dictionary<string, string>());
+            var endParents = Parents(new Dictionary<string, string> { { "x", "c" }, { "y", "x" } });
+            var result = new List<string>();
+            ModelAttachTarget.SortParentsFirst(new List<string> { "y", "x", "c" }, none, endParents, result);
+            Assert.Equal(new[] { "c", "x", "y" }, result);
+        }
+
+        [Fact]
+        public void 始点と終点の親のうち深い方に合わせる()
+        {
+            var startParents = Parents(new Dictionary<string, string> { { "child", "a" } });
+            var endParents = Parents(new Dictionary<string, string> { { "child", "b" }, { "b", "a" } });
+            var result = new List<string>();
+            ModelAttachTarget.SortParentsFirst(new List<string> { "child", "b", "a" }, startParents, endParents, result);
+            Assert.Equal(new[] { "a", "b", "child" }, result);
+        }
+
+        [Fact]
         public void 循環していても全員が一度ずつ並ぶ()
         {
             var parents = Parents(new Dictionary<string, string> { { "a", "b" }, { "b", "a" } });

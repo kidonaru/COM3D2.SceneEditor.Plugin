@@ -436,9 +436,26 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            if (info.uiType == MTEP.CustomValueUIType.AttachPoint && AllAttachedToModel(group))
+            if (info.uiType == MTEP.CustomValueUIType.AttachPoint)
             {
-                return;
+                if (AllAttachedToModel(group))
+                {
+                    return;
+                }
+
+                // モデルへアタッチしたキーの部位は Head 固定 (差分判定を安定させるため) なので書き換えない
+                setAll = newValue =>
+                {
+                    foreach (var bone in group.bones)
+                    {
+                        var trans = bone.transform as MTEP.TransformDataModel;
+                        if (trans == null || !trans.isAttachedToModel)
+                        {
+                            bone.transform.GetCustomValue(customKey).value = newValue;
+                        }
+                    }
+                    Apply(group);
+                };
             }
 
             if (MaidFollowCustomValueDrawer.IsComboValue(info))

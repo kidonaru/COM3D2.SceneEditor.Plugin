@@ -86,10 +86,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private readonly List<string> _playNames = new List<string>();
         private readonly List<string> _applyOrder = new List<string>();
         private Func<string, string> _getPlayingParentName;
+        private Func<string, string> _getWorldLerpEndParentName;
         private Func<string, bool> _hasPlayData;
 
         /// <summary>
-        /// 親モデルを子より先に適用する。ワールド補間は親の今フレームの姿勢を読むため、
+        /// 親モデルを子より先に適用する。ワールド補間は始点・終点の親の今フレームの姿勢を読むため、
         /// 辞書順のままだと子が 1 フレーム前の親を基準にしてしまう
         /// </summary>
         protected override void ApplyPlayData()
@@ -113,9 +114,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (_getPlayingParentName == null)
             {
                 _getPlayingParentName = GetPlayingParentName;
+                _getWorldLerpEndParentName = GetWorldLerpEndParentName;
                 _hasPlayData = _playDataMap.ContainsKey;
             }
-            ModelAttachTarget.SortParentsFirst(_playNames, _getPlayingParentName, _applyOrder);
+            ModelAttachTarget.SortParentsFirst(
+                _playNames, _getPlayingParentName, _getWorldLerpEndParentName, _applyOrder);
 
             foreach (var name in _applyOrder)
             {
@@ -137,8 +140,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return null;
             }
 
-            var key = (playData.lerpFrame < StepEndThreshold ? playData.current.start : playData.current.end)
-                as TransformDataModel;
+            var key = playData.lerpFrame < StepEndThreshold ? playData.current.start : playData.current.end;
+            return GetKeyParentName(key as TransformDataModel);
+        }
+
+        /// <summary>ワールド補間の区間なら終点キーのアタッチ先モデル名 (ApplyMotionWorldLerp が終点の親も読むため)</summary>
+        private string GetWorldLerpEndParentName(string name)
+        {
+            MotionPlayData playData;
+            if (!_playDataMap.TryGetValue(name, out playData) || playData.current == null)
+            {
+                return null;
+            }
+
+            var end = playData.current.end as TransformDataModel;
+            return end != null && end.worldLerp ? GetKeyParentName(end) : null;
+        }
+
+        private string GetKeyParentName(TransformDataModel key)
+        {
             if (key == null || !key.isAttachedToModel)
             {
                 return null;

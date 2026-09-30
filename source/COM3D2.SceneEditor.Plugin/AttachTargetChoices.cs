@@ -34,7 +34,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var model in modelManager.models)
             {
-                if (self != null ? !modelManager.CanAttachToModel(self, model) : model.transform == null)
+                // 一括編集 (self なし) でも、プロバイダが対応していないモデルは付けられないので出さない
+                var canAttach = self != null
+                    ? modelManager.CanAttachToModel(self, model)
+                    : model.transform != null && MTEP.ModelHackManager.instance.CanAttachToModel(model);
+                if (!canAttach)
                 {
                     continue;
                 }
@@ -54,7 +58,14 @@ namespace COM3D2.SceneEditor.Plugin
             for (var i = 0; i < items.Count; i++)
             {
                 var item = items[i];
-                if (isModel ? item.modelName == modelName : (item.slotNo == slotNo && string.IsNullOrEmpty(item.modelName)))
+                if (isModel)
+                {
+                    if (item.modelName == modelName)
+                    {
+                        return i;
+                    }
+                }
+                else if (item.slotNo == slotNo && string.IsNullOrEmpty(item.modelName))
                 {
                     return i;
                 }

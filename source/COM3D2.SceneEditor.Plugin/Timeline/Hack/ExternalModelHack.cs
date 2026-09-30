@@ -214,6 +214,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
+            // 同じ列挙の中で親の stat がまだ作られていない。部位としては解けないので、警告せず次の同期で取り込む
+            if (bone != null && _aliveObjects.Contains(bone.gameObject) && !_statMap.ContainsKey(bone.gameObject))
+            {
+                return;
+            }
+
             StudioModelStat parentStat;
             if (bone != null && _statMap.TryGetValue(bone.gameObject, out parentStat))
             {
