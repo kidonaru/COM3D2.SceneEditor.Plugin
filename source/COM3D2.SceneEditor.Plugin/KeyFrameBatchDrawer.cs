@@ -443,6 +443,11 @@ namespace COM3D2.SceneEditor.Plugin
             var first = group.bones[0].transform;
             foreach (var pair in first.GetStrValueInfoMap())
             {
+                if (pair.Value.hidden)
+                {
+                    continue;
+                }
+
                 var strKey = pair.Key;
                 if (!AllHave(group, t => t.HasStrValue(strKey)))
                 {

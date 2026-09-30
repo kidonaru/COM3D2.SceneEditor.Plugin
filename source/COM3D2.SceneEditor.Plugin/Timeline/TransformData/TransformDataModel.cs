@@ -16,6 +16,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             WorldLerp = 14,
         }
 
+        public enum StrIndex
+        {
+            AttachModel = 0,
+        }
+
         /// <summary>アタッチ値を持たない旧データ (MTE 産・version 36 以前) の値数</summary>
         public const int LegacyValueCount = 12;
 
@@ -23,6 +28,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public const int ValueCount = (int)Index.WorldLerp + 1;
 
         public override int valueCount => ValueCount;
+
+        public override int strValueCount => 1;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -58,7 +65,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     index = (int)Index.AttachMaidSlotNo,
                     name = "アタッチ先",
                     defaultValue = -1f,
-                    uiType = CustomValueUIType.MaidSlot,
+                    uiType = CustomValueUIType.AttachTarget,
                 }
             },
             {
@@ -92,6 +99,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
+        private readonly static Dictionary<string, StrValueInfo> StrValueInfoMap = new Dictionary<string, StrValueInfo>
+        {
+            {
+                "attachModel", new StrValueInfo
+                {
+                    index = (int)StrIndex.AttachModel,
+                    name = "アタッチ先モデル",
+                    defaultValue = "",
+                    // アタッチ先のコンボで一緒に編集するので、文字列欄は出さない
+                    hidden = true,
+                }
+            },
+        };
+
+        public override Dictionary<string, StrValueInfo> GetStrValueInfoMap()
+        {
+            return StrValueInfoMap;
+        }
+
         public ValueData attachMaidSlotNoValue => values[(int)Index.AttachMaidSlotNo];
         public ValueData attachPointValue => values[(int)Index.AttachPoint];
         public ValueData worldLerpValue => values[(int)Index.WorldLerp];
@@ -115,9 +141,55 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => worldLerpValue.boolValue = value;
         }
 
+        /// <summary>アタッチ先モデルの参照 (ModelAttachTarget の取り決め)。モデル以外へのアタッチでは空</summary>
+        public string attachModelName
+        {
+            get => strValues[(int)StrIndex.AttachModel];
+            set => strValues[(int)StrIndex.AttachModel] = value ?? "";
+        }
+
+        public bool isAttachedToModel => ModelAttachTarget.IsModelTarget(attachMaidSlotNo, attachModelName);
+
+        /// <summary>メイドへアタッチしているか (旧 SE と同じ判定。モデルへのアタッチは含まない)</summary>
         public static bool IsAttached(AttachPoint point, int maidSlotNo)
         {
             return point != AttachPoint.Null && maidSlotNo >= 0;
+        }
+
+        /// <summary>メイドまたはモデルへアタッチしているか</summary>
+        public static bool IsAttached(AttachPoint point, int maidSlotNo, string reference)
+        {
+            return ModelAttachTarget.IsModelTarget(maidSlotNo, reference) || IsAttached(point, maidSlotNo);
+        }
+
+        /// <summary>
+        /// モデルへアタッチする。部位は使わないので、アタッチなしと同じく既定の Head にそろえる
+        /// (値が揺れるとキーの差分や同値区間の判定がずれるため)
+        /// </summary>
+        public void SetAttachedToModel(string reference)
+        {
+            attachMaidSlotNo = ModelAttachTarget.ModelSlotNo;
+            attachPoint = AttachPoint.Head;
+            attachModelName = reference;
+        }
+
+        /// <summary>
+        /// UI で選んだアタッチ先を入れる。モデル参照ならモデル、0 以上ならそのメイド (部位は今の値を保つ)、それ以外はなし
+        /// </summary>
+        public void SetAttachTarget(int slotNo, string reference)
+        {
+            if (ModelAttachTarget.IsModelTarget(slotNo, reference))
+            {
+                SetAttachedToModel(reference);
+                return;
+            }
+            if (slotNo >= 0)
+            {
+                attachMaidSlotNo = slotNo;
+                attachModelName = "";
+                return;
+            }
+            SetUnattached();
         }
 
         /// <summary>
@@ -141,6 +213,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             attachMaidSlotNo = -1;
             attachPoint = AttachPoint.Head;
+            attachModelName = "";
         }
 
         public TransformDataModel()
@@ -167,6 +240,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 SetUnattached();
                 worldLerp = false;
+            }
+
+            // 手編集などで目印とモデル名が食い違ったキーは、取り決めどおりの形へそろえる
+            if (attachMaidSlotNo == ModelAttachTarget.ModelSlotNo && string.IsNullOrEmpty(attachModelName))
+            {
+                SetUnattached();
+            }
+            else if (attachMaidSlotNo != ModelAttachTarget.ModelSlotNo)
+            {
+                attachModelName = "";
             }
         }
     }

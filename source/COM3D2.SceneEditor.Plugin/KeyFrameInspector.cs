@@ -600,6 +600,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var pair in transform.GetStrValueInfoMap())
             {
+                if (pair.Value.hidden)
+                {
+                    continue;
+                }
+
                 var strKey = pair.Key;
                 if (!transform.HasStrValue(strKey))
                 {
