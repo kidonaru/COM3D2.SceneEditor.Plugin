@@ -17,6 +17,15 @@ namespace COM3D2.SceneEditor.Plugin
     {
         private const float RowHeight = 20f;
 
+        /// <summary>親メイド・親モデル行のラベル幅 (ModItemExplorer の Inspector 行とそろえる)</summary>
+        private const float LabelWidth = 60f;
+
+        /// <summary>部位のボタン幅。部位名は 2 文字程度なので固定にし、残りはメイド側へ回す</summary>
+        private const float AttachPointButtonWidth = 60f;
+
+        /// <summary>狭いウィンドウでもボタンが潰れないための下限</summary>
+        private const float MinButtonWidth = 40f;
+
         private static MTEP.StudioModelManager modelManager => MTEP.StudioModelManager.instance;
         private static MTEP.ModelHackManager modelHackManager => MTEP.ModelHackManager.instance;
         private static MTEP.TimelineManager timelineManager => MTEP.TimelineManager.instance;
@@ -26,7 +35,7 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (name, _) => string.IsNullOrEmpty(name) ? "Default" : name,
         };
 
-        private readonly GUIComboBox<AttachTargetChoice> _targetComboBox = new GUIComboBox<AttachTargetChoice>
+        private readonly GUIComboBox<AttachTargetChoice> _parentMaidComboBox = new GUIComboBox<AttachTargetChoice>
         {
             getName = (choice, _) => choice.label,
             contentSize = new Vector2(150, 300),
@@ -36,11 +45,20 @@ namespace COM3D2.SceneEditor.Plugin
         {
             getName = (name, _) => name,
             items = MTEP.ModelAttachPoints.Names,
-            buttonSize = new Vector2(60, 20),
+            buttonSize = new Vector2(AttachPointButtonWidth, 20),
         };
 
-        /// <summary>アタッチ先の選択肢 (先頭は「未選択」)</summary>
-        private readonly List<AttachTargetChoice> _targets = new List<AttachTargetChoice>();
+        private readonly GUIComboBox<AttachTargetChoice> _parentModelComboBox = new GUIComboBox<AttachTargetChoice>
+        {
+            getName = (choice, _) => choice.label,
+            contentSize = new Vector2(150, 300),
+        };
+
+        /// <summary>親メイドの選択肢 (先頭は「未選択」)</summary>
+        private readonly List<AttachTargetChoice> _parentMaidChoices = new List<AttachTargetChoice>();
+
+        /// <summary>親モデルの選択肢 (先頭は「なし」)</summary>
+        private readonly List<AttachTargetChoice> _parentModelChoices = new List<AttachTargetChoice>();
 
         /// <summary>
         /// 表示トグル + 表示名 + フォーカスのヘッダー行。
@@ -97,31 +115,101 @@ namespace COM3D2.SceneEditor.Plugin
             }
             view.EndLayout();
 
-            view.BeginHorizontal();
-            {
-                AttachTargetChoices.Fill(_targets, model);
-                _targetComboBox.items = _targets;
-                _targetComboBox.currentIndex = AttachTargetChoices.IndexOf(
-                    _targets, model.attachMaidSlotNo, model.attachModelName);
-                _targetComboBox.onSelected = (choice, _) => ChangeAttach(model, () =>
-                    AttachTargetChoices.ApplyTo(model, choice));
-                _targetComboBox.DrawButton(view);
-
-                // モデルへのアタッチは原点に付けるので部位を選ばせない
-                if (!model.isAttachedToModel && model.attachMaidSlotNo >= 0)
-                {
-                    _attachPointComboBox.currentIndex = (int)model.attachPoint;
-                    _attachPointComboBox.onSelected = (_, index) => ChangeAttach(model, () =>
-                    {
-                        model.attachPoint = (AttachPoint)index;
-                    });
-                    _attachPointComboBox.DrawButton(view);
-                }
-            }
-            view.EndLayout();
+            DrawParentMaidRow(view, model);
+            DrawParentModelRow(view, model);
 
             // 後続の Transform 行まで自動移行の対象にしない
             view.EndAutoEditMode();
+        }
+
+        /// <summary>親メイドの行。左でメイド、右で部位を選ぶ</summary>
+        private void DrawParentMaidRow(GUIView view, MTEP.StudioModelStat model)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("親メイド", LabelWidth, RowHeight);
+
+                // 右端までの残り幅から、両コンボの前後送りボタン 4 個と部位のボタン、両コンボ間の余白 1 個を除く
+                var maidWidth = GetWidthToRowEnd(view)
+                    - AttachPointButtonWidth - GUIComboBoxBase.ARROW_SIZE * 4 - view.margin;
+                _parentMaidComboBox.buttonSize = new Vector2(Mathf.Max(MinButtonWidth, maidWidth), RowHeight);
+
+                AttachTargetChoices.FillMaids(_parentMaidChoices);
+                _parentMaidComboBox.items = _parentMaidChoices;
+                _parentMaidComboBox.currentIndex = AttachTargetChoices.IndexOf(
+                    _parentMaidChoices, model.attachMaidSlotNo, model.attachModelName);
+                _parentMaidComboBox.onSelected = (choice, _) =>
+                {
+                    // この行が受け持つメイド側の今の値と同じなら何もしない。
+                    // モデルへのアタッチ中の「未選択」もここで弾き、下の行の状態を変えない
+                    var currentSlotNo = IsAttachedToMaid(model) ? model.attachMaidSlotNo : -1;
+                    if (choice.slotNo == currentSlotNo)
+                    {
+                        return;
+                    }
+                    ChangeAttach(model, () => AttachTargetChoices.ApplyTo(model, choice));
+                };
+                _parentMaidComboBox.DrawButton(view);
+
+                // 部位はメイドに付いている間だけ選べる (モデルへのアタッチは原点に付ける)。
+                // BeginEnabled はコンボ内部のサブビューへ引き継がれないため、guiEnabled を切り替える
+                var prevEnabled = view.guiEnabled;
+                view.SetEnabled(prevEnabled && IsAttachedToMaid(model));
+                _attachPointComboBox.currentIndex = (int)model.attachPoint;
+                _attachPointComboBox.onSelected = (_, index) =>
+                {
+                    // 選択はポップアップ側で後から届くため、その時点の状態で確かめ直す
+                    if (!IsAttachedToMaid(model))
+                    {
+                        return;
+                    }
+                    ChangeAttach(model, () => model.attachPoint = (AttachPoint)index);
+                };
+                _attachPointComboBox.DrawButton(view);
+                view.SetEnabled(prevEnabled);
+            }
+            view.EndLayout();
+        }
+
+        private static bool IsAttachedToMaid(MTEP.StudioModelStat model)
+        {
+            return !model.isAttachedToModel && model.attachMaidSlotNo >= 0;
+        }
+
+        /// <summary>親モデルの行。残り幅いっぱいのコンボで付け先のモデルを選ぶ</summary>
+        private void DrawParentModelRow(GUIView view, MTEP.StudioModelStat model)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("親モデル", LabelWidth, RowHeight);
+
+                var buttonWidth = GetWidthToRowEnd(view) - GUIComboBoxBase.ARROW_SIZE * 2;
+                _parentModelComboBox.buttonSize = new Vector2(Mathf.Max(MinButtonWidth, buttonWidth), RowHeight);
+
+                AttachTargetChoices.FillModels(_parentModelChoices, model);
+                _parentModelComboBox.items = _parentModelChoices;
+                _parentModelComboBox.currentIndex = AttachTargetChoices.IndexOf(
+                    _parentModelChoices, model.attachMaidSlotNo, model.attachModelName);
+                _parentModelComboBox.onSelected = (choice, _) =>
+                {
+                    // この行が受け持つモデル側の今の値と同じなら何もしない。
+                    // メイドへのアタッチ中の「なし」もここで弾き、上の行の状態を変えない
+                    var currentModelName = model.isAttachedToModel ? model.attachModelName : "";
+                    if ((choice.modelName ?? "") == currentModelName)
+                    {
+                        return;
+                    }
+                    ChangeAttach(model, () => AttachTargetChoices.ApplyTo(model, choice));
+                };
+                _parentModelComboBox.DrawButton(view);
+            }
+            view.EndLayout();
+        }
+
+        /// <summary>横並びの行で、今の描画位置から右端までの幅</summary>
+        private static float GetWidthToRowEnd(GUIView view)
+        {
+            return view.viewRect.width - view.padding.x * 2 - view.currentPos.x;
         }
 
         /// <summary>

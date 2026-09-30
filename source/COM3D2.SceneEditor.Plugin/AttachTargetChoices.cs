@@ -26,12 +26,36 @@ namespace COM3D2.SceneEditor.Plugin
         {
             items.Clear();
             items.Add(new AttachTargetChoice { label = "未選択", slotNo = -1, modelName = "" });
+            AddMaids(items);
+            AddModels(items, self, "モデル: ");
+        }
 
+        /// <summary>親メイドの選択肢 (先頭は「未選択」)</summary>
+        public static void FillMaids(List<AttachTargetChoice> items)
+        {
+            items.Clear();
+            items.Add(new AttachTargetChoice { label = "未選択", slotNo = -1, modelName = "" });
+            AddMaids(items);
+        }
+
+        /// <summary>親モデルの選択肢 (先頭は「なし」)。self の扱いは Fill と同じ</summary>
+        public static void FillModels(List<AttachTargetChoice> items, MTEP.StudioModelStat self)
+        {
+            items.Clear();
+            items.Add(new AttachTargetChoice { label = "なし", slotNo = -1, modelName = "" });
+            AddModels(items, self, "");
+        }
+
+        private static void AddMaids(List<AttachTargetChoice> items)
+        {
             foreach (var maidCache in MTEP.MaidManager.instance.maidCaches)
             {
                 items.Add(new AttachTargetChoice { label = maidCache.fullName, slotNo = maidCache.slotNo, modelName = "" });
             }
+        }
 
+        private static void AddModels(List<AttachTargetChoice> items, MTEP.StudioModelStat self, string labelPrefix)
+        {
             foreach (var model in modelManager.models)
             {
                 // 一括編集 (self なし) でも、プロバイダが対応していないモデルは付けられないので出さない
@@ -44,7 +68,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
                 items.Add(new AttachTargetChoice
                 {
-                    label = "モデル: " + model.displayName,
+                    label = labelPrefix + model.displayName,
                     slotNo = -1,
                     modelName = model.name,
                 });
