@@ -15,7 +15,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 if (_renderer == null)
                 {
-                    _renderer = GetComponentInChildren<Renderer>();
+                    _renderer = ModelSubtree.FindComponent<Renderer>(transform);
                 }
                 return _renderer;
             }

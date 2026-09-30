@@ -323,6 +323,7 @@
     <Compile Include="ItemRowDrawerCache.cs" />
     <Compile Include="ModelBoneRowDrawer.cs" />
     <Compile Include="ModelManageRowDrawer.cs" />
+    <Compile Include="AttachTargetChoices.cs" />
     <Compile Include="ModelShapeKeyRowDrawer.cs" />
     <Compile Include="MaterialClipboard.cs" />
     <Compile Include="MaterialPropertyRowsDrawer.cs" />
@@ -521,6 +522,7 @@
     <Compile Include="Timeline\MaidCache.cs" />
     <Compile Include="Timeline\ModelAttachPoints.cs" />
     <Compile Include="Timeline\ModelAttachTarget.cs" />
+    <Compile Include="Timeline\ModelSubtree.cs" />
     <Compile Include="Timeline\MaidInfo.cs" />
     <Compile Include="Timeline\MaidPropCache.cs" />
     <Compile Include="Timeline\MaidSlotStat.cs" />

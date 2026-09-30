@@ -26,9 +26,9 @@ namespace COM3D2.SceneEditor.Plugin
             getName = (name, _) => string.IsNullOrEmpty(name) ? "Default" : name,
         };
 
-        private readonly GUIComboBox<MTEP.MaidCache> _maidComboBox = new GUIComboBox<MTEP.MaidCache>
+        private readonly GUIComboBox<AttachTargetChoice> _targetComboBox = new GUIComboBox<AttachTargetChoice>
         {
-            getName = (maidCache, _) => maidCache == null ? "未選択" : maidCache.fullName,
+            getName = (choice, _) => choice.label,
             contentSize = new Vector2(150, 300),
         };
 
@@ -39,8 +39,8 @@ namespace COM3D2.SceneEditor.Plugin
             buttonSize = new Vector2(60, 20),
         };
 
-        /// <summary>アタッチ先メイドの選択肢 (先頭の null は「未選択」)</summary>
-        private readonly List<MTEP.MaidCache> _maidCaches = new List<MTEP.MaidCache>();
+        /// <summary>アタッチ先の選択肢 (先頭は「未選択」)</summary>
+        private readonly List<AttachTargetChoice> _targets = new List<AttachTargetChoice>();
 
         /// <summary>
         /// 表示トグル + 表示名 + フォーカスのヘッダー行。
@@ -99,23 +99,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.BeginHorizontal();
             {
-                _maidCaches.Clear();
-                _maidCaches.Add(null);
-                _maidCaches.AddRange(MTEP.MaidManager.instance.maidCaches);
+                AttachTargetChoices.Fill(_targets, model);
+                _targetComboBox.items = _targets;
+                _targetComboBox.currentIndex = AttachTargetChoices.IndexOf(
+                    _targets, model.attachMaidSlotNo, model.attachModelName);
+                _targetComboBox.onSelected = (choice, _) => ChangeAttach(model, () =>
+                    AttachTargetChoices.ApplyTo(model, choice));
+                _targetComboBox.DrawButton(view);
 
-                _maidComboBox.items = _maidCaches;
-                _maidComboBox.currentIndex = Mathf.Clamp(
-                    model.attachMaidSlotNo + 1, 0, _maidCaches.Count - 1);
-                _maidComboBox.onSelected = (maidCache, index) => ChangeAttach(model, () =>
-                {
-                    model.attachMaidSlotNo = index - 1;
-                    if (model.attachPoint == AttachPoint.Null)
-                    {
-                        model.attachPoint = AttachPoint.Head;
-                    }
-                });
-                _maidComboBox.DrawButton(view);
-
+                // モデルへのアタッチは原点に付けるので部位を選ばせない
                 if (model.attachMaidSlotNo >= 0)
                 {
                     _attachPointComboBox.currentIndex = (int)model.attachPoint;

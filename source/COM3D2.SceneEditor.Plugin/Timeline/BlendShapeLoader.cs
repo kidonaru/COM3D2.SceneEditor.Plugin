@@ -31,7 +31,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return controller;
             }
 
-            var meshRenderer = go.GetComponentInChildren<SkinnedMeshRenderer>();
+            var meshRenderer = ModelSubtree.FindComponent<SkinnedMeshRenderer>(go.transform);
             var blendShapeCache = meshRenderer != null ? LoadCacheByMenu(model.info.fileName, reload) : null;
             if (blendShapeCache == null)
             {

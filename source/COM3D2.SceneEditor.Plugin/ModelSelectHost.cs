@@ -165,9 +165,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// go を配下に含む提供中モデルのルートを返す。どのモデルにも属さなければ null。
         /// SceneView クリックではモデルの子メッシュがヒットしうるため、祖先も含めて判定する。
-        /// 複数マッチ時は列挙順 (プロバイダの登録順) で最初の 1 件を返す。
-        /// モデル同士が入れ子になることは想定していない (ModelProviderHost は
-        /// ルート GameObject の提供を前提としている)
+        /// モデルへアタッチしたモデルは親モデルの配下に入るので、go に最も近い (深い) モデルを返す
         /// </summary>
         private static GameObject FindProvidedModelRoot(GameObject go)
         {
@@ -177,11 +175,14 @@ namespace COM3D2.SceneEditor.Plugin
         private static GameObject FindProvidedModelRoot(
             GameObject go, List<ExternalModelEntry> models)
         {
-            foreach (var entry in models)
+            for (var t = go.transform; t != null; t = t.parent)
             {
-                if (entry.obj != null && go.transform.IsChildOf(entry.obj.transform))
+                foreach (var entry in models)
                 {
-                    return entry.obj;
+                    if (entry.obj != null && entry.obj == t.gameObject)
+                    {
+                        return entry.obj;
+                    }
                 }
             }
             return null;

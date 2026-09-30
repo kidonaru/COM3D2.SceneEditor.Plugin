@@ -36,7 +36,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 if (_meshRenderer == null)
                 {
-                    _meshRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
+                    _meshRenderer = ModelSubtree.FindComponent<SkinnedMeshRenderer>(transform);
                 }
                 return _meshRenderer;
             }

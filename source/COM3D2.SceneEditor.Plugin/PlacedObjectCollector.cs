@@ -64,27 +64,38 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         private static void CollectModels(List<PlacedObjectSource> results)
         {
-            foreach (var entry in ModelProviderHost.GetModels())
+            var entries = ModelProviderHost.GetModels();
+            var modelObjects = new HashSet<GameObject>();
+            foreach (var entry in entries)
             {
-                var ownerMaid = FindOwnerMaid(entry.obj.transform.parent);
+                modelObjects.Add(entry.obj);
+            }
+
+            foreach (var entry in entries)
+            {
+                var owner = FindOwner(entry.obj.transform.parent, modelObjects);
                 Add(results, PlacedObjectCategory.Model, entry.obj, entry.displayName,
-                    ownerMaid != null ? ownerMaid.gameObject.GetInstanceID() : PlacedObjectTree.NoParent);
+                    owner != null ? owner.GetInstanceID() : PlacedObjectTree.NoParent);
             }
         }
 
         /// <summary>
-        /// transform から親をたどって最初に見つかったメイド。
+        /// transform から親をたどって最初に見つかったメイドか配置モデル。
         /// GetComponentInParent は 2.0 の Unity では非アクティブな親を飛ばし、
         /// includeInactive 引数も無いため自前でたどる
         /// </summary>
-        private static Maid FindOwnerMaid(Transform transform)
+        private static GameObject FindOwner(Transform transform, HashSet<GameObject> modelObjects)
         {
             for (var t = transform; t != null; t = t.parent)
             {
+                if (modelObjects.Contains(t.gameObject))
+                {
+                    return t.gameObject;
+                }
                 var maid = t.GetComponent<Maid>();
                 if (maid != null)
                 {
-                    return maid;
+                    return maid.gameObject;
                 }
             }
             return null;
