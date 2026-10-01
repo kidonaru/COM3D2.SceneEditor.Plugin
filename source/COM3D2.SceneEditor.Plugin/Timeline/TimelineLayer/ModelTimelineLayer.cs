@@ -187,7 +187,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var attachChanged = modelManager.ApplyAttach(
                 model, attachKey.attachPoint, attachKey.attachMaidSlotNo, attachKey.attachModelName);
 
-            // 付け替えはローカル位置・回転を 0 に戻すので、区間頭と同じく入れ直す
+            // 付け替えはローカル位置・回転・拡縮を変える (メイドへは 0 に戻し、モデルへはワールド姿勢を保つ) ので、区間頭と同じく入れ直す
             if (indexUpdated || attachChanged)
             {
                 ApplyMotionInit(motion, model);

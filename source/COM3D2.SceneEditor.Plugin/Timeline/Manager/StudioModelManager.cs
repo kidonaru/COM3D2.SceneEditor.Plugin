@@ -669,7 +669,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// 再生・シークでキーのアタッチ先へ付け替える。履歴は積まない。
-        /// 現在と同じなら何もせず false を返す (プロバイダは付け替えでローカル位置・回転を 0 に戻すため、
+        /// 現在と同じなら何もせず false を返す (プロバイダは付け替えでローカル位置・回転・拡縮を変えるため、
         /// true のときは呼び出し側でローカル値を入れ直すこと)
         /// </summary>
         public bool ApplyAttach(
