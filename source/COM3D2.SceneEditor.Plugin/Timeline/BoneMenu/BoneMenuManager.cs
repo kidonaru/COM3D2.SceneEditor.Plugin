@@ -62,10 +62,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// 指定レイヤーの全メニュー項目の選択を切り替える (レイヤー名クリック用)。
-        /// 単体項目のクリックと同じく、全選択済みなら解除、そうでなければ全選択する
+        /// 折りたたみ中のレイヤー名の行を選択表示にするか。IsMenuHighlighted と同じく、
+        /// 畳まれていれば項目が 1 つでも選択されていれば選択扱いにする
         /// </summary>
-        public void SelectLayerMenuItems(ITimelineLayer layer, bool isMultiSelect)
+        public bool IsLayerMenuHighlighted(ITimelineLayer layer, bool isCollapsed)
+        {
+            if (IsLayerMenuSelected(layer))
+            {
+                return true;
+            }
+            return isCollapsed && HasSelectedLeaf(layer.allMenuItems);
+        }
+
+        /// <summary>
+        /// 指定レイヤーの全メニュー項目の選択を切り替える (レイヤー名クリック用)。
+        /// 表示 (IsLayerMenuHighlighted) が選択なら解除、そうでなければ全選択する
+        /// </summary>
+        public void SelectLayerMenuItems(ITimelineLayer layer, bool isCollapsed, bool isMultiSelect)
         {
             var menuItems = layer.allMenuItems;
             if (menuItems.Count == 0)
@@ -73,7 +86,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var prevSelected = IsLayerMenuSelected(layer);
+            var prevSelected = IsLayerMenuHighlighted(layer, isCollapsed);
 
             if (!isMultiSelect)
             {
@@ -84,6 +97,61 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 menuItem.isSelectedMenu = !prevSelected;
             }
+        }
+
+        /// <summary>
+        /// メニュー行を選択表示にするか。折りたたみ中のグループは子が 1 つでも選択されていれば
+        /// 選択扱いにする (隠れた子の選択が見えず解除できなくなるのを防ぐ)。
+        /// 描画ループから毎フレーム呼ばれるため、グループの isSelectedMenu (LINQ の All) は使わず
+        /// 子を 1 回だけ走査する
+        /// </summary>
+        public static bool IsMenuHighlighted(IBoneMenuItem menuItem)
+        {
+            var children = menuItem.children;
+            if (!menuItem.isSetMenu || children == null)
+            {
+                return menuItem.isSelectedMenu;
+            }
+
+            // 子が無いグループは isSelectedMenu (All) と同じく選択扱い
+            var isAllSelected = true;
+            var isAnySelected = false;
+            foreach (var child in children)
+            {
+                if (child.isSelectedMenu)
+                {
+                    isAnySelected = true;
+                }
+                else
+                {
+                    isAllSelected = false;
+                }
+            }
+            return isAllSelected || (isAnySelected && !menuItem.isOpenMenu);
+        }
+
+        /// <summary>グループの子を含め、選択中の項目が 1 つでもあるか</summary>
+        private static bool HasSelectedLeaf(List<IBoneMenuItem> menuItems)
+        {
+            foreach (var menuItem in menuItems)
+            {
+                if (menuItem.children == null)
+                {
+                    if (menuItem.isSelectedMenu)
+                    {
+                        return true;
+                    }
+                    continue;
+                }
+                foreach (var child in menuItem.children)
+                {
+                    if (child.isSelectedMenu)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private List<IBoneMenuItem> _visibleItems = new List<IBoneMenuItem>(128);

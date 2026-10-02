@@ -43,6 +43,11 @@ namespace COM3D2.SceneEditor.Plugin
         // 逆方向同期でメニューを書き換えた直後は順方向の降格を 1 回抑止する
         private bool _suppressForwardOnce = false;
 
+        // 逆方向同期で選択したメニュー項目。SelectionManager の選択が項目に対応しない物へ
+        // 移ったら解除する (残すと Inspector が項目表示のままになる)。
+        // ユーザーがメニュー選択を変えたら (UpdateForwardSync で検知) 手動の選択として扱い、追跡をやめる
+        private MTEP.IBoneMenuItem _reverseSyncedItem = null;
+
         public override void Update()
         {
             if (timelineManager.timeline == null || timelineManager.currentLayer == null)
@@ -70,20 +75,22 @@ namespace COM3D2.SceneEditor.Plugin
 
             var layer = timelineManager.currentLayer;
             var provider = TimelineItemInspectorRegistry.Find(layer);
-            if (provider == null)
+            var itemName = provider != null ? provider.FindItemName(layer) : null;
+            var item = itemName != null ? FindMenuItem(layer, itemName) : null;
+            if (item == null)
             {
+                ReleaseReverseSyncedItem();
                 return;
             }
-
-            var itemName = provider.FindItemName(layer);
-            if (itemName == null)
+            if (item.isSelectedMenu)
             {
-                return;
-            }
-
-            var item = FindMenuItem(layer, itemName);
-            if (item == null || item.isSelectedMenu)
-            {
+                // 選択がこの項目だけなら SceneView の選択と一致するので追跡する。
+                // メニュー選択は変えないため順方向の抑止は立てない
+                var selectedItems = boneMenuManager.GetSelectedItems();
+                if (selectedItems.Count == 1 && selectedItems[0] == item)
+                {
+                    _reverseSyncedItem = item;
+                }
                 return;
             }
 
@@ -91,6 +98,25 @@ namespace COM3D2.SceneEditor.Plugin
             // MaidBoneMenuItem のボーン回転表示連動は SceneEditorHack では発火しない
             // (HasBoneRotateVisible が既定 false のため単純フラグとして動く)
             item.isSelectedMenu = true;
+            _reverseSyncedItem = item;
+            _suppressForwardOnce = true;
+        }
+
+        /// <summary>
+        /// 逆方向同期で選択したメニュー項目を解除する。
+        /// その後ユーザーがメニュー選択を変えていれば追跡済みでないので何もしない
+        /// </summary>
+        private void ReleaseReverseSyncedItem()
+        {
+            var item = _reverseSyncedItem;
+            _reverseSyncedItem = null;
+            if (item == null || !item.isSelectedMenu)
+            {
+                return;
+            }
+
+            item.isSelectedMenu = false;
+            // 解除による選択変化で順方向の降格を走らせない (降格対象の選択は既に無い)
             _suppressForwardOnce = true;
         }
 
@@ -111,6 +137,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             var suppress = _suppressForwardOnce;
             _suppressForwardOnce = false;
+            if (!suppress)
+            {
+                // 逆方向同期以外の選択変化 = ユーザーの操作なので、以後は解除しない
+                _reverseSyncedItem = null;
+            }
             if (suppress || selectedItems.Count == 0)
             {
                 return;

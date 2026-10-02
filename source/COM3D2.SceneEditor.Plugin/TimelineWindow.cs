@@ -1197,7 +1197,8 @@ namespace COM3D2.SceneEditor.Plugin
                             tc.timelineLineColor1);
                     }
 
-                    if (boneMenuManager.IsLayerMenuSelected(row.layer))
+                    if (boneMenuManager.IsLayerMenuHighlighted(
+                            row.layer, _rowState.IsCollapsed(row.layer)))
                     {
                         view.currentPos.y = i * frameHeight;
                         view.DrawTexture(
@@ -1210,7 +1211,7 @@ namespace COM3D2.SceneEditor.Plugin
                 }
 
                 // 選択ハイライトはレイヤーをまたいで表示する
-                if (row.menuItem.isSelectedMenu)
+                if (MTEP.BoneMenuManager.IsMenuHighlighted(row.menuItem))
                 {
                     view.DrawTexture(
                         texWhite,
@@ -2025,9 +2026,11 @@ namespace COM3D2.SceneEditor.Plugin
                 // レイヤーカテゴリ行: 折りたたみトグル + レイヤー名 (クリックでアクティブ化 + 全項目選択)
                 if (row.isHeader)
                 {
-                    // アクティブレイヤーと全項目選択済みのレイヤーを同じ強調色で示す
+                    // アクティブレイヤーと選択表示のレイヤー (全項目選択、畳み中は一部選択) を同じ強調色で示す
                     var headerColor =
-                        isActiveLayerRow || boneMenuManager.IsLayerMenuSelected(row.layer)
+                        isActiveLayerRow
+                        || boneMenuManager.IsLayerMenuHighlighted(
+                            row.layer, _rowState.IsCollapsed(row.layer))
                             ? tc.timelineMenuSelectTextColor
                             : Color.white;
                     var headerLayer = row.layer;
@@ -2082,7 +2085,8 @@ namespace COM3D2.SceneEditor.Plugin
                             }
                             // クリックしたレイヤーを編集基準 (アクティブ) にしてから全項目を選択する
                             SelectLayer(headerLayer);
-                            boneMenuManager.SelectLayerMenuItems(headerLayer, isMultiSelect);
+                            boneMenuManager.SelectLayerMenuItems(
+                                headerLayer, _rowState.IsCollapsed(headerLayer), isMultiSelect);
                         });
 
                     // [A] ボタンはアクティブレイヤーの行のみ (編集はアクティブレイヤーに束縛)
@@ -2109,7 +2113,7 @@ namespace COM3D2.SceneEditor.Plugin
                 var menuItem = row.menuItem;
 
                 var diplayName = menuItem.displayName;
-                var isSelected = menuItem.isSelectedMenu;
+                var isSelected = MTEP.BoneMenuManager.IsMenuHighlighted(menuItem);
 
                 view.currentPos.x = indent;
 

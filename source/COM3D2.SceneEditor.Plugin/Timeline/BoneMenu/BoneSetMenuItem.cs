@@ -73,7 +73,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void SelectMenu(bool isMultiSelect)
         {
-            var prevSelected = isSelectedMenu;
+            // 表示 (IsMenuHighlighted) と同じ基準で切り替える
+            var prevSelected = BoneMenuManager.IsMenuHighlighted(this);
 
             if (!isMultiSelect)
             {
