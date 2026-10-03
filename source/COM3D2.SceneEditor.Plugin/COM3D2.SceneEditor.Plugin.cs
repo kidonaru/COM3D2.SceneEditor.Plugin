@@ -522,7 +522,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (isEnable)
                 {
-                    windowManager.OnGUI();
+                    var scaleController = MaidManipulateManager.instance.maidScaleController;
+                    scaleController.SuspendApplied();
+                    try
+                    {
+                        windowManager.OnGUI();
+                    }
+                    finally
+                    {
+                        scaleController.ResumeApplied();
+                    }
                 }
             }
             catch (Exception e)

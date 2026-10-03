@@ -11,6 +11,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// それより前だと MOD (MaidVoicePitch の ForeArmFix) が前腕を書き戻し、
     /// 描画直前 (Camera.onPreCull) ではスキニングの計算に間に合わない。
     /// 次フレームの Update と TBody.LateUpdate の直前で元へ戻す。
+    /// GUI を描く間だけは外して掛け直す (SuspendApplied / ResumeApplied)。
     /// 本体の骨には触らないので、IK・ハンドル・アタッチ位置は拡縮の影響を受けない
     /// </summary>
     public class MaidScaleController
@@ -39,6 +40,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             /// <summary>前回掛けた分。次に掛ける前か Update で戻す</summary>
             public readonly List<AppliedBone> applied = new List<AppliedBone>();
+
+            /// <summary>GUI の間だけ外している。ResumeApplied で掛け直す</summary>
+            public bool isSuspended;
         }
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
@@ -117,6 +121,41 @@ namespace COM3D2.SceneEditor.Plugin
             foreach (var maid in _deadMaids)
             {
                 _entries.Remove(maid);
+            }
+        }
+
+        /// <summary>
+        /// GUI が骨を読み書きする間だけ、掛けた分を外す。ResumeApplied と対で呼ぶ。
+        /// ボーンウィンドウに倍率込みのスケールを表示・記録・焼き込みさせないため
+        /// </summary>
+        public void SuspendApplied()
+        {
+            foreach (var entry in _entries.Values)
+            {
+                if (entry.applied.Count == 0)
+                {
+                    continue;
+                }
+                Restore(entry);
+                entry.isSuspended = true;
+            }
+        }
+
+        /// <summary>
+        /// SuspendApplied で外した分を掛け直す。GUI が書き換えた値はその値を元として掛ける。
+        /// OnGUI の後に描くフレーム末の撮影 (camera.Render) にも倍率を写すため。
+        /// GUI の中で状態ごと捨てたメイドは _entries に無いので掛け直さない
+        /// </summary>
+        public void ResumeApplied()
+        {
+            foreach (var entry in _entries.Values)
+            {
+                if (!entry.isSuspended)
+                {
+                    continue;
+                }
+                entry.isSuspended = false;
+                ApplyScales(entry);
             }
         }
 
