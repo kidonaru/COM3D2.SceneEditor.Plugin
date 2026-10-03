@@ -33,6 +33,28 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly GUIView _view = new GUIView();
 
+        // ツールバー項目の幅
+        private const float ZOOM_BUTTON_WIDTH = 24f;
+        private const float ZOOM_LABEL_WIDTH = 44f;
+        private const float RESET_BUTTON_WIDTH = 56f;
+
+        private readonly GUIView _toolbarView = ViewToolbarDrawer.CreateView(FRAME);
+
+        // 表示確認用のズーム・位置ずらし。動画の設定ではないので保存しない
+        private float _zoom = 1f;
+        private Vector2 _pan = Vector2.zero;
+
+        // 位置ずらしのドラッグ。開始時の値からの差で求める (理由は VideoPreviewViewMath.DragPan)
+        private int _panControlId = 0;
+        private Vector2 _dragStartMouse;
+        private Vector2 _dragStartPan;
+
+        /// <summary>直近に描いた動画の等倍サイズ。ツールバーのズームでも位置ずらしの範囲に使う</summary>
+        private Vector2 _baseSize = Vector2.zero;
+
+        /// <summary>動画を描けているか。描けていないときはツールバーも入力も無効にする</summary>
+        private bool _hasVideo = false;
+
         /// <summary>
         /// 表示サイズと透過度は表示形式「プレビュー」専用の設定なので、
         /// ゲーム画面にも出す表示形式では等倍・不透明で描く
@@ -46,6 +68,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         protected override float windowAlpha
             => usesPreviewSettings ? movieManager.GetSettings(videoIndex).guiAlpha : 1f;
+
+        /// <summary>内容の左ドラッグは位置ずらしに使うため、ウィンドウの移動はヘッダーだけにする</summary>
+        protected override bool allowContentDrag => false;
 
         private static VideoPreviewWindow[] _instances = null;
 
@@ -107,6 +132,19 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var localRect = ToLocalRect(contentRect);
 
+            // コントロール ID はイベントごとに同じ順で取る必要があるため、早期 return より前で取る
+            _panControlId = GUIUtility.GetControlID(FocusType.Passive);
+            _hasVideo = false;
+
+            // 動画を失ってもドラッグを解放できるよう、離す処理だけは早期 return より前で受ける
+            var e = Event.current;
+            if (e.GetTypeForControl(_panControlId) == EventType.MouseUp &&
+                GUIUtility.hotControl == _panControlId)
+            {
+                GUIUtility.hotControl = 0;
+                e.Use();
+            }
+
             // ウィンドウ全体に掛かっている不透明度 (windowAlpha) を打ち消さないよう掛け合わせる
             var prevColor = GUI.color;
             GUI.color = new Color(
@@ -134,8 +172,12 @@ namespace COM3D2.SceneEditor.Plugin
                 ? new Rect(0f, 1f, 1f, -1f)
                 : new Rect(0f, 0f, 1f, 1f);
 
+            _hasVideo = true;
+            _baseSize = CoverSize(localRect, (float)texture.width / texture.height, previewScale);
+            HandleViewInput(localRect);
+
             // 領域いっぱいまで拡大するため、はみ出した分はグループでクリップする
-            var drawRect = CoverRect(localRect, (float)texture.width / texture.height, previewScale);
+            var drawRect = VideoPreviewViewMath.ApplyView(_baseSize, localRect, _zoom, _pan);
             drawRect.x -= localRect.x;
             drawRect.y -= localRect.y;
 
@@ -196,10 +238,10 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 領域をアスペクト比を保って覆う中央寄せ矩形を返す。短辺側は領域からはみ出す。
+        /// 領域をアスペクト比を保って覆うサイズを返す。短辺側は領域からはみ出す。
         /// scale はウィンドウサイズに対する表示倍率 (1 で領域いっぱい)
         /// </summary>
-        private static Rect CoverRect(Rect area, float aspectRatio, float scale)
+        private static Vector2 CoverSize(Rect area, float aspectRatio, float scale)
         {
             var width = area.width;
             var height = width / aspectRatio;
@@ -209,14 +251,148 @@ namespace COM3D2.SceneEditor.Plugin
                 width = height * aspectRatio;
             }
 
-            width *= scale;
-            height *= scale;
+            return new Vector2(width, height) * scale;
+        }
 
-            return new Rect(
-                area.x + (area.width - width) * 0.5f,
-                area.y + (area.height - height) * 0.5f,
-                width,
-                height);
+        /// <summary>ツールバーの帯 (ウィンドウローカル座標)。内容領域の上端に重ねる</summary>
+        private static Rect GetToolbarLocalRect(Rect localRect)
+        {
+            // 項目: - / 倍率 / + / リセット。マージンは項目間の 3 箇所分
+            var width = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 3
+                + ZOOM_BUTTON_WIDTH * 2 + ZOOM_LABEL_WIDTH + RESET_BUTTON_WIDTH;
+            return new Rect(localRect.x, localRect.y, width, ViewToolbarDrawer.TOOLBAR_HEIGHT);
+        }
+
+        /// <summary>ツールバーを出すか。動画を描けていて、マウスがこのウィンドウの上にある間</summary>
+        private bool IsToolbarVisible()
+        {
+            if (!_hasVideo)
+            {
+                return false;
+            }
+            var guiPos = InputRemapper.rawGuiPosition;
+            return windowRect.Contains(guiPos) &&
+                !GuiWindowTracker.IsOverWindowExcept(windowId, guiPos);
+        }
+
+        /// <summary>
+        /// ホイールでカーソル位置を中心にズームし、左ドラッグで位置をずらす。
+        /// ドラッグはホットコントロールで捕まえ、ウィンドウ外へ出ても続ける。
+        /// ウィンドウ外のマウスイベントは e.type が Ignore になるため、GetTypeForControl で読む
+        /// </summary>
+        private void HandleViewInput(Rect localRect)
+        {
+            var e = Event.current;
+            switch (e.GetTypeForControl(_panControlId))
+            {
+                case EventType.ScrollWheel:
+                    if (localRect.Contains(e.mousePosition) && e.delta.y != 0f)
+                    {
+                        ZoomAt(localRect, e.mousePosition, e.delta.y < 0f ? 1 : -1);
+                        e.Use();
+                    }
+                    break;
+
+                case EventType.MouseDown:
+                    // ツールバーのボタンとリサイズのつかみ範囲は後段で処理するので奪わない
+                    if (e.button == 0 &&
+                        localRect.Contains(e.mousePosition) &&
+                        !(IsToolbarVisible() && GetToolbarLocalRect(localRect).Contains(e.mousePosition)) &&
+                        !IsOverResizeHandle(InputRemapper.rawGuiPosition))
+                    {
+                        GUIUtility.hotControl = _panControlId;
+                        _dragStartMouse = e.mousePosition;
+                        _dragStartPan = _pan;
+                        e.Use();
+                    }
+                    break;
+
+                case EventType.MouseDrag:
+                    if (GUIUtility.hotControl == _panControlId)
+                    {
+                        _pan = VideoPreviewViewMath.DragPan(
+                            _dragStartPan, localRect, _baseSize * _zoom, e.mousePosition - _dragStartMouse);
+                        e.Use();
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 描かれなくなるとドラッグを離すイベントを受けられないため、
+        /// 握ったままのホットコントロールを手放す (残すと他のコントロールが押せなくなる)
+        /// </summary>
+        private void CancelPanDrag()
+        {
+            if (_panControlId != 0 && GUIUtility.hotControl == _panControlId)
+            {
+                GUIUtility.hotControl = 0;
+            }
+        }
+
+        protected override void OnShowChanged(bool visible)
+        {
+            if (!visible)
+            {
+                CancelPanDrag();
+            }
+        }
+
+        protected override void OnTabVisibleChanged(bool visible)
+        {
+            if (!visible)
+            {
+                CancelPanDrag();
+            }
+        }
+
+        private void ZoomAt(Rect localRect, Vector2 cursor, int direction)
+        {
+            var newZoom = VideoPreviewViewMath.StepZoom(_zoom, direction);
+            _pan = VideoPreviewViewMath.ZoomAt(_pan, localRect, _baseSize, cursor, _zoom, newZoom);
+            _zoom = newZoom;
+        }
+
+        private void ResetView()
+        {
+            _zoom = 1f;
+            _pan = Vector2.zero;
+        }
+
+        /// <summary>ズームの - / 倍率 / + / リセット。動画の上に重ね、マウスオーバー中だけ出す</summary>
+        protected override void DrawToolbar()
+        {
+            if (!IsToolbarVisible())
+            {
+                return;
+            }
+
+            var localRect = ToLocalRect(contentRect);
+            var rect = GetToolbarLocalRect(localRect);
+            ViewToolbarDrawer.DrawBackground(rect);
+
+            var view = _toolbarView;
+            view.Init(rect.x, rect.y, rect.width, rect.height);
+            view.BeginHorizontal();
+
+            // ボタンからのズームは表示領域の中心を基準にする
+            var height = ViewToolbarDrawer.ITEM_HEIGHT;
+            if (view.DrawButton("-", ZOOM_BUTTON_WIDTH, height))
+            {
+                ZoomAt(localRect, localRect.center, -1);
+            }
+            view.DrawLabel(VideoPreviewViewMath.FormatZoom(_zoom), ZOOM_LABEL_WIDTH, height,
+                style: GUIView.gsLabelRight);
+            if (view.DrawButton("+", ZOOM_BUTTON_WIDTH, height))
+            {
+                ZoomAt(localRect, localRect.center, 1);
+            }
+            if (view.DrawButton("リセット", RESET_BUTTON_WIDTH, height))
+            {
+                ResetView();
+            }
+
+            view.EndLayout();
         }
     }
 }
