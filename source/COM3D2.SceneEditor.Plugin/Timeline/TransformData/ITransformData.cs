@@ -186,7 +186,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         ValueAlpha,
         /// <summary>いずれかの値が ON の区間だけ固定色を出す</summary>
         Bool,
-        /// <summary>表示フラグが ON の区間だけ固定色を出す (OFF の区間は描画側が先に除外する)</summary>
+        /// <summary>表示フラグが ON の区間だけ固定色を出す (OFF の区間は ColorLaneAggregator が除外する)</summary>
         Visible,
     }
 
