@@ -213,6 +213,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var cinematicDof = PostEffectsClient.GetCinematicDepthOfField();
             cinematicDof.enabled = false;
             PostEffectsClient.ApplyCinematicDepthOfField(cinematicDof);
+
+            var overlay = PostEffectsClient.GetScreenOverlay();
+            overlay.enabled = false;
+            PostEffectsClient.ApplyScreenOverlay(overlay);
         }
 
         public DepthOfFieldData GetDepthOfFieldData()
@@ -326,6 +330,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public void ApplyCinematicDepthOfField(PEData.CinematicDepthOfFieldData data)
         {
             PostEffectsClient.ApplyCinematicDepthOfField(data);
+        }
+
+        /// <summary>旧版の PostEffects.Plugin では false (Get は既定値、Apply は何もしない)</summary>
+        public bool isScreenOverlayAvailable => PostEffectsClient.isScreenOverlayAvailable;
+
+        // オーバーレイも共有 DTO をそのまま流す (実体側と同じ平置き構造のため変換が要らない)
+        public PEData.ScreenOverlayData GetScreenOverlayData()
+        {
+            return PostEffectsClient.GetScreenOverlay();
+        }
+
+        public void ApplyScreenOverlay(PEData.ScreenOverlayData data)
+        {
+            PostEffectsClient.ApplyScreenOverlay(data);
         }
     }
 }
