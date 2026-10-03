@@ -103,6 +103,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             scaleController.SetScale(maid, motion.name, multiplier);
         }
 
+        /// <summary>
+        /// 倍率はこのレイヤーからしか編集できないので、削除・アンロード時は元の大きさへ戻す。
+        /// 誕生時の断面がある場合は、この後の断面の復元が上書きする
+        /// </summary>
+        public override void ResetOnRemove()
+        {
+            var maid = this.maid;
+            if (maid == null)
+            {
+                return;
+            }
+            foreach (var bone in MaidScaleBones.bones)
+            {
+                scaleController.SetScale(maid, bone.boneName, MaidScaleBones.DefaultScale);
+            }
+        }
+
         public override void OnPoseEditEnd()
         {
             base.OnPoseEditEnd();

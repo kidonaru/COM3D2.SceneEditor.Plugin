@@ -88,7 +88,7 @@ COM3D2.5 で、旧ボディのメイドを devbridge で調べた結果。
 - **`OnPoseEditEnd`**: 再生データを適用し直す
 - **レイヤーを外したとき**: 担当メイドの倍率をすべて 1 に戻す
 - **XML**: 新しいレイヤーとして保存するだけで、`TimelineData.CurrentVersion` は上げない
-  - MTE は未登録のレイヤー className をエラーログ付きで読み飛ばす（MTE の `TimelineData.cs` / `TimelineManager.CreateLayer` で確認）。腕は元の大きさで表示される
+  - キーの `<Type>MaidScale</Type>` は MTE の `TransformType` に無い enum 値なので、このレイヤーを含む XML は MTE ではデシリアライズに失敗する（表情の `FaceSetting` と同じ。一方向互換の方針の範囲内）
   - CLAUDE.md の互換方向の節に追記する
 
 ### 状態と適用: `MaidScaleController`

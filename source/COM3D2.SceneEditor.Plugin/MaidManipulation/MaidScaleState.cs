@@ -13,8 +13,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool isDefault => _scales.Count == 0;
 
-        /// <summary>倍率が 1 でない骨だけ。呼び出し側は読むだけにする</summary>
-        public Dictionary<string, float> nonDefaultScales => _scales;
+        /// <summary>倍率が 1 でない骨だけ</summary>
+        public IEnumerable<KeyValuePair<string, float>> nonDefaultScales => _scales;
 
         public float Get(string boneName)
         {
@@ -34,18 +34,18 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var clamped = MaidScaleBones.Clamp(scale);
-            if (Mathf.Approximately(clamped, MaidScaleBones.DefaultScale))
+            if (MaidScaleBones.IsDefault(scale))
             {
                 _scales.Remove(boneName);
                 return;
             }
-            _scales[boneName] = clamped;
+            _scales[boneName] = MaidScaleBones.Clamp(scale);
         }
 
         /// <summary>
         /// 退避値へ戻してよいか。今の値が自分の書いた値のままのときだけ戻す。
-        /// 体型スライダー (BoneMorph_.Blend) などが途中で書き直した値を古い退避値で潰さないため
+        /// 体型スライダー (BoneMorph_.Blend) などが途中で書き直した値を古い退避値で潰さないため。
+        /// Vector3 の == は近似比較 (差の 2 乗が 1e-10 未満) なので、それより小さな書き直しは区別しない
         /// </summary>
         public static bool ShouldRestore(Vector3 current, Vector3 written)
         {

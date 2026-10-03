@@ -75,7 +75,7 @@ namespace COM3D2.SceneEditor.Plugin
             if (!_entries.TryGetValue(maid, out entry))
             {
                 // 元の大きさを書くだけなら状態を作らない (常駐コストを増やさない)
-                if (Mathf.Approximately(MaidScaleBones.Clamp(scale), MaidScaleBones.DefaultScale))
+                if (MaidScaleBones.IsDefault(scale))
                 {
                     return;
                 }
@@ -174,7 +174,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             RefreshBonesIfNeeded(body, entry);
+            ApplyScales(entry);
+        }
 
+        /// <summary>キャッシュ済みの複製骨へ、今の値 × 倍率を書き、戻すための記録を残す</summary>
+        private static void ApplyScales(Entry entry)
+        {
             foreach (var scalePair in entry.state.nonDefaultScales)
             {
                 List<Transform> bones;

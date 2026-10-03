@@ -65,6 +65,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>元の大きさか。適用を省く判定に使う</summary>
-        public bool isDefault => multiplier == MaidScaleBones.DefaultScale;
+        public bool isDefault => MaidScaleBones.IsDefault(multiplier);
     }
 }

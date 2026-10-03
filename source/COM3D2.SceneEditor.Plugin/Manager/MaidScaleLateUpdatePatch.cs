@@ -5,9 +5,7 @@ using HarmonyLib;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイドスケールを TBody.LateUpdate の前後で戻す・掛ける。
-    /// LateUpdate の中で MOD (MaidVoicePitch の ForeArmFix) が前腕のスケールを書き戻し、
-    /// スキニングは描画より前に計算されるため、掛けられるのは LateUpdate の直後だけ。
+    /// メイドスケールを TBody.LateUpdate の前後で戻す・掛ける。掛ける位置の理由は MaidScaleController 参照。
     /// TBody.OnLateUpdate などのイベントは 2.0 / 2.5 で型と寿命が違うため使わない
     /// </summary>
     public static class MaidScaleLateUpdatePatch
@@ -64,10 +62,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
-                var c = controller;
-                if (c != null)
+                var scaleController = controller;
+                if (scaleController != null)
                 {
-                    c.OnBodyLateUpdateBegin(__instance);
+                    scaleController.OnBodyLateUpdateBegin(__instance);
                 }
             }
             catch (Exception e)
@@ -85,10 +83,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return;
                 }
-                var c = controller;
-                if (c != null)
+                var scaleController = controller;
+                if (scaleController != null)
                 {
-                    c.OnBodyLateUpdateEnd(__instance);
+                    scaleController.OnBodyLateUpdateEnd(__instance);
                 }
             }
             catch (Exception e)

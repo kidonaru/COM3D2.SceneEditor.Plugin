@@ -57,6 +57,16 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(expected, MaidScaleBones.Clamp(input));
         }
 
+        [Theory]
+        [InlineData(1f, true)]
+        [InlineData(1.000001f, true)]
+        [InlineData(1.5f, false)]
+        [InlineData(0f, false)]
+        public void 丸めた倍率が1なら既定とみなす(float input, bool expected)
+        {
+            Assert.Equal(expected, MaidScaleBones.IsDefault(input));
+        }
+
         [Fact]
         public void キーは1値で既定は倍率1()
         {

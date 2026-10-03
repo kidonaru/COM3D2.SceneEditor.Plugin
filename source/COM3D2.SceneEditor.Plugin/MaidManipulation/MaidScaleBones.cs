@@ -57,5 +57,11 @@ namespace COM3D2.SceneEditor.Plugin
         {
             return Mathf.Clamp(scale, MinScale, MaxScale);
         }
+
+        /// <summary>範囲へ丸めた倍率が元の大きさ (1) か。状態を持つか・キーを適用するかの判定をそろえる</summary>
+        public static bool IsDefault(float scale)
+        {
+            return Mathf.Approximately(Clamp(scale), DefaultScale);
+        }
     }
 }
