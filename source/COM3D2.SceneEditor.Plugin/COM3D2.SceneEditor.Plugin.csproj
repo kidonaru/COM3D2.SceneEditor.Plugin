@@ -641,6 +641,7 @@
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_Bloom.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_CinematicDepthOfField.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_ScreenOverlay.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DepthOfField.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DistanceFog.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_GTToneMap.cs" />
