@@ -25,6 +25,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Intensity = 8,
         }
 
+        // ScreenOverlay.OverlayBlendMode の並び (blendMode の値 = 添字)。範囲と Inspector のコンボはここから導く
+        public static readonly List<string> BlendModeNames = new List<string>
+        {
+            "加算", "スクリーン", "乗算", "オーバーレイ", "アルファ",
+        };
+
         // ScreenOverlay.OverlayBlendMode の AlphaBlend (強度が α に掛かるモード)
         public const int BlendModeAlphaBlend = 4;
 
@@ -59,13 +65,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
         {
             {
-                // 0=加算 / 1=スクリーン / 2=乗算 / 3=オーバーレイ / 4=アルファ
+                // 値の意味は BlendModeNames
                 "blendMode", new CustomValueInfo
                 {
                     index = (int)Index.BlendMode,
                     name = "ﾌﾞﾚﾝﾄﾞ",
                     min = 0f,
-                    max = 4f,
+                    max = BlendModeNames.Count - 1,
                     step = 1f,
                     defaultValue = 2f,
                 }

@@ -43,15 +43,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly ColorFieldCache _overlayColorFieldCache = new ColorFieldCache("", true);
 
-        // ScreenOverlay.OverlayBlendMode の並び (TransformDataScreenOverlay の blendMode と同じ値)
-        private static readonly List<string> OverlayBlendModeNames = new List<string>
-        {
-            "加算", "スクリーン", "乗算", "オーバーレイ", "アルファ",
-        };
-
         private readonly GUIComboBox<string> _overlayBlendModeComboBox = new GUIComboBox<string>
         {
-            items = OverlayBlendModeNames,
+            items = TransformDataScreenOverlay.BlendModeNames,
             getName = (name, _) => name,
             buttonSize = new Vector2(100, 20),
         };
@@ -1095,7 +1089,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 読込・Undo・PostEffects 側 UI でモードが変わってもコンボ表示が追いつくよう、実データへ寄せる
             _overlayBlendModeComboBox.currentIndex =
-                Mathf.Clamp(overlay.blendMode, 0, OverlayBlendModeNames.Count - 1);
+                Mathf.Clamp(overlay.blendMode, 0, TransformDataScreenOverlay.BlendModeNames.Count - 1);
             view.BeginHorizontal();
             {
                 view.DrawLabel(defaultTrans.blendModeInfo.name, CustomLabelWidth, 20);
@@ -1112,7 +1106,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.SetEnabled(view.focusedComboBox == null);
 
-            var isColor = overlay.source == TransformDataScreenOverlay.SourceColor;
+            // 実体側は範囲外の値を定義域へ丸める (2 以上はカラー) ので、判定の向きを揃える
+            var isColor = overlay.source >= TransformDataScreenOverlay.SourceColor;
             updateTransform |= view.DrawCustomValueBool(
                 defaultTrans.sourceInfo,
                 isColor,
