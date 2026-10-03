@@ -12,6 +12,7 @@ namespace COM3D2.SceneEditor.Plugin
     public class MaidScaleItemInspector : ITimelineItemInspector
     {
         private const float RowHeight = 20f;
+        private const float ScaleLabelWidth = 40f;
 
         /// <summary>メニュー項目名 (骨名) から対象骨を求める。対象外なら null</summary>
         public static MaidScaleBone ResolveBone(string itemName)
@@ -47,7 +48,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // 複数選択時にどの骨の行か分かるよう見出しを出す
                 TimelineItemClipboardMenu.DrawHeading(view, bone.displayName, layer, item.name);
-                MaidScaleRowDrawer.Draw(view, maid, bone, "倍率", 40);
+                MaidScaleRowDrawer.Draw(view, maid, bone, "倍率", ScaleLabelWidth);
             }
         }
 

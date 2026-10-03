@@ -35,12 +35,17 @@ namespace COM3D2.SceneEditor.Plugin
             腕スケール,
         }
 
-        /// <summary>モデルを対象にしているときのタブ。BoneTabType の先頭 2 つと同じ並び</summary>
-        private static readonly string[] MODEL_TAB_LABELS =
+        /// <summary>モデルを対象にしているときのタブ。腕スケールはメイド専用なので出さない</summary>
+        private static readonly BoneTabType[] MODEL_TABS =
         {
-            BoneTabType.編集.ToString(),
-            BoneTabType.プリセット.ToString(),
+            BoneTabType.編集,
+            BoneTabType.プリセット,
         };
+
+        private static readonly string[] MODEL_TAB_LABELS =
+            Array.ConvertAll(MODEL_TABS, tab => tab.ToString());
+
+        private const float MaidScaleLabelWidth = 60f;
 
         private BoneTabType _tabType = BoneTabType.編集;
 
@@ -323,15 +328,7 @@ namespace COM3D2.SceneEditor.Plugin
                 RefreshPresetList();
             }
 
-            // タブ切替はゲートの対象外にするため、タブを描いた後で判定する。
-            // モデルモードのゲートは DrawMaidContent で掛け済み
-            if (!boneEditManager.isModelMode)
-            {
-                var layerType = _tabType == BoneTabType.腕スケール
-                    ? typeof(MTEP.MaidScaleTimelineLayer)
-                    : typeof(MTEP.MotionTimelineLayer);
-                TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
-            }
+            BeginMaidTabGate(target);
 
             if (_tabType == BoneTabType.プリセット)
             {
@@ -348,7 +345,25 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>腕スケールはメイド専用なので、モデルでは編集 / プリセットだけを出す</summary>
+        /// <summary>
+        /// 選んだタブのタイムラインレイヤーでゲートを掛ける。タブを描いた後に呼び、
+        /// ゲートが閉じていてもタブは切り替えられるようにする。
+        /// モデルモードのゲートは DrawMaidContent で掛け済み
+        /// </summary>
+        private void BeginMaidTabGate(Maid target)
+        {
+            if (boneEditManager.isModelMode)
+            {
+                return;
+            }
+
+            var layerType = _tabType == BoneTabType.腕スケール
+                ? typeof(MTEP.MaidScaleTimelineLayer)
+                : typeof(MTEP.MotionTimelineLayer);
+            TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
+        }
+
+        /// <summary>モデルでは MODEL_TABS だけを出す。それ以外のタブを開いていたら編集へ戻す</summary>
         private BoneTabType DrawContentTabBar()
         {
             if (!boneEditManager.isModelMode)
@@ -356,11 +371,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return DrawInnerTabs(_tabType, TAB_WIDTH);
             }
 
-            if (_tabType == BoneTabType.腕スケール)
-            {
-                _tabType = BoneTabType.編集;
-            }
-            return (BoneTabType)DrawInnerTabs(MODEL_TAB_LABELS, (int)_tabType, TAB_WIDTH);
+            var index = Math.Max(0, Array.IndexOf(MODEL_TABS, _tabType));
+            return MODEL_TABS[DrawInnerTabs(MODEL_TAB_LABELS, index, TAB_WIDTH)];
         }
 
         /// <summary>腕 6 本の倍率 (メイドスケール)</summary>
@@ -371,7 +383,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var bone in MaidScaleBones.bones)
             {
-                MaidScaleRowDrawer.Draw(view, target, bone, bone.displayName, 60);
+                MaidScaleRowDrawer.Draw(view, target, bone, bone.displayName, MaidScaleLabelWidth);
             }
             MaidScaleRowDrawer.DrawResetAll(view, target, ResetButtonWidth, ROW_HEIGHT);
 

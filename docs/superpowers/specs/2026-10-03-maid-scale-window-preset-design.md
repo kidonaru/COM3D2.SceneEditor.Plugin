@@ -48,7 +48,8 @@
 
 - 問題: プラグインの OnGUI は描画の後に走るが、`TBody.LateUpdate` の直後に掛けた倍率は次の Update まで残る。ボーンウィンドウ（`BoneEditManager`）は OnGUI で腕の複製骨の `localScale` を読み書きするため、倍率込みの値を表示し、編集すると倍率が焼き込まれ、元値の記録（`EnsureOrigRecorded`）にも倍率込みの値が残る
 - 対処: `SceneEditorPlugin.OnGUI` でウィンドウを描く間だけ倍率を外し（`SuspendApplied`）、描き終えたら掛け直す（`ResumeApplied`、例外でも `finally` で戻す）
-  - 外したままにしないのは、OnGUI の後に描く撮影（`ScreenshotHotkeyPatch` が `WaitForEndOfFrame` の後に呼ぶ `ScreenshotManager.Capture` の `camera.Render()`、サムネイル）にも倍率を写すため
+  - 外したままにしないのは、OnGUI の後に描く撮影（`ScreenshotHotkeyPatch` が `WaitForEndOfFrame` の後に呼ぶ `ScreenshotManager.Capture` の `camera.Render()`）にも倍率を写すため
+  - 撮影ボタン・シーンプリセットやタイムラインのサムネイルは OnGUI の中で同期的に `camera.Render()` する。`ScreenshotManager.Capture` と `ThumbnailCapture` は描画の前後を `MaidScaleController.BeginCapture` / `EndCapture` で挟み、その間だけ掛け直す（GUI の外では何もしない）
   - 掛け直しは GUI が書き換えた今の値を元にする。GUI の中で倍率を変えた場合は新しい倍率で掛ける
   - Update での復元はそのまま残す
 - ボーンウィンドウのタイムラインのゲート（今はメイドアニメのレイヤーでヘッダーとタブバーより前に掛けている）はタブバーの後へ移し、タブごとのレイヤー（「腕スケール」はメイドスケール、他はメイドアニメ）で掛ける。ゲートが閉じていてもタブを切り替えられるようにするため

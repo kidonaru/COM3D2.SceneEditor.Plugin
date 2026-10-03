@@ -9,9 +9,12 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class MaidScaleRowDrawer
     {
+        private const string ResetAllLabel = "すべて 1 に戻す";
+
         private static MaidScaleController scaleController
             => MaidManipulateManager.instance.maidScaleController;
 
+        /// <param name="label">行の表示ラベル。履歴の説明文には呼び出し側によらず骨の表示名を使う</param>
         public static void Draw(GUIView view, Maid maid, MaidScaleBone bone, string label, float labelWidth)
         {
             view.DrawSliderValue(new GUIView.SliderOption
@@ -37,12 +40,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public static void DrawResetAll(GUIView view, Maid maid, float width, float rowHeight)
         {
-            if (!view.DrawButton("すべて 1 に戻す", width, rowHeight, scaleController.HasState(maid)))
+            if (!view.DrawButton(ResetAllLabel, width, rowHeight, scaleController.HasState(maid)))
             {
                 return;
             }
 
-            RecordEdit(maid, "すべて 1 に戻す");
+            RecordEdit(maid, ResetAllLabel);
             foreach (var bone in MaidScaleBones.bones)
             {
                 scaleController.SetScale(maid, bone.boneName, MaidScaleBones.DefaultScale);

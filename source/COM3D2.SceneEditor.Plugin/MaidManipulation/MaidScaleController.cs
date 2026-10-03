@@ -52,6 +52,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly List<Maid> _deadMaids = new List<Maid>();
 
+        /// <summary>SuspendApplied から ResumeApplied までの間 (GUI の描画中) か</summary>
+        private bool _isGuiSuspended;
+
+        /// <summary>GUI の中の撮影のために BeginCapture で掛け直したか (EndCapture の外し直し判定)</summary>
+        private bool _isResumedForCapture;
+
         public bool HasState(Maid maid)
         {
             return maid != null && _entries.ContainsKey(maid);
@@ -130,6 +136,50 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public void SuspendApplied()
         {
+            _isGuiSuspended = true;
+            SuspendEntries();
+        }
+
+        /// <summary>
+        /// SuspendApplied で外した分を掛け直す。GUI が書き換えた値はその値を元として掛ける。
+        /// OnGUI の後に描くフレーム末の撮影 (camera.Render) にも倍率を写すため。
+        /// GUI の中で状態ごと捨てたメイドは _entries に無いので掛け直さない
+        /// </summary>
+        public void ResumeApplied()
+        {
+            _isGuiSuspended = false;
+            _isResumedForCapture = false;
+            ResumeEntries();
+        }
+
+        /// <summary>
+        /// 手動描画 (camera.Render) の直前に倍率を写す。EndCapture と対で呼ぶ。
+        /// 撮影ボタンやサムネイルは OnGUI の中で同期的に描くため、
+        /// GUI の間に外した分をその描画の間だけ掛け直す。GUI の外では何もしない
+        /// </summary>
+        public void BeginCapture()
+        {
+            if (!_isGuiSuspended || _isResumedForCapture)
+            {
+                return;
+            }
+            _isResumedForCapture = true;
+            ResumeEntries();
+        }
+
+        /// <summary>BeginCapture で掛け直した分を外し、GUI の残りには素の値を見せる</summary>
+        public void EndCapture()
+        {
+            if (!_isResumedForCapture)
+            {
+                return;
+            }
+            _isResumedForCapture = false;
+            SuspendEntries();
+        }
+
+        private void SuspendEntries()
+        {
             foreach (var entry in _entries.Values)
             {
                 if (entry.applied.Count == 0)
@@ -141,12 +191,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// SuspendApplied で外した分を掛け直す。GUI が書き換えた値はその値を元として掛ける。
-        /// OnGUI の後に描くフレーム末の撮影 (camera.Render) にも倍率を写すため。
-        /// GUI の中で状態ごと捨てたメイドは _entries に無いので掛け直さない
-        /// </summary>
-        public void ResumeApplied()
+        private void ResumeEntries()
         {
             foreach (var entry in _entries.Values)
             {
