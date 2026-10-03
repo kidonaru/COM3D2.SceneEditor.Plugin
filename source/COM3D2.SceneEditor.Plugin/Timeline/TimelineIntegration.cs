@@ -320,6 +320,8 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.GravityTimelineLayer), MTEP.GravityTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.MaidScaleTimelineLayer), MTEP.MaidScaleTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.AnimationTimelineLayer), MTEP.AnimationTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.BGTimelineLayer), MTEP.BGTimelineLayer.Create);
