@@ -178,6 +178,74 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
     }
 
+    public enum LaneColorSource
+    {
+        /// <summary>ColorValueInfo の色をそのまま出す</summary>
+        Color,
+        /// <summary>固定色のアルファに 0〜1 の値を掛ける</summary>
+        ValueAlpha,
+        /// <summary>値が ON の区間だけ固定色を出す</summary>
+        Bool,
+        /// <summary>表示フラグが ON の区間だけ固定色を出す (OFF の区間は描画側が先に除外する)</summary>
+        Visible,
+    }
+
+    /// <summary>
+    /// タイムラインの行に出す色帯 1 段ぶんの定義。
+    /// 色ピッカーが使う ColorValueInfo とは分け、帯の表示専用の指定 (値を透明度にする等) を持てるようにする
+    /// </summary>
+    public class LaneColorInfo
+    {
+        public LaneColorSource source;
+        /// <summary>source が Color のときの ColorValueInfoMap のキー</summary>
+        public string colorKey;
+        /// <summary>source が ValueAlpha / Bool のときの values の添字</summary>
+        public int valueIndex = -1;
+        /// <summary>source が Color 以外のときの帯の色</summary>
+        public Color color = Color.white;
+
+        /// <summary>ON/OFF の帯は中間値に意味が無いので、キー間を補間せず区間開始値で塗る</summary>
+        public bool isStep => source == LaneColorSource.Bool || source == LaneColorSource.Visible;
+
+        public static LaneColorInfo FromColorKey(string colorKey)
+        {
+            return new LaneColorInfo
+            {
+                source = LaneColorSource.Color,
+                colorKey = colorKey,
+            };
+        }
+
+        public static LaneColorInfo FromValueAlpha(int valueIndex, Color color)
+        {
+            return new LaneColorInfo
+            {
+                source = LaneColorSource.ValueAlpha,
+                valueIndex = valueIndex,
+                color = color,
+            };
+        }
+
+        public static LaneColorInfo FromBool(int valueIndex, Color color)
+        {
+            return new LaneColorInfo
+            {
+                source = LaneColorSource.Bool,
+                valueIndex = valueIndex,
+                color = color,
+            };
+        }
+
+        public static LaneColorInfo FromVisible(Color color)
+        {
+            return new LaneColorInfo
+            {
+                source = LaneColorSource.Visible,
+                color = color,
+            };
+        }
+    }
+
     public interface ITransformData
     {
         string name { get; }
@@ -282,6 +350,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Color GetDefaultColorValue(string colorKey);
         bool HasColorValue(string colorKey);
         string GetColorValueName(string colorKey);
+        LaneColorInfo[] GetLaneColorInfos();
+        Color GetLaneColor(LaneColorInfo info);
         ValueData[] GetValueDataList(TangentValueType valueType);
         TangentData[] GetInTangentDataList(TangentValueType valueType);
         TangentData[] GetOutTangentDataList(TangentValueType valueType);

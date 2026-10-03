@@ -1186,6 +1186,61 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return info != null ? info.name : colorKey;
         }
 
+        private static readonly LaneColorInfo[] EmptyLaneColorInfos = new LaneColorInfo[0];
+
+        private static readonly LaneColorInfo[] VisibleLaneColorInfos =
+        {
+            LaneColorInfo.FromVisible(Color.white),
+        };
+
+        /// <summary>色マップ (型ごとに static readonly) の参照をキーに、既定の帯定義を使い回す</summary>
+        private static readonly Dictionary<Dictionary<string, ColorValueInfo>, LaneColorInfo[]> ColorLaneInfosCache
+            = new Dictionary<Dictionary<string, ColorValueInfo>, LaneColorInfo[]>();
+
+        /// <summary>
+        /// タイムラインの色帯の定義。既定は色マップの各色を 1 段ずつ出し、
+        /// 色を持たず表示フラグだけ持つ型は表示の ON/OFF を出す。
+        /// 毎フレーム呼ばれるため、override する型は static readonly の配列を返すこと
+        /// </summary>
+        public virtual LaneColorInfo[] GetLaneColorInfos()
+        {
+            var colorMap = GetColorValueInfoMap();
+            if (colorMap.Count == 0)
+            {
+                return hasVisible ? VisibleLaneColorInfos : EmptyLaneColorInfos;
+            }
+
+            LaneColorInfo[] infos;
+            if (!ColorLaneInfosCache.TryGetValue(colorMap, out infos))
+            {
+                infos = colorMap.Keys.Select(LaneColorInfo.FromColorKey).ToArray();
+                ColorLaneInfosCache[colorMap] = infos;
+            }
+            return infos;
+        }
+
+        /// <summary>帯 1 段ぶんの色。OFF の区間は透明を返す</summary>
+        public Color GetLaneColor(LaneColorInfo info)
+        {
+            switch (info.source)
+            {
+                case LaneColorSource.Color:
+                    return GetColorValue(info.colorKey);
+                case LaneColorSource.ValueAlpha:
+                {
+                    var color = info.color;
+                    color.a *= Mathf.Clamp01(values[info.valueIndex].value);
+                    return color;
+                }
+                case LaneColorSource.Bool:
+                    return values[info.valueIndex].boolValue ? info.color : Color.clear;
+                case LaneColorSource.Visible:
+                    return visible ? info.color : Color.clear;
+                default:
+                    return Color.clear;
+            }
+        }
+
         public virtual Dictionary<string, StrValueInfo> GetStrValueInfoMap()
         {
             return new Dictionary<string, StrValueInfo>();

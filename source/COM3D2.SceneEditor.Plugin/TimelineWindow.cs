@@ -219,6 +219,8 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D texKeyFrame = null;
         /// <summary>色レーンのキー間グラデーション用 (左透明→右不透明)</summary>
         private Texture2D texColorGradient = null;
+        /// <summary>texColorGradient の左右反転 (左不透明→右透明)。アルファが下がる区間用</summary>
+        private Texture2D texColorGradientReversed = null;
 
         /// <summary>色レーンの帯がレーン高さに占める割合</summary>
         private const float COLOR_LANE_HEIGHT_RATIO = 0.3f;
@@ -674,6 +676,24 @@ namespace COM3D2.SceneEditor.Plugin
                 texColorGradient = TextureUtils.CreateHorizontalAlphaGradientTexture(
                     COLOR_GRADIENT_TEXTURE_WIDTH);
             }
+
+            if (texColorGradientReversed == null)
+            {
+                texColorGradientReversed = CreateReversedTexture(texColorGradient);
+            }
+        }
+
+        private static Texture2D CreateReversedTexture(Texture2D source)
+        {
+            var tex = new Texture2D(source.width, source.height, TextureFormat.ARGB32, false);
+            tex.wrapMode = source.wrapMode;
+            tex.filterMode = source.filterMode;
+
+            var pixels = source.GetPixels();
+            Array.Reverse(pixels);
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
         }
 
         /// <summary>横ズームを処理した直近のフレーム (ConsumeWheel が 1 フレーム 1 回に絞るのに使う)</summary>
@@ -1565,8 +1585,8 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 色を持つ項目の行に、キー間の色をグラデーション帯として描く。
-        /// 複数の色 (主色/副色など) を持つ型は帯を上下に分割して並べる。
+        /// 色帯の定義 (ITransformData.GetLaneColorInfos) を持つ項目の行に、キー間の色をグラデーション帯として描く。
+        /// 複数の帯 (主色/副色など) を持つ型は帯を上下に分割して並べる。
         /// 最後のキー以降は末尾まで同じ色を保持する。
         /// 折りたたみ中のレイヤーは項目行が無く、ヘッダー行へは集約しないため帯は出ない
         /// </summary>
@@ -1617,8 +1637,8 @@ namespace COM3D2.SceneEditor.Plugin
                         continue;
                     }
 
-                    // 色を持たない型の行はここで打ち切る (型は行内で一定)
-                    if (bone.transform.GetColorValueInfoMap().Count == 0)
+                    // 色帯を持たない型の行はここで打ち切る (型は行内で一定)
+                    if (bone.transform.GetLaneColorInfos().Length == 0)
                     {
                         break;
                     }
@@ -1660,7 +1680,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 2 キー間の色帯を 1 区間ぶん描く。左の色を塗った上に右の色をアルファ勾配テクスチャで重ね、
-        /// 線形ブレンドに見せる。to が null のときは from の色で塗りつぶす。
+        /// 線形ブレンドに見せる (アルファだけ変わる区間は DrawAlphaRampLane)。
+        /// to が null のときや ON/OFF の帯は from の色で塗りつぶす。
         /// from が表示 OFF のキーなら何も描かない
         /// </summary>
         private void DrawColorLaneSegment(
@@ -1686,32 +1707,76 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var colorMap = from.GetColorValueInfoMap();
-            var bandHeight = height / colorMap.Count;
+            var laneInfos = from.GetLaneColorInfos();
+            var bandHeight = height / laneInfos.Length;
             var bandY = y;
 
-            foreach (var pair in colorMap)
+            foreach (var info in laneInfos)
             {
-                var colorKey = pair.Key;
-                var fromColor = ToLaneColor(from.GetColorValue(colorKey));
+                var fromColor = ToLaneColor(from.GetLaneColor(info));
+                var toColor = to != null && !info.isStep
+                    ? ToLaneColor(to.GetLaneColor(info))
+                    : fromColor;
 
-                view.currentPos.x = x0;
-                view.currentPos.y = bandY;
-                view.DrawTexture(texWhite, width, bandHeight, fromColor);
-
-                if (to != null)
+                if (toColor == fromColor)
                 {
-                    var toColor = ToLaneColor(to.GetColorValue(colorKey));
-                    if (toColor != fromColor)
-                    {
-                        view.currentPos.x = x0;
-                        view.currentPos.y = bandY;
-                        view.DrawTexture(texColorGradient, width, bandHeight, toColor);
-                    }
+                    DrawColorLaneRect(view, texWhite, x0, bandY, width, bandHeight, fromColor);
+                }
+                else if (fromColor.r == toColor.r && fromColor.g == toColor.g && fromColor.b == toColor.b)
+                {
+                    DrawAlphaRampLane(view, x0, bandY, width, bandHeight, fromColor, toColor);
+                }
+                else
+                {
+                    DrawColorLaneRect(view, texWhite, x0, bandY, width, bandHeight, fromColor);
+                    DrawColorLaneRect(view, texColorGradient, x0, bandY, width, bandHeight, toColor);
                 }
 
                 bandY += bandHeight;
             }
+        }
+
+        /// <summary>
+        /// 色が同じでアルファだけ変わる区間を線形に描く。
+        /// 左の色に右の色を重ねる方式は重ねるほど不透明になるため、アルファが下がる区間がフェードしない。
+        /// 低い方のアルファで塗った上に、差分を高い側へ向かう勾配で重ねる
+        /// (min + g * (max - min) / (1 - min) * (1 - min) = min + g * (max - min))
+        /// </summary>
+        private void DrawAlphaRampLane(
+            GUIView view,
+            float x,
+            float y,
+            float width,
+            float height,
+            Color fromColor,
+            Color toColor)
+        {
+            var minAlpha = Mathf.Min(fromColor.a, toColor.a);
+            var maxAlpha = Mathf.Max(fromColor.a, toColor.a);
+
+            var baseColor = fromColor;
+            baseColor.a = minAlpha;
+            DrawColorLaneRect(view, texWhite, x, y, width, height, baseColor);
+
+            // ToLaneColor で COLOR_LANE_ALPHA 以下に抑えているので 1 - minAlpha は 0 にならない
+            var rampColor = fromColor;
+            rampColor.a = (maxAlpha - minAlpha) / (1f - minAlpha);
+            var rampTexture = toColor.a > fromColor.a ? texColorGradient : texColorGradientReversed;
+            DrawColorLaneRect(view, rampTexture, x, y, width, height, rampColor);
+        }
+
+        private static void DrawColorLaneRect(
+            GUIView view,
+            Texture2D texture,
+            float x,
+            float y,
+            float width,
+            float height,
+            Color color)
+        {
+            view.currentPos.x = x;
+            view.currentPos.y = y;
+            view.DrawTexture(texture, width, height, color);
         }
 
         /// <summary>

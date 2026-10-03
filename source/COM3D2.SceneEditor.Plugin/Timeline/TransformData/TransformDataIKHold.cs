@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -62,6 +63,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;
+        }
+
+        private static readonly LaneColorInfo[] LaneColorInfos =
+        {
+            LaneColorInfo.FromBool((int)Index.IsHold, Color.white),
+            LaneColorInfo.FromBool((int)Index.IsAnime, Color.white),
+        };
+
+        public override LaneColorInfo[] GetLaneColorInfos()
+        {
+            return LaneColorInfos;
         }
 
         // 値アクセサ
