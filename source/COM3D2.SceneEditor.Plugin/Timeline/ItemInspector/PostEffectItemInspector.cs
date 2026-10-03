@@ -73,6 +73,9 @@ namespace COM3D2.SceneEditor.Plugin
                 case MTEP.PostEffectType.CinematicDepthOfField:
                     drawer.DrawCinematicDepthOfFieldRows(view);
                     return;
+                case MTEP.PostEffectType.ScreenOverlay:
+                    drawer.DrawScreenOverlayRows(view);
+                    return;
                 default:
                     view.DrawLabel("(未対応のエフェクトです)", -1, RowHeight,
                         textColor: Color.gray);

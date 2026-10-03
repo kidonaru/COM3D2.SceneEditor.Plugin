@@ -9,7 +9,7 @@ using PEData = COM3D2.MotionTimelineEditor.PostEffects;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap / ブルーム / シネマティック被写界深度)。
+    /// ポストエフェクト 1 つ分のパラメータ行 (被写界深度 / パラフィン / 距離フォグ / リムライト / GTToneMap / ブルーム / シネマティック被写界深度 / オーバーレイ)。
     ///
     /// 委譲先の個別ウィンドウが無いため、コピー先への複製とトーンカーブのプレビューも含めここで描く。
     /// 書き込み先は PostEffectManager のデータで、値の範囲・既定値は TransformData の Info を使う。
@@ -40,6 +40,15 @@ namespace COM3D2.SceneEditor.Plugin
         };
 
         private static readonly string[] BloomFlareColorLabels = { "A", "B", "C", "D" };
+
+        private readonly ColorFieldCache _overlayColorFieldCache = new ColorFieldCache("", true);
+
+        private readonly GUIComboBox<string> _overlayBlendModeComboBox = new GUIComboBox<string>
+        {
+            items = TransformDataScreenOverlay.BlendModeNames,
+            getName = (name, _) => name,
+            buttonSize = new Vector2(100, 20),
+        };
 
         private readonly GUIComboBox<MTEP.MaidCache> _maidComboBox = new GUIComboBox<MTEP.MaidCache>
         {
@@ -110,6 +119,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _bloomFlareColorFieldCaches[i].label = colorLabelPrefix + "/ﾌﾚｱ色" + BloomFlareColorLabels[i];
             }
+            _overlayColorFieldCache.label = colorLabelPrefix + "/色";
         }
 
         /// <summary>
@@ -1051,6 +1061,95 @@ namespace COM3D2.SceneEditor.Plugin
             if (updateTransform)
             {
                 postEffectManager.ApplyCinematicDepthOfField(dof);
+            }
+        }
+
+        /// <summary>オーバーレイ</summary>
+        public void DrawScreenOverlayRows(GUIView view)
+        {
+            if (!postEffectManager.isScreenOverlayAvailable)
+            {
+                view.DrawLabel("PostEffects.Plugin が古いため使用できません", -1, 20, Color.yellow);
+                return;
+            }
+
+            var overlay = postEffectManager.GetScreenOverlayData();
+            var updateTransform = false;
+            var defaultTrans = TransformDataScreenOverlay.defaultTrans;
+
+            // 色欄とコンボは描画パスの外で確定するため、取得と適用の手段を渡して即時適用する
+            Func<PEData.ScreenOverlayData> getOverlay = () => postEffectManager.GetScreenOverlayData();
+            Action<PEData.ScreenOverlayData> applyOverlay = data => postEffectManager.ApplyScreenOverlay(data);
+
+            view.DrawToggle("有効化", overlay.enabled, 80, 20, newValue =>
+            {
+                overlay.enabled = newValue;
+                updateTransform = true;
+            });
+
+            // 読込・Undo・PostEffects 側 UI でモードが変わってもコンボ表示が追いつくよう、実データへ寄せる
+            _overlayBlendModeComboBox.currentIndex =
+                Mathf.Clamp(overlay.blendMode, 0, TransformDataScreenOverlay.BlendModeNames.Count - 1);
+            view.BeginHorizontal();
+            {
+                view.DrawLabel(defaultTrans.blendModeInfo.name, CustomLabelWidth, 20);
+                _overlayBlendModeComboBox.onSelected = (_, index) =>
+                {
+                    overlay.blendMode = index;
+                    var data = getOverlay();
+                    data.blendMode = index;
+                    applyOverlay(data);
+                };
+                _overlayBlendModeComboBox.DrawButton(view);
+            }
+            view.EndLayout();
+
+            view.SetEnabled(view.focusedComboBox == null);
+
+            // 実体側は範囲外の値を定義域へ丸める (2 以上はカラー) ので、判定の向きを揃える
+            var isColor = overlay.source >= TransformDataScreenOverlay.SourceColor;
+            updateTransform |= view.DrawCustomValueBool(
+                defaultTrans.sourceInfo,
+                isColor,
+                newValue => overlay.source = newValue
+                    ? TransformDataScreenOverlay.SourceColor
+                    : TransformDataScreenOverlay.SourceTexture);
+
+            updateTransform |= view.DrawCustomValueFloat(
+                defaultTrans.intensityInfo,
+                overlay.intensity,
+                newValue => overlay.intensity = newValue,
+                labelWidth: CustomLabelWidth,
+                sliderWidth: CustomSliderWidth);
+
+            var isAlphaBlend = overlay.blendMode == TransformDataScreenOverlay.BlendModeAlphaBlend;
+            if (isColor)
+            {
+                DrawColorImmediate(
+                    view, _overlayColorFieldCache, overlay,
+                    overlay.color,
+                    defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Main),
+                    getOverlay, applyOverlay,
+                    (data, color) => data.color = color);
+
+                view.DrawLabel(isAlphaBlend
+                        ? "不透明度は 色のアルファ × 強度 (1 で打ち止め)"
+                        : "色のアルファはアルファ合成でのみ効きます",
+                    -1, 20, Color.gray);
+            }
+            else
+            {
+                // 画像のパスは値配列に載らないため PostEffects 側でだけ設定できる
+                view.DrawLabel("テクスチャは PostEffects 側で設定します", -1, 20, Color.gray);
+                if (isAlphaBlend)
+                {
+                    view.DrawLabel("アルファ合成では強度は効かず、画像のアルファで混ざります", -1, 20, Color.gray);
+                }
+            }
+
+            if (updateTransform)
+            {
+                postEffectManager.ApplyScreenOverlay(overlay);
             }
         }
 

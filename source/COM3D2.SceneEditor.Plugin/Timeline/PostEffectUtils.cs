@@ -12,6 +12,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Rimlight,
         Bloom,
         CinematicDepthOfField,
+        ScreenOverlay,
     }
 
     public static class PostEffectUtils
@@ -27,6 +28,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             { PostEffectType.Rimlight, "リムライト" },
             { PostEffectType.Bloom, "ブルーム" },
             { PostEffectType.CinematicDepthOfField, "シネマティックDoF" },
+            { PostEffectType.ScreenOverlay, "オーバーレイ" },
         };
 
         public static string ToJpName(PostEffectType postEffectType)

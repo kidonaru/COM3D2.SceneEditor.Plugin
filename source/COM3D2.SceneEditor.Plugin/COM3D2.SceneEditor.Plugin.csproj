@@ -641,6 +641,7 @@
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_Bloom.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_CinematicDepthOfField.cs" />
+    <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_ScreenOverlay.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DepthOfField.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_DistanceFog.cs" />
     <Compile Include="Timeline\TimelineLayer\PostEffectTimelineLayer_GTToneMap.cs" />
@@ -705,6 +706,7 @@
     <Compile Include="Timeline\TransformData\TransformDataParaffin.cs" />
     <Compile Include="Timeline\TransformData\TransformDataPngObject.cs" />
     <Compile Include="Timeline\TransformData\TransformDataRimlight.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataScreenOverlay.cs" />
     <Compile Include="Timeline\TransformData\TransformDataUndress.cs" />
     <Compile Include="Timeline\TransformData\TransformDataVoice.cs" />
     <Compile Include="Timeline\TransformData\TransformDataMorph.cs" />

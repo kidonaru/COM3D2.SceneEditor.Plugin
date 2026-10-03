@@ -21,7 +21,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (_allBoneNames == null)
                 {
                     _allBoneNames = new List<string>(
-                        4 + timeline.paraffinCount + timeline.distanceFogCount + timeline.rimlightCount);
+                        5 + timeline.paraffinCount + timeline.distanceFogCount + timeline.rimlightCount);
                     _allBoneNames.Add("DepthOfField");
                     _allBoneNames.Add("GTToneMap");
                     _allBoneNames.AddRange(paraffinNames);
@@ -29,6 +29,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     _allBoneNames.AddRange(rimlightNames);
                     _allBoneNames.Add("Bloom");
                     _allBoneNames.Add("CinematicDepthOfField");
+                    _allBoneNames.Add("ScreenOverlay");
                 }
                 return _allBoneNames;
             }
@@ -77,7 +78,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // タイムライン → 実体へ流し込み済みなので、ここで巻き戻ることはない)
             postEffectManager.SyncCountsFromHost();
 
-            var boneCount = 4
+            var boneCount = 5
                 + timeline.paraffinCount
                 + timeline.distanceFogCount
                 + timeline.rimlightCount;
@@ -136,6 +137,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             ApplyPlayDataByType(TransformType.CinematicDepthOfField);
             //stopwatch.ProcessEnd("  CinematicDepthOfField");
+
+            ApplyPlayDataByType(TransformType.ScreenOverlay);
+            //stopwatch.ProcessEnd("  ScreenOverlay");
         }
 
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
@@ -162,6 +166,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     break;
                 case TransformType.CinematicDepthOfField:
                     ApplyCinematicDepthOfField(motion, t);
+                    break;
+                case TransformType.ScreenOverlay:
+                    ApplyScreenOverlay(motion, t);
                     break;
             }
         }
@@ -244,6 +251,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         frame.UpdateBone(bone);
                         break;
                     }
+                    case PostEffectType.ScreenOverlay:
+                    {
+                        // 旧版の PostEffects.Plugin では既定値しか取れないため、
+                        // キー全登録やコピーで既存のキーを既定値で上書きしないよう記録しない
+                        if (!postEffectManager.isScreenOverlayAvailable)
+                        {
+                            break;
+                        }
+
+                        var trans = CreateTransformData<TransformDataScreenOverlay>(effectName);
+                        trans.screenOverlay = postEffectManager.GetScreenOverlayData();
+
+                        var bone = frame.CreateBone(trans);
+                        frame.UpdateBone(bone);
+                        break;
+                    }
                 }
             }
         }
@@ -272,6 +295,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return TransformType.Bloom;
                 case PostEffectType.CinematicDepthOfField:
                     return TransformType.CinematicDepthOfField;
+                case PostEffectType.ScreenOverlay:
+                    return TransformType.ScreenOverlay;
             }
 
             return TransformType.None;

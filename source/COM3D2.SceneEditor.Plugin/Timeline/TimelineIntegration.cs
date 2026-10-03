@@ -98,6 +98,9 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineManager.RegisterTransform(
                     MTEP.TransformType.Rimlight,
                     MTEP.TimelineManager.CreateTransform<MTEP.TransformDataRimlight>);
+                timelineManager.RegisterTransform(
+                    MTEP.TransformType.ScreenOverlay,
+                    MTEP.TimelineManager.CreateTransform<MTEP.TransformDataScreenOverlay>);
 
                 // 呼び出し元の一括ループには乗らないため、ライフサイクルを手で追いつかせる。
                 // OnLoad は timeline 読込済みのときだけ (未読込で呼ぶと同期する値が無い)
