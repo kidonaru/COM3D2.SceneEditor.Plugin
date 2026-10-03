@@ -285,14 +285,18 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 各スロットの SkinnedMeshRenderer が実際に参照している骨から対象骨を集める。
+        /// 各スロットの SkinnedMeshRenderer が実際に参照している骨と、そのスロット obj までの祖先から対象骨を集める。
+        /// CRC ボディは上腕・前腕を直接参照せず子のツイスト骨 (UpperTwist* / ForeTwist*) だけを参照するため、
+        /// 祖先までたどらないと袖だけが拡縮される。
         /// 名前で子孫を探すと、別スロットの骨や持ち物の中の同名ノードを拾うおそれがある。
         /// スロット obj 配下にない骨 (本体の骨を直接参照している場合) は書かない
         /// </summary>
         private static void RebuildBones(Entry entry)
         {
             entry.bones.Clear();
-            var seen = new HashSet<Transform>();
+
+            // 一度たどった骨から上は同じ経路になるので、ここで打ち切る
+            var visited = new HashSet<Transform>();
 
             foreach (var slotObject in entry.slotObjects)
             {
@@ -310,24 +314,32 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                     foreach (var bone in bones)
                     {
-                        if (bone == null
-                            || MaidScaleBones.Find(bone.name) == null
-                            || !bone.IsChildOf(slotRoot)
-                            || !seen.Add(bone))
+                        if (bone == null || !bone.IsChildOf(slotRoot))
                         {
                             continue;
                         }
 
-                        List<Transform> list;
-                        if (!entry.bones.TryGetValue(bone.name, out list))
+                        for (var t = bone; t != null && t != slotRoot && visited.Add(t); t = t.parent)
                         {
-                            list = new List<Transform>();
-                            entry.bones[bone.name] = list;
+                            if (MaidScaleBones.Find(t.name) != null)
+                            {
+                                AddBone(entry, t);
+                            }
                         }
-                        list.Add(bone);
                     }
                 }
             }
+        }
+
+        private static void AddBone(Entry entry, Transform bone)
+        {
+            List<Transform> list;
+            if (!entry.bones.TryGetValue(bone.name, out list))
+            {
+                list = new List<Transform>();
+                entry.bones[bone.name] = list;
+            }
+            list.Add(bone);
         }
     }
 }
