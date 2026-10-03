@@ -35,28 +35,39 @@ COM3D2.5 で、旧ボディのメイドを devbridge で調べた結果。
   - `TBodySkin.CopyTrans` が本体から複製骨へコピーするのは `localRotation` と `localPosition` だけ。スケールのコピーは `Mune_L/R` などの一部に限られる（`CMT.BindTrans`）
 - **書き込みが効く**: body スロットの複製骨で `Bip01 L Hand` を 2 倍にすると、手が大きく表示された
 - **上腕と手は値が残る**: 書いた値が、次のフレーム以降もそのまま残る
-- **前腕は毎フレーム戻される**: 描画より前に元の値（例: `(0.996, 1.032, 1)`）へ戻される
-  - 書き戻している処理は特定していない。`TMorphBone.LinkedBone` に `Forearm` と Twist 骨のリンク定義があり（`BoneMorphDefine`）、ここが候補
-  - 描画の直前に掛ければ影響を受けない
+- **前腕は毎フレーム戻される**: 元の値（例: `(0.996, 1.032, 1)`）へ戻される
+  - 書き戻しているのはゲーム本体ではなく、導入済みの MOD **MaidVoicePitch** の `ForeArmFix`。Harmony で `Transform.set_localScale` の呼び出し元を取って特定した
+  - 経路は `TBody.LateUpdate → TBody.MoveHeadAndEye → MaidVoicePitch のコールバック`
+  - バニラの環境では戻されない見込み。ただし、この MOD を入れている利用者は多い
+- **描画直前（Camera.onPreCull）に書いても効かない**: COM3D2.5 の Unity 2022.3 は、スキニングを描画より前（PostLateUpdate）に計算する
+  - onPreCull で手を 2 倍にし、onPostRender で戻す実験をしたところ、見た目は変わらなかった
+  - 同じ手を Update 中に 2 倍にすると、大きく表示された
+- **`TBody.LateUpdate` の後ろで書けば効く**: Harmony の postfix で前腕を 2 倍にすると、前腕と手が大きく表示された（ForeArmFix の後になる）
+  - `TBody.LateUpdate` は最後に全スロット・全サブスロットの `TBodySkin.Update`（2.5 の CRC は `SelfLateUpdate`）を回す
 - **元のスケールは 1 ではない**: `UpperArm` に `(0.90, 1, 1)` のような体型由来の値が入っている。上書きせず、元の値に倍率を掛ける
 - **.anm はスケールを書かない**: 既存のメイドアニメが生成する .anm は、7 チャンネルまでに制限していてスケールを書かない（`MotionTimelineLayer.GetAnmBinaryInternal`）。そのためアニメーションとはぶつからない
 
 ## 方式
 
-**描画の直前に、全スロットの複製骨へ倍率を掛ける。次のフレームの頭で元へ戻す。**
+**`TBody.LateUpdate` の後ろ（Harmony の postfix）で、そのメイドの全スロットの複製骨へ倍率を掛ける。次の `TBody.LateUpdate` の前（prefix）と、プラグインの `Update` で元へ戻す。**
 
-- **掛ける時点**: 毎フレーム、最初に発火する `Camera.onPreCull` で 1 回だけ（`Time.frameCount` で重複を防ぐ）
-  - ゲームの LateUpdate（CopyTrans、体型リンク、前腕を戻す処理）がすべて終わった後になるので、前腕にも効く
+- **掛ける時点**: メイドごとの `TBody.LateUpdate` の postfix
+  - CopyTrans や MOD（MaidVoicePitch の ForeArmFix）の書き込みが済んだ後で、スキニングの計算より前になる
+  - メイドごとに 1 フレーム 1 回なので、カメラの台数に関係なく重ならない
 - **掛け方**: その時点の `localScale` を読んで退避し、`退避値 × 倍率` を書く
-- **戻す時点**: 次のフレームのプラグイン `Update`。退避値を書き戻す
+- **戻す時点**: 次のフレームのプラグイン `Update`、および次の `TBody.LateUpdate` の prefix（二重掛けを防ぐ保険）
+  - 戻すのは、今の値が自分の書いた値のままの骨だけにする。体型スライダーなどが途中で書き直した値を、古い退避値で潰さないため
   - 毎フレーム「その時点の値」に掛けるので、体型スライダーを動かしても倍率が積み上がらない
-  - ゲーム側のロジックは常にスケールの掛かっていない値を見る
+  - `Update` の実行順は決まっていないので、プラグインより先に走るスクリプトには倍率つきの値が見える。腕の複製骨を読み、加工して書き戻すゲーム側の処理は、体型の Blend（変更時だけ）のほかに見当たらないので受け入れる
+- **プラグインが無効（`config.pluginEnabled` が false）のとき**: 掛けない（戻す処理は動かす）
 - **本体の骨には触らない**: IK、ポーズ編集のハンドル、アタッチ位置はスケールの影響を受けない
+  - スロット obj 配下にある骨（`IsChildOf`）だけを対象にし、本体の骨を参照する SkinnedMeshRenderer があっても書かない
 
 採らなかった案:
 
-- **プラグインの LateUpdate で掛ける**: 前腕はこの後にゲームが戻すので効かない。元の値のキャッシュが要り、体型変更や着替えでずれる
-- **Harmony で `TBody.LateUpdate` の後ろに差し込む**: 効く時点は本方式と同じで、戻す処理も結局要る。パッチの管理が増えるだけ
+- **描画直前（Camera.onPreCull）に掛ける**: スキニングに間に合わず効かない（上の実機調査）
+- **プラグインの LateUpdate で掛ける**: プラグインの LateUpdate は `TBody.LateUpdate` より先に走るので、前腕は MaidVoicePitch に戻される
+- **`TBody.OnLateUpdate` / `onLateUpdateEnd` のイベントに登録する**: 2.0 と 2.5 で型と寿命が違う。2.5 はボディ読込時に `Clear` し、2.0 は毎フレーム null にする。Harmony なら両方で同じ `TBody.LateUpdate` に差し込める
 
 ## 構成
 
@@ -76,20 +87,26 @@ COM3D2.5 で、旧ボディのメイドを devbridge で調べた結果。
 - **`UpdateFrame`**: 適用器の今の倍率からキーを作る
 - **`OnPoseEditEnd`**: 再生データを適用し直す
 - **レイヤーを外したとき**: 担当メイドの倍率をすべて 1 に戻す
-- **XML**: 新しいレイヤーとして保存するだけで、`TimelineData.CurrentVersion` は上げない。MTE が未知のレイヤーを読み飛ばすかは、計画を作る段階でコードで確かめる。読み飛ばさない場合は CLAUDE.md の互換方向の節に追記する
+- **XML**: 新しいレイヤーとして保存するだけで、`TimelineData.CurrentVersion` は上げない
+  - MTE は未登録のレイヤー className をエラーログ付きで読み飛ばす（MTE の `TimelineData.cs` / `TimelineManager.CreateLayer` で確認）。腕は元の大きさで表示される
+  - CLAUDE.md の互換方向の節に追記する
 
-### 適用器: `MaidBoneScaleApplier`
+### 状態と適用: `MaidScaleController`
 
-- `ManagerRegistry` に Manager として登録する
-- **状態**: メイドごと・骨ごとの倍率。既定は 1。`MaidGravityController` と同じく、レイヤーと Inspector の両方から読み書きする
-- **onPreCull（1 フレーム 1 回）**:
-  - 倍率が 1 でない骨について、メイドの全 `TBodySkin` の複製骨から同じ名前の骨を集める
-  - それぞれの `localScale` を退避して、倍率を掛ける
-- **Update**: 退避した骨へ元の値を書き戻し、退避リストを空にする
-- **骨のキャッシュ**: スロットごとに名前から複製骨を引く結果をキャッシュする
-  - 着替えやボディ再ロードで複製骨は作り直される。`TBodySkin.obj` が変わっていたらそのスロットのキャッシュを捨てる
+- `MaidGravityController` と同じく `MaidManipulateManager` が所有する。メイド解除（`Release`）と全破棄（`Destroy`）も同じ場所で呼ぶ
+- **状態**: メイドごと・骨ごとの倍率。既定は 1。レイヤー・Inspector・履歴の三者が読み書きする
+  - 倍率がすべて 1 に戻ったメイドの状態は捨てる（`HasState` が false になる）
+- **`TBody.LateUpdate` の postfix**: 倍率が 1 でない骨について、メイドの全スロット（2.5 はサブスロットも）の複製骨の `localScale` を退避して、倍率を掛ける
+- **戻す処理**: プラグインの `Update`（全メイド）と `TBody.LateUpdate` の prefix（そのメイド）で、退避した骨を戻す
+- **骨のキャッシュ**: スロット obj ごとに、SkinnedMeshRenderer の `bones` から対象骨を集めてキャッシュする
+  - 着替えやボディ再ロードで複製骨は作り直される。スロット obj の並びが変わったら作り直す
+  - 着替え中（`IsAllProcPropBusy`）・ボディ読込中は掛けない
   - 戻すときは、破棄済みの Transform（Unity の null 判定）を飛ばす
-- **メイドの消去・入れ替え**: そのメイドの状態とキャッシュを捨てる
+
+### パッチ: `MaidScaleLateUpdatePatch`
+
+- プラグインの初期化で 1 回だけ、`TBody.LateUpdate`（2.0 / 2.5 とも private）へ prefix と postfix を当てる。`SkirtHookDriftPatch` と同じ作法にする
+- フックに失敗したら、エラーログを出してメイドスケールを無効にする（ゲームは通常どおり動く）
 
 ### Inspector: `MaidScaleItemInspector`
 
@@ -102,6 +119,7 @@ COM3D2.5 で、旧ボディのメイドを devbridge で調べた結果。
 - **持ち物のずれ**: 手に持たせたモデルなどのアタッチは本体の骨に付く。前腕・上腕を拡大すると、見た目の手と持ち物がずれる
   - 手だけの拡大なら、手首の位置は変わらない
 - **新ボディ（CRC）**: 骨の構成と `LinkedBone` の定義が旧ボディと異なる。`UpperArm_SCL_` などの中間骨があるので、実機で効き方を確かめる（検証項目）
+- **Update 中の読み取り**: プラグインの `Update` より先に走るスクリプトには、倍率つきの複製骨が見える（上の「方式」）
 
 ## テスト
 
