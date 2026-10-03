@@ -87,6 +87,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
+        private static readonly LaneColorInfo LaneInfo =
+            LaneColorInfo.FromBool(Color.white, (int)Index.Enabled);
+
+        public override LaneColorInfo GetLaneColorInfo()
+        {
+            return LaneInfo;
+        }
+
         public ValueData enabledValue => values[(int)Index.Enabled];
 
         public ValueData[] offsetValues

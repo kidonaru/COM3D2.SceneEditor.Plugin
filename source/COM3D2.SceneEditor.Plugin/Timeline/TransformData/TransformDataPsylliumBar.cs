@@ -152,6 +152,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
 
+        /// <summary>主色 (ColorKey.Main) を持たないので、帯に出す色を明示する</summary>
+        private static readonly LaneColorInfo LaneInfo = LaneColorInfo.FromColorKey(Color1aKey);
+
+        public override LaneColorInfo GetLaneColorInfo()
+        {
+            return LaneInfo;
+        }
+
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
             return CustomValueInfoMap;

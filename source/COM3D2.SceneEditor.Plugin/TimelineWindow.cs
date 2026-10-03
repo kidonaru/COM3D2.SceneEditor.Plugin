@@ -154,6 +154,10 @@ namespace COM3D2.SceneEditor.Plugin
         private readonly List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>> _rows
             = new List<LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem>>(256);
 
+        /// <summary>色帯の作業用 (毎フレーム使い回す)</summary>
+        private readonly MTEP.ColorLaneAggregator _laneAggregator = new MTEP.ColorLaneAggregator();
+        private readonly List<MTEP.ColorLaneSegment> _laneSegments = new List<MTEP.ColorLaneSegment>(64);
+
         /// <summary>タイムライン切替検知用。新規作成・読み込みで表示状態をリセットする</summary>
         private int _lastTimelineSessionId = -1;
 
@@ -219,9 +223,11 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D texKeyFrame = null;
         /// <summary>色レーンのキー間グラデーション用 (左透明→右不透明)</summary>
         private Texture2D texColorGradient = null;
+        /// <summary>texColorGradient の左右反転 (左不透明→右透明)。アルファが下がる区間用</summary>
+        private Texture2D texColorGradientReversed = null;
 
         /// <summary>色レーンの帯がレーン高さに占める割合</summary>
-        private const float COLOR_LANE_HEIGHT_RATIO = 0.3f;
+        private const float COLOR_LANE_HEIGHT_RATIO = 0.15f;
         /// <summary>色レーンの不透明度。背景の目盛りとキーフレームが埋もれない程度に抑える</summary>
         private const float COLOR_LANE_ALPHA = 0.7f;
         private const int COLOR_GRADIENT_TEXTURE_WIDTH = 64;
@@ -674,6 +680,24 @@ namespace COM3D2.SceneEditor.Plugin
                 texColorGradient = TextureUtils.CreateHorizontalAlphaGradientTexture(
                     COLOR_GRADIENT_TEXTURE_WIDTH);
             }
+
+            if (texColorGradientReversed == null)
+            {
+                texColorGradientReversed = CreateReversedTexture(texColorGradient);
+            }
+        }
+
+        private static Texture2D CreateReversedTexture(Texture2D source)
+        {
+            var tex = new Texture2D(source.width, source.height, TextureFormat.ARGB32, false);
+            tex.wrapMode = source.wrapMode;
+            tex.filterMode = source.filterMode;
+
+            var pixels = source.GetPixels();
+            Array.Reverse(pixels);
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
         }
 
         /// <summary>横ズームを処理した直近のフレーム (ConsumeWheel が 1 フレーム 1 回に絞るのに使う)</summary>
@@ -1565,10 +1589,9 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 色を持つ項目の行に、キー間の色をグラデーション帯として描く。
-        /// 複数の色 (主色/副色など) を持つ型は帯を上下に分割して並べる。
+        /// 色帯の定義 (ITransformData.GetLaneColorInfo) を持つ項目の行に、キー間の色をグラデーション帯として描く。
         /// 最後のキー以降は末尾まで同じ色を保持する。
-        /// 折りたたみ中のレイヤーは項目行が無く、ヘッダー行へは集約しないため帯は出ない
+        /// 折りたたんだレイヤーの見出し行と閉じたグループ行には、中の項目の帯を合成して出す
         /// </summary>
         private void DrawColorLanes(
             GUIView view,
@@ -1578,11 +1601,16 @@ namespace COM3D2.SceneEditor.Plugin
             float frameWidth,
             float frameHeight)
         {
+            // 折りたたんだ行は全キーを集約するので、描画されない Layout 等のイベントでは計算しない
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             var halfFrameWidth = frameWidth * 0.5f;
             var laneHeight = frameHeight * COLOR_LANE_HEIGHT_RATIO;
             var laneOffsetY = (frameHeight - laneHeight) * 0.5f;
             var endX = timeline.maxFrameCount * frameWidth;
-            var viewRightX = scrollPosition.x + viewWidth;
 
             for (var i = 0; i < _rows.Count; i++)
             {
@@ -1593,64 +1621,21 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                var row = _rows[i];
-                if (row.isHeader || row.menuItem.isSetMenu)
+                if (!CollectLaneTracks(_rows[i]))
                 {
                     continue;
                 }
 
-                var layer = row.layer;
-                var boneName = row.menuItem.name;
-                var keyFrameCount = layer.keyFrameCount;
-                var laneY = rowY + laneOffsetY;
-                MTEP.BoneData prevBone = null;
-                // 表示範囲の右端を越えたキーまで描いたら残りは見えないので打ち切る
-                var reachedViewRight = false;
-
-                for (var frameIndex = 0; frameIndex < keyFrameCount && !reachedViewRight; frameIndex++)
-                {
-                    var frame = layer.GetKeyFrameAt(frameIndex);
-                    var bone = frame.GetBone(boneName);
-                    if (bone == null)
-                    {
-                        // このキーに項目のボーンが無ければ直前のキーからの区間を延ばす
-                        continue;
-                    }
-
-                    // 色を持たない型の行はここで打ち切る (型は行内で一定)
-                    if (bone.transform.GetColorValueInfoMap().Count == 0)
-                    {
-                        break;
-                    }
-
-                    var boneX = bone.frameNo * frameWidth + halfFrameWidth;
-                    reachedViewRight = boneX > viewRightX;
-
-                    if (prevBone != null)
-                    {
-                        DrawColorLaneSegment(
-                            view,
-                            from: prevBone.transform,
-                            to: bone.transform,
-                            x0: prevBone.frameNo * frameWidth + halfFrameWidth,
-                            x1: boneX,
-                            y: laneY,
-                            height: laneHeight,
-                            scrollX: scrollPosition.x,
-                            viewWidth: viewWidth);
-                    }
-                    prevBone = bone;
-                }
-
-                if (prevBone != null && !reachedViewRight)
+                _laneAggregator.BuildSegments(_laneSegments);
+                foreach (var segment in _laneSegments)
                 {
                     DrawColorLaneSegment(
                         view,
-                        from: prevBone.transform,
-                        to: null,
-                        x0: prevBone.frameNo * frameWidth + halfFrameWidth,
-                        x1: endX,
-                        y: laneY,
+                        ToLaneColor(segment.fromColor),
+                        ToLaneColor(segment.toColor),
+                        x0: segment.startFrameNo * frameWidth + halfFrameWidth,
+                        x1: segment.isLast ? endX : segment.endFrameNo * frameWidth + halfFrameWidth,
+                        y: rowY + laneOffsetY,
                         height: laneHeight,
                         scrollX: scrollPosition.x,
                         viewWidth: viewWidth);
@@ -1658,15 +1643,107 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>行に出す色帯のトラックを集める。帯を出さない行なら false</summary>
+        private bool CollectLaneTracks(LayerRow<MTEP.ITimelineLayer, MTEP.IBoneMenuItem> row)
+        {
+            _laneAggregator.Clear();
+            var layer = row.layer;
+
+            if (row.isHeader)
+            {
+                // 展開中は各項目の行が帯を出すので重複させない
+                if (!_rowState.IsCollapsed(layer))
+                {
+                    return false;
+                }
+                AddLayerLaneTracks(layer);
+            }
+            else if (row.menuItem.isSetMenu)
+            {
+                if (row.menuItem.isOpenMenu)
+                {
+                    return false;
+                }
+                foreach (var child in row.menuItem.children)
+                {
+                    AddBoneLaneTrack(layer, child.name);
+                }
+            }
+            else
+            {
+                AddBoneLaneTrack(layer, row.menuItem.name);
+            }
+
+            return _laneAggregator.trackCount > 0;
+        }
+
         /// <summary>
-        /// 2 キー間の色帯を 1 区間ぶん描く。左の色を塗った上に右の色をアルファ勾配テクスチャで重ね、
-        /// 線形ブレンドに見せる。to が null のときは from の色で塗りつぶす。
-        /// from が表示 OFF のキーなら何も描かない
+        /// レイヤー内の全項目をトラックとして集める。メニュー順に並べることで、
+        /// 先頭の色を選ぶときにキーの追加削除で代表の項目が入れ替わらないようにする
+        /// </summary>
+        private void AddLayerLaneTracks(MTEP.ITimelineLayer layer)
+        {
+            foreach (var menuItem in layer.allMenuItems)
+            {
+                if (!menuItem.isSetMenu)
+                {
+                    AddBoneLaneTrack(layer, menuItem.name);
+                    continue;
+                }
+                foreach (var child in menuItem.children)
+                {
+                    AddBoneLaneTrack(layer, child.name);
+                }
+            }
+        }
+
+        /// <summary>1 ボーンのキー列をトラックとして集める。色帯を持たない型なら追加しない (型はボーン内で一定)</summary>
+        private void AddBoneLaneTrack(MTEP.ITimelineLayer layer, string boneName)
+        {
+            var trackIndex = -1;
+            var keyFrameCount = layer.keyFrameCount;
+            for (var frameIndex = 0; frameIndex < keyFrameCount; frameIndex++)
+            {
+                // このキーにボーンが無ければ直前のキーからの区間を延ばす
+                var bone = layer.GetKeyFrameAt(frameIndex).GetBone(boneName);
+                if (bone == null)
+                {
+                    continue;
+                }
+
+                var info = bone.transform.GetLaneColorInfo();
+                if (info == null)
+                {
+                    return;
+                }
+
+                if (trackIndex < 0)
+                {
+                    trackIndex = _laneAggregator.AddTrack(info.source, info.isStep);
+                }
+                AddLaneKey(trackIndex, bone, info);
+            }
+        }
+
+        /// <summary>表示 OFF のキーは次のキーまで保持されるので、その区間は色を出さない</summary>
+        private void AddLaneKey(int trackIndex, MTEP.BoneData bone, MTEP.LaneColorInfo info)
+        {
+            var transform = bone.transform;
+            _laneAggregator.AddKey(
+                trackIndex,
+                bone.frameNo,
+                transform.GetLaneColor(info),
+                hidden: transform.hasVisible && !transform.visible);
+        }
+
+        /// <summary>
+        /// 色帯を 1 区間ぶん描く。左の色を塗った上に右の色をアルファ勾配テクスチャで重ね、
+        /// 線形ブレンドに見せる (アルファだけ変わる区間は DrawAlphaRampLane)
         /// </summary>
         private void DrawColorLaneSegment(
             GUIView view,
-            MTEP.ITransformData from,
-            MTEP.ITransformData to,
+            Color fromColor,
+            Color toColor,
             float x0,
             float x1,
             float y,
@@ -1680,38 +1757,62 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // 表示 OFF は次のキーまで保持されるので、その区間は色を出さない
-            if (from.hasVisible && !from.visible)
+            if (toColor == fromColor)
             {
-                return;
+                DrawColorLaneRect(view, texWhite, x0, y, width, height, fromColor);
             }
-
-            var colorMap = from.GetColorValueInfoMap();
-            var bandHeight = height / colorMap.Count;
-            var bandY = y;
-
-            foreach (var pair in colorMap)
+            else if (fromColor.r == toColor.r && fromColor.g == toColor.g && fromColor.b == toColor.b)
             {
-                var colorKey = pair.Key;
-                var fromColor = ToLaneColor(from.GetColorValue(colorKey));
-
-                view.currentPos.x = x0;
-                view.currentPos.y = bandY;
-                view.DrawTexture(texWhite, width, bandHeight, fromColor);
-
-                if (to != null)
-                {
-                    var toColor = ToLaneColor(to.GetColorValue(colorKey));
-                    if (toColor != fromColor)
-                    {
-                        view.currentPos.x = x0;
-                        view.currentPos.y = bandY;
-                        view.DrawTexture(texColorGradient, width, bandHeight, toColor);
-                    }
-                }
-
-                bandY += bandHeight;
+                DrawAlphaRampLane(view, x0, y, width, height, fromColor, toColor);
             }
+            else
+            {
+                DrawColorLaneRect(view, texWhite, x0, y, width, height, fromColor);
+                DrawColorLaneRect(view, texColorGradient, x0, y, width, height, toColor);
+            }
+        }
+
+        /// <summary>
+        /// 色が同じでアルファだけ変わる区間を線形に描く。
+        /// 左の色に右の色を重ねる方式は重ねるほど不透明になるため、アルファが下がる区間がフェードしない。
+        /// 低い方のアルファで塗った上に、差分を高い側へ向かう勾配で重ねる
+        /// (min + g * (max - min) / (1 - min) * (1 - min) = min + g * (max - min))
+        /// </summary>
+        private void DrawAlphaRampLane(
+            GUIView view,
+            float x,
+            float y,
+            float width,
+            float height,
+            Color fromColor,
+            Color toColor)
+        {
+            var minAlpha = Mathf.Min(fromColor.a, toColor.a);
+            var maxAlpha = Mathf.Max(fromColor.a, toColor.a);
+
+            var baseColor = fromColor;
+            baseColor.a = minAlpha;
+            DrawColorLaneRect(view, texWhite, x, y, width, height, baseColor);
+
+            // ToLaneColor で COLOR_LANE_ALPHA 以下に抑えているので 1 - minAlpha は 0 にならない
+            var rampColor = fromColor;
+            rampColor.a = (maxAlpha - minAlpha) / (1f - minAlpha);
+            var rampTexture = toColor.a > fromColor.a ? texColorGradient : texColorGradientReversed;
+            DrawColorLaneRect(view, rampTexture, x, y, width, height, rampColor);
+        }
+
+        private static void DrawColorLaneRect(
+            GUIView view,
+            Texture2D texture,
+            float x,
+            float y,
+            float width,
+            float height,
+            Color color)
+        {
+            view.currentPos.x = x;
+            view.currentPos.y = y;
+            view.DrawTexture(texture, width, height, color);
         }
 
         /// <summary>
