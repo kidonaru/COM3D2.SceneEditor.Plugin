@@ -197,6 +197,8 @@
     <Compile Include="MaidManipulation\MaidMuneYureController.cs" />
     <Compile Include="MaidManipulation\MaidGravityController.cs" />
     <Compile Include="MaidManipulation\MaidScaleBones.cs" />
+    <Compile Include="MaidManipulation\MaidScaleController.cs" />
+    <Compile Include="MaidManipulation\MaidScaleState.cs" />
     <Compile Include="MaidManipulation\MaidPlacementPreset.cs" />
     <Compile Include="MaidManipulation\MaidPoseFileManager.cs" />
     <Compile Include="MaidManipulation\MaidPoseFlipper.cs" />
@@ -273,6 +275,7 @@
     <Compile Include="Manager\History\SnapshotFactory.cs" />
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />
+    <Compile Include="Manager\MaidScaleLateUpdatePatch.cs" />
     <Compile Include="Manager\SkirtHookDriftPatch.cs" />
     <Compile Include="Manager\PngBlendModes.cs" />
     <Compile Include="Manager\PngDecalProjection.cs" />

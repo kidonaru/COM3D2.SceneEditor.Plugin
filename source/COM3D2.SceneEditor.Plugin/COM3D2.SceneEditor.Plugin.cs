@@ -129,6 +129,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
+                // 前フレームの TBody.LateUpdate の直後に掛けた腕の拡縮を戻す。
+                // ゲームのロジック (体型・IK) にはなるべく拡縮していない骨を見せる
+                MaidManipulateManager.instance.maidScaleController.RestoreApplied();
+
                 if (!config.pluginEnabled)
                 {
                     return;
@@ -430,6 +434,9 @@ namespace COM3D2.SceneEditor.Plugin
 
                 // ゲーム側のスカート物理の累積誤差を抑える。UI の有効状態に関係なく常時効かせる
                 SkirtHookDriftPatch.Init();
+
+                // メイドスケールを TBody.LateUpdate の直後に掛ける。UI の有効状態に関係なく常時効かせる
+                MaidScaleLateUpdatePatch.Init();
 
                 managerRegistry.RegisterManager(ConfigManager.instance);
                 managerRegistry.RegisterManager(InputRemapper.instance);

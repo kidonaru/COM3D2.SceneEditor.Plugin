@@ -1,3 +1,4 @@
+using UnityEngine;
 using Xunit;
 using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
@@ -102,6 +103,46 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var trans = CreateKey();
             trans.FromXml(CreateXml(new[] { 2.5f }));
             Assert.Equal(2.5f, trans.multiplier);
+        }
+
+        [Fact]
+        public void 未設定の骨は倍率1で状態なし()
+        {
+            var state = new MaidScaleState();
+            Assert.Equal(1f, state.Get("Bip01 L Hand"));
+            Assert.True(state.isDefault);
+        }
+
+        [Fact]
+        public void 倍率を設定すると丸めて保持し1に戻すと状態なしになる()
+        {
+            var state = new MaidScaleState();
+            state.Set("Bip01 L Hand", 10f);
+            Assert.Equal(3f, state.Get("Bip01 L Hand"));
+            Assert.False(state.isDefault);
+            Assert.Single(state.nonDefaultScales);
+
+            state.Set("Bip01 L Hand", 1f);
+            Assert.True(state.isDefault);
+            Assert.Empty(state.nonDefaultScales);
+        }
+
+        [Fact]
+        public void 対象外の骨名への設定は無視する()
+        {
+            var state = new MaidScaleState();
+            state.Set("Bip01 Head", 2f);
+            state.Set(null, 2f);
+            Assert.True(state.isDefault);
+        }
+
+        [Fact]
+        public void 自分が書いた値のままなら戻し他から書き換えられていたら戻さない()
+        {
+            var written = new Vector3(1.35f, 1.5f, 1.5f);
+            Assert.True(MaidScaleState.ShouldRestore(written, written));
+            // 体型スライダーなどでゲームが書き直した値を、古い退避値で潰さない
+            Assert.False(MaidScaleState.ShouldRestore(new Vector3(0.9f, 1f, 1f), written));
         }
     }
 }
