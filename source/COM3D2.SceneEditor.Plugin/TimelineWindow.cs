@@ -223,7 +223,7 @@ namespace COM3D2.SceneEditor.Plugin
         private Texture2D texColorGradientReversed = null;
 
         /// <summary>色レーンの帯がレーン高さに占める割合</summary>
-        private const float COLOR_LANE_HEIGHT_RATIO = 0.3f;
+        private const float COLOR_LANE_HEIGHT_RATIO = 0.15f;
         /// <summary>色レーンの不透明度。背景の目盛りとキーフレームが埋もれない程度に抑える</summary>
         private const float COLOR_LANE_ALPHA = 0.7f;
         private const int COLOR_GRADIENT_TEXTURE_WIDTH = 64;
@@ -1585,8 +1585,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 色帯の定義 (ITransformData.GetLaneColorInfos) を持つ項目の行に、キー間の色をグラデーション帯として描く。
-        /// 複数の帯 (主色/副色など) を持つ型は帯を上下に分割して並べる。
+        /// 色帯の定義 (ITransformData.GetLaneColorInfo) を持つ項目の行に、キー間の色をグラデーション帯として描く。
         /// 最後のキー以降は末尾まで同じ色を保持する。
         /// 折りたたみ中のレイヤーは項目行が無く、ヘッダー行へは集約しないため帯は出ない
         /// </summary>
@@ -1638,7 +1637,7 @@ namespace COM3D2.SceneEditor.Plugin
                     }
 
                     // 色帯を持たない型の行はここで打ち切る (型は行内で一定)
-                    if (bone.transform.GetLaneColorInfos().Length == 0)
+                    if (bone.transform.GetLaneColorInfo() == null)
                     {
                         break;
                     }
@@ -1707,32 +1706,24 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var laneInfos = from.GetLaneColorInfos();
-            var bandHeight = height / laneInfos.Length;
-            var bandY = y;
+            var info = from.GetLaneColorInfo();
+            var fromColor = ToLaneColor(from.GetLaneColor(info));
+            var toColor = to != null && !info.isStep
+                ? ToLaneColor(to.GetLaneColor(info))
+                : fromColor;
 
-            foreach (var info in laneInfos)
+            if (toColor == fromColor)
             {
-                var fromColor = ToLaneColor(from.GetLaneColor(info));
-                var toColor = to != null && !info.isStep
-                    ? ToLaneColor(to.GetLaneColor(info))
-                    : fromColor;
-
-                if (toColor == fromColor)
-                {
-                    DrawColorLaneRect(view, texWhite, x0, bandY, width, bandHeight, fromColor);
-                }
-                else if (fromColor.r == toColor.r && fromColor.g == toColor.g && fromColor.b == toColor.b)
-                {
-                    DrawAlphaRampLane(view, x0, bandY, width, bandHeight, fromColor, toColor);
-                }
-                else
-                {
-                    DrawColorLaneRect(view, texWhite, x0, bandY, width, bandHeight, fromColor);
-                    DrawColorLaneRect(view, texColorGradient, x0, bandY, width, bandHeight, toColor);
-                }
-
-                bandY += bandHeight;
+                DrawColorLaneRect(view, texWhite, x0, y, width, height, fromColor);
+            }
+            else if (fromColor.r == toColor.r && fromColor.g == toColor.g && fromColor.b == toColor.b)
+            {
+                DrawAlphaRampLane(view, x0, y, width, height, fromColor, toColor);
+            }
+            else
+            {
+                DrawColorLaneRect(view, texWhite, x0, y, width, height, fromColor);
+                DrawColorLaneRect(view, texColorGradient, x0, y, width, height, toColor);
             }
         }
 

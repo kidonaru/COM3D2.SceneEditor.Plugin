@@ -42,14 +42,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
-        private static readonly LaneColorInfo[] LaneColorInfos =
-        {
-            LaneColorInfo.FromValueAlpha((int)Index.Weight, Color.white),
-        };
+        private static readonly LaneColorInfo LaneInfo =
+            LaneColorInfo.FromValueAlpha(Color.white, (int)Index.Weight);
 
-        public override LaneColorInfo[] GetLaneColorInfos()
+        public override LaneColorInfo GetLaneColorInfo()
         {
-            return LaneColorInfos;
+            return LaneInfo;
         }
 
         // 値アクセサ

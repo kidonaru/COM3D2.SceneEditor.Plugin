@@ -65,15 +65,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
-        private static readonly LaneColorInfo[] LaneColorInfos =
-        {
-            LaneColorInfo.FromBool((int)Index.IsHold, Color.white),
-            LaneColorInfo.FromBool((int)Index.IsAnime, Color.white),
-        };
+        private static readonly LaneColorInfo LaneInfo =
+            LaneColorInfo.FromBool(Color.white, (int)Index.IsHold);
 
-        public override LaneColorInfo[] GetLaneColorInfos()
+        public override LaneColorInfo GetLaneColorInfo()
         {
-            return LaneColorInfos;
+            return LaneInfo;
         }
 
         // 値アクセサ

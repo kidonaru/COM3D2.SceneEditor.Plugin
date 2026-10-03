@@ -40,14 +40,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return CustomValueInfoMap;
         }
 
-        private static readonly LaneColorInfo[] LaneColorInfos =
-        {
-            LaneColorInfo.FromValueAlpha((int)Index.MorphValue, Color.white),
-        };
+        private static readonly LaneColorInfo LaneInfo =
+            LaneColorInfo.FromValueAlpha(Color.white, (int)Index.MorphValue);
 
-        public override LaneColorInfo[] GetLaneColorInfos()
+        public override LaneColorInfo GetLaneColorInfo()
         {
-            return LaneColorInfos;
+            return LaneInfo;
         }
 
         public ValueData morphValueValue => values[(int)Index.MorphValue];

@@ -184,14 +184,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Color,
         /// <summary>固定色のアルファに 0〜1 の値を掛ける</summary>
         ValueAlpha,
-        /// <summary>値が ON の区間だけ固定色を出す</summary>
+        /// <summary>いずれかの値が ON の区間だけ固定色を出す</summary>
         Bool,
         /// <summary>表示フラグが ON の区間だけ固定色を出す (OFF の区間は描画側が先に除外する)</summary>
         Visible,
     }
 
     /// <summary>
-    /// タイムラインの行に出す色帯 1 段ぶんの定義。
+    /// タイムラインの行に出す色帯の定義 (1 行につき帯は 1 本)。
     /// 色ピッカーが使う ColorValueInfo とは分け、帯の表示専用の指定 (値を透明度にする等) を持てるようにする
     /// </summary>
     public class LaneColorInfo
@@ -199,8 +199,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public LaneColorSource source;
         /// <summary>source が Color のときの ColorValueInfoMap のキー</summary>
         public string colorKey;
-        /// <summary>source が ValueAlpha / Bool のときの values の添字</summary>
+        /// <summary>source が ValueAlpha のときの values の添字</summary>
         public int valueIndex = -1;
+        /// <summary>source が Bool のときの values の添字 (どれか 1 つが ON なら ON)</summary>
+        public int[] valueIndices;
         /// <summary>source が Color 以外のときの帯の色</summary>
         public Color color = Color.white;
 
@@ -216,7 +218,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public static LaneColorInfo FromValueAlpha(int valueIndex, Color color)
+        public static LaneColorInfo FromValueAlpha(Color color, int valueIndex)
         {
             return new LaneColorInfo
             {
@@ -226,12 +228,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             };
         }
 
-        public static LaneColorInfo FromBool(int valueIndex, Color color)
+        public static LaneColorInfo FromBool(Color color, params int[] valueIndices)
         {
             return new LaneColorInfo
             {
                 source = LaneColorSource.Bool,
-                valueIndex = valueIndex,
+                valueIndices = valueIndices,
                 color = color,
             };
         }
@@ -350,7 +352,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         Color GetDefaultColorValue(string colorKey);
         bool HasColorValue(string colorKey);
         string GetColorValueName(string colorKey);
-        LaneColorInfo[] GetLaneColorInfos();
+        LaneColorInfo GetLaneColorInfo();
         Color GetLaneColor(LaneColorInfo info);
         ValueData[] GetValueDataList(TangentValueType valueType);
         TangentData[] GetInTangentDataList(TangentValueType valueType);
