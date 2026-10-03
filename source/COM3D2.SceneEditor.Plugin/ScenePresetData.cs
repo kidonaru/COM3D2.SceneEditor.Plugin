@@ -225,6 +225,62 @@ namespace COM3D2.SceneEditor.Plugin
         public Vector3 offset;
     }
 
+    /// <summary>メイドスケールの骨 1 本分 (v38)</summary>
+    public class ScenePresetMaidScaleBone
+    {
+        /// <summary>MaidScaleBones の骨名</summary>
+        [XmlAttribute]
+        public string name;
+
+        [XmlAttribute]
+        public float scale = MaidScaleBones.DefaultScale;
+    }
+
+    /// <summary>
+    /// メイドスケール (v38)。倍率が 1 でない骨だけを持つ。
+    /// 全骨 1 でも要素自体は書き、旧プリセット (要素なし = null) と区別する
+    /// </summary>
+    public class ScenePresetMaidScale
+    {
+        [XmlElement("bone")]
+        public List<ScenePresetMaidScaleBone> bones = new List<ScenePresetMaidScaleBone>();
+
+        /// <summary>骨名と倍率の組から作る。倍率 1 と対象外の骨は書かない</summary>
+        public static ScenePresetMaidScale FromScales(IEnumerable<KeyValuePair<string, float>> scales)
+        {
+            var result = new ScenePresetMaidScale();
+            foreach (var pair in scales)
+            {
+                if (MaidScaleBones.Find(pair.Key) == null || MaidScaleBones.IsDefault(pair.Value))
+                {
+                    continue;
+                }
+                result.bones.Add(new ScenePresetMaidScaleBone
+                {
+                    name = pair.Key,
+                    scale = MaidScaleBones.Clamp(pair.Value),
+                });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 骨の倍率。記録の無い骨は 1。同じ骨が複数あれば先のものを使う。
+        /// 手で書き換えた値に備えて範囲へ丸める
+        /// </summary>
+        public float GetScale(string boneName)
+        {
+            foreach (var bone in bones)
+            {
+                if (bone != null && bone.name == boneName)
+                {
+                    return MaidScaleBones.Clamp(bone.scale);
+                }
+            }
+            return MaidScaleBones.DefaultScale;
+        }
+    }
+
     /// <summary>PNG 配置 1 枚分の状態</summary>
     public class ScenePresetPngObject
     {
@@ -834,6 +890,9 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlElement("gravity")]
         public List<ScenePresetGravity> gravity;
 
+        /// <summary>メイドスケール (v38)。旧プリセットは null になり、適用時に倍率へ触らない</summary>
+        public ScenePresetMaidScale maidScale;
+
         /// <summary>
         /// IK 固定の接地パラメータ。null なら IK 未記録 (v4 以前) で、適用時に固定へ触らない。
         /// 非 null のときは ikHolds が空でも「全固定 OFF」として適用する
@@ -1159,7 +1218,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      既定の輪郭・影なしでは書き出さない。旧形式は属性が無く既定の輪郭・影なしとして読める。
         //      マテリアル差分にシェーダー (shader) を追加。変更が無ければ書き出さず、無い場合はシェーダーを触らない
         //      マテリアル差分にテクスチャ差し替え (texture 要素、prop / file 属性) を追加。無い場合はテクスチャを触らない
-        public static readonly int CurrentVersion = 37;
+        // v38: maid に maidScale (メイドスケール。腕の骨の倍率で、1 以外の骨だけを bone 要素に持つ) を追加。
+        //      全骨 1 でも空要素を書く。旧形式は null で読め、適用時に倍率へ触らない
+        public static readonly int CurrentVersion = 38;
 
         [XmlAttribute]
         public int version = CurrentVersion;

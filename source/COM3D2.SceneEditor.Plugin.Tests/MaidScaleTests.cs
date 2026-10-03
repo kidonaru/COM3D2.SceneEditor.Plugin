@@ -57,6 +57,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(expected, MaidScaleBones.Clamp(input));
         }
 
+        [Fact]
+        public void NaNの倍率は元の大きさとして扱う()
+        {
+            Assert.Equal(1f, MaidScaleBones.Clamp(float.NaN));
+            Assert.True(MaidScaleBones.IsDefault(float.NaN));
+        }
+
         [Theory]
         [InlineData(1f, true)]
         [InlineData(1.000001f, true)]

@@ -53,8 +53,13 @@ namespace COM3D2.SceneEditor.Plugin
             return null;
         }
 
+        /// <summary>範囲へ丸める。NaN (手で書き換えたプリセットなど) は元の大きさにする</summary>
         public static float Clamp(float scale)
         {
+            if (float.IsNaN(scale))
+            {
+                return DefaultScale;
+            }
             return Mathf.Clamp(scale, MinScale, MaxScale);
         }
 
