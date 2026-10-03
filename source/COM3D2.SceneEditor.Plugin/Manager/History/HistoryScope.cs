@@ -49,6 +49,8 @@
         /// 捕捉・復元は TimelineItemSnapshot が ApplyTransformDirect で行う
         /// </summary>
         TimelineItem,
+        /// <summary>メイドスケール (腕の骨の倍率)</summary>
+        MaidScale,
     }
 
     public static class HistoryScopeUtils

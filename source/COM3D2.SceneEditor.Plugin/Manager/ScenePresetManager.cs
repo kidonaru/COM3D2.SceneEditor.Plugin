@@ -1123,6 +1123,7 @@ namespace COM3D2.SceneEditor.Plugin
             };
 
             state.gravity = CaptureGravity(maid);
+            state.maidScale = CaptureMaidScale(maid);
 
             CaptureIKHold(maid, state);
             CaptureLook(maid, state);
@@ -1220,6 +1221,17 @@ namespace COM3D2.SceneEditor.Plugin
                 });
             }
             return list;
+        }
+
+        /// <summary>
+        /// メイドスケールを記録する。全骨 1 でも空要素を残し、
+        /// 適用時に前のシーンの倍率が残らないようにする
+        /// </summary>
+        private static ScenePresetMaidScale CaptureMaidScale(Maid maid)
+        {
+            var controller = maidManager.maidScaleController;
+            return ScenePresetMaidScale.FromScales(MaidScaleBones.bones.Select(
+                bone => new KeyValuePair<string, float>(bone.boneName, controller.GetScale(maid, bone.boneName))));
         }
 
         /// <summary>
@@ -2152,6 +2164,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
             try
             {
+                ApplyMaidScale(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+            try
+            {
                 ApplyIKHold(maid, state);
             }
             catch (Exception e)
@@ -2841,6 +2861,26 @@ namespace COM3D2.SceneEditor.Plugin
         private static bool IsDefaultGravity(ScenePresetGravity entry)
         {
             return !entry.enabled && entry.offset == Vector3.zero;
+        }
+
+        /// <summary>
+        /// メイドスケールを復元する。旧プリセット (maidScale 無し) では変更しない。
+        /// 記録の無い骨は 1 へ戻す
+        /// </summary>
+        private static void ApplyMaidScale(Maid maid, ScenePresetMaid state)
+        {
+            if (state.maidScale == null)
+            {
+                return;
+            }
+
+            // 状態の無いメイドへ 1 を書いても SetScale は状態を作らないので、
+            // ApplyGravity のような既定値だけのプリセットの判定は要らない
+            var controller = maidManager.maidScaleController;
+            foreach (var bone in MaidScaleBones.bones)
+            {
+                controller.SetScale(maid, bone.boneName, state.maidScale.GetScale(bone.boneName));
+            }
         }
 
         /// <summary>

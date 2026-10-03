@@ -27,12 +27,25 @@ namespace COM3D2.SceneEditor.Plugin
             モデル,
         }
 
-        /// <summary>ウィンドウ内の内部タブ</summary>
+        /// <summary>ウィンドウ内の内部タブ。腕スケールはメイドだけで出す</summary>
         private enum BoneTabType
         {
             編集,
             プリセット,
+            腕スケール,
         }
+
+        /// <summary>モデルを対象にしているときのタブ。腕スケールはメイド専用なので出さない</summary>
+        private static readonly BoneTabType[] MODEL_TABS =
+        {
+            BoneTabType.編集,
+            BoneTabType.プリセット,
+        };
+
+        private static readonly string[] MODEL_TAB_LABELS =
+            Array.ConvertAll(MODEL_TABS, tab => tab.ToString());
+
+        private const float MaidScaleLabelWidth = 60f;
 
         private BoneTabType _tabType = BoneTabType.編集;
 
@@ -204,12 +217,18 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override bool TryFocusTimelineLayer(Type layerType)
         {
-            if (layerType != typeof(MTEP.ModelBoneTimelineLayer))
+            if (layerType == typeof(MTEP.ModelBoneTimelineLayer))
             {
-                return false;
+                SwitchTargetType(BoneEditTargetType.Model);
+                return true;
             }
-            SwitchTargetType(BoneEditTargetType.Model);
-            return true;
+            if (layerType == typeof(MTEP.MaidScaleTimelineLayer))
+            {
+                SwitchTargetType(BoneEditTargetType.Maid);
+                _tabType = BoneTabType.腕スケール;
+                return true;
+            }
+            return false;
         }
 
         protected override void OnShowChanged(bool visible)
@@ -288,8 +307,6 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            TimelineLayerGate.Begin(view, typeof(MTEP.MotionTimelineLayer), target, ROW_HEIGHT);
-
             // スロット選択はプリセットの適用先も兼ねるため、タブの上に共通で置く
             DrawHeaderRow(target);
             DrawSlotSelector(target);
@@ -298,28 +315,79 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 編集 / プリセットタブとその中身。対象種別で描き分ける箇所は
+        /// 編集 / プリセット / 腕スケールタブとその中身。対象種別で描き分ける箇所は
         /// 各メソッドが activeSlotKey / GetActiveStore / GetActiveRootObject で吸収する
         /// </summary>
         private void DrawContentTabs(Maid target)
         {
             var prevTab = _tabType;
-            _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
+            _tabType = DrawContentTabBar();
             if (_tabType != prevTab && _tabType == BoneTabType.プリセット)
             {
                 // フォルダを直接編集された場合もタブを開き直せば一覧に反映される
                 RefreshPresetList();
             }
 
+            BeginMaidTabGate(target);
+
             if (_tabType == BoneTabType.プリセット)
             {
                 DrawPresetContent(target);
+            }
+            else if (_tabType == BoneTabType.腕スケール)
+            {
+                DrawMaidScaleContent(target);
             }
             else
             {
                 DrawResetButtons(target);
                 DrawBoneTree(target);
             }
+        }
+
+        /// <summary>
+        /// 選んだタブのタイムラインレイヤーでゲートを掛ける。タブを描いた後に呼び、
+        /// ゲートが閉じていてもタブは切り替えられるようにする。
+        /// モデルモードのゲートは DrawMaidContent で掛け済み
+        /// </summary>
+        private void BeginMaidTabGate(Maid target)
+        {
+            if (boneEditManager.isModelMode)
+            {
+                return;
+            }
+
+            var layerType = _tabType == BoneTabType.腕スケール
+                ? typeof(MTEP.MaidScaleTimelineLayer)
+                : typeof(MTEP.MotionTimelineLayer);
+            TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
+        }
+
+        /// <summary>モデルでは MODEL_TABS だけを出す。それ以外のタブを開いていたら編集へ戻す</summary>
+        private BoneTabType DrawContentTabBar()
+        {
+            if (!boneEditManager.isModelMode)
+            {
+                return DrawInnerTabs(_tabType, TAB_WIDTH);
+            }
+
+            var index = Math.Max(0, Array.IndexOf(MODEL_TABS, _tabType));
+            return MODEL_TABS[DrawInnerTabs(MODEL_TAB_LABELS, index, TAB_WIDTH)];
+        }
+
+        /// <summary>腕 6 本の倍率 (メイドスケール)</summary>
+        private void DrawMaidScaleContent(Maid target)
+        {
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            foreach (var bone in MaidScaleBones.bones)
+            {
+                MaidScaleRowDrawer.Draw(view, target, bone, bone.displayName, MaidScaleLabelWidth);
+            }
+            MaidScaleRowDrawer.DrawResetAll(view, target, ResetButtonWidth, ROW_HEIGHT);
+
+            view.EndScrollView();
         }
 
         /// <summary>

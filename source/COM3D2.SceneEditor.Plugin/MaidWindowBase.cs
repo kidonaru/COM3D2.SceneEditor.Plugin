@@ -172,6 +172,14 @@ namespace COM3D2.SceneEditor.Plugin
             return result;
         }
 
+        /// <summary>見出しを直接指定する版。対象によって出すタブを絞るときに使う</summary>
+        protected int DrawInnerTabs(IList<string> labels, int currentIndex, float width)
+        {
+            var result = view.DrawTabs(labels, currentIndex, width, ROW_HEIGHT);
+            view.currentPos.y -= 5 + GUIView.defaultMargin;
+            return result;
+        }
+
         /// <summary>
         /// アニメブレンドのレイヤー調整中は、ボーン / IK を触る項目を無効化する。
         /// 無効化したら true。解除は DrawContent の finally が呼ぶ TimelineLayerGate.End が行う

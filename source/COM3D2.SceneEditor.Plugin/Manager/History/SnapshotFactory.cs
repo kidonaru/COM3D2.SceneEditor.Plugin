@@ -32,6 +32,8 @@ namespace COM3D2.SceneEditor.Plugin
                     return PlacementSnapshot.Capture();
                 case HistoryScope.Gravity:
                     return GravitySnapshot.Capture(maid);
+                case HistoryScope.MaidScale:
+                    return MaidScaleSnapshot.Capture(maid);
                 case HistoryScope.PngPlacement:
                     return PngPlacementSnapshot.Capture();
             }

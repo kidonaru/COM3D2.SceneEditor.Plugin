@@ -28,6 +28,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         IKHold,
         Light,
         LookAtTarget,
+        MaidScale,
         Model,
         ModelBone,
         ModelShapeKey,
