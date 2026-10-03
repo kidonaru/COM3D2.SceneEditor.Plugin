@@ -196,6 +196,7 @@
     <Compile Include="MaidManipulation\MaidMotionState.cs" />
     <Compile Include="MaidManipulation\MaidMuneYureController.cs" />
     <Compile Include="MaidManipulation\MaidGravityController.cs" />
+    <Compile Include="MaidManipulation\MaidScaleBones.cs" />
     <Compile Include="MaidManipulation\MaidPlacementPreset.cs" />
     <Compile Include="MaidManipulation\MaidPoseFileManager.cs" />
     <Compile Include="MaidManipulation\MaidPoseFlipper.cs" />
@@ -669,6 +670,7 @@
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataMaidScale.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModel.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelShapeKey.cs" />

@@ -494,6 +494,9 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.Gravity,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataGravity>);
             timelineManager.RegisterTransform(
+                MTEP.TransformType.MaidScale,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataMaidScale>);
+            timelineManager.RegisterTransform(
                 MTEP.TransformType.IKHold,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataIKHold>);
             timelineManager.RegisterTransform(
