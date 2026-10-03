@@ -362,6 +362,8 @@ namespace COM3D2.SceneEditor.Plugin
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.GravityTimelineLayer), new GravityItemInspector());
             TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.MaidScaleTimelineLayer), new MaidScaleItemInspector());
+            TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.DressTimelineLayer), new DressItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.BGModelTimelineLayer), new BGModelItemInspector());

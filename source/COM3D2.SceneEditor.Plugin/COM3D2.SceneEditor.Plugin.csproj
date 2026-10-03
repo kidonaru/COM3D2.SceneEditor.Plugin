@@ -263,6 +263,7 @@
     <Compile Include="Manager\History\FaceSnapshot.cs" />
     <Compile Include="Manager\History\UndressSnapshot.cs" />
     <Compile Include="Manager\History\GravitySnapshot.cs" />
+    <Compile Include="Manager\History\MaidScaleSnapshot.cs" />
     <Compile Include="Manager\History\ObjectSnapshot.cs" />
     <Compile Include="Manager\History\IKSnapshot.cs" />
     <Compile Include="Manager\History\BackgroundSnapshot.cs" />
@@ -462,6 +463,7 @@
     <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\MaidScaleItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />

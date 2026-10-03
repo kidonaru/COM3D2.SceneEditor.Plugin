@@ -144,5 +144,19 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             // 体型スライダーなどでゲームが書き直した値を、古い退避値で潰さない
             Assert.False(MaidScaleState.ShouldRestore(new Vector3(0.9f, 1f, 1f), written));
         }
+
+        [Fact]
+        public void Inspectorは項目名から対象骨を引き未知の名前ではnullを返す()
+        {
+            Assert.Equal("左前腕",
+                MaidScaleItemInspector.ResolveBone("Bip01 L Forearm").displayName);
+            Assert.Null(MaidScaleItemInspector.ResolveBone("hair"));
+        }
+
+        [Fact]
+        public void 履歴スコープにメイドスケールがありメイドが必須()
+        {
+            Assert.True(HistoryScopeUtils.RequiresMaid(HistoryScope.MaidScale));
+        }
     }
 }
