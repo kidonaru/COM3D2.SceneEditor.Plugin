@@ -415,6 +415,7 @@
     <Compile Include="AboutPopupWindow.cs" />
     <Compile Include="SavePresetPopupWindow.cs" />
     <Compile Include="ScenePresetNaming.cs" />
+    <Compile Include="ScenePresetSearch.cs" />
     <Compile Include="SaveLayoutPopupWindow.cs" />
     <Compile Include="SavePosePopupWindow.cs" />
     <Compile Include="SaveFacePresetPopupWindow.cs" />

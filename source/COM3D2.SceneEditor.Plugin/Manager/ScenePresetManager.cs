@@ -23,6 +23,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>保存先にできないフォルダか（SceneCapture 仮想フォルダとその配下）</summary>
         public bool isReadonlyDir;
 
+        /// <summary>検索結果のタイルで SceneCapture 由来の項目に付けるタグ</summary>
+        public const string SCENE_CAPTURE_TAG = "SC";
+
+        /// <summary>SC タグの背景色。PNG 配置の「写真」タグと見分けられる色にする</summary>
+        public static readonly Color SCENE_CAPTURE_TAG_COLOR = new Color(0.6f, 0.4f, 0.1f);
+
         // 自動ロード指定 (ホームアイコン)。実体は Config の自動ロードキー 1 件のみで、
         // ON にすると他の指定は外れる
         public override bool isFavorite
@@ -300,6 +306,9 @@ namespace COM3D2.SceneEditor.Plugin
                     // 読み込み専用: 削除ボタンと自動ロード指定を出さない
                     child.canDelete = false;
                     child.canFavorite = false;
+                    // サムネが無く見分けにくいため、検索結果のタイルで印を出す
+                    child.tag = ScenePresetItem.SCENE_CAPTURE_TAG;
+                    child.tagColor = ScenePresetItem.SCENE_CAPTURE_TAG_COLOR;
                 }
             }
         }

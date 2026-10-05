@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -37,6 +38,28 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly Color OVERLAY_COLOR = new Color(0f, 0f, 0f, 0.7f);
 
         private readonly GUIView _view = new GUIView();
+
+        /// <summary>検索行のラベル幅</summary>
+        private static readonly float SEARCH_LABEL_WIDTH = 40;
+
+        /// <summary>
+        /// 検索中の表示用。子の parent を書き換えない TempTileViewContent を使い、
+        /// 元の階層構造を壊さずに平坦な一覧を作る (parent を辿って相対パスも出せる)
+        /// </summary>
+        private readonly TempTileViewContent _searchRoot = new TempTileViewContent
+        {
+            name = "検索結果",
+            isDir = true,
+            children = new List<ITileViewContent>(),
+        };
+
+        private string _searchText = "";
+        private bool isSearching => !string.IsNullOrEmpty(_searchText);
+
+        // 検索結果を作ったときのツリーと文字列。保存・削除・更新・自動ロードは
+        // Reload で rootItem を新しい参照へ差し替えるため、参照の比較で作り直しを検知できる
+        private ScenePresetItem _searchBuiltRoot = null;
+        private string _searchBuiltText = null;
 
         private static GUIStyle _gsOverlayLabel = null;
         private static GUIStyle _gsRowButton = null;
@@ -130,13 +153,26 @@ namespace COM3D2.SceneEditor.Plugin
             // GUI.enabled はグローバル状態のため、途中で抜けても必ず戻す
             try
             {
+                DrawSearchRow();
+                // ツール行の件数ラベルが前回の結果を出さないよう、行を描く前に作り直す
+                if (isSearching)
+                {
+                    EnsureSearchList();
+                }
                 DrawToolRow(currentDirItem);
                 DrawLoadOptionRow();
 
                 _view.DrawHorizontalLine(Color.gray);
                 _view.AddSpace(5);
 
-                DrawPresetTiles(currentDirItem);
+                if (isSearching)
+                {
+                    DrawSearchTiles();
+                }
+                else
+                {
+                    DrawPresetTiles(currentDirItem);
+                }
             }
             finally
             {
@@ -160,19 +196,64 @@ namespace COM3D2.SceneEditor.Plugin
             GUI.Label(rect, "読み込み中...", gsOverlayLabel);
         }
 
+        private void DrawSearchRow()
+        {
+            _view.DrawTextField("検索", SEARCH_LABEL_WIDTH, _searchText, -1, ROW_HEIGHT,
+                value =>
+                {
+                    if (value != _searchText)
+                    {
+                        // 表示中のフォルダは変えない。検索を消したとき元のフォルダへ戻れるようにする
+                        _searchText = value;
+                        // 前の結果のスクロール位置を引き継ぐと、少ない結果で空白だけが見えることがある
+                        _view.scrollPosition = Vector2.zero;
+
+                        // 検索を終えたら、差し替え前のツリーを保持し続けないよう結果を手放す
+                        if (!isSearching)
+                        {
+                            _searchRoot.RemoveAllChildren();
+                            _searchBuiltRoot = null;
+                            _searchBuiltText = null;
+                        }
+                    }
+                });
+        }
+
+        /// <summary>検索結果を必要なときだけ作り直す (ツリーの差し替えか検索文字列の変更)</summary>
+        private void EnsureSearchList()
+        {
+            var rootItem = ScenePresetManager.rootItem;
+            if (rootItem == _searchBuiltRoot && _searchText == _searchBuiltText)
+            {
+                return;
+            }
+
+            _searchBuiltRoot = rootItem;
+            _searchBuiltText = _searchText;
+
+            _searchRoot.RemoveAllChildren();
+            var result = new List<ITileViewContent>();
+            ScenePresetSearch.Collect(rootItem, _searchText, result);
+            foreach (var item in result)
+            {
+                _searchRoot.AddChild(item);
+            }
+        }
+
         /// <summary>上位フォルダへ戻る / 保存 / フォルダを開く / 一覧更新 + 表示中フォルダ名</summary>
         private void DrawToolRow(ScenePresetItem currentDirItem)
         {
             _view.BeginHorizontal();
             {
-                // ルートでは戻り先が無いため無効化する
-                if (_view.DrawButton("<", 20, ROW_HEIGHT, currentDirItem.parent != null))
+                // ルートでは戻り先が無く、検索中は一覧が階層を表していないため無効化する
+                if (_view.DrawButton("<", 20, ROW_HEIGHT, !isSearching && currentDirItem.parent != null))
                 {
                     ScenePresetManager.currentDirItem = currentDirItem.parent as ScenePresetItem;
                 }
 
-                // SceneCapture 仮想フォルダは読み込み専用のため保存させない
-                if (_view.DrawButton("保存", 50, ROW_HEIGHT, !currentDirItem.isReadonlyDir))
+                // SceneCapture 仮想フォルダは読み込み専用のため保存させない。
+                // 検索中は保存先のフォルダが一覧から読み取れないため保存させない
+                if (_view.DrawButton("保存", 50, ROW_HEIGHT, !isSearching && !currentDirItem.isReadonlyDir))
                 {
                     SavePresetWithConfirm();
                 }
@@ -188,7 +269,10 @@ namespace COM3D2.SceneEditor.Plugin
                     ScenePresetManager.Reload();
                 }
 
-                _view.DrawLabel(currentDirItem.name, -1, ROW_HEIGHT);
+                var title = isSearching
+                    ? _searchRoot.name + " (" + _searchRoot.children.Count + " 件)"
+                    : currentDirItem.name;
+                _view.DrawLabel(title, -1, ROW_HEIGHT);
             }
             _view.EndLayout();
         }
@@ -272,6 +356,33 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            DrawTiles(currentDirItem, item => item.name);
+        }
+
+        /// <summary>
+        /// 検索結果のタイル。SceneCapture 項目もサムネ無しのタイル (名前 + SC タグ) で並べる。
+        /// マウスオーバーでは同名を見分けられるようルートからの相対パスを出す
+        /// </summary>
+        private void DrawSearchTiles()
+        {
+            if (_searchRoot.children.Count == 0)
+            {
+                _view.DrawLabel("該当するプリセットはありません", -1, ROW_HEIGHT);
+                return;
+            }
+
+            // 結果を作ったときのツリーを基準にする。同じフレームで Reload が rootItem を
+            // 差し替えても、結果の項目と基準のツリーがずれない
+            DrawTiles(_searchRoot,
+                item => ScenePresetSearch.GetDisplayPath(item, _searchBuiltRoot));
+        }
+
+        /// <summary>
+        /// タイルビューと、その下のマウスオーバー中の項目を出す行。
+        /// x ボタンは canDelete の項目にだけ出る (SceneCapture 項目には出ない)
+        /// </summary>
+        private void DrawTiles(ITileViewContent source, Func<ScenePresetItem, string> getMouseOverText)
+        {
             ScenePresetItem selectedItem = null;
             ScenePresetItem mouseOverItem = null;
 
@@ -280,7 +391,7 @@ namespace COM3D2.SceneEditor.Plugin
                 - ROW_HEIGHT - GUIView.defaultMargin;
 
             _view.DrawTileView(
-                currentDirItem,
+                source,
                 -1,
                 tileViewHeight,
                 TILE_WIDTH,
@@ -304,7 +415,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (mouseOverItem != null)
             {
-                _view.DrawLabel(mouseOverItem.name, -1, ROW_HEIGHT);
+                _view.DrawLabel(getMouseOverText(mouseOverItem), -1, ROW_HEIGHT);
             }
         }
 
