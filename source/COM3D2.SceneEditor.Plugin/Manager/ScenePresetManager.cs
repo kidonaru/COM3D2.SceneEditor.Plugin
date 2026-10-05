@@ -1331,6 +1331,12 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
+            // 未読込では MaidCache が向け先に追従していないため、記録前に揃える
+            if (MTEP.TimelineManager.instance.timeline == null)
+            {
+                maidCache.SyncLookFromController();
+            }
+
             look.timelineTargetType = maidCache.lookAtTargetType.ToString();
             look.timelineTargetIndex = maidCache.lookAtTargetIndex;
             look.timelineMaidPointType = maidCache.lookAtMaidPointType.ToString();
@@ -1891,6 +1897,13 @@ namespace COM3D2.SceneEditor.Plugin
         private static void ApplyTimelineLook(Maid maid, ScenePresetLook look)
         {
             if (string.IsNullOrEmpty(look.timelineTargetType))
+            {
+                return;
+            }
+
+            // 未読込では向け先の持ち主はコントローラで、直前の SetState が復元済み。
+            // セッターを通すと MaidCache の値で向け先を上書きしてしまうため触らない
+            if (MTEP.TimelineManager.instance.timeline == null)
             {
                 return;
             }

@@ -66,8 +66,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 目線種別。顔/瞳の追従フラグを決める設定で、書き込み先はタイムライン全体の設定。
-        /// 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
-        /// 開いている間にタイムラインが閉じられた場合に備えて null を弾く
+        /// タイムライン未読込のときは対象メイドの TBody へ直接書く。
+        /// 選択確定は描画中に設定する onSelected が担う
         /// </summary>
         private readonly GUIComboBox<Maid.EyeMoveType> _eyeMoveTypeComboBox =
             new GUIComboBox<Maid.EyeMoveType>
@@ -75,15 +75,19 @@ namespace COM3D2.SceneEditor.Plugin
                 items = Enum.GetValues(typeof(Maid.EyeMoveType))
                     .Cast<Maid.EyeMoveType>().ToList(),
                 getName = (type, _) => type.ToString(),
-                onSelected = (type, _) =>
-                {
-                    var timeline = MTEP.TimelineManager.instance.timeline;
-                    if (timeline != null)
-                    {
-                        timeline.eyeMoveType = type;
-                    }
-                },
             };
+
+        /// <summary>
+        /// タイムライン未読込のときに最後に選んだ目線種別。同じフラグになる種別が複数あるため、
+        /// フラグから引き戻すと選んだものと別の名前に化けるのを避ける
+        /// </summary>
+        private Maid.EyeMoveType _unkeyedEyeMoveType = Maid.EyeMoveType.無視する;
+
+        /// <summary>_unkeyedEyeMoveType を選んだメイド。別メイドへ名前を持ち越さないために控える</summary>
+        private Maid _unkeyedEyeMoveTypeMaid = null;
+
+        private static MaidLookController lookController
+            => MaidManipulateManager.instance.lookController;
 
         /// <summary>カテゴリ一覧のキャッシュ。毎フレームの再構築を避ける</summary>
         private List<string> _presetCategories = null;
@@ -393,26 +397,34 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// メイド目線・注視先・顔向きキー。書き込み先はタイムライン設定と MaidCache で、
-        /// タイムライン未読込のときは編集できないため案内だけ出す
+        /// MaidCache はタイムライン未読込でも在るため、未読込でもそのまま編集できる
+        /// (キー化されないだけで、MaidLookBridge 経由で向け先へは反映される)
         /// </summary>
         private void DrawTimelineLookSection(GUIView view, Maid target, MTEP.TimelineData timeline)
         {
-            if (timeline == null)
-            {
-                view.DrawLabel("タイムライン未読込のため視線は編集できません",
-                    -1, ROW_HEIGHT, textColor: Color.gray);
-                return;
-            }
-
             var maidCache = MTEP.MaidManager.instance.GetMaidCache(target);
             if (maidCache == null)
             {
-                // ここへ来るのはタイムライン読込中に限られ、その場合は
-                // タブ冒頭の TimelineLayerGate が同じ案内を出しているので重ねない
+                // 編集先が無いため描かない。タイムライン読込中なら
+                // タブ冒頭の TimelineLayerGate が案内を出しているので重ねない
                 return;
             }
 
-            DrawEyeMoveTypeRow(view, timeline);
+            if (timeline == null)
+            {
+                view.DrawLabel("タイムライン未読込のため視線はキー化されません",
+                    -1, ROW_HEIGHT, textColor: Color.gray);
+
+                // 未読込では向け先の持ち主はコントローラなので、表示前にその状態へ揃える
+                maidCache.SyncLookFromController();
+                if (lookController.GetMode(target) == MaidLookMode.オブジェクト)
+                {
+                    view.DrawLabel("オブジェクトを注視中 (注視先を変えると置き換わります)",
+                        -1, ROW_HEIGHT, textColor: Color.gray);
+                }
+            }
+
+            DrawEyeMoveTypeRow(view, target, maidCache, timeline);
             _timelineLookRowDrawer.DrawLookAtTargetRows(view, maidCache, LABEL_WIDTH, ROW_HEIGHT);
 
             view.AddSpace(5);
@@ -454,11 +466,57 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 目線種別。顔・瞳の追従とそらしをまとめて決める (MaidLookBridge.ApplyEyeMoveType)。
-        /// 「無し」がタイムラインに視線を動かさせない指定になる
+        /// 「無し」がタイムラインに視線を動かさせない指定になる。
+        /// タイムライン未読込のときは対象メイドの TBody のフラグを表示・編集する
         /// </summary>
-        private void DrawEyeMoveTypeRow(GUIView view, MTEP.TimelineData timeline)
+        private void DrawEyeMoveTypeRow(
+            GUIView view, Maid target, MTEP.MaidCache maidCache, MTEP.TimelineData timeline)
         {
-            _eyeMoveTypeComboBox.currentIndex = (int) timeline.eyeMoveType;
+            if (timeline != null)
+            {
+                _eyeMoveTypeComboBox.currentIndex = (int) timeline.eyeMoveType;
+                _eyeMoveTypeComboBox.onSelected = (type, _) =>
+                {
+                    // 選択確定は ComboBoxPopupWindow 側で後から呼ばれるため、
+                    // 開いている間にタイムラインが閉じられた場合に備えて引き直す
+                    var current = MTEP.TimelineManager.instance.timeline;
+                    if (current != null)
+                    {
+                        current.eyeMoveType = type;
+                    }
+                };
+            }
+            else
+            {
+                var body = target.body0;
+                if (body == null)
+                {
+                    // ボディ未ロード中は書き込み先の TBody が無いため行を出さない
+                    return;
+                }
+
+                var eyeMoveType = _unkeyedEyeMoveTypeMaid == target
+                        && MaidLookBridge.MatchesEyeMoveType(body, _unkeyedEyeMoveType)
+                    ? _unkeyedEyeMoveType
+                    : MaidLookBridge.ResolveEyeMoveType(
+                        body.boHeadToCam, body.boEyeToCam, body.boEyeSorashi);
+                _eyeMoveTypeComboBox.currentIndex = (int) eyeMoveType;
+                _eyeMoveTypeComboBox.onSelected = (type, _) =>
+                {
+                    _unkeyedEyeMoveType = type;
+                    _unkeyedEyeMoveTypeMaid = target;
+                    MaidLookBridge.ApplyEyeMoveType(target, type);
+
+                    // そらしの有無で注視先なしの向け先 (方向指定/無し) が変わるため解決し直す。
+                    // 任意オブジェクトの注視はキーで表せず、解決し直すと失われるので触らない
+                    if (lookController.GetMode(target) != MaidLookMode.オブジェクト)
+                    {
+                        maidCache.SyncLookFromController();
+                        maidCache.UpdateLookAtTarget();
+                    }
+                };
+            }
+
             DrawLabeledComboBox("メイド目線", _eyeMoveTypeComboBox);
         }
 

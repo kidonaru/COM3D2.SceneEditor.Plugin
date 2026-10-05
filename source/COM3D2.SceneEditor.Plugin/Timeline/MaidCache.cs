@@ -561,19 +561,24 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// 注視先を SE の MaidLookController へ反映する。
-        /// trsLookTarget を直接書かず、向け先の所有者をコントローラに一本化する
+        /// trsLookTarget を直接書かず、向け先の所有者をコントローラに一本化する。
+        /// タイムライン未読込でも表情ウィンドウの視線タブから編集できるよう、
+        /// そらしの判定はメイド目線の代わりに TBody のフラグで行う
         /// </summary>
         public void UpdateLookAtTarget()
         {
-            if (maid == null || timeline == null)
+            if (maid == null)
             {
                 return;
             }
 
+            var isEyeSorashi = timeline != null
+                ? SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType)
+                : maid.body0 != null && maid.body0.boEyeSorashi;
+
             var lookAtTarget = GetLookAtTarget();
             var lookMode = SEP.MaidLookBridge.ResolveLookMode(
-                lookAtTargetType, lookAtTarget != null,
-                SEP.MaidLookBridge.IsEyeSorashi(timeline.eyeMoveType));
+                lookAtTargetType, lookAtTarget != null, isEyeSorashi);
 
             // メイド注視・モデル注視は Transform ではなく対象の同定情報で渡し、
             // 実際の Transform は SE のコントローラが適用のたびに引き直す
@@ -583,6 +588,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             // そらし演出は trsLookTarget == null かつ非ロックが条件のため、常にロックを解く
             maid.LockHeadAndEye(false);
+        }
+
+        /// <summary>
+        /// SE のコントローラの向け先を注視先の値へ引き戻す。反映処理は走らせない。
+        /// タイムライン未読込のときは向け先を決めるのがコントローラ (プリセット復元・Undo 等) なので、
+        /// 表示や編集の前にこれで揃えないと、古い値で向け先を上書きしてしまう。
+        /// 任意オブジェクトはキーで表せないため None になる
+        /// </summary>
+        public void SyncLookFromController()
+        {
+            if (maid == null)
+            {
+                return;
+            }
+
+            var controller = SEP.MaidManipulateManager.instance.lookController;
+            var mode = controller.GetMode(maid);
+            _lookAtTargetType = SEP.MaidLookBridge.ToTargetType(mode);
+            _lookDirection = new Vector2(controller.GetLookX(maid), controller.GetLookY(maid));
+
+            if (mode == SEP.MaidLookMode.メイド)
+            {
+                var targetCache = maidManager.GetMaidCache(controller.GetTargetMaid(maid));
+                if (targetCache != null)
+                {
+                    _lookAtTargetIndex = targetCache.slotNo;
+                }
+                _lookAtMaidPointType = controller.GetMaidPointType(maid);
+            }
+            else if (mode == SEP.MaidLookMode.モデル)
+            {
+                var model = modelManager.GetModel(controller.GetTargetModelName(maid));
+                if (model != null)
+                {
+                    _lookAtTargetIndex = modelManager.models.IndexOf(model);
+                }
+            }
         }
 
         public Transform GetAttachPointTransform(AttachPoint point)

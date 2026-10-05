@@ -71,6 +71,28 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Theory]
+        [InlineData(Maid.EyeMoveType.無し)]
+        [InlineData(Maid.EyeMoveType.無視する)]
+        [InlineData(Maid.EyeMoveType.顔を向ける)]
+        [InlineData(Maid.EyeMoveType.顔だけ動かす)]
+        [InlineData(Maid.EyeMoveType.顔をそらす)]
+        [InlineData(Maid.EyeMoveType.目と顔を向ける)]
+        [InlineData(Maid.EyeMoveType.目だけ向ける)]
+        [InlineData(Maid.EyeMoveType.目だけそらす)]
+        public void ResolveEyeMoveType_フラグから引き戻した種別は同じフラグになる(
+            Maid.EyeMoveType eyeMoveType)
+        {
+            var resolved = MaidLookBridge.ResolveEyeMoveType(
+                MaidLookBridge.IsHeadToCam(eyeMoveType),
+                MaidLookBridge.IsEyeToCam(eyeMoveType),
+                MaidLookBridge.IsEyeSorashi(eyeMoveType));
+
+            Assert.Equal(MaidLookBridge.IsHeadToCam(eyeMoveType), MaidLookBridge.IsHeadToCam(resolved));
+            Assert.Equal(MaidLookBridge.IsEyeToCam(eyeMoveType), MaidLookBridge.IsEyeToCam(resolved));
+            Assert.Equal(MaidLookBridge.IsEyeSorashi(eyeMoveType), MaidLookBridge.IsEyeSorashi(resolved));
+        }
+
+        [Theory]
         [InlineData(MTEP.LookAtTargetType.None, MaidLookMode.方向指定)]
         [InlineData(MTEP.LookAtTargetType.Camera, MaidLookMode.カメラ)]
         [InlineData(MTEP.LookAtTargetType.Mouse, MaidLookMode.マウス)]

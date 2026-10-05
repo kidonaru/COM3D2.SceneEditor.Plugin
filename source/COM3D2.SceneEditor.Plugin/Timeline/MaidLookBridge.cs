@@ -171,6 +171,40 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// TBody のフラグから目線種別を引き戻す。同じフラグになる種別が複数あるため
+        /// (無し/無視する、顔を向ける/目と顔を向ける)、そのうちの代表を返す
+        /// </summary>
+        public static Maid.EyeMoveType ResolveEyeMoveType(
+            bool isHeadToCam, bool isEyeToCam, bool isEyeSorashi)
+        {
+            if (isEyeToCam && isEyeSorashi)
+            {
+                return isHeadToCam ? Maid.EyeMoveType.顔をそらす : Maid.EyeMoveType.目だけそらす;
+            }
+            if (isHeadToCam && isEyeToCam)
+            {
+                return Maid.EyeMoveType.目と顔を向ける;
+            }
+            if (isHeadToCam)
+            {
+                return Maid.EyeMoveType.顔だけ動かす;
+            }
+            if (isEyeToCam)
+            {
+                return Maid.EyeMoveType.目だけ向ける;
+            }
+            return Maid.EyeMoveType.無視する;
+        }
+
+        /// <summary>目線種別のフラグが TBody の今のフラグと一致するか</summary>
+        public static bool MatchesEyeMoveType(TBody body, Maid.EyeMoveType eyeMoveType)
+        {
+            return body.boHeadToCam == IsHeadToCam(eyeMoveType)
+                && body.boEyeToCam == IsEyeToCam(eyeMoveType)
+                && body.boEyeSorashi == IsEyeSorashi(eyeMoveType);
+        }
+
+        /// <summary>
         /// 目線種別のフラグ (顔/瞳の追従・視線そらし) を TBody へ写す。
         /// Maid.EyeToCamera と同じ組み合わせを設定するが、trsLookTarget は触らない
         /// </summary>
