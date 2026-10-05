@@ -31,7 +31,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         public static bool isAvailable => layer != None;
 
-        private static void Resolve()
+        /// <summary>メインカメラが取れていれば影用レイヤーを決める。決まっていれば何もしない</summary>
+        public static void Resolve()
         {
             if (_resolved)
             {

@@ -76,6 +76,12 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>ライトの適用 (タイムライン・UI) が済んだ後に判定するため LateUpdate で行う</summary>
+        public override void Init()
+        {
+            // 影用レイヤーを先に決めておく。未解決の間に書いたマスクは影ビットを持てず、解決後に読み違えるため
+            CharacterShadowLayer.Resolve();
+        }
+
         public override void LateUpdate()
         {
             if (!HasCasterLight())
@@ -278,7 +284,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 複製元の Renderer。非アクティブの部位も含める (表示の切り替えは描画ごとの判定で追従する)。
-        /// MeshRenderer は調査時のメイドには無かったが、見つかった場合は Transform を毎フレーム写して扱う
+        /// MeshRenderer も、見つかった場合は Transform を毎フレーム写して扱う
         /// </summary>
         private static void CollectSources(Maid maid, List<Renderer> results)
         {
@@ -361,7 +367,7 @@ namespace COM3D2.SceneEditor.Plugin
                 if (proxy.proxySkinned != null)
                 {
                     proxy.proxySkinned.localBounds = proxy.sourceSkinned.localBounds;
-                    // 調査時のメイドはブレンドシェイプを使っていなかったが、使うメッシュでは重みを写す
+                    // ブレンドシェイプを使うメッシュに備えて重みを写す
                     for (var i = 0; i < proxy.blendShapeCount; i++)
                     {
                         proxy.proxySkinned.SetBlendShapeWeight(i, proxy.sourceSkinned.GetBlendShapeWeight(i));
@@ -405,7 +411,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 元がこのカメラに描かれないなら、このカメラの描画中は複製の影も止める。影の計算はカメラごとに行われる。
         /// Camera.onPreCull はカメラのコンポーネントの OnPreCull (ViewCullingFilter・PostEffects の MaidHideEffect) より
-        /// 後に呼ばれるため、それらが無効にした Renderer や書き換えた cullingMask をここで読める (実機で確認済み)
+        /// 後に呼ばれるため、それらが無効にした Renderer や書き換えた cullingMask をここで読める
         /// </summary>
         private void OnPreCull(Camera camera)
         {
@@ -428,6 +434,7 @@ namespace COM3D2.SceneEditor.Plugin
                         continue;
                     }
 
+                    // 判定を Unity 非依存に保つため、破棄済み (Unity の null) の判定を畳んでから渡す
                     var source = proxy.source;
                     var isAlive = source != null;
                     if (CharacterShadowProxyRules.ShouldHideForCamera(

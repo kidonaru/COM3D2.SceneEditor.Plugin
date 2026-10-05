@@ -42,7 +42,11 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>照射対象とキャラの影の設定から cullingMask を組み立てる</summary>
+        /// <summary>
+        /// 照射対象とキャラの影の設定から cullingMask を組み立てる。
+        /// 影ビットは照射対象と独立に持つ。照射対象はタイムラインのキーで切り替わるため、
+        /// 「背景のみ」以外でも残しておかないと、背景のみへ戻したときに設定が失われる
+        /// </summary>
         public static int ToCullingMask(LightTargetMode mode, bool characterShadow)
             => ToCullingMask(mode, characterShadow, CharacterMask, CharacterShadowLayer.mask);
 
@@ -56,11 +60,7 @@ namespace COM3D2.SceneEditor.Plugin
         public static int WithCharacterShadow(int cullingMask, bool characterShadow)
             => WithCharacterShadow(cullingMask, characterShadow, CharacterShadowLayer.mask);
 
-        /// <summary>
-        /// characterMask と影ビットを注入する版（テスト用）。
-        /// 影ビットは照射対象と独立に持つ。照射対象はタイムラインのキーで切り替わるため、
-        /// 「背景のみ」以外でも残しておかないと、背景のみへ戻したときに設定が失われる
-        /// </summary>
+        /// <summary>characterMask と影ビットを注入する版（テスト用）</summary>
         public static int ToCullingMask(LightTargetMode mode, bool characterShadow, int characterMask, int shadowMask)
         {
             int cullingMask;
