@@ -156,7 +156,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override void OnPluginDisable()
         {
-            DisableAllEffects();
+            // エディタを閉じた後は PostEffects 単体で使う状態へ戻すため「既定」プリセットを読む。
+            // 旧版の PostEffects.Plugin では読めないので、従来どおり全エフェクトを切る
+            if (!PostEffectsClient.LoadStartupPreset())
+            {
+                DisableAllEffects();
+            }
         }
 
         public void InitPostEffects()
