@@ -224,6 +224,7 @@
     <Compile Include="Manager\CameraControlArbiter.cs" />
     <Compile Include="Manager\CameraShakeManager.cs" />
     <Compile Include="Manager\CharacterShadowProxyRules.cs" />
+    <Compile Include="Manager\CharacterShadowProxyManager.cs" />
     <Compile Include="Manager\ConfigManager.cs" />
     <Compile Include="Manager\GameViewAspect.cs" />
     <Compile Include="Manager\GameViewManager.cs" />
