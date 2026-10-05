@@ -103,6 +103,29 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// 光の柱の濃さ (シェーダーの密度に掛かる倍率)。
+        /// 以前は color のアルファがこの役目だったが、色と分けて編集できるよう独立させた。color.a は描画に使わない
+        /// </summary>
+        [SerializeField]
+        [Range(0f, 2f)]
+        private float _intensity = 1f;
+        public float intensity
+        {
+            get
+            {
+                return _intensity;
+            }
+            set
+            {
+                // タンジェント補間のオーバーシュートで負になりうる。負の密度はシェーダーで破綻するため 0 で止める
+                value = Mathf.Max(0f, value);
+                if (_intensity == value) return;
+                _intensity = value;
+                _requestedMaterialUpdate = true;
+            }
+        }
+
         [SerializeField]
         [Range(1f, 179f)]
         private float _spotAngle = 10.0f;
@@ -421,6 +444,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             position = other.position;
             eulerAngles = other.eulerAngles;
             color = other.color;
+            intensity = other.intensity;
             spotAngle = other.spotAngle;
             spotRange = other.spotRange;
             rangeMultiplier = other.rangeMultiplier;
@@ -573,8 +597,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 float range = CalculateEffectiveRange();
                 material.SetFloat(Uniforms._SpotRange, range);
                 material.SetFloat(Uniforms._OffsetRange, Mathf.Clamp(offsetRange, 0f, range));
-                material.SetColor(Uniforms._Color, color);
-                material.SetColor(Uniforms._SubColor, color);
+                // シェーダーは _Color.a を密度の倍率として読む。色のアルファではなく濃度を詰める
+                var shaderColor = new Color(color.r, color.g, color.b, intensity);
+                material.SetColor(Uniforms._Color, shaderColor);
+                material.SetColor(Uniforms._SubColor, shaderColor);
                 material.SetFloat(Uniforms._FalloffExp, falloffExp);
                 material.SetFloat(Uniforms._NoiseStrength, noiseStrength);
                 material.SetFloat(Uniforms._NoiseScaleInv, 1f / noiseScale);
