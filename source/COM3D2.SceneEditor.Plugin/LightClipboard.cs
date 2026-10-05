@@ -98,7 +98,8 @@ namespace COM3D2.SceneEditor.Plugin
             light.spotAngle = _data.spotAngle;
             light.shadowStrength = _data.shadowStrength;
             light.shadowBias = _data.shadowBias;
-            light.cullingMask = LightTarget.ToCullingMask(_data.target);
+            light.cullingMask = LightTarget.ToCullingMask(
+                _data.target, LightTarget.HasCharacterShadow(light.cullingMask));
             LightCookie.Set(light, _data.cookie);
             light.shadows = _data.shadows;
 

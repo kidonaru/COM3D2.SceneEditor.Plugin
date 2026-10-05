@@ -344,6 +344,7 @@
     <Compile Include="MaidFollowRowDrawer.cs" />
     <Compile Include="LightRowDrawer.cs" />
     <Compile Include="LightTarget.cs" />
+    <Compile Include="CharacterShadowLayer.cs" />
     <Compile Include="LightClipboard.cs" />
     <Compile Include="LightCookieData.cs" />
     <Compile Include="LightCookieAlpha.cs" />

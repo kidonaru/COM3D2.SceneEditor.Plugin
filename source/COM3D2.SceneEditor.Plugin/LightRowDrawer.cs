@@ -404,7 +404,8 @@ namespace COM3D2.SceneEditor.Plugin
                 _lightTargetComboBox.onSelected = (mode, _) =>
                 {
                     RecordLightEdit("対象");
-                    light.cullingMask = LightTarget.ToCullingMask(mode);
+                    light.cullingMask = LightTarget.ToCullingMask(
+                        mode, LightTarget.HasCharacterShadow(light.cullingMask));
                 };
                 _lightTargetComboBox.DrawButton(view);
             }

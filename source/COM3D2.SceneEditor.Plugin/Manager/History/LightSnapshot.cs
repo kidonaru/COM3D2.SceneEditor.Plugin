@@ -150,7 +150,8 @@ namespace COM3D2.SceneEditor.Plugin
             light.range = lightState.range;
             light.spotAngle = lightState.spotAngle;
             light.enabled = lightState.enabled;
-            light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(lightState.target));
+            light.cullingMask = LightTarget.ToCullingMask(
+                LightTarget.ClampMode(lightState.target), LightTarget.HasCharacterShadow(light.cullingMask));
             light.shadowStrength = lightState.shadowStrength;
             light.shadowBias = lightState.shadowBias;
             LightCookie.Set(light, lightState.GetCookie());

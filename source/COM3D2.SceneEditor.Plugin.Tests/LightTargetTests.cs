@@ -8,41 +8,94 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         // 実機のレイヤー構成 (Charactor=10, Face=11, Man=12) に合わせたテスト用マスク
         private const int CharacterMask = (1 << 10) | (1 << 11) | (1 << 12);
 
-        [Fact]
-        public void 全て_は全レイヤー()
+        // 影用レイヤー (実機では名前の無い 3 が選ばれる)
+        private const int ShadowMask = 1 << 3;
+
+        [Theory]
+        [InlineData(LightTargetMode.All, false, ~ShadowMask)]
+        [InlineData(LightTargetMode.All, true, -1)]
+        [InlineData(LightTargetMode.Character, false, CharacterMask)]
+        [InlineData(LightTargetMode.Character, true, CharacterMask | ShadowMask)]
+        [InlineData(LightTargetMode.Background, false, ~CharacterMask & ~ShadowMask)]
+        [InlineData(LightTargetMode.Background, true, ~CharacterMask)]
+        public void モードと影の設定からマスクを組み立てる(LightTargetMode mode, bool characterShadow, int expected)
         {
-            Assert.Equal(-1, LightTarget.ToCullingMask(LightTargetMode.All, CharacterMask));
+            Assert.Equal(expected,
+                LightTarget.ToCullingMask(mode, characterShadow, CharacterMask, ShadowMask));
+        }
+
+        [Theory]
+        [InlineData(LightTargetMode.All, false)]
+        [InlineData(LightTargetMode.All, true)]
+        [InlineData(LightTargetMode.Character, false)]
+        [InlineData(LightTargetMode.Character, true)]
+        [InlineData(LightTargetMode.Background, false)]
+        [InlineData(LightTargetMode.Background, true)]
+        public void 往復変換で元のモードと影の設定に戻る(LightTargetMode mode, bool characterShadow)
+        {
+            var mask = LightTarget.ToCullingMask(mode, characterShadow, CharacterMask, ShadowMask);
+
+            Assert.Equal(mode, LightTarget.FromCullingMask(mask, CharacterMask, ShadowMask));
+            Assert.Equal(characterShadow, LightTarget.HasCharacterShadow(mask, ShadowMask));
         }
 
         [Fact]
-        public void キャラのみ_はキャラ用マスク()
+        public void モードを切り替えても影の設定を引き継ぐ()
         {
-            Assert.Equal(CharacterMask,
-                LightTarget.ToCullingMask(LightTargetMode.Character, CharacterMask));
-        }
+            // 背景のみ (ON) → 全て → 背景のみ と、書き込みのたびに今の影ビットを引き継ぐ
+            var mask = LightTarget.ToCullingMask(LightTargetMode.Background, true, CharacterMask, ShadowMask);
+            foreach (var mode in new[] { LightTargetMode.All, LightTargetMode.Character, LightTargetMode.Background })
+            {
+                var characterShadow = LightTarget.HasCharacterShadow(mask, ShadowMask);
+                mask = LightTarget.ToCullingMask(mode, characterShadow, CharacterMask, ShadowMask);
+            }
 
-        [Fact]
-        public void 背景のみ_はキャラ用マスクの補集合()
-        {
-            Assert.Equal(~CharacterMask,
-                LightTarget.ToCullingMask(LightTargetMode.Background, CharacterMask));
+            Assert.Equal(LightTargetMode.Background, LightTarget.FromCullingMask(mask, CharacterMask, ShadowMask));
+            Assert.True(LightTarget.HasCharacterShadow(mask, ShadowMask));
         }
 
         [Theory]
         [InlineData(LightTargetMode.All)]
         [InlineData(LightTargetMode.Character)]
         [InlineData(LightTargetMode.Background)]
-        public void 往復変換で元のモードに戻る(LightTargetMode mode)
+        public void 影ビットだけを書き換えてもモードは変わらない(LightTargetMode mode)
         {
-            var mask = LightTarget.ToCullingMask(mode, CharacterMask);
-            Assert.Equal(mode, LightTarget.FromCullingMask(mask, CharacterMask));
+            var off = LightTarget.ToCullingMask(mode, false, CharacterMask, ShadowMask);
+
+            var on = LightTarget.WithCharacterShadow(off, true, ShadowMask);
+
+            Assert.Equal(LightTarget.ToCullingMask(mode, true, CharacterMask, ShadowMask), on);
+            Assert.Equal(off, LightTarget.WithCharacterShadow(on, false, ShadowMask));
+        }
+
+        [Theory]
+        [InlineData(LightTargetMode.All)]
+        [InlineData(LightTargetMode.Character)]
+        [InlineData(LightTargetMode.Background)]
+        public void 影ビットが0なら影の設定は無視され従来と同じマスクになる(LightTargetMode mode)
+        {
+            var off = LightTarget.ToCullingMask(mode, false, CharacterMask, 0);
+            var on = LightTarget.ToCullingMask(mode, true, CharacterMask, 0);
+
+            Assert.Equal(off, on);
+            Assert.False(LightTarget.HasCharacterShadow(on, 0));
+            Assert.Equal(mode, LightTarget.FromCullingMask(on, CharacterMask, 0));
+        }
+
+        [Fact]
+        public void 影ビットが0のマスクは従来の値と同じ()
+        {
+            Assert.Equal(-1, LightTarget.ToCullingMask(LightTargetMode.All, false, CharacterMask, 0));
+            Assert.Equal(CharacterMask, LightTarget.ToCullingMask(LightTargetMode.Character, false, CharacterMask, 0));
+            Assert.Equal(~CharacterMask, LightTarget.ToCullingMask(LightTargetMode.Background, false, CharacterMask, 0));
         }
 
         [Fact]
         public void 想定外のマスクは全て扱い()
         {
-            Assert.Equal(LightTargetMode.All, LightTarget.FromCullingMask(1 << 10, CharacterMask));
-            Assert.Equal(LightTargetMode.All, LightTarget.FromCullingMask(0, CharacterMask));
+            Assert.Equal(LightTargetMode.All, LightTarget.FromCullingMask(1 << 10, CharacterMask, ShadowMask));
+            Assert.Equal(LightTargetMode.All, LightTarget.FromCullingMask(0, CharacterMask, ShadowMask));
+            Assert.Equal(LightTargetMode.All, LightTarget.FromCullingMask(ShadowMask, CharacterMask, ShadowMask));
         }
 
         [Theory]

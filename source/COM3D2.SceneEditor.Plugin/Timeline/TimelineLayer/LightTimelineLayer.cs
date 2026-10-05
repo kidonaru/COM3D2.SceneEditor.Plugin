@@ -144,10 +144,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             light.shadowStrength = start.shadowStrength;
             light.shadowBias = start.shadowBias;
 
-            // 照射対象は補間しない。メインライト (index 0) はゲーム側の恒久オブジェクトのため照射対象・輪郭を触らない
+            // 照射対象は補間しない。メインライト (index 0) はゲーム側の恒久オブジェクトのため照射対象・輪郭を触らない。
+            // キャラの影はライト定義の値なので、キーの適用では今の設定を引き継ぐ
             if (stat.index > 0)
             {
-                light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(start.lightTarget));
+                light.cullingMask = LightTarget.ToCullingMask(
+                    LightTarget.ClampMode(start.lightTarget), LightTarget.HasCharacterShadow(light.cullingMask));
                 SceneEditor.Plugin.LightCookie.SetHardness(light, start.cookieHardness);
             }
 
