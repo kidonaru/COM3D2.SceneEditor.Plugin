@@ -250,6 +250,11 @@ namespace COM3D2.SceneEditor.Plugin
             // 濃さと距離は影を落とすときだけ意味を持つ
             if (light.shadows != LightShadows.None)
             {
+                // キャラの影はキャラを照らさない「背景のみ」のときだけ意味を持つ
+                if (LightTarget.FromCullingMask(light.cullingMask) == LightTargetMode.Background)
+                {
+                    DrawCharacterShadowRow(view, rowHeight, light);
+                }
                 DrawAxisSlider(view, labelWidth, "影の濃さ", light.shadowStrength, 0f, 1f, 0.01f,
                     DefaultAdditionalShadowStrength, value => light.shadowStrength = value);
                 DrawAxisSlider(view, labelWidth, "影の距離", light.shadowBias, 0f, 1f, 0.01f,
@@ -441,6 +446,27 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 「背景のみ」のライトでもキャラの影を背景へ落とすか。キャラ自身は照らさないまま、影専用の複製で影だけを戻す。
+        /// 影用レイヤーが確保できなかった環境では操作できない
+        /// </summary>
+        private static void DrawCharacterShadowRow(GUIView view, float rowHeight, Light light)
+        {
+            var isAvailable = CharacterShadowLayer.isAvailable;
+            // トグルはツールチップを持たないので、描く前に同じ矩形を取って登録する
+            var rect = view.GetDrawRect(-1, rowHeight);
+            view.DrawToggle("キャラの影", LightTarget.HasCharacterShadow(light.cullingMask), -1, rowHeight, isAvailable,
+                value =>
+                {
+                    RecordLightEdit("キャラの影");
+                    SetCharacterShadow(light, value);
+                });
+            if (!isAvailable)
+            {
+                TooltipDrawer.RegisterIfHovered(rect, "影の複製に使える空きレイヤーが無いため使えません");
+            }
+        }
+
+        /// <summary>
         /// スポットの輪郭 (cookie)。角度を広げると内蔵の輪郭はぼけ幅も広がるため、
         /// 硬さの指定か画像で縁を決められるようにする
         /// </summary>
@@ -566,6 +592,13 @@ namespace COM3D2.SceneEditor.Plugin
         private static void SetShadows(Light light, LightShadows shadows)
         {
             light.shadows = shadows;
+            MTEP.StudioLightManager.instance.LateUpdate(true);
+        }
+
+        /// <summary>キャラの影を反映し、輪郭と同じくタイムラインのライト定義へ即時に同期させる</summary>
+        private static void SetCharacterShadow(Light light, bool value)
+        {
+            light.cullingMask = LightTarget.WithCharacterShadow(light.cullingMask, value);
             MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
