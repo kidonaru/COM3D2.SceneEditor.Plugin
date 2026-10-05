@@ -19,6 +19,7 @@ MotionTimelineEditor（MTE）で作成したタイムライン XML は SceneEdit
 - モデルの表示レイヤー（ModItemExplorer の Default / Charactor）はモデル定義として保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むとレイヤーは ModItemExplorer の既定になります
 - スポットライトの `輪郭` の種類と画像はライト定義、`硬さ` はライトキーとして保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと既定の輪郭で表示されます
 - 追加ライトの `影` の種類もライト定義として保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと影なしになります
+- 追加ライトの `キャラの影` もライト定義として保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと OFF（`背景のみ` のライトはキャラの影を落とさない）になります
 - マテリアルの `シェーダー` の変更はタイムラインに保存されます（`MaterialShaders`）。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと元のシェーダーで表示されます。NPRShader のシェーダーは NPRShader が無い環境では適用されず、保存し直しても記録は残ります
 - マテリアルの `テクスチャ` の差し替えはタイムラインの `MaterialShaders` に `Texture` 要素として保存されます。SceneEditor 独自の値で、MTE や以前の SceneEditor で読むと元のテクスチャで表示され、以前の SceneEditor で保存し直すと差し替えは消えます。参照ファイルが無い環境では適用されず、保存し直しても記録は残ります
 - PNG 配置キーの `明るさ` は、MTE の 0〜255 から 0〜2 の倍率に変わりました（version 38）。読み込み時に自動で換算します。MTE で読むと明るさがほぼ 0 になり、真っ暗に表示されます
