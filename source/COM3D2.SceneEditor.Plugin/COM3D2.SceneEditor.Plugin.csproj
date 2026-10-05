@@ -366,6 +366,7 @@
     <Compile Include="TimelineItemValueTransfer.cs" />
     <Compile Include="AngleUtils.cs" />
     <Compile Include="QuaternionUtils.cs" />
+    <Compile Include="SwingTwistAngles.cs" />
     <Compile Include="BackgroundRowDrawer.cs" />
     <Compile Include="VoiceRowDrawer.cs" />
     <Compile Include="SeRowDrawer.cs" />
