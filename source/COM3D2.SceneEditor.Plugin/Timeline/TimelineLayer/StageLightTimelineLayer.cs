@@ -207,6 +207,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (!controller.autoColor)
             {
                 light.color = start.color;
+                light.intensity = start.intensity;
             }
 
             if (!controller.autoLightInfo)
@@ -276,6 +277,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (!controller.autoColor)
             {
                 light.color = Color.Lerp(start.color, end.color, t);
+                light.intensity = PluginUtils.HermiteValue(
+                    t0,
+                    t1,
+                    start.intensityValue,
+                    end.intensityValue,
+                    t);
             }
 
             if (!controller.autoLightInfo)
@@ -314,6 +321,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             controller.rotationMax = start.subEulerAngles;
             controller.colorMin = start.color;
             controller.colorMax = start.subColor;
+            controller.intensityMin = start.intensityMin;
+            controller.intensityMax = start.intensityMax;
 
             var lightInfo = controller.lightInfo;
 
@@ -395,6 +404,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 controller.colorMin = Color.Lerp(start.color, end.color, t);
                 controller.colorMax = Color.Lerp(start.subColor, end.subColor, t);
+                controller.intensityMin = PluginUtils.HermiteValue(
+                    t0,
+                    t1,
+                    start.intensityMinValue,
+                    end.intensityMinValue,
+                    t);
+                controller.intensityMax = PluginUtils.HermiteValue(
+                    t0,
+                    t1,
+                    start.intensityMaxValue,
+                    end.intensityMaxValue,
+                    t);
             }
 
             var lightInfo = controller.lightInfo;
