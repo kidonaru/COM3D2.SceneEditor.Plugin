@@ -18,6 +18,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ColorR = 8,
             ColorG = 9,
             ColorB = 10,
+            // 旧キーの濃度。今は使わない (換算元として FromXml だけが読む)
             ColorA = 11,
             Visible = 12,
             SpotAngle = 13,
@@ -30,14 +31,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             OffsetRange = 20,
             SegmentAngle = 21,
             SegmentRange = 22,
-            ZTest = 23
+            ZTest = 23,
+            Intensity = 24,
         }
 
         public static TransformDataStageLight defaultTrans = new TransformDataStageLight();
 
         public override TransformType type => TransformType.StageLight;
 
-        public override int valueCount => 24;
+        /// <summary>濃度 (index 24) を持たない旧キー (MTE・旧 SE) の値数。旧キーは色のアルファが濃度だった</summary>
+        public const int LegacyValueCount = 24;
+
+        public override int valueCount => (int)Index.Intensity + 1;
 
         public override bool hasPosition => true;
         public override bool hasRotation => true;
@@ -77,7 +82,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     _tangentValues.AddRange(rotationValues);
                     _tangentValues.AddRange(new ValueData[] { 
                         values[(int)Index.SpotAngle], 
-                        values[(int)Index.SpotRange] 
+                        values[(int)Index.SpotRange],
+                        values[(int)Index.Intensity],
                     });
                 }
                 return _tangentValues.ToArray();
@@ -96,6 +102,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
         {
+            {
+                "intensity", new CustomValueInfo
+                {
+                    index = (int)Index.Intensity,
+                    name = "濃度",
+                    min = 0f,
+                    max = 2f,
+                    step = 0.01f,
+                    defaultValue = 0.3f,
+                }
+            },
             {
                 "spotAngle", new CustomValueInfo
                 {
@@ -222,7 +239,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
             new Dictionary<string, ColorValueInfo>
             {
-                { ColorKey.Main, ColorValueInfo.Rgba("色", (int)Index.ColorR, new Color(1f, 1f, 1f, 0.3f)) },
+                { ColorKey.Main, ColorValueInfo.Rgb("色", (int)Index.ColorR, Color.white) },
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
@@ -233,6 +250,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         // 値アクセサ
+        public ValueData intensityValue => values[(int)Index.Intensity];
         public ValueData spotAngleValue => values[(int)Index.SpotAngle];
         public ValueData spotRangeValue => values[(int)Index.SpotRange];
         public ValueData rangeMultiplierValue => values[(int)Index.RangeMultiplier];
@@ -246,6 +264,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData zTestValue => values[(int)Index.ZTest];
 
         // CustomValueInfoアクセサ
+        public CustomValueInfo intensityInfo => CustomValueInfoMap["intensity"];
         public CustomValueInfo spotAngleInfo => CustomValueInfoMap["spotAngle"];
         public CustomValueInfo spotRangeInfo => CustomValueInfoMap["spotRange"];
         public CustomValueInfo rangeMultiplierInfo => CustomValueInfoMap["rangeMultiplier"];
@@ -259,6 +278,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public CustomValueInfo zTestInfo => CustomValueInfoMap["zTest"];
 
         // プロパティアクセサ
+        public float intensity
+        {
+            get => intensityValue.value;
+            set => intensityValue.value = value;
+        }
+
         public float spotAngle
         {
             get => spotAngleValue.value;
@@ -330,6 +355,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             position = light.position;
             eulerAngles = light.eulerAngles;
             color = light.color;
+            intensity = light.intensity;
             visible = light.visible;
             spotAngle = light.spotAngle;
             spotRange = light.spotRange;
@@ -342,6 +368,34 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             segmentAngle = light.segmentAngle;
             segmentRange = light.segmentRange;
             zTest = light.zTest;
+        }
+
+        public override void FromXml(TransformXml xml)
+        {
+            base.FromXml(xml);
+
+            if (xml.values != null && xml.values.Length <= LegacyValueCount)
+            {
+                // 旧キーは色のアルファが濃度だった。
+                // アルファも無いキー (v35 の移行後は通常起きない) は、0 埋めで光の柱が消えるのを避けて既定値にする
+                intensity = xml.values.Length > (int)Index.ColorA
+                    ? xml.values[(int)Index.ColorA]
+                    : intensityInfo.defaultValue;
+                SetLinearTangent(intensityValue);
+            }
+        }
+
+        /// <summary>
+        /// 旧アルファは線形補間だった。正規化タンジェント 1 (区間の傾きそのまま) にして実用上同じ変化にする。
+        /// タンジェント 0 のままだとエルミート補間で S 字になる。
+        /// 変化の無い区間の隣では UpdateTangent が傾き 0.01 で代用するため、ごく小さなこぶが出る
+        /// </summary>
+        public static void SetLinearTangent(ValueData value)
+        {
+            value.inTangent.normalizedValue = 1f;
+            value.inTangent.isSmooth = false;
+            value.outTangent.normalizedValue = 1f;
+            value.outTangent.isSmooth = false;
         }
     }
 }
