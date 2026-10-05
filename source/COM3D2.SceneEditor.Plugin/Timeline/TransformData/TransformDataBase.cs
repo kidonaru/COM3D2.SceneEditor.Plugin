@@ -440,6 +440,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 this.rotation = new Quaternion(-rot.x, -rot.y, -rot.z, -rot.w);
             }
+
+            // 補間は成分ごとなので右手も符号をそろえる。
+            // 右手を持つ型は左手も持つ前提（冒頭の hasRotation で抜けない）
+            if (hasSubRotation)
+            {
+                var prevSubRot = prevTrans.subRotation;
+                var subRot = this.subRotation;
+
+                if (Quaternion.Dot(prevSubRot, subRot) < 0.0f)
+                {
+                    this.subRotation = new Quaternion(-subRot.x, -subRot.y, -subRot.z, -subRot.w);
+                }
+            }
         }
 
         public static Vector3 GetFixedEulerAngles(Vector3 angles, Vector3 prevAngles)
