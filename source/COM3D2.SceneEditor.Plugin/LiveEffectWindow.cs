@@ -26,6 +26,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// 移動・回転の行と XYZ の列を揃える
         /// </summary>
         private const float PsylliumTransformLabelWidth = 80f;
+        private const float PsylliumRotationSensitivity = 1f;
 
         public static readonly int WINDOW_ID = 8903393;
 
@@ -779,7 +780,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             var transformConfig = pattern.transformConfig;
             var updateTransform = false;
-            var defaultTrans = TransformDataPsylliumTransform.defaultTrans;
             var defaultConfig = TransformDataPsylliumTransform.defaultConfig;
 
             if (_handTabType == HandTabType.右手)
@@ -823,44 +823,20 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (_handTabType == HandTabType.右手)
             {
-                var initialEulerAngles = defaultConfig.eulerAnglesRight;
-                var prevEulerAngles = Vector3.zero;
-                var transformCache = view.GetTransformCache(null);
-                transformCache.eulerAngles = transformConfig.eulerAnglesRight;
-
-                updateTransform |= TimelineLayerBase.DrawEulerAngles(
-                    view,
-                    transformCache,
-                    TimelineLayerBase.TransformEditType.全て,
-                    prevEulerAngles,
-                    initialEulerAngles,
-                    label: "回転",
-                    labelWidth: PsylliumTransformLabelWidth);
-
-                if (updateTransform)
+                var eulerAngles = transformConfig.eulerAnglesRight;
+                if (DrawPsylliumRotation(view, ref eulerAngles, defaultConfig.eulerAnglesRight))
                 {
-                    transformConfig.eulerAnglesRight = transformCache.eulerAngles;
+                    transformConfig.eulerAnglesRight = eulerAngles;
+                    updateTransform = true;
                 }
             }
             else
             {
-                var initialEulerAngles = defaultConfig.eulerAnglesLeft;
-                var prevEulerAngles = Vector3.zero;
-                var transformCache = view.GetTransformCache(null);
-                transformCache.eulerAngles = transformConfig.eulerAnglesLeft;
-
-                updateTransform |= TimelineLayerBase.DrawEulerAngles(
-                    view,
-                    transformCache,
-                    TimelineLayerBase.TransformEditType.全て,
-                    prevEulerAngles,
-                    initialEulerAngles,
-                    label: "回転",
-                    labelWidth: PsylliumTransformLabelWidth);
-
-                if (updateTransform)
+                var eulerAngles = transformConfig.eulerAnglesLeft;
+                if (DrawPsylliumRotation(view, ref eulerAngles, defaultConfig.eulerAnglesLeft))
                 {
-                    transformConfig.eulerAnglesLeft = transformCache.eulerAngles;
+                    transformConfig.eulerAnglesLeft = eulerAngles;
+                    updateTransform = true;
                 }
             }
 
@@ -894,6 +870,38 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             view.DrawHorizontalLine(Color.gray);
+        }
+
+        /// <summary>
+        /// サイリウムの手の回転を「傾き + ひねり」で編集する（<see cref="SwingTwistAngles"/>）。
+        /// オイラー角のままだと棒を前へ水平に倒した姿勢で Y と Z が同じ動きになるため。
+        /// 保持形式はオイラー角のままなので、表示と書き戻しの境界で変換する
+        /// </summary>
+        private static bool DrawPsylliumRotation(
+            GUIView view, ref Vector3 eulerAngles, Vector3 initialEulerAngles)
+        {
+            var angles = SwingTwistAngles.FromQuaternion(
+                QuaternionUtils.EulerToQuaternion(eulerAngles));
+            var initialAngles = SwingTwistAngles.FromQuaternion(
+                QuaternionUtils.EulerToQuaternion(initialEulerAngles));
+
+            var updated = TimelineLayerBase.DrawTransformVector3(
+                view, "回転", PsylliumRotationSensitivity, angles, initialAngles,
+                value => angles = value,
+                labelWidth: PsylliumTransformLabelWidth);
+
+            if (updated)
+            {
+                // eulerAngles は [0, 360) で返る。従来どおり (-180, 180] で持たせ、
+                // 既定値 (-10, 0, 0) へのリセット後も Equals で既定値と一致させる
+                var euler = SwingTwistAngles.ToQuaternion(angles).eulerAngles;
+                eulerAngles = new Vector3(
+                    Mathf.DeltaAngle(0f, euler.x),
+                    Mathf.DeltaAngle(0f, euler.y),
+                    Mathf.DeltaAngle(0f, euler.z));
+            }
+
+            return updated;
         }
 
         private void DrawPsylliumAreaEdit(GUIView view)
