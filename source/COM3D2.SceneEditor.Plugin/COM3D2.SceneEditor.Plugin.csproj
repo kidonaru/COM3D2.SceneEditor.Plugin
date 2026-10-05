@@ -367,6 +367,7 @@
     <Compile Include="AngleUtils.cs" />
     <Compile Include="QuaternionUtils.cs" />
     <Compile Include="SwingTwistAngles.cs" />
+    <Compile Include="SwingTwistEditCache.cs" />
     <Compile Include="BackgroundRowDrawer.cs" />
     <Compile Include="VoiceRowDrawer.cs" />
     <Compile Include="SeRowDrawer.cs" />

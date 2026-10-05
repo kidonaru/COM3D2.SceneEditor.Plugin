@@ -35,6 +35,7 @@ namespace COM3D2.SceneEditor.Plugin
             return swing * twist;
         }
 
+        /// <returns>傾きベクトルの長さは [0, 180]、ひねりは (-180, 180]。真下向きではひねり 0</returns>
         public static Vector3 FromQuaternion(Quaternion rotation)
         {
             var q = QuaternionUtils.Normalize(rotation);

@@ -498,6 +498,8 @@ namespace COM3D2.SceneEditor.Plugin
         private int _copyToPsylliumControllerIndex = 0;
         private int _copyToPatternIndex = 0;
         private int _copyToTransformIndex = 0;
+        private readonly SwingTwistEditCache _psylliumRotationCacheLeft = new SwingTwistEditCache();
+        private readonly SwingTwistEditCache _psylliumRotationCacheRight = new SwingTwistEditCache();
         private int _copyToAreaIndex = 0;
 
         // サイリウムタブは常に 1 対象ぶんしか描かないので、行ドロワーも 1 つで足りる
@@ -824,7 +826,8 @@ namespace COM3D2.SceneEditor.Plugin
             if (_handTabType == HandTabType.右手)
             {
                 var eulerAngles = transformConfig.eulerAnglesRight;
-                if (DrawPsylliumRotation(view, ref eulerAngles, defaultConfig.eulerAnglesRight))
+                if (DrawPsylliumRotation(
+                    view, _psylliumRotationCacheRight, ref eulerAngles, defaultConfig.eulerAnglesRight))
                 {
                     transformConfig.eulerAnglesRight = eulerAngles;
                     updateTransform = true;
@@ -833,7 +836,8 @@ namespace COM3D2.SceneEditor.Plugin
             else
             {
                 var eulerAngles = transformConfig.eulerAnglesLeft;
-                if (DrawPsylliumRotation(view, ref eulerAngles, defaultConfig.eulerAnglesLeft))
+                if (DrawPsylliumRotation(
+                    view, _psylliumRotationCacheLeft, ref eulerAngles, defaultConfig.eulerAnglesLeft))
                 {
                     transformConfig.eulerAnglesLeft = eulerAngles;
                     updateTransform = true;
@@ -878,10 +882,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// 保持形式はオイラー角のままなので、表示と書き戻しの境界で変換する
         /// </summary>
         private static bool DrawPsylliumRotation(
-            GUIView view, ref Vector3 eulerAngles, Vector3 initialEulerAngles)
+            GUIView view,
+            SwingTwistEditCache cache,
+            ref Vector3 eulerAngles,
+            Vector3 initialEulerAngles)
         {
-            var angles = SwingTwistAngles.FromQuaternion(
-                QuaternionUtils.EulerToQuaternion(eulerAngles));
+            var angles = cache.GetAngles(eulerAngles);
             var initialAngles = SwingTwistAngles.FromQuaternion(
                 QuaternionUtils.EulerToQuaternion(initialEulerAngles));
 
@@ -892,13 +898,11 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (updated)
             {
-                // eulerAngles は [0, 360) で返る。従来どおり (-180, 180] で持たせ、
-                // 既定値 (-10, 0, 0) へのリセット後も Equals で既定値と一致させる
-                var euler = SwingTwistAngles.ToQuaternion(angles).eulerAngles;
-                eulerAngles = new Vector3(
-                    Mathf.DeltaAngle(0f, euler.x),
-                    Mathf.DeltaAngle(0f, euler.y),
-                    Mathf.DeltaAngle(0f, euler.z));
+                // リセットは変換の誤差を挟まず既定値そのものへ戻す
+                eulerAngles = angles == initialAngles
+                    ? initialEulerAngles
+                    : AngleUtils.NormalizeAngles(SwingTwistAngles.ToQuaternion(angles).eulerAngles);
+                cache.Store(angles, eulerAngles);
             }
 
             return updated;
