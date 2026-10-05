@@ -3,25 +3,28 @@ using UnityEngine;
 
 namespace COM3D2.SceneEditor.Plugin
 {
-    /// <summary>重力のスナップショット (カテゴリごとの有効フラグとオフセット)</summary>
+    /// <summary>重力のスナップショット (カテゴリごとの有効フラグ・ローカル・オフセット)</summary>
     public class GravitySnapshot : IStateSnapshot
     {
         private Maid _capturedMaid;
 
         /// <summary>MaidGravityController.categories と同じ並び</summary>
         private bool[] _enabled;
+        private bool[] _locals;
         private Vector3[] _offsets;
 
         public static GravitySnapshot Capture(Maid maid)
         {
             var categories = MaidGravityController.categories;
             var enabled = new bool[categories.Count];
+            var locals = new bool[categories.Count];
             var offsets = new Vector3[categories.Count];
 
             var controller = MaidManipulateManager.instance.gravityController;
             for (var i = 0; i < categories.Count; i++)
             {
                 enabled[i] = controller.GetEnabled(maid, categories[i]);
+                locals[i] = controller.GetLocal(maid, categories[i]);
                 offsets[i] = controller.GetOffset(maid, categories[i]);
             }
 
@@ -29,6 +32,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 _capturedMaid = maid,
                 _enabled = enabled,
+                _locals = locals,
                 _offsets = offsets,
             };
         }
@@ -54,6 +58,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             for (var i = 0; i < categories.Count && i < _enabled.Length; i++)
             {
+                controller.SetLocal(maid, categories[i], _locals[i]);
                 controller.SetOffset(maid, categories[i], _offsets[i]);
                 controller.SetEnabled(maid, categories[i], _enabled[i]);
             }
@@ -68,7 +73,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             for (var i = 0; i < _enabled.Length; i++)
             {
-                if (_enabled[i] != o._enabled[i])
+                if (_enabled[i] != o._enabled[i] || _locals[i] != o._locals[i])
                 {
                     return false;
                 }
@@ -84,12 +89,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         public bool CanApply(Maid maid) => HistoryScopeUtils.CanEditMaid(maid);
 
-        /// <summary>全カテゴリが既定値（無効・オフセット 0）か</summary>
+        /// <summary>全カテゴリが既定値（無効・ワールド・オフセット 0）か</summary>
         private bool IsAllDefault()
         {
             for (var i = 0; i < _enabled.Length; i++)
             {
-                if (_enabled[i] || _offsets[i] != Vector3.zero)
+                if (_enabled[i] || _locals[i] || _offsets[i] != Vector3.zero)
                 {
                     return false;
                 }

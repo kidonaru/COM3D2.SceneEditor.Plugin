@@ -9,7 +9,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// <summary>
     /// 髪・スカートの重力 (MaidGravityController) をキー化するレイヤー。
     /// 項目名は GravityCategory.id ("hair" / "skirt") で、履歴・プリセットと同じキーを使う。
-    /// 有効フラグは区間開始時に適用し、オフセットは Tangent 補間する
+    /// 有効フラグとローカルは区間開始時に適用し、オフセットは Tangent 補間する
     /// </summary>
     [TimelineLayerDesc("メイド重力", 18, TimelineLayerCategory.Maid)]
     public class GravityTimelineLayer : TimelineLayerBase
@@ -106,9 +106,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 t0, t1, start.offsetValues, end.offsetValues, t);
             gravityController.SetOffset(maid, category, offset);
 
-            // 有効フラグは補間できないので区間の開始値をそのまま使う
+            // 有効・ローカルは補間できないので区間の開始値をそのまま使う
             if (indexUpdated)
             {
+                gravityController.SetLocal(maid, category, start.local);
                 gravityController.SetEnabled(maid, category, start.enabled);
             }
         }
@@ -133,6 +134,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var trans = CreateTransformData<TransformDataGravity>(category.id);
                 trans.enabled = gravityController.GetEnabled(maid, category);
                 trans.offset = gravityController.GetOffset(maid, category);
+                trans.local = gravityController.GetLocal(maid, category);
 
                 var bone = frame.CreateBone(trans);
                 frame.UpdateBone(bone);

@@ -234,6 +234,12 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public bool enabled;
 
+        /// <summary>offset を Bip01 の回転に追従させるか。OFF（ワールド）では書き出さない。属性の無い旧プリセットは OFF として読めるため版は上げていない</summary>
+        [XmlAttribute]
+        public bool local;
+
+        [XmlIgnore] public bool localSpecified { get { return local; } set { } }
+
         public Vector3 offset;
     }
 

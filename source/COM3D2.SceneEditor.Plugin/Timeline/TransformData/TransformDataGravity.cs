@@ -5,8 +5,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
     /// 重力キー 1 件分。MaidGravityController のカテゴリ (髪 / スカート) ごとに
-    /// 有効フラグとオフセット (-1〜1) を持つ。
-    /// 有効フラグは補間せず区間開始時に適用し、オフセットは Tangent 補間する
+    /// 有効フラグとオフセット (-1〜1)、ローカル（Bip01 基準）フラグを持つ。
+    /// 有効・ローカルは補間せず区間開始時に適用し、オフセットは Tangent 補間する
     /// </summary>
     public class TransformDataGravity : TransformDataBase
     {
@@ -16,11 +16,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             X = 1,
             Y = 2,
             Z = 3,
+            Local = 4,
         }
 
         public override TransformType type => TransformType.Gravity;
 
-        public override int valueCount => 4;
+        public override int valueCount => 5;
+
+        /// <summary>ローカル（index 4）を持たない旧キーの値数</summary>
+        public const int LegacyValueCount = 4;
 
         public override bool hasTangent => true;
 
@@ -80,6 +84,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     defaultValue = 0f,
                 }
             },
+            {
+                "local",
+                new CustomValueInfo
+                {
+                    index = (int)Index.Local,
+                    name = "ローカル",
+                    min = 0f,
+                    max = 1f,
+                    step = 1f,
+                    defaultValue = 0f,
+                }
+            },
         };
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
@@ -97,6 +113,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public ValueData enabledValue => values[(int)Index.Enabled];
 
+        public ValueData localValue => values[(int)Index.Local];
+
         public ValueData[] offsetValues
         {
             get => new ValueData[]
@@ -113,6 +131,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => enabledValue.boolValue = value;
         }
 
+        /// <summary>offset を Bip01 の回転に追従させるか。有効フラグと同じく補間せず区間開始時に適用する</summary>
+        public bool local
+        {
+            get => localValue.boolValue;
+            set => localValue.boolValue = value;
+        }
+
         public Vector3 offset
         {
             get => new Vector3(
@@ -127,7 +152,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>既定値 (無効・オフセット zero) か。適用を省く判定に使う</summary>
-        public bool isDefault => !enabled && offset == Vector3.zero;
+        /// <summary>既定値 (無効・ワールド・オフセット zero) か。適用を省く判定に使う</summary>
+        public bool isDefault => !enabled && !local && offset == Vector3.zero;
+
+        public override void FromXml(TransformXml xml)
+        {
+            base.FromXml(xml);
+
+            // ローカルを持たない旧データ (旧 SE) は、値の不足分の埋め方（0 埋め）に頼らず明示的にワールドとして読む
+            if (xml.values != null && xml.values.Length <= LegacyValueCount)
+            {
+                local = false;
+            }
+        }
     }
 }

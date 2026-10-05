@@ -1226,6 +1226,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     category = category.id,
                     enabled = controller.GetEnabled(maid, category),
+                    local = controller.GetLocal(maid, category),
                     offset = controller.GetOffset(maid, category),
                 });
             }
@@ -2874,15 +2875,16 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
+                controller.SetLocal(maid, category, entry.local);
                 controller.SetOffset(maid, category, entry.offset);
                 controller.SetEnabled(maid, category, entry.enabled);
             }
         }
 
-        /// <summary>重力が既定値（無効・オフセット 0）か</summary>
+        /// <summary>重力が既定値（無効・ワールド・オフセット 0）か</summary>
         private static bool IsDefaultGravity(ScenePresetGravity entry)
         {
-            return !entry.enabled && entry.offset == Vector3.zero;
+            return !entry.enabled && !entry.local && entry.offset == Vector3.zero;
         }
 
         /// <summary>

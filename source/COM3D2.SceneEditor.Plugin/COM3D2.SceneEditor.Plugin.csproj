@@ -195,6 +195,7 @@
     <Compile Include="MaidManipulation\MaidManipulateManager.cs" />
     <Compile Include="MaidManipulation\MaidMotionState.cs" />
     <Compile Include="MaidManipulation\MaidMuneYureController.cs" />
+    <Compile Include="MaidManipulation\GravityLocalSpace.cs" />
     <Compile Include="MaidManipulation\MaidGravityController.cs" />
     <Compile Include="MaidManipulation\MaidScaleBones.cs" />
     <Compile Include="MaidManipulation\MaidScaleController.cs" />
