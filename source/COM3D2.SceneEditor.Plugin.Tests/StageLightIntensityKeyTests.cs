@@ -86,7 +86,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         [Fact]
         public void 個別ライト_旧キーの濃度は線形補間相当のタンジェントになる()
         {
-            // 旧アルファは線形補間だった。タンジェント 0 のままだとエルミート補間が S 字になる
             var values = new float[LightLegacyValueCount];
             values[LightColorAIndex] = 0.45f;
 

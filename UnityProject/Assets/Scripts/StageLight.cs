@@ -103,10 +103,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// 光の柱の濃さ (シェーダーの密度に掛かる倍率)。
-        /// 以前は color のアルファがこの役目だったが、色と分けて編集できるよう独立させた。color.a は描画に使わない
-        /// </summary>
+        /// <summary>光の柱の濃さ (シェーダーの密度に掛かる倍率)。color.a は描画に使わない</summary>
         [SerializeField]
         [Range(0f, 2f)]
         private float _intensity = 1f;

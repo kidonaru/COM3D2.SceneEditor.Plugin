@@ -22,12 +22,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ColorR = 12,
             ColorG = 13,
             ColorB = 14,
-            // 旧キーの濃度。今は使わない (換算元として FromXml だけが読む)
+            // 旧キーの最小濃度 (換算元。FromXml だけが読む)
             ColorA = 15,
             SubColorR = 16,
             SubColorG = 17,
             SubColorB = 18,
-            // 旧キーの濃度。今は使わない (換算元として FromXml だけが読む)
+            // 旧キーの最大濃度 (換算元。FromXml だけが読む)
             SubColorA = 19,
             Visible = 20,
             SpotAngle = 21,
