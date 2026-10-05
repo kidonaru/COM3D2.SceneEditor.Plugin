@@ -24,9 +24,10 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>Transform 行のラベル幅 (「最小位置」等が収まる幅)</summary>
         private const float StageLightTransformLabelWidth = 60f;
 
-        // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する
-        private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", true);
-        private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", true);
+        // ラベル (= カラーピッカーの同定キー) は対象ごとに変えるため、描画時に設定する。
+        // 濃度は別のスライダーで編集するため、色欄はアルファを出さない
+        private readonly ColorFieldCache _color1FieldCache = new ColorFieldCache("", false);
+        private readonly ColorFieldCache _color2FieldCache = new ColorFieldCache("", false);
 
 
         /// <summary>色欄のラベルを対象ごとに一意にする (ColorPickerWindow はラベルで対象を識別する)</summary>
@@ -163,6 +164,20 @@ namespace COM3D2.SceneEditor.Plugin
                     defaultTrans.GetDefaultColorValue(TransformDataBase.ColorKey.Sub),
                     c => controller.colorMax = c,
                     displayLabel: "最大色");
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.intensityMinInfo,
+                    controller.intensityMin,
+                    x => controller.intensityMin = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.intensityMaxInfo,
+                    controller.intensityMax,
+                    x => controller.intensityMax = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
             }
 
             updateTransform |= view.DrawToggle("一括ライト情報設定", controller.autoLightInfo, 200, 20, newValue =>
@@ -308,6 +323,13 @@ namespace COM3D2.SceneEditor.Plugin
                     Color.white,
                     c => light.color = c,
                     displayLabel: "色");
+
+                updateTransform |= view.DrawCustomValueFloat(
+                    defaultTrans.intensityInfo,
+                    light.intensity,
+                    x => light.intensity = x,
+                    labelWidth: CustomLabelWidth,
+                    sliderWidth: CustomSliderWidth);
             }
 
             if (!controller.autoLightInfo)

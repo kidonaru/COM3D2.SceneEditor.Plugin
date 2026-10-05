@@ -1236,7 +1236,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      全骨 1 でも空要素を書く。旧形式は null で読め、適用時に倍率へ触らない
         // v39: 追加ライトにキャラの影 (characterShadow) を追加。OFF では書き出さない。
         //      旧形式は属性が無く OFF として読める
-        public static readonly int CurrentVersion = 39;
+        // v40: liveEffect のステージライトに濃度 (intensity / intensityMin / intensityMax) を追加。
+        //      旧形式は要素が無く未記録 (-1) で読め、適用時に色のアルファを濃度へ換算する
+        public static readonly int CurrentVersion = 40;
 
         [XmlAttribute]
         public int version = CurrentVersion;

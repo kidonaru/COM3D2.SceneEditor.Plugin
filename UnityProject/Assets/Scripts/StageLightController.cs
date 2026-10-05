@@ -62,8 +62,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         [Header("一括色設定")]
         public bool autoColor = false;
-        public Color colorMin = new Color(1f, 1f, 1f, 0.3f);
-        public Color colorMax = new Color(1f, 1f, 1f, 0.3f);
+        public Color colorMin = Color.white;
+        public Color colorMax = Color.white;
+        [Range(0f, 2f)]
+        public float intensityMin = 0.3f;
+        [Range(0f, 2f)]
+        public float intensityMax = 0.3f;
 
         [Header("一括ライト情報調整")]
         public bool autoLightInfo = false;
@@ -190,6 +194,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 if (autoColor)
                 {
                     light.color = Color.Lerp(colorMin, colorMax, t);
+                    light.intensity = Mathf.Lerp(intensityMin, intensityMax, t);
                 }
 
                 if (autoLightInfo)

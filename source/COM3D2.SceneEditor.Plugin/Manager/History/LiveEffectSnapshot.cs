@@ -13,6 +13,8 @@ namespace COM3D2.SceneEditor.Plugin
         public Vector3 position;
         public Vector3 eulerAngles;
         public Color color = Color.white;
+        /// <summary>濃度。未記録 (旧プリセット) は色のアルファから換算する (StageLightIntensityCompat)</summary>
+        public float intensity = StageLightIntensityCompat.Unrecorded;
         public StageLightInfo lightInfo = new StageLightInfo();
     }
 
@@ -30,11 +32,36 @@ namespace COM3D2.SceneEditor.Plugin
         public bool autoColor;
         public Color colorMin = Color.white;
         public Color colorMax = Color.white;
+        /// <summary>最小 / 最大濃度。未記録 (旧プリセット) は最小色 / 最大色のアルファから換算する</summary>
+        public float intensityMin = StageLightIntensityCompat.Unrecorded;
+        public float intensityMax = StageLightIntensityCompat.Unrecorded;
         public bool autoLightInfo;
         public StageLightInfo lightInfo = new StageLightInfo();
         public StageLightController.PatternType patternType = StageLightController.PatternType.None;
         public float patternCycleTime = 5f;
         public List<LiveEffectStageLightState> lights = new List<LiveEffectStageLightState>();
+    }
+
+    /// <summary>
+    /// 濃度を持たない旧データ (v39 以前のシーンプリセット) の換算。
+    /// 当時は色のアルファが濃度だったので、それを濃度へ移し、色のアルファは 1 にそろえる
+    /// </summary>
+    public static class StageLightIntensityCompat
+    {
+        /// <summary>濃度が記録されていないことを表す値。濃度は 0 以上なので負値で区別する</summary>
+        public const float Unrecorded = -1f;
+
+        public static void Resolve(Color storedColor, float storedIntensity, out Color color, out float intensity)
+        {
+            if (storedIntensity < 0f)
+            {
+                intensity = storedColor.a;
+                color = new Color(storedColor.r, storedColor.g, storedColor.b, 1f);
+                return;
+            }
+            intensity = storedIntensity;
+            color = storedColor;
+        }
     }
 
     /// <summary>ステージレーザー 1 本のパラメータ (StageLaser の可変フィールド全部)</summary>
@@ -179,6 +206,9 @@ namespace COM3D2.SceneEditor.Plugin
                     autoColor = controller.autoColor,
                     colorMin = controller.colorMin,
                     colorMax = controller.colorMax,
+                    // 負値は未記録 (Unrecorded) と区別できないため 0 で止めて記録する
+                    intensityMin = Mathf.Max(0f, controller.intensityMin),
+                    intensityMax = Mathf.Max(0f, controller.intensityMax),
                     autoLightInfo = controller.autoLightInfo,
                     patternType = controller.patternType,
                     patternCycleTime = controller.patternCycleTime,
@@ -195,6 +225,7 @@ namespace COM3D2.SceneEditor.Plugin
                         position = light.position,
                         eulerAngles = light.eulerAngles,
                         color = light.color,
+                        intensity = light.intensity,
                     };
                     lightDto.lightInfo.spotAngle = light.spotAngle;
                     lightDto.lightInfo.spotRange = light.spotRange;
@@ -338,8 +369,14 @@ namespace COM3D2.SceneEditor.Plugin
                 controller.rotationMin = dto.rotationMin;
                 controller.rotationMax = dto.rotationMax;
                 controller.autoColor = dto.autoColor;
-                controller.colorMin = dto.colorMin;
-                controller.colorMax = dto.colorMax;
+                Color colorMin, colorMax;
+                float intensityMin, intensityMax;
+                StageLightIntensityCompat.Resolve(dto.colorMin, dto.intensityMin, out colorMin, out intensityMin);
+                StageLightIntensityCompat.Resolve(dto.colorMax, dto.intensityMax, out colorMax, out intensityMax);
+                controller.colorMin = colorMin;
+                controller.colorMax = colorMax;
+                controller.intensityMin = intensityMin;
+                controller.intensityMax = intensityMax;
                 controller.autoLightInfo = dto.autoLightInfo;
                 controller.patternType = dto.patternType;
                 controller.patternCycleTime = dto.patternCycleTime;
@@ -354,7 +391,11 @@ namespace COM3D2.SceneEditor.Plugin
                     light.visible = lightDto.visible;
                     light.position = lightDto.position;
                     light.eulerAngles = lightDto.eulerAngles;
-                    light.color = lightDto.color;
+                    Color lightColor;
+                    float lightIntensity;
+                    StageLightIntensityCompat.Resolve(lightDto.color, lightDto.intensity, out lightColor, out lightIntensity);
+                    light.color = lightColor;
+                    light.intensity = lightIntensity;
                     light.spotAngle = lightDto.lightInfo.spotAngle;
                     light.spotRange = lightDto.lightInfo.spotRange;
                     light.rangeMultiplier = lightDto.lightInfo.rangeMultiplier;

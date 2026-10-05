@@ -52,9 +52,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void シーンプリセットの版は39()
+        public void シーンプリセットの版は40()
         {
-            Assert.Equal(39, ScenePresetData.CurrentVersion);
+            Assert.Equal(40, ScenePresetData.CurrentVersion);
         }
     }
 }
