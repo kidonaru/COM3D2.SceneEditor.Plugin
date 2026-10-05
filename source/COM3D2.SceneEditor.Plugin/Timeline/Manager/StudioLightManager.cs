@@ -148,11 +148,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     continue;
                 }
 
-                // 輪郭の種類・画像と影の種類はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する
-                if (!cachedLight.cookie.EqualsIgnoringHardness(stat.cookie) || cachedLight.shadows != stat.shadows)
+                // 輪郭の種類・画像、影の種類、キャラの影はライト定義の値なので、一覧の作り直し (イベント発火) はせず定義だけ同期する。
+                // 影用レイヤーが無い (未解決を含む) 間は cullingMask からキャラの影を読めないので、定義の値を上書きしない
+                var characterShadowChanged = SceneEditor.Plugin.CharacterShadowLayer.isAvailable
+                    && cachedLight.characterShadow != stat.characterShadow;
+                if (!cachedLight.cookie.EqualsIgnoringHardness(stat.cookie)
+                    || cachedLight.shadows != stat.shadows
+                    || characterShadowChanged)
                 {
                     cachedLight.cookie = stat.cookie;
                     cachedLight.shadows = stat.shadows;
+                    if (characterShadowChanged)
+                    {
+                        cachedLight.characterShadow = stat.characterShadow;
+                    }
                     definitionChanged = true;
                 }
             }
@@ -255,6 +264,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         SceneEditor.Plugin.LightCookie.Set(newLight, lightData.cookie);
                         newLight.shadows = lightData.shadows;
+                        newLight.cullingMask = SceneEditor.Plugin.LightTarget.WithCharacterShadow(
+                            newLight.cullingMask, lightData.characterShadow);
                     }
 
                     MTEUtils.LogDebug("Create light: type={0} displayName={1} name={2}",
@@ -273,6 +284,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     {
                         SceneEditor.Plugin.LightCookie.Set(stat.light, lightData.cookie);
                         stat.light.shadows = lightData.shadows;
+                        stat.light.cullingMask = SceneEditor.Plugin.LightTarget.WithCharacterShadow(
+                            stat.light.cullingMask, lightData.characterShadow);
                     }
                 }
             }
