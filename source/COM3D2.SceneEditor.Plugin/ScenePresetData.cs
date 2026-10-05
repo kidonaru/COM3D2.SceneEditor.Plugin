@@ -144,11 +144,14 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public string cookieImage;
 
-        public bool ShouldSerializecookieMode() { return cookieMode != (int)LightCookieMode.Default; }
-        public bool ShouldSerializecookieHardness() { return cookieMode == (int)LightCookieMode.Generated; }
-        public bool ShouldSerializecookieImage()
+        // 書き出しの抑止は COM3D2 2.0 でも効く *Specified で行う (理由は TimelineModelXml を参照)
+        [XmlIgnore] public bool cookieModeSpecified { get { return cookieMode != (int)LightCookieMode.Default; } set { } }
+        [XmlIgnore] public bool cookieHardnessSpecified { get { return cookieMode == (int)LightCookieMode.Generated; } set { } }
+        [XmlIgnore]
+        public bool cookieImageSpecified
         {
-            return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
+            get { return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage); }
+            set { }
         }
 
         public LightCookieData GetCookie()
@@ -175,7 +178,7 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public int shadows = (int)LightShadows.None;
 
-        public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
+        [XmlIgnore] public bool shadowsSpecified { get { return shadows != (int)LightShadows.None; } set { } }
 
         public LightShadows GetShadows() { return LightShadowValues.FromInt(shadows); }
 
@@ -188,7 +191,7 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlAttribute]
         public bool characterShadow = false;
 
-        public bool ShouldSerializecharacterShadow() { return characterShadow; }
+        [XmlIgnore] public bool characterShadowSpecified { get { return characterShadow; } set { } }
     }
 
     /// <summary>ライトの状態。メインライトと追加ライト一式</summary>
@@ -336,14 +339,16 @@ namespace COM3D2.SceneEditor.Plugin
 
         // 板のプリセットを v35 以前と同じ内容に保つため、表示タイプとデカール設定は板では書き出さない。
         // ブレンド方式と彩度は板にも効くため、表示タイプに関係なく既定値 (通常・1) 以外のときだけ書き出す
-        public bool ShouldSerializedisplayType() { return IsDecal(); }
-        public bool ShouldSerializeblendMode() { return blendMode != PngBlendMode.Normal; }
-        public bool ShouldSerializesaturation()
+        [XmlIgnore] public bool displayTypeSpecified { get { return IsDecal(); } set { } }
+        [XmlIgnore] public bool blendModeSpecified { get { return blendMode != PngBlendMode.Normal; } set { } }
+        [XmlIgnore]
+        public bool saturationSpecified
         {
-            return !Mathf.Approximately(saturation, PngPlacementManager.DefaultSaturation);
+            get { return !Mathf.Approximately(saturation, PngPlacementManager.DefaultSaturation); }
+            set { }
         }
-        public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
-        public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
+        [XmlIgnore] public bool decalFadeAngleSpecified { get { return IsDecal(); } set { } }
+        [XmlIgnore] public bool decalProjectOnMaidsSpecified { get { return IsDecal(); } set { } }
 
         private bool IsDecal() { return displayType != PngDisplayType.Board; }
     }

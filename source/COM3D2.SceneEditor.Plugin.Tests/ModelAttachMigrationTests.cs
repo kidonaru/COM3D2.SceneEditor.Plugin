@@ -138,5 +138,22 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.DoesNotContain("<AttachMaidSlotNo>", xml);
             Assert.Contains("<Name>cup.menu</Name>", xml);
         }
+
+        [Fact]
+        public void 独自部位のモデル定義も書き出せる()
+        {
+            var model = CreateModel("cup.menu", ModelAttachPoints.Pelvis, 1);
+
+            // COM3D2 2.0 の XmlSerializer は *Specified だけを見るため、ここが false であることが要。
+            // 以下の直列化は .NET (ShouldSerialize* も見る) で例外にならないことの確認で、2.0 の再現ではない
+            Assert.False(model.attachPointSpecified);
+            Assert.False(model.attachMaidSlotNoSpecified);
+
+            var serializer = new XmlSerializer(typeof(TimelineModelXml));
+            var writer = new StringWriter();
+            serializer.Serialize(writer, model);
+
+            Assert.DoesNotContain("<AttachPoint>", writer.ToString());
+        }
     }
 }
