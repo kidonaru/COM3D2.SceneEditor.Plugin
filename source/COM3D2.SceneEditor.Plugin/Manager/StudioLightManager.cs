@@ -112,6 +112,9 @@ namespace COM3D2.SceneEditor.Plugin
             light.range = DefaultRange;
             light.spotAngle = DefaultSpotAngle;
             light.color = Color.white;
+            // キャラの影は ON で始める。効くのは「背景のみ・影あり」のときだけなので、ほかの設定の見た目は変わらない。
+            // 読込 (タイムライン・プリセット・Undo) では、この後に保存値で上書きされる
+            light.cullingMask = LightTarget.ToCullingMask(LightTargetMode.All, true);
 
             _lights.Add(light);
             return light;

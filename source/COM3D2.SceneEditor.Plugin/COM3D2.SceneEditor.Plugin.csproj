@@ -223,6 +223,8 @@
     <Compile Include="MaidManipulation\SlotYureUtil.cs" />
     <Compile Include="Manager\CameraControlArbiter.cs" />
     <Compile Include="Manager\CameraShakeManager.cs" />
+    <Compile Include="Manager\CharacterShadowProxyRules.cs" />
+    <Compile Include="Manager\CharacterShadowProxyManager.cs" />
     <Compile Include="Manager\ConfigManager.cs" />
     <Compile Include="Manager\GameViewAspect.cs" />
     <Compile Include="Manager\GameViewManager.cs" />
@@ -344,6 +346,7 @@
     <Compile Include="MaidFollowRowDrawer.cs" />
     <Compile Include="LightRowDrawer.cs" />
     <Compile Include="LightTarget.cs" />
+    <Compile Include="CharacterShadowLayer.cs" />
     <Compile Include="LightClipboard.cs" />
     <Compile Include="LightCookieData.cs" />
     <Compile Include="LightCookieAlpha.cs" />

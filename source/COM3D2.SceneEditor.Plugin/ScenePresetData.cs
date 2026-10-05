@@ -180,6 +180,15 @@ namespace COM3D2.SceneEditor.Plugin
         public LightShadows GetShadows() { return LightShadowValues.FromInt(shadows); }
 
         public void SetShadows(LightShadows value) { shadows = (int)value; }
+
+        /// <summary>
+        /// 「背景のみ」のライトでキャラの影を落とすか。旧プリセットには無いので OFF で読み
+        /// (今までの背景のみのライトはキャラの影を落とさなかった)、OFF では書き出さない
+        /// </summary>
+        [XmlAttribute]
+        public bool characterShadow = false;
+
+        public bool ShouldSerializecharacterShadow() { return characterShadow; }
     }
 
     /// <summary>ライトの状態。メインライトと追加ライト一式</summary>
@@ -1220,7 +1229,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      マテリアル差分にテクスチャ差し替え (texture 要素、prop / file 属性) を追加。無い場合はテクスチャを触らない
         // v38: maid に maidScale (メイドスケール。腕の骨の倍率で、1 以外の骨だけを bone 要素に持つ) を追加。
         //      全骨 1 でも空要素を書く。旧形式は null で読め、適用時に倍率へ触らない
-        public static readonly int CurrentVersion = 38;
+        // v39: 追加ライトにキャラの影 (characterShadow) を追加。OFF では書き出さない。
+        //      旧形式は属性が無く OFF として読める
+        public static readonly int CurrentVersion = 39;
 
         [XmlAttribute]
         public int version = CurrentVersion;

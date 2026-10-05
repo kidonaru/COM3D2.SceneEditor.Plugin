@@ -57,6 +57,7 @@ namespace COM3D2.SceneEditor.Plugin
                     enabled = light.enabled,
                     // 本プラグインが書いたマスク以外は判別できないため「全て」として記録する
                     target = (int)LightTarget.FromCullingMask(light.cullingMask),
+                    characterShadow = LightTarget.HasCharacterShadow(light.cullingMask),
                     shadowStrength = light.shadowStrength,
                     shadowBias = light.shadowBias,
                     maidSlotNo = followLight != null ? followLight.maidSlotNo : -1,
@@ -130,7 +131,7 @@ namespace COM3D2.SceneEditor.Plugin
                 ApplyLightState(lights[i], state.additionalLights[i]);
             }
 
-            // 輪郭と影の種類はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
+            // 輪郭・影の種類・キャラの影はタイムラインのライト定義にも載るので、直後の保存で古い値が書かれないよう即時に同期させる
             MTEP.StudioLightManager.instance.LateUpdate(true);
         }
 
@@ -150,7 +151,8 @@ namespace COM3D2.SceneEditor.Plugin
             light.range = lightState.range;
             light.spotAngle = lightState.spotAngle;
             light.enabled = lightState.enabled;
-            light.cullingMask = LightTarget.ToCullingMask(LightTarget.ClampMode(lightState.target));
+            light.cullingMask = LightTarget.ToCullingMask(
+                LightTarget.ClampMode(lightState.target), lightState.characterShadow);
             light.shadowStrength = lightState.shadowStrength;
             light.shadowBias = lightState.shadowBias;
             LightCookie.Set(light, lightState.GetCookie());
@@ -205,6 +207,7 @@ namespace COM3D2.SceneEditor.Plugin
                     || !Mathf.Approximately(a.range, b.range)
                     || !Mathf.Approximately(a.spotAngle, b.spotAngle)
                     || a.target != b.target
+                    || a.characterShadow != b.characterShadow
                     || !Mathf.Approximately(a.shadowStrength, b.shadowStrength)
                     || !Mathf.Approximately(a.shadowBias, b.shadowBias)
                     || a.maidSlotNo != b.maidSlotNo

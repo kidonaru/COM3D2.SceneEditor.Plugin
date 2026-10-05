@@ -471,6 +471,9 @@ namespace COM3D2.SceneEditor.Plugin
                 // タイムラインより後に登録する (Transform への適用は描画直前に行う)
                 managerRegistry.RegisterManager(CameraShakeManager.instance);
 
+                // ライトの照射対象・影はタイムラインと UI が書くため、それより後に登録して LateUpdate で判定する
+                managerRegistry.RegisterManager(CharacterShadowProxyManager.instance);
+
                 AddGearMenu();
             }
             catch (Exception e)

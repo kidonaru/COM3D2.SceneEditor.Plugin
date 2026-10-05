@@ -123,6 +123,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>影の種類の写し。輪郭と同じく LateUpdate の比較でライト定義へ同期する</summary>
         public LightShadows shadows = LightShadows.None;
 
+        /// <summary>キャラの影 (cullingMask の影ビット) の写し。輪郭と同じく LateUpdate の比較でライト定義へ同期する</summary>
+        public bool characterShadow = false;
+
         public int typeOrder
         {
             get
@@ -215,6 +218,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this.cookie = SceneEditor.Plugin.LightCookie.Get(light);
             // メインライト (index 0) はゲーム側で常に影ありなので定義に載せない。載せると旧 XML を保存し直すだけで要素が増える
             this.shadows = index > 0 ? light.shadows : LightShadows.None;
+            // メインライト (index 0) の cullingMask はゲーム側の値なので定義に載せない
+            this.characterShadow = index > 0 && SceneEditor.Plugin.LightTarget.HasCharacterShadow(light.cullingMask);
         }
 
         public StudioLightStat(LightType type, int index)
@@ -240,6 +245,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             index = stat.index;
             cookie = stat.cookie;
             shadows = stat.shadows;
+            characterShadow = stat.characterShadow;
 
             _followLight = null;
         }

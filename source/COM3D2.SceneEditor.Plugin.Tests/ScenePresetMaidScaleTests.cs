@@ -112,11 +112,5 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Equal(expected, Deserialize(text).maidScale.GetScale("Bip01 L Hand"));
         }
-
-        [Fact]
-        public void シーンプリセットの版は38()
-        {
-            Assert.Equal(38, ScenePresetData.CurrentVersion);
-        }
     }
 }

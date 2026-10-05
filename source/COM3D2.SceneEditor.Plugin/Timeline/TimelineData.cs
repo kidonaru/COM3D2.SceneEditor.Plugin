@@ -73,6 +73,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public LightType type;
         public SE.LightCookieData cookie = SE.LightCookieData.Default;
         public LightShadows shadows = LightShadows.None;
+        public bool characterShadow = false;
 
         public TimelineLightData()
         {
@@ -89,6 +90,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             type = light.type;
             cookie = light.cookie;
             shadows = light.shadows;
+            characterShadow = light.characterShadow;
         }
 
         public void FromXml(TimelineLightXml xml)
@@ -103,6 +105,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 image = xml.cookieImage,
             }.Normalized();
             shadows = SE.LightShadowValues.FromInt(xml.shadows);
+            characterShadow = xml.characterShadow;
         }
 
         public TimelineLightXml ToXml()
@@ -114,6 +117,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 cookieMode = (int)cookie.mode,
                 cookieImage = cookie.image,
                 shadows = (int)shadows,
+                characterShadow = characterShadow,
             };
             return xml;
         }

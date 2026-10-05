@@ -57,6 +57,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int shadows;
 
         public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
+
+        // 「背景のみ」のライトでキャラの影を落とすか (SE 独自)。OFF では書き出さない。
+        // 旧 XML は要素が無く OFF として読む (今までの背景のみのライトはキャラの影を落とさなかった)
+        [XmlElement("CharacterShadow")]
+        public bool characterShadow;
+
+        public bool ShouldSerializecharacterShadow() { return characterShadow; }
     }
 
     public class TimelineMaidShapeKeyXml
