@@ -8,11 +8,29 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// スタジオモードの脱衣ウィンドウ相当。
-    /// カテゴリ単位の脱衣 (マスク切替) とめくれ・ずらし・はだけの切替を行う
+    /// カテゴリ単位の脱衣 (マスク切替) とめくれ・ずらし・はだけの切替を行う。
+    /// ノード表示タブでは体の部位 (body のボーン) ごとの表示/非表示を上書きする
     /// </summary>
     public class MaidUndressWindow : MaidWindowBase
     {
         public static readonly int WINDOW_ID = 8903369;
+
+        private static readonly int TAB_WIDTH = 100;
+
+        /// <summary>ノード表示タブの一括操作ボタンの幅</summary>
+        private const int BULK_BUTTON_WIDTH = 90;
+
+        /// <summary>ノード一覧の 1 段あたりのインデント幅</summary>
+        private const float NODE_INDENT_WIDTH = 12f;
+
+        /// <summary>ウィンドウ内の内部タブ</summary>
+        private enum UndressTabType
+        {
+            脱衣,
+            ノード表示,
+        }
+
+        private UndressTabType _tabType = UndressTabType.脱衣;
 
         protected override int windowId => WINDOW_ID;
         protected override string windowTitle => "脱衣";
@@ -58,7 +76,17 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override bool TryFocusTimelineLayer(Type layerType)
         {
-            return layerType == typeof(MTEP.UndressTimelineLayer);
+            if (layerType == typeof(MTEP.UndressTimelineLayer))
+            {
+                _tabType = UndressTabType.脱衣;
+                return true;
+            }
+            if (layerType == typeof(MTEP.NodeVisibilityTimelineLayer))
+            {
+                _tabType = UndressTabType.ノード表示;
+                return true;
+            }
+            return false;
         }
 
         protected override void DrawMaidContent(Maid target)
@@ -70,6 +98,19 @@ namespace COM3D2.SceneEditor.Plugin
             if (target.body0 == null)
             {
                 view.DrawLabel("ボディの読み込みを待っています", -1, ROW_HEIGHT);
+                return;
+            }
+
+            _tabType = DrawInnerTabs(_tabType, TAB_WIDTH);
+
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
+            // タブ切替はゲートの対象外にするため、タブを描いた後で判定する
+            if (_tabType == UndressTabType.ノード表示)
+            {
+                TimelineLayerGate.Begin(view, typeof(MTEP.NodeVisibilityTimelineLayer), target, ROW_HEIGHT);
+                DrawNodeVisibility(view, target);
                 return;
             }
 
@@ -146,6 +187,51 @@ namespace COM3D2.SceneEditor.Plugin
                         target.mekureController.SetEnabledCostumeType(type, value);
                     });
             });
+        }
+
+        /// <summary>ノード表示タブ。一括操作行と、階層の深さでインデントしたノード一覧</summary>
+        private void DrawNodeVisibility(GUIView view, Maid target)
+        {
+            if (!target.body0.isLoadedBody)
+            {
+                view.DrawLabel("ボディの読み込みを待っています", -1, ROW_HEIGHT);
+                return;
+            }
+
+            view.BeginHorizontal();
+            {
+                if (view.DrawButton("全表示", BULK_BUTTON_WIDTH, ROW_HEIGHT))
+                {
+                    NodeVisibilityRowDrawer.RecordEdit(target, "全表示");
+                    MaidNodeVisibilityController.SetAll(target, true);
+                    MaidNodeVisibilityController.Flush(target);
+                }
+                if (view.DrawButton("全非表示", BULK_BUTTON_WIDTH, ROW_HEIGHT))
+                {
+                    NodeVisibilityRowDrawer.RecordEdit(target, "全非表示");
+                    MaidNodeVisibilityController.SetAll(target, false);
+                    MaidNodeVisibilityController.Flush(target);
+                }
+                if (view.DrawButton("リセット", BULK_BUTTON_WIDTH, ROW_HEIGHT,
+                    MaidNodeVisibilityController.HasOverrides(target)))
+                {
+                    NodeVisibilityRowDrawer.RecordEdit(target, "リセット");
+                    MaidNodeVisibilityController.ClearAll(target);
+                    MaidNodeVisibilityController.Flush(target);
+                }
+            }
+            view.EndLayout();
+
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
+            // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
+            view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+            foreach (var node in MaidNodeVisibilityNodes.nodes)
+            {
+                NodeVisibilityRowDrawer.Draw(view, target, node, ROW_HEIGHT, node.depth * NODE_INDENT_WIDTH);
+            }
+            view.EndScrollView();
         }
 
         private const int TOGGLE_WIDTH = 115;

@@ -1133,6 +1133,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             state.gravity = CaptureGravity(maid);
             state.maidScale = CaptureMaidScale(maid);
+            state.nodeVisibility = ScenePresetNodeVisibility.FromOverrides(
+                MaidNodeVisibilityController.GetOverrides(maid));
 
             CaptureIKHold(maid, state);
             CaptureLook(maid, state);
@@ -2195,6 +2197,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
             try
             {
+                ApplyNodeVisibility(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+            try
+            {
                 ApplyIKHold(maid, state);
             }
             catch (Exception e)
@@ -2905,6 +2915,20 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 controller.SetScale(maid, bone.boneName, state.maidScale.GetScale(bone.boneName));
             }
+        }
+
+        /// <summary>
+        /// ノード表示を復元する。旧プリセット (nodeVisibility 無し) では変更しない。
+        /// 着替えの途中なら上書きを記録だけして、完了時に書かせる
+        /// </summary>
+        private static void ApplyNodeVisibility(Maid maid, ScenePresetMaid state)
+        {
+            if (state.nodeVisibility == null)
+            {
+                return;
+            }
+            MaidNodeVisibilityController.SetOverrides(maid, state.nodeVisibility.ToOverrides());
+            MaidNodeVisibilityController.Flush(maid);
         }
 
         /// <summary>

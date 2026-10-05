@@ -81,7 +81,7 @@ A・B・C がすべて `完了` になったときもループを止め、全体
 |---|---|---|---|
 | A | 完了 | `docs/superpowers/plans/2026-10-05-preset-search.md` | plan-review 🟡: 3 件取り込み・3 件却下（計画末尾に記録）。実装: 両構成ビルド OK、テスト 1536/1536。code-review: 両側 APPROVE WITH COMMENTS、4 件取り込み（タイル描画を `DrawTiles` に統合、件数ラベル、コメント圧縮、検索終了時に結果を手放す）、6 件却下（Trim・「開く」無効化・スクロール復元は spec どおりのため等）。実機（セーブ 42、SceneDaily、DLL ハッシュ一致）: test=6 / てすと=12 / PRESET=13 / 神社=7 件で実ファイルの部分一致数と一致、SC タグ付き、該当なし表示 OK、SC「TEST」を結果から適用 OK、一時プリセットの削除で結果が作り直される、相対パス `SceneCapture/稲荷神社夜`、検索中の「<」「保存」無効を screenshot で確認。SE 由来の例外なし。Task 3 は `docs/` しか探しておらず漏れていたため、段 3 で `docs-site/guide/scene-preset.md` に「検索」節を追記した |
 | B | 完了 | `docs/superpowers/plans/2026-10-05-gravity-local.md` | 基準姿勢は計画時に実測（旧ボディ）。bindpose は標準立ち `maid_stand01` と約 10° ずれるため、`maid_stand01` の Bip01 を定数にした（ほかの立ちポーズでは 4〜19° ずれる旨を docs に書く）。CRC は未ロードで段 3 に回す。plan-review 🟡: 7 件取り込み・2 件却下（計画末尾に記録）。実装: 両構成ビルド OK、テスト 1551/1551。code-review: 両側 APPROVE WITH COMMENTS、取り込み 7 件（タイムライン経由の毎フレーム適用でも閾値が効くよう判定を `ApplyCategory` へ移動、ボディ未ロード時の `GetBone` NRE ガード、docs にメイドの回転にも追従する旨、コメント圧縮等）、見送り 2 件（ledger `.superpowers/sdd/2026-10-05-gravity-local/progress.md`）。段 3 で見る: 閾値・NRE ガードの実機挙動、ダンス中の fps、CRC の基準姿勢。実機（セーブ 42、SceneDaily、旧ボディのメイド 1 人、DLL ハッシュ一致）: スカート重力 ON・offset (0,-1,0) でワールド時 lp=(0,-1,0)、`maid_stand01` でローカル ON の lp=(0,-1,0) とワールドに一致、ルートを X 軸 90° 回すと lp=(0,0,-1)＝`R×offset`、ローカル OFF に戻すと回したままでも (0,-1,0)。着替え（boDut + `AllProcPropSeqStart`）完了後もローカルの値が書き戻る。`dance_lesson_sb_f` 再生中はローカル ON で 657 フレーム中 137 回だけ書き込み（閾値が効いている）、fps は ON 59.7 / OFF 59.3 で差なし。体が横倒しになる区間で力が体の下向き (-0.99,-0.09,-0.10) へ回ることも確認。`tail_log` の例外は YotogiUtil 由来のみで SE 由来なし。状態は元へ戻した |
-| C | 未着手 | | |
+| C | 完了 | `docs/superpowers/plans/2026-10-05-node-visibility.md` | UI は脱衣ウィンドウの内部タブ（重力ウィンドウのタブが先例、新ウィンドウは Config・メニュー・docs の追加が増える）。実機で 90 ノード名が旧ボディの `BoneNames` と一致、onepiece に node消去 14 件を確認。2.0 にも同名メンバーあり。plan-review: 自己申告 🔴（タイムラインで「上書きなし」を表せない）を、値は spec どおり bool のまま「最初のキーより前の区間に入ったら解除」「キー済みノードは今の表示で書き出す」で解消し 🟡。取り込み 7 件・却下 3 件（3 値化・`FixMaskFlag` 削除・SE 無効中の着替え。計画末尾に記録）。実装: 両構成ビルド OK、テスト 1581/1581。code-review: 機能面 REQUEST CHANGES（🔴 強制表示の退避値を作り直されたスロットへ戻す / 🟡 同期 AllProcProp で追従しない）→ 退避にスロットの実体（`TBodySkin.obj`）を持たせ、`Update` で実体の入れ替わりを検知して再適用する形で修正（テスト RED→GREEN）。ほか描画のキャッシュ・不要な FixVisibleFlag の抑止・可読性指摘を取り込み、見送り 3 件（ledger `.superpowers/sdd/2026-10-05-node-visibility/progress.md`）。段 3 で見る: 着替え・めくれでの再適用、強制表示の解除後の値、CRC の BoneNames。実機（セーブ 42、SceneDaily、旧ボディのメイド 1 人、DLL ハッシュ一致）: `Mune_L` 非表示で body の dict が false・全脱衣でも胸の左側が消えたまま（screenshot）、解除で True に戻る。onepiece が消す `Mune_L` の強制表示で onepiece の dict が true、onepiece の再処理（boDut + `AllProcPropSeqStart`、実体も作り直し）の後も true、解除で menu の false に戻る。非表示（左手）は着替え中に元へ戻り、完了後に再び false。めくれ（同期の読み直し）の前後でも強制表示が翌フレームに書き直され、解除で false に戻る。タイムライン: 10F に非表示キー → 0F へシークで上書き解除・20F で非表示。左手を 5F 非表示・15F で解除してキー → 8F 非表示・18F 表示。アンロードで全解除。シーンプリセット: `<nodeVisibility>` に 2 件書き出され、全解除後の読み直しで戻る（一時プリセットは削除）。ノード表示タブの描画を screenshot で確認（`*` と解除の有効化、衣装が消すノードはチェック OFF）。SE 由来の例外なし（ログの NRE は背景 MOD の AssetBundle 読込失敗でゲーム側由来）。状態は元へ戻した |
 
 状態の値: `未着手` → `計画済` → `実装済` → `実機確認済` → `完了`（止まったときは `要対応`）
 
@@ -96,6 +96,9 @@ A・B・C がすべて `完了` になったときもループを止め、全体
 - B: KCES2 / MagicaCloth 系の衣装で、ローカル ON の力がワールド空間として正しく効くか（該当衣装を着たメイドがいなかった）
 - B: 寝そべりポーズで髪・スカートが体の「下」側へ垂れる見た目
 - B: ボディ再ロード中（未ロード）のメイドでローカル ON のまま例外が出ないこと（`isLoadedBody` ガードの経路は実機で通していない）
+- C: CRC ボディでの確認一式（body の `morph.BoneNames` と dict に 90 ノードがあるか、非表示・強制表示・着替え追従）。検証環境に CRC ボディのメイドがいなかった
+- C: 撮影（スクリーンショット・サムネ）にノードの表示/非表示が正しく写ること
+- C: ノード表示タブの使い勝手（インデント・解除ボタンの位置、90 行のスクロール）と、Undo/Redo での戻り方
 
 ---
 

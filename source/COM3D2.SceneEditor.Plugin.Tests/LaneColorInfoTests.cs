@@ -133,6 +133,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             yield return new object[] { new TransformDataModelShapeKey(), (int)TransformDataModelShapeKey.Index.Weight, false };
             yield return new object[] { new TransformDataAnimation(), (int)TransformDataAnimation.Index.Weight, false };
             yield return new object[] { new TransformDataUndress(), (int)TransformDataUndress.Index.IsVisible, true };
+            yield return new object[] { new TransformDataNodeVisibility(), (int)TransformDataNodeVisibility.Index.IsVisible, true };
             yield return new object[] { new TransformDataGravity(), (int)TransformDataGravity.Index.Enabled, true };
             yield return new object[] { new TransformDataFaceSetting(), (int)TransformDataFaceSetting.Index.ForceOverride, true };
             yield return new object[] { new TransformDataIKHold(), (int)TransformDataIKHold.Index.IsHold, true };

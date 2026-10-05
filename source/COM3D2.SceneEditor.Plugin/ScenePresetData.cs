@@ -299,6 +299,58 @@ namespace COM3D2.SceneEditor.Plugin
         }
     }
 
+    /// <summary>ノード表示の上書き 1 件</summary>
+    public class ScenePresetNode
+    {
+        /// <summary>body のボーン名 (MaidNodeVisibilityNodes)</summary>
+        [XmlAttribute]
+        public string name;
+
+        [XmlAttribute]
+        public bool visible;
+    }
+
+    /// <summary>
+    /// ノード表示。SE が上書きしているノードだけを持つ。
+    /// 上書きが無くても要素自体は書き、旧プリセット (要素なし = null、適用時に触らない) と区別する
+    /// </summary>
+    public class ScenePresetNodeVisibility
+    {
+        [XmlElement("node")]
+        public List<ScenePresetNode> nodes = new List<ScenePresetNode>();
+
+        /// <summary>上書きから作る。対象外のノードは書かない</summary>
+        public static ScenePresetNodeVisibility FromOverrides(IEnumerable<KeyValuePair<string, bool>> overrides)
+        {
+            var result = new ScenePresetNodeVisibility();
+            foreach (var pair in overrides)
+            {
+                if (MaidNodeVisibilityNodes.Find(pair.Key) == null)
+                {
+                    continue;
+                }
+                result.nodes.Add(new ScenePresetNode { name = pair.Key, visible = pair.Value });
+            }
+            return result;
+        }
+
+        /// <summary>上書きへ戻す。手で書き換えた値に備え、対象外は捨て、同じノードは先のものを使う</summary>
+        public Dictionary<string, bool> ToOverrides()
+        {
+            var result = new Dictionary<string, bool>();
+            foreach (var node in nodes)
+            {
+                if (node == null || MaidNodeVisibilityNodes.Find(node.name) == null
+                    || result.ContainsKey(node.name))
+                {
+                    continue;
+                }
+                result[node.name] = node.visible;
+            }
+            return result;
+        }
+    }
+
     /// <summary>PNG 配置 1 枚分の状態</summary>
     public class ScenePresetPngObject
     {
@@ -912,6 +964,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>メイドスケール (v38)。旧プリセットは null になり、適用時に倍率へ触らない</summary>
         public ScenePresetMaidScale maidScale;
+
+        /// <summary>
+        /// ノード表示。旧プリセットは null になり、適用時に触らない。
+        /// 要素の追加だけで旧挙動と一致するため版は上げていない
+        /// </summary>
+        public ScenePresetNodeVisibility nodeVisibility;
 
         /// <summary>
         /// IK 固定の接地パラメータ。null なら IK 未記録 (v4 以前) で、適用時に固定へ触らない。
