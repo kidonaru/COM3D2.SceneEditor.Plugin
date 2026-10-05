@@ -49,6 +49,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public int anmStartFrameNo = 0;
         public int anmEndFrameNo = 0;
         public CacheBoneDataArray cacheBoneData;
+        private Transform _boneRoot;
         public IKManager ikManager = null;
         public ExtendBoneCache extendBoneCache = null;
         public MaidPropCache maidPropCache = null;
@@ -406,6 +407,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             maid = null;
             info = null;
             cacheBoneData = null;
+            _boneRoot = null;
             ikManager = null;
             extendBoneCache = null;
             maidPropCache = null;
@@ -467,7 +469,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 OnMaidChanged(maid);
             }
 
-            if (maid == null || animation == null)
+            if (maid == null)
+            {
+                return;
+            }
+
+            // ボーンが破棄されていれば (ロード待ちだった場合を含む)、メイドが替わったときと同じく初期化し直す。
+            // IK マネージャーの取り直しやレイヤーへの通知 (onMaidChanged) も要るため、キャッシュだけを作り直さない
+            if (!AreBoneCachesAlive() && maid.body0 != null && maid.body0.isLoadedBody)
+            {
+                OnMaidChanged(maid);
+            }
+
+            if (animation == null)
             {
                 return;
             }
@@ -1085,7 +1099,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (cacheBoneData == null)
             {
                 cacheBoneData = maid.gameObject.AddComponent<CacheBoneDataArray>();
-                cacheBoneData.CreateCache(maid.body0.GetBone("Bip01"));
             }
             ikManager = PoseEditWindow.GetMaidIKManager(maid);
 
@@ -1094,10 +1107,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             extendBoneCache = maid.gameObject.GetComponent<ExtendBoneCache>();
             if (extendBoneCache == null)
             {
-                var anmRoot = cacheBoneData.GetBoneData("Bip01").transform.parent;
                 extendBoneCache = maid.gameObject.AddComponent<ExtendBoneCache>();
-                extendBoneCache.Init(maid, anmRoot);
             }
+            RebuildBoneCachesIfStale();
 
             maidPropCache = maid.gameObject.GetComponent<MaidPropCache>();
             if (maidPropCache == null)
@@ -1124,6 +1136,43 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             UpdateMaterials();
 
             onMaidChanged?.Invoke(slotNo, maid);
+        }
+
+        /// <summary>
+        /// ボーンのキャッシュが今のボディを指していなければ作り直す。
+        /// キャッシュは Maid の GameObject に付くコンポーネントで、メイドを解除すると
+        /// TBody.UnInit がボーンだけ破棄してキャッシュは残る。同じメイドを呼び直すと
+        /// 破棄済みのボーンを指したままになり、モーションのボーンが全て見つからなくなる
+        /// </summary>
+        private void RebuildBoneCachesIfStale()
+        {
+            // ロード中はボーン階層 (m_trBones) が無く GetBone が落ちる。ロード後の Update で作り直す
+            var body = maid.body0;
+            var root = body != null && body.isLoadedBody ? body.GetBone("Bip01") : null;
+            _boneRoot = root;
+            if (root == null)
+            {
+                return;
+            }
+
+            var rootData = cacheBoneData.GetPathDic() != null ? cacheBoneData.GetBoneData("Bip01") : null;
+            if (rootData == null || rootData.transform != root)
+            {
+                cacheBoneData.CreateCache(root);
+            }
+            if (extendBoneCache.anmRoot != root.parent)
+            {
+                extendBoneCache.Init(maid, root.parent);
+            }
+        }
+
+        /// <summary>
+        /// ボーンのキャッシュが生きたボーンを指しているか。毎フレーム呼ぶため、作ったときの Bip01 を持っておき
+        /// Unity の破棄判定だけで済ませる (TBody.GetBone は階層の再帰探索)
+        /// </summary>
+        private bool AreBoneCachesAlive()
+        {
+            return _boneRoot != null && extendBoneCache.anmRoot != null;
         }
 
         public AnimationLayerInfo GetAnimationLayerInfo(int layer)

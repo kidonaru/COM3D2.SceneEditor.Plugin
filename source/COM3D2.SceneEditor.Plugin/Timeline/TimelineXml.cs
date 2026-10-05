@@ -26,9 +26,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("ModelLayer")]
         public int layer = StudioModelStat.UnspecifiedLayer;
 
-        public bool ShouldSerializeattachPoint() { return false; }
-        public bool ShouldSerializeattachMaidSlotNo() { return false; }
-        public bool ShouldSerializelayer() { return layer != StudioModelStat.UnspecifiedLayer; }
+        // 書き出しの抑止は ShouldSerialize* ではなく *Specified で行う。COM3D2 2.0 の Mono の XmlSerializer は
+        // *Specified しか見ず、ShouldSerialize* では抑止されない (attachPoint の SE 独自値 19・20 は enum に無く例外になる)。
+        // setter が無いと 2.0 は *Specified として扱わないため空の setter を置く
+        [XmlIgnore] public bool attachPointSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool attachMaidSlotNoSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool layerSpecified { get { return layer != StudioModelStat.UnspecifiedLayer; } set { } }
     }
 
     public class TimelineLightXml
@@ -45,10 +48,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("CookieImage")]
         public string cookieImage;
 
-        public bool ShouldSerializecookieMode() { return cookieMode != (int)LightCookieMode.Default; }
-        public bool ShouldSerializecookieImage()
+        [XmlIgnore] public bool cookieModeSpecified { get { return cookieMode != (int)LightCookieMode.Default; } set { } }
+        [XmlIgnore]
+        public bool cookieImageSpecified
         {
-            return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage);
+            get { return cookieMode == (int)LightCookieMode.Image && !string.IsNullOrEmpty(cookieImage); }
+            set { }
         }
 
         // 影の種類 (LightShadows の数値) も SE 独自。影なしでは書き出さない。
@@ -56,14 +61,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("Shadows")]
         public int shadows;
 
-        public bool ShouldSerializeshadows() { return shadows != (int)LightShadows.None; }
+        [XmlIgnore] public bool shadowsSpecified { get { return shadows != (int)LightShadows.None; } set { } }
 
         // 「背景のみ」のライトでキャラの影を落とすか (SE 独自)。OFF では書き出さない。
         // 旧 XML は要素が無く OFF として読む (今までの背景のみのライトはキャラの影を落とさなかった)
         [XmlElement("CharacterShadow")]
         public bool characterShadow;
 
-        public bool ShouldSerializecharacterShadow() { return characterShadow; }
+        [XmlIgnore] public bool characterShadowSpecified { get { return characterShadow; } set { } }
     }
 
     public class TimelineMaidShapeKeyXml
@@ -148,10 +153,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("DecalProjectOnMaids")]
         public bool decalProjectOnMaids;
 
-        public bool ShouldSerializedisplayType() { return IsDecal(); }
-        public bool ShouldSerializeblendMode() { return blendMode != (int)PngBlendMode.Normal; }
-        public bool ShouldSerializedecalFadeAngle() { return IsDecal(); }
-        public bool ShouldSerializedecalProjectOnMaids() { return IsDecal(); }
+        [XmlIgnore] public bool displayTypeSpecified { get { return IsDecal(); } set { } }
+        [XmlIgnore] public bool blendModeSpecified { get { return blendMode != (int)PngBlendMode.Normal; } set { } }
+        [XmlIgnore] public bool decalFadeAngleSpecified { get { return IsDecal(); } set { } }
+        [XmlIgnore] public bool decalProjectOnMaidsSpecified { get { return IsDecal(); } set { } }
 
         private bool IsDecal() { return displayType != (int)PngDisplayType.Board; }
     }
@@ -273,7 +278,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlArrayItem("MaterialShader")]
         public List<TimelineMaterialShaderXml> materialShaders = new List<TimelineMaterialShaderXml>();
 
-        public bool ShouldSerializematerialShaders() { return materialShaders != null && materialShaders.Count > 0; }
+        [XmlIgnore] public bool materialShadersSpecified { get { return materialShaders != null && materialShaders.Count > 0; } set { } }
 
         [XmlElement("MaxFrameNo")]
         public int maxFrameNo;
@@ -353,7 +358,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public bool isTangentFace = false;
 
         // 以下のライト補間設定 3 項目は v33 以前の読込互換用。v34 でライトは他レイヤーと同じく
-        // 常時補間になったため値は参照せず、ShouldSerialize で書き出しだけ抑止する
+        // 常時補間になったため値は参照せず、*Specified で書き出しだけ抑止する
         [XmlElement("IsLightColorEasing")]
         public bool isLightColorEasing = true;
 
@@ -363,9 +368,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("IsLightCompatibilityMode")]
         public bool isLightCompatibilityMode = true;
 
-        public bool ShouldSerializeisLightColorEasing() { return false; }
-        public bool ShouldSerializeisLightExtraEasing() { return false; }
-        public bool ShouldSerializeisLightCompatibilityMode() { return false; }
+        [XmlIgnore] public bool isLightColorEasingSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool isLightExtraEasingSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool isLightCompatibilityModeSpecified { get { return false; } set { } }
 
         [XmlElement("StageLaserCountList")]
         public List<int> stageLaserCountList = new List<int>();
@@ -473,26 +478,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float videoFrontmostAlpha = 1f;
 
 
-        // Video* 平置き項目は読込互換専用。ShouldSerialize で書き出しだけ抑止し、
+        // Video* 平置き項目は読込互換専用。*Specified で書き出しだけ抑止し、
         // 保存ファイルには videos リスト (<Video>) だけを残す
-        public bool ShouldSerializevideoEnabled() { return false; }
-        public bool ShouldSerializevideoDisplayOnGUI() { return false; }
-        public bool ShouldSerializevideoDisplayType() { return false; }
-        public bool ShouldSerializevideoPath() { return false; }
-        public bool ShouldSerializevideoPosition() { return false; }
-        public bool ShouldSerializevideoRotation() { return false; }
-        public bool ShouldSerializevideoScale() { return false; }
-        public bool ShouldSerializevideoStartTime() { return false; }
-        public bool ShouldSerializevideoVolume() { return false; }
-        public bool ShouldSerializevideoAlpha() { return false; }
-        public bool ShouldSerializevideoGUIScale() { return false; }
-        public bool ShouldSerializevideoGUIAlpha() { return false; }
-        public bool ShouldSerializevideoBackmostPosition() { return false; }
-        public bool ShouldSerializevideoBackmostScale() { return false; }
-        public bool ShouldSerializevideoBackmostAlpha() { return false; }
-        public bool ShouldSerializevideoFrontmostPosition() { return false; }
-        public bool ShouldSerializevideoFrontmostScale() { return false; }
-        public bool ShouldSerializevideoFrontmostAlpha() { return false; }
+        [XmlIgnore] public bool videoEnabledSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoDisplayOnGUISpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoDisplayTypeSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoPathSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoPositionSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoRotationSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoScaleSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoStartTimeSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoVolumeSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoAlphaSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoGUIScaleSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoGUIAlphaSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoBackmostPositionSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoBackmostScaleSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoBackmostAlphaSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoFrontmostPositionSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoFrontmostScaleSpecified { get { return false; } set { } }
+        [XmlIgnore] public bool videoFrontmostAlphaSpecified { get { return false; } set { } }
 
         /// <summary>
         /// 動画設定 (v33 以降)。1 本目も含めて全本をここへ保存する。
