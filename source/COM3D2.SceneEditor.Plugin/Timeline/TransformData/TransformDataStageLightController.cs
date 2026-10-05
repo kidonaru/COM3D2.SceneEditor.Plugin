@@ -22,10 +22,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             ColorR = 12,
             ColorG = 13,
             ColorB = 14,
+            // 旧キーの濃度。今は使わない (換算元として FromXml だけが読む)
             ColorA = 15,
             SubColorR = 16,
             SubColorG = 17,
             SubColorB = 18,
+            // 旧キーの濃度。今は使わない (換算元として FromXml だけが読む)
             SubColorA = 19,
             Visible = 20,
             SpotAngle = 21,
@@ -43,14 +45,19 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             AutoColor = 33,
             AutoLightInfo = 34,
             AutoVisible = 35,
-            ZTest = 36
+            ZTest = 36,
+            IntensityMin = 37,
+            IntensityMax = 38,
         }
 
         public static TransformDataStageLightController defaultTrans = new TransformDataStageLightController();
 
         public override TransformType type => TransformType.StageLightController;
 
-        public override int valueCount => 37;
+        /// <summary>最小 / 最大濃度 (index 37 / 38) を持たない旧キーの値数。旧キーは最小色 / 最大色のアルファが濃度だった</summary>
+        public const int LegacyValueCount = 37;
+
+        public override int valueCount => (int)Index.IntensityMax + 1;
 
         public override bool hasPosition => true;
         public override bool hasSubPosition => true;
@@ -117,7 +124,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     _tangentValues.AddRange(subEulerAnglesValues);
                     _tangentValues.AddRange(new ValueData[] { 
                         values[(int)Index.SpotAngle], 
-                        values[(int)Index.SpotRange] 
+                        values[(int)Index.SpotRange],
+                        values[(int)Index.IntensityMin],
+                        values[(int)Index.IntensityMax],
                     });
                 }
                 return _tangentValues.ToArray();
@@ -135,6 +144,28 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
         {
+            {
+                "intensityMin", new CustomValueInfo
+                {
+                    index = (int)Index.IntensityMin,
+                    name = "最小濃度",
+                    min = 0f,
+                    max = 2f,
+                    step = 0.01f,
+                    defaultValue = 0.3f,
+                }
+            },
+            {
+                "intensityMax", new CustomValueInfo
+                {
+                    index = (int)Index.IntensityMax,
+                    name = "最大濃度",
+                    min = 0f,
+                    max = 2f,
+                    step = 0.01f,
+                    defaultValue = 0.3f,
+                }
+            },
             {
                 "spotAngle", new CustomValueInfo
                 {
@@ -316,8 +347,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private static readonly Dictionary<string, ColorValueInfo> ColorValueInfoMap =
             new Dictionary<string, ColorValueInfo>
             {
-                { ColorKey.Main, ColorValueInfo.Rgba("最小色", (int)Index.ColorR, new Color(1f, 1f, 1f, 0.3f)) },
-                { ColorKey.Sub, ColorValueInfo.Rgba("最大色", (int)Index.SubColorR, new Color(1f, 1f, 1f, 0.3f)) },
+                { ColorKey.Main, ColorValueInfo.Rgb("最小色", (int)Index.ColorR, Color.white) },
+                { ColorKey.Sub, ColorValueInfo.Rgb("最大色", (int)Index.SubColorR, Color.white) },
             };
 
         public override Dictionary<string, ColorValueInfo> GetColorValueInfoMap() => ColorValueInfoMap;
@@ -328,6 +359,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         // 値アクセサ
+        public ValueData intensityMinValue => values[(int)Index.IntensityMin];
+        public ValueData intensityMaxValue => values[(int)Index.IntensityMax];
         public ValueData spotAngleValue => values[(int)Index.SpotAngle];
         public ValueData spotRangeValue => values[(int)Index.SpotRange];
         public ValueData rangeMultiplierValue => values[(int)Index.RangeMultiplier];
@@ -346,6 +379,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public ValueData zTestValue => values[(int)Index.ZTest];
 
         // CustomValueInfoアクセサ
+        public CustomValueInfo intensityMinInfo => CustomValueInfoMap["intensityMin"];
+        public CustomValueInfo intensityMaxInfo => CustomValueInfoMap["intensityMax"];
         public CustomValueInfo spotAngleInfo => CustomValueInfoMap["spotAngle"];
         public CustomValueInfo spotRangeInfo => CustomValueInfoMap["spotRange"];
         public CustomValueInfo rangeMultiplierInfo => CustomValueInfoMap["rangeMultiplier"];
@@ -364,6 +399,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public CustomValueInfo zTestInfo => CustomValueInfoMap["zTest"];
 
         // プロパティアクセサ
+        public float intensityMin
+        {
+            get => intensityMinValue.value;
+            set => intensityMinValue.value = value;
+        }
+
+        public float intensityMax
+        {
+            get => intensityMaxValue.value;
+            set => intensityMaxValue.value = value;
+        }
+
         public float spotAngle
         {
             get => spotAngleValue.value;
@@ -470,6 +517,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             subEulerAngles = controller.rotationMax;
             color = controller.colorMin;
             subColor = controller.colorMax;
+            intensityMin = controller.intensityMin;
+            intensityMax = controller.intensityMax;
             visible = controller.visible;
             spotAngle = lightInfo.spotAngle;
             spotRange = lightInfo.spotRange;
@@ -487,6 +536,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             autoColor = controller.autoColor;
             autoLightInfo = controller.autoLightInfo;
             autoVisible = controller.autoVisible;
+        }
+
+        public override void FromXml(TransformXml xml)
+        {
+            base.FromXml(xml);
+
+            if (xml.values != null && xml.values.Length <= LegacyValueCount)
+            {
+                // 旧キーは最小色 / 最大色のアルファが濃度だった
+                intensityMin = ReadLegacyAlpha(xml.values, (int)Index.ColorA, intensityMinInfo.defaultValue);
+                intensityMax = ReadLegacyAlpha(xml.values, (int)Index.SubColorA, intensityMaxInfo.defaultValue);
+                TransformDataStageLight.SetLinearTangent(intensityMinValue);
+                TransformDataStageLight.SetLinearTangent(intensityMaxValue);
+            }
+        }
+
+        private static float ReadLegacyAlpha(float[] values, int index, float defaultValue)
+        {
+            return values.Length > index ? values[index] : defaultValue;
         }
     }
 }

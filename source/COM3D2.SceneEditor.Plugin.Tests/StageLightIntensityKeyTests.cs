@@ -149,5 +149,90 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.Equal(1.75f, restored.intensity);
         }
+
+        private const int ControllerColorAIndex = 15;
+        private const int ControllerSubColorAIndex = 19;
+        private const int ControllerIntensityMinIndex = 37;
+        private const int ControllerIntensityMaxIndex = 38;
+        private const int ControllerLegacyValueCount = 37;
+
+        private static TransformDataStageLightController CreateControllerKey()
+        {
+            var trans = new TransformDataStageLightController();
+            trans.Initialize("StageLightController (0)");
+            return trans;
+        }
+
+        [Fact]
+        public void コントローラー_最小最大濃度はindex37と38で値数は39()
+        {
+            Assert.Equal(ControllerIntensityMinIndex, (int)TransformDataStageLightController.Index.IntensityMin);
+            Assert.Equal(ControllerIntensityMaxIndex, (int)TransformDataStageLightController.Index.IntensityMax);
+            Assert.Equal(ControllerLegacyValueCount, TransformDataStageLightController.LegacyValueCount);
+            Assert.Equal(39, CreateControllerKey().valueCount);
+            var map = CreateControllerKey().GetCustomValueInfoMap();
+            Assert.True(map.ContainsKey("intensityMin"));
+            Assert.True(map.ContainsKey("intensityMax"));
+        }
+
+        [Fact]
+        public void コントローラー_最小色と最大色はアルファを持たない()
+        {
+            var map = CreateControllerKey().GetColorValueInfoMap();
+
+            Assert.False(map[TransformDataBase.ColorKey.Main].hasAlpha);
+            Assert.False(map[TransformDataBase.ColorKey.Sub].hasAlpha);
+        }
+
+        [Fact]
+        public void コントローラー_最小最大濃度はタンジェント補間の対象()
+        {
+            var trans = CreateControllerKey();
+
+            Assert.Contains(trans.tangentValues, v => ReferenceEquals(v, trans.intensityMinValue));
+            Assert.Contains(trans.tangentValues, v => ReferenceEquals(v, trans.intensityMaxValue));
+        }
+
+        [Fact]
+        public void コントローラー_リセットしたキーは濃度03で色は白()
+        {
+            var trans = CreateControllerKey();
+            trans.Reset();
+
+            Assert.Equal(0.3f, trans.intensityMin);
+            Assert.Equal(0.3f, trans.intensityMax);
+            Assert.Equal(Color.white, trans.color);
+            Assert.Equal(Color.white, trans.subColor);
+        }
+
+        [Fact]
+        public void コントローラー_旧キーは最小色と最大色のアルファを濃度へ移す()
+        {
+            var values = new float[ControllerLegacyValueCount];
+            values[ControllerColorAIndex] = 0.2f;
+            values[ControllerSubColorAIndex] = 0.8f;
+
+            var trans = CreateControllerKey();
+            trans.FromXml(CreateXml(trans.name, TransformType.StageLightController, values));
+
+            Assert.Equal(0.2f, trans.intensityMin);
+            Assert.Equal(0.8f, trans.intensityMax);
+            Assert.Equal(1f, trans.intensityMinValue.outTangent.normalizedValue);
+            Assert.False(trans.intensityMaxValue.inTangent.isSmooth);
+        }
+
+        [Fact]
+        public void コントローラー_濃度は往復で保たれる()
+        {
+            var trans = CreateControllerKey();
+            trans.intensityMin = 0.1f;
+            trans.intensityMax = 1.9f;
+
+            var restored = CreateControllerKey();
+            restored.FromXml(trans.ToXml());
+
+            Assert.Equal(0.1f, restored.intensityMin);
+            Assert.Equal(1.9f, restored.intensityMax);
+        }
     }
 }
