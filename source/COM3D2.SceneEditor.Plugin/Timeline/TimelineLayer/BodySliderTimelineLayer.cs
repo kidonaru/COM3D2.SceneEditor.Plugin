@@ -9,8 +9,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// <summary>
     /// 体型スライダー (BodySliderController) をキー化するレイヤー。
     /// 項目名は BodySliderDefs のキーで、値 3 個を Tangent 補間する。
-    /// キーにするのは既定値でない項目と、このレイヤーに既にキーのある項目だけ
-    /// (全項目を毎回キーにすると XML とキー一覧が膨らむため)。
+    /// BoneMenu に出してキーにするのは、体型タブで登録した項目 (TimelineData.maidBodySliderKeysMap) だけ。
+    /// 登録時に 0F へキーを打ち、解除時にその項目のキーを全部消す (シェイプキーと同じ)。
     /// 骨への書き込みはコントローラーが TBody.LateUpdate の直後に行い、このレイヤーは値を渡すだけ
     /// </summary>
     [TimelineLayerDesc("体型", 19, TimelineLayerCategory.Maid)]
@@ -21,18 +21,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
-        private static List<string> _allBoneNames = null;
+        /// <summary>登録した項目を定義順に並べたもの。InitMenuItems で作り直す</summary>
+        private List<string> _allBoneNames = null;
         public override List<string> allBoneNames
         {
             get
             {
                 if (_allBoneNames == null)
                 {
-                    _allBoneNames = new List<string>();
-                    foreach (var item in BodySliderDefs.items)
-                    {
-                        _allBoneNames.Add(item.key);
-                    }
+                    _allBoneNames = OrderByDefinition(timeline.GetMaidBodySliderKeys(slotNo));
                 }
                 return _allBoneNames;
             }
@@ -54,9 +51,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             _allMenuItems.Clear();
 
-            foreach (var item in BodySliderDefs.items)
+            _allBoneNames = null;
+            foreach (var key in allBoneNames)
             {
-                _allMenuItems.Add(new BoneMenuItem(item.key, item.displayName));
+                _allMenuItems.Add(new BoneMenuItem(key, BodySliderDefs.Find(key).displayName));
             }
         }
 
@@ -76,16 +74,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// キーにする項目名。既定値でない項目と、レイヤーに既にキーのある項目。並びは定義順。
-        /// 後者が無いと、途中で既定値へ戻した項目のキーが作られず、前のキーの値が続く
-        /// </summary>
-        public static List<string> BuildKeyNames(ICollection<string> nonDefaultKeys, ICollection<string> keyedNames)
+        /// <summary>登録した項目を定義順に並べる。定義に無い名前は捨てる</summary>
+        public static List<string> OrderByDefinition(ICollection<string> registered)
         {
             var result = new List<string>();
             foreach (var item in BodySliderDefs.items)
             {
-                if (nonDefaultKeys.Contains(item.key) || keyedNames.Contains(item.key))
+                if (registered.Contains(item.key))
                 {
                     result.Add(item.key);
                 }
@@ -93,12 +88,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
+        /// <summary>体型タブで項目を登録した。BoneMenu に出し、0F に今の値のキーを打つ</summary>
         public void OnBodySliderKeyAdded(string key)
         {
+            InitMenuItems();
+            AddFirstBones(new List<string> { key });
+            ApplyCurrentFrame(true);
         }
 
+        /// <summary>体型タブで項目の登録を外した。BoneMenu から消し、その項目のキーを全部消す</summary>
         public void OnBodySliderKeyRemoved(string key)
         {
+            InitMenuItems();
+            RemoveAllBones(new List<string> { key });
+            ApplyCurrentFrame(true);
         }
 
         /// <summary>PrependDefaultFirstRows が補う 0F の既定値の行を持つ。keyFrames には入れないので保存されない</summary>
@@ -117,7 +120,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         /// <summary>
         /// 最初のキーが 0F より後の項目に、0F の既定値の行を補う。
-        /// キーは既定値でない項目だけに打つので、途中のフレームで初めて変えた項目は 0F の行を持たない。
+        /// 旧 XML・MaidScale からの移行・0F のキーの個別削除では、登録項目でも 0F の行を持たないことがある。
         /// 基底は最初のキーより前の区間を何もしないため、補わないとその区間の値が直前の再生・シーク次第で変わる
         /// </summary>
         public static void PrependDefaultFirstRows(Dictionary<string, List<BoneData>> rowsMap, FrameData firstFrame)
@@ -202,14 +205,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var nonDefaultKeys = new HashSet<string>();
-            foreach (var pair in bodySliderController.GetNonDefaultValues(maid))
-            {
-                nonDefaultKeys.Add(pair.Key);
-            }
-
-            // _playDataMap はキーを全部消した項目も残すので、行のある項目だけを持つ _timelineBonesMap で判定する
-            foreach (var key in BuildKeyNames(nonDefaultKeys, _timelineBonesMap.Keys))
+            foreach (var key in allBoneNames)
             {
                 var trans = CreateTransformData<TransformDataBodySlider>(key);
                 trans.vector = bodySliderController.GetValues(maid, key);

@@ -75,13 +75,18 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void キーは既定でない項目とキー済み項目だけを定義順で作る()
+        public void 登録項目は定義順に並べ未知の名前は捨てる()
         {
-            var names = MTEP.BodySliderTimelineLayer.BuildKeyNames(
-                new List<string> { "HANDSCL_R", "THISCL" },
-                new List<string> { "THIPOS" });
+            var names = MTEP.BodySliderTimelineLayer.OrderByDefinition(
+                new List<string> { "HANDSCL_R", "UNKNOWN", "THISCL", "MUNEPOS" });
 
-            Assert.Equal(new[] { "THISCL", "THIPOS", "HANDSCL_R" }, names.ToArray());
+            Assert.Equal(new[] { "THISCL", "MUNEPOS", "HANDSCL_R" }, names.ToArray());
+        }
+
+        [Fact]
+        public void 登録が無ければ項目も無い()
+        {
+            Assert.Empty(MTEP.BodySliderTimelineLayer.OrderByDefinition(new List<string>()));
         }
 
         private static MTEP.BoneData CreateRow(int frameNo, string key, Vector3 values)
@@ -127,12 +132,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(2, rowsMap["THISCL"].Count);
             Assert.Equal(1.5f, ((MTEP.TransformDataBodySlider)rowsMap["THISCL"][0].transform).vector.x);
             Assert.Single(rowsMap["UNKNOWN"]);
-        }
-
-        [Fact]
-        public void 値もキーも無ければキーにしない()
-        {
-            Assert.Empty(MTEP.BodySliderTimelineLayer.BuildKeyNames(new List<string>(), new List<string>()));
         }
 
         [Fact]
