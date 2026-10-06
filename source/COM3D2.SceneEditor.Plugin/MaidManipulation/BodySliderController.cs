@@ -4,30 +4,44 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイドスケール (腕の骨の均一拡縮) の状態を持ち、スキニングへ反映する。
+    /// 体型スライダーの状態を持ち、スキニングへ反映する。
     /// メッシュは TBodySkin ごとの複製骨にスキニングされ、本体の骨のスケールはコピーされないため、
-    /// 全スロットの複製骨 (SkinnedMeshRenderer.bones) へ直接掛ける。
-    /// 掛けるのは TBody.LateUpdate の直後 (MaidScaleLateUpdatePatch)。
-    /// それより前だと MOD (MaidVoicePitch の ForeArmFix) が前腕を書き戻し、
+    /// 全スロットの複製骨 (SkinnedMeshRenderer.bones とその祖先) へ直接掛ける。
+    /// 掛けるのは TBody.LateUpdate の直後 (BodySliderLateUpdatePatch)。
+    /// それより前だと MOD (MaidVoicePitch の ForeArmFix など) が書き戻し、
     /// 描画直前 (Camera.onPreCull) ではスキニングの計算に間に合わない。
+    /// スケールは今の値への乗算、位置は今の値への加算なので、MaidVoicePitch の体型スライダーの結果に重なる。
     /// 次フレームの Update と TBody.LateUpdate の直前で元へ戻す。
     /// GUI を描く間だけは外して掛け直す (SuspendApplied / ResumeApplied)。
-    /// 本体の骨には触らないので、IK・ハンドル・アタッチ位置は拡縮の影響を受けない
+    /// 本体の骨には触らないので、IK・ハンドル・アタッチ位置は影響を受けない
     /// </summary>
-    public class MaidScaleController
+    public class BodySliderController
     {
-        /// <summary>1 回分の書き込み記録。戻すときに使う</summary>
+        /// <summary>1 回分の書き込み記録。戻すときに使う。書いた成分だけ has* が立つ</summary>
         private struct AppliedBone
         {
             public Transform bone;
-            public Vector3 original;
-            public Vector3 written;
+            public bool hasScale;
+            public Vector3 originalScale;
+            public Vector3 writtenScale;
+            public bool hasPosition;
+            public Vector3 originalPosition;
+            public Vector3 writtenPosition;
         }
 
         /// <summary>メイド 1 体分の状態と複製骨のキャッシュ</summary>
         private class Entry
         {
-            public readonly MaidScaleState state = new MaidScaleState();
+            public readonly BodySliderState state = new BodySliderState();
+
+            /// <summary>骨名 → 掛ける量。isOpsDirty のとき、掛ける直前に作り直す</summary>
+            public readonly Dictionary<string, BodySliderBoneOp> ops = new Dictionary<string, BodySliderBoneOp>();
+
+            /// <summary>
+            /// state を変えてから ops を作り直していない。再生中は項目ごとに毎フレーム SetValues が来るので、
+            /// 作り直しは掛ける直前の 1 回にまとめる
+            /// </summary>
+            public bool isOpsDirty;
 
             /// <summary>骨名 → 全スロットの複製骨</summary>
             public readonly Dictionary<string, List<Transform>> bones
@@ -63,20 +77,22 @@ namespace COM3D2.SceneEditor.Plugin
             return maid != null && _entries.ContainsKey(maid);
         }
 
-        /// <summary>記録が無いメイドは倍率 1 として扱う</summary>
-        public float GetScale(Maid maid, string boneName)
+        /// <summary>記録が無いメイドは既定値として扱う</summary>
+        public Vector3 GetValues(Maid maid, string key)
         {
             Entry entry;
             if (maid == null || !_entries.TryGetValue(maid, out entry))
             {
-                return MaidScaleBones.DefaultScale;
+                var item = BodySliderDefs.Find(key);
+                return item != null ? item.defaultValues : Vector3.zero;
             }
-            return entry.state.Get(boneName);
+            return entry.state.Get(key);
         }
 
-        public void SetScale(Maid maid, string boneName, float scale)
+        public void SetValues(Maid maid, string key, Vector3 values)
         {
-            if (maid == null || MaidScaleBones.Find(boneName) == null)
+            var item = BodySliderDefs.Find(key);
+            if (maid == null || item == null)
             {
                 return;
             }
@@ -84,8 +100,8 @@ namespace COM3D2.SceneEditor.Plugin
             Entry entry;
             if (!_entries.TryGetValue(maid, out entry))
             {
-                // 元の大きさを書くだけなら状態を作らない (常駐コストを増やさない)
-                if (MaidScaleBones.IsDefault(scale))
+                // 既定値を書くだけなら状態を作らない (常駐コストを増やさない)
+                if (item.IsDefault(values))
                 {
                     return;
                 }
@@ -93,14 +109,33 @@ namespace COM3D2.SceneEditor.Plugin
                 _entries[maid] = entry;
             }
 
-            entry.state.Set(boneName, scale);
+            entry.state.Set(key, values);
+            entry.isOpsDirty = true;
 
-            // 全骨が元の大きさに戻ったら状態ごと捨てる (HasState を「拡縮中か」に揃える)
+            // 全項目が既定値に戻ったら状態ごと捨てる (HasState を「変更中か」に揃える)
             if (entry.state.isDefault)
             {
                 Restore(entry);
                 _entries.Remove(maid);
             }
+        }
+
+        /// <summary>全項目を既定値へ戻す</summary>
+        public void ResetAll(Maid maid)
+        {
+            Release(maid);
+        }
+
+        /// <summary>既定値でない項目の一覧 (プリセットとスナップショット用のコピー)</summary>
+        public List<KeyValuePair<string, Vector3>> GetNonDefaultValues(Maid maid)
+        {
+            var result = new List<KeyValuePair<string, Vector3>>();
+            Entry entry;
+            if (maid != null && _entries.TryGetValue(maid, out entry))
+            {
+                result.AddRange(entry.state.nonDefaultValues);
+            }
+            return result;
         }
 
         /// <summary>
@@ -142,7 +177,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// SuspendApplied で外した分を掛け直す。GUI が書き換えた値はその値を元として掛ける。
-        /// OnGUI の後に描くフレーム末の撮影 (camera.Render) にも倍率を写すため。
+        /// OnGUI の後に描くフレーム末の撮影 (camera.Render) にも体型スライダーを写すため。
         /// GUI の中で状態ごと捨てたメイドは _entries に無いので掛け直さない
         /// </summary>
         public void ResumeApplied()
@@ -153,7 +188,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 手動描画 (camera.Render) の直前に倍率を写す。EndCapture と対で呼ぶ。
+        /// 手動描画 (camera.Render) の直前に体型スライダーを写す。EndCapture と対で呼ぶ。
         /// 撮影ボタンやサムネイルは OnGUI の中で同期的に描くため、
         /// GUI の間に外した分をその描画の間だけ掛け直す。GUI の外では何もしない
         /// </summary>
@@ -200,7 +235,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
                 entry.isSuspended = false;
-                ApplyScales(entry);
+                Apply(entry);
             }
         }
 
@@ -258,36 +293,75 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             RefreshBonesIfNeeded(body, entry);
-            ApplyScales(entry);
+            Apply(entry);
         }
 
-        /// <summary>キャッシュ済みの複製骨へ、今の値 × 倍率を書き、戻すための記録を残す</summary>
-        private static void ApplyScales(Entry entry)
+        /// <summary>キャッシュ済みの複製骨へ、今の値 × 倍率 / 今の値 + 差分を書き、戻すための記録を残す</summary>
+        private static void Apply(Entry entry)
         {
-            foreach (var scalePair in entry.state.nonDefaultScales)
+            if (entry.isOpsDirty)
+            {
+                entry.state.BuildBoneOps(entry.ops);
+                entry.isOpsDirty = false;
+            }
+
+            foreach (var opPair in entry.ops)
             {
                 List<Transform> bones;
-                if (!entry.bones.TryGetValue(scalePair.Key, out bones))
+                if (!entry.bones.TryGetValue(opPair.Key, out bones))
                 {
                     continue;
                 }
+                var op = opPair.Value;
                 foreach (var bone in bones)
                 {
                     if (bone == null)
                     {
                         continue;
                     }
-                    var original = bone.localScale;
-                    var written = original * scalePair.Value;
-                    bone.localScale = written;
-                    entry.applied.Add(new AppliedBone
+                    var record = new AppliedBone { bone = bone };
+                    if (op.hasScale)
                     {
-                        bone = bone,
-                        original = original,
-                        written = written,
-                    });
+                        record.hasScale = true;
+                        record.originalScale = bone.localScale;
+                        record.writtenScale = Vector3.Scale(record.originalScale, op.scale);
+                        bone.localScale = record.writtenScale;
+                    }
+                    if (op.hasOffset)
+                    {
+                        record.hasPosition = true;
+                        record.originalPosition = bone.localPosition;
+                        record.writtenPosition = record.originalPosition + op.offset;
+                        bone.localPosition = record.writtenPosition;
+                    }
+                    entry.applied.Add(record);
                 }
             }
+        }
+
+        /// <summary>自分が書いた値のまま残っている成分だけを戻し、破棄済みの骨は飛ばす</summary>
+        private static void Restore(Entry entry)
+        {
+            var applied = entry.applied;
+            for (var i = 0; i < applied.Count; i++)
+            {
+                var record = applied[i];
+                if (record.bone == null)
+                {
+                    continue;
+                }
+                if (record.hasScale
+                    && BodySliderState.ShouldRestore(record.bone.localScale, record.writtenScale))
+                {
+                    record.bone.localScale = record.originalScale;
+                }
+                if (record.hasPosition
+                    && BodySliderState.ShouldRestore(record.bone.localPosition, record.writtenPosition))
+                {
+                    record.bone.localPosition = record.originalPosition;
+                }
+            }
+            applied.Clear();
         }
 
         private Entry FindEntry(TBody body)
@@ -298,22 +372,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             Entry entry;
             return _entries.TryGetValue(body.maid, out entry) ? entry : null;
-        }
-
-        /// <summary>自分が書いた値のまま残っている骨だけを戻し、破棄済みの骨は飛ばす</summary>
-        private static void Restore(Entry entry)
-        {
-            var applied = entry.applied;
-            for (var i = 0; i < applied.Count; i++)
-            {
-                var record = applied[i];
-                if (record.bone != null
-                    && MaidScaleState.ShouldRestore(record.bone.localScale, record.written))
-                {
-                    record.bone.localScale = record.original;
-                }
-            }
-            applied.Clear();
         }
 
         private void RefreshBonesIfNeeded(TBody body, Entry entry)
@@ -370,8 +428,8 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 各スロットの SkinnedMeshRenderer が実際に参照している骨と、そのスロット obj までの祖先から対象骨を集める。
-        /// CRC ボディは上腕・前腕を直接参照せず子のツイスト骨 (UpperTwist* / ForeTwist*) だけを参照するため、
-        /// 祖先までたどらないと袖だけが拡縮される。
+        /// CRC ボディは上腕・前腕を直接参照せず子のツイスト骨だけを参照し、
+        /// 位置の項目の骨 (Bip01 Spine など) も多くは祖先にしか現れないため、祖先までたどる。
         /// 名前で子孫を探すと、別スロットの骨や持ち物の中の同名ノードを拾うおそれがある。
         /// スロット obj 配下にない骨 (本体の骨を直接参照している場合) は書かない
         /// </summary>
@@ -405,7 +463,7 @@ namespace COM3D2.SceneEditor.Plugin
 
                         for (var t = bone; t != null && t != slotRoot && visited.Add(t); t = t.parent)
                         {
-                            if (MaidScaleBones.Find(t.name) != null)
+                            if (BodySliderDefs.IsTargetBone(t.name))
                             {
                                 AddBone(entry, t);
                             }

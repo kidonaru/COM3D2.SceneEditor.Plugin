@@ -1132,7 +1132,8 @@ namespace COM3D2.SceneEditor.Plugin
             };
 
             state.gravity = CaptureGravity(maid);
-            state.maidScale = CaptureMaidScale(maid);
+            state.bodySlider = ScenePresetBodySlider.FromValues(
+                maidManager.bodySliderController.GetNonDefaultValues(maid));
             state.nodeVisibility = ScenePresetNodeVisibility.FromOverrides(
                 MaidNodeVisibilityController.GetOverrides(maid));
 
@@ -1233,17 +1234,6 @@ namespace COM3D2.SceneEditor.Plugin
                 });
             }
             return list;
-        }
-
-        /// <summary>
-        /// メイドスケールを記録する。全骨 1 でも空要素を残し、
-        /// 適用時に前のシーンの倍率が残らないようにする
-        /// </summary>
-        private static ScenePresetMaidScale CaptureMaidScale(Maid maid)
-        {
-            var controller = maidManager.maidScaleController;
-            return ScenePresetMaidScale.FromScales(MaidScaleBones.bones.Select(
-                bone => new KeyValuePair<string, float>(bone.boneName, controller.GetScale(maid, bone.boneName))));
         }
 
         /// <summary>
@@ -2189,7 +2179,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
             try
             {
-                ApplyMaidScale(maid, state);
+                ApplyBodySlider(maid, state);
             }
             catch (Exception e)
             {
@@ -2898,22 +2888,23 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// メイドスケールを復元する。旧プリセット (maidScale 無し) では変更しない。
-        /// 記録の無い骨は 1 へ戻す
+        /// 体型スライダーを復元する。bodySlider も旧 maidScale も無いプリセットでは変更しない。
+        /// 記録の無い項目は既定値へ戻す
         /// </summary>
-        private static void ApplyMaidScale(Maid maid, ScenePresetMaid state)
+        private static void ApplyBodySlider(Maid maid, ScenePresetMaid state)
         {
-            if (state.maidScale == null)
+            var preset = ScenePresetBodySlider.Resolve(state);
+            if (preset == null)
             {
                 return;
             }
 
-            // 状態の無いメイドへ 1 を書いても SetScale は状態を作らないので、
+            // 状態の無いメイドへ既定値を書いても SetValues は状態を作らないので、
             // ApplyGravity のような既定値だけのプリセットの判定は要らない
-            var controller = maidManager.maidScaleController;
-            foreach (var bone in MaidScaleBones.bones)
+            var controller = maidManager.bodySliderController;
+            foreach (var item in BodySliderDefs.items)
             {
-                controller.SetScale(maid, bone.boneName, state.maidScale.GetScale(bone.boneName));
+                controller.SetValues(maid, item.key, preset.GetValues(item.key));
             }
         }
 

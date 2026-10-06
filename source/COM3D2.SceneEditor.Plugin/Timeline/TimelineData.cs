@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
@@ -264,7 +265,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
     public class TimelineData
     {
-        public static readonly int CurrentVersion = 38;
+        public static readonly int CurrentVersion = 39;
         public static readonly TimelineData DefaultTimeline = new TimelineData();
 
         public int version = 0;
@@ -281,6 +282,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         // maidSlotNo -> shapeKeys
         public Dictionary<int, HashSet<string>> maidShapeKeysMap = new Dictionary<int, HashSet<string>>();
+
+        /// <summary>maidSlotNo → 体型レイヤーに登録した項目キー (SE 独自)</summary>
+        public Dictionary<int, HashSet<string>> maidBodySliderKeysMap = new Dictionary<int, HashSet<string>>();
 
         // maidSlotNo -> extendBoneNames
         public Dictionary<int, HashSet<string>> extendBoneNamesMap = new Dictionary<int, HashSet<string>>();
@@ -754,6 +758,62 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        public HashSet<string> GetMaidBodySliderKeys(int maidSlotNo)
+        {
+            HashSet<string> keys;
+            if (!maidBodySliderKeysMap.TryGetValue(maidSlotNo, out keys))
+            {
+                keys = new HashSet<string>();
+                maidBodySliderKeysMap[maidSlotNo] = keys;
+            }
+            return keys;
+        }
+
+        /// <summary>UI が毎フレーム呼ぶので、エントリを作らずに引く</summary>
+        public bool HasMaidBodySliderKey(int maidSlotNo, string key)
+        {
+            HashSet<string> keys;
+            return maidBodySliderKeysMap.TryGetValue(maidSlotNo, out keys) && keys.Contains(key);
+        }
+
+        /// <summary>体型項目を登録する。同じスロットの体型レイヤーが BoneMenu に出し、0F にキーを打つ</summary>
+        public void AddMaidBodySliderKey(int maidSlotNo, string key)
+        {
+            if (!GetMaidBodySliderKeys(maidSlotNo).Add(key))
+            {
+                return;
+            }
+            foreach (var layer in layers)
+            {
+                var bodySliderLayer = layer as BodySliderTimelineLayer;
+                if (bodySliderLayer != null && bodySliderLayer.slotNo == maidSlotNo)
+                {
+                    bodySliderLayer.OnBodySliderKeyAdded(key);
+                }
+            }
+            // 0F に既にキーがあると AddFirstBones は履歴を出さないので、登録の変更として必ず 1 件積む
+            timelineManager.RequestHistory("体型項目の登録: " + key);
+        }
+
+        /// <summary>体型項目の登録を外す。同じスロットの体型レイヤーがその項目のキーを全部消す</summary>
+        public void RemoveMaidBodySliderKey(int maidSlotNo, string key)
+        {
+            if (!GetMaidBodySliderKeys(maidSlotNo).Remove(key))
+            {
+                return;
+            }
+            foreach (var layer in layers)
+            {
+                var bodySliderLayer = layer as BodySliderTimelineLayer;
+                if (bodySliderLayer != null && bodySliderLayer.slotNo == maidSlotNo)
+                {
+                    bodySliderLayer.OnBodySliderKeyRemoved(key);
+                }
+            }
+            // 消すキーが無いと RemoveAllBones は履歴を出さないので、登録の変更として必ず 1 件積む
+            timelineManager.RequestHistory("体型項目の登録解除: " + key);
+        }
+
         public HashSet<string> GetExtendBoneNames(int maidSlotNo)
         {
             HashSet<string> boneNames;
@@ -827,6 +887,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 var shapeKeys = GetMaidShapeKeys(shapeKeyml.maidSlotNo);
                 shapeKeys.Add(shapeKeyml.shapeKey);
+            }
+
+            maidBodySliderKeysMap.Clear();
+            foreach (var keyXml in xml.maidBodySliderKeys)
+            {
+                if (BodySliderDefs.Find(keyXml.key) != null)
+                {
+                    GetMaidBodySliderKeys(keyXml.maidSlotNo).Add(keyXml.key);
+                }
             }
 
             extendBoneNamesMap.Clear();
@@ -986,6 +1055,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         shapeKey = shapeKey,
                     };
                     xml.maidShapeKeys.Add(shapeKeyXml);
+                }
+            }
+
+            // 集合の列挙順に依らないよう、スロット順・定義順で書く (保存ファイルと TimelineXmlDiff の比較を安定させる)
+            xml.maidBodySliderKeys = new List<TimelineMaidBodySliderKeyXml>();
+            foreach (var maidSlotNo in maidBodySliderKeysMap.Keys.OrderBy(slotNo => slotNo))
+            {
+                foreach (var key in BodySliderTimelineLayer.OrderByDefinition(maidBodySliderKeysMap[maidSlotNo]))
+                {
+                    xml.maidBodySliderKeys.Add(new TimelineMaidBodySliderKeyXml
+                    {
+                        maidSlotNo = maidSlotNo,
+                        key = key,
+                    });
                 }
             }
 

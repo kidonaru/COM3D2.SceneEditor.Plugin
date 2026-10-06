@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xunit;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
@@ -32,12 +33,29 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             return names;
         }
 
+        /// <summary>
+        /// レイヤーのクラス名。読込時の版の変換でクラス名が変わるレイヤー (v39 のメイドスケール → 体型) は、
+        /// 変換後の名前で返す
+        /// </summary>
         private static IEnumerable<string> GetLayerClassNames(string xmlPath)
         {
             var doc = XDocument.Load(xmlPath);
+            var version = (int?) doc.Root.Attribute("version") ?? 0;
             return doc.Root.Elements("Layer")
                 .Select(l => (string) l.Element("ClassName"))
-                .Where(n => !string.IsNullOrEmpty(n));
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => ConvertClassName(n, version));
+        }
+
+        private static string ConvertClassName(string className, int version)
+        {
+            if (version >= MTEP.TimelineXml.BodySliderVersion)
+            {
+                return className;
+            }
+            var layer = new MTEP.TimelineLayerXml { className = className };
+            MTEP.TimelineXml.ConvertMaidScaleLayer(layer);
+            return layer.className;
         }
 
         [Fact]

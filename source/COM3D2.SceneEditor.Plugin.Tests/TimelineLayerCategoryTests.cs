@@ -18,7 +18,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             { "MorphTimelineLayer", TimelineLayerCategory.Maid },
             { "MoveTimelineLayer", TimelineLayerCategory.Maid },
             { "GravityTimelineLayer", TimelineLayerCategory.Maid },
-            { "MaidScaleTimelineLayer", TimelineLayerCategory.Maid },
+            { "BodySliderTimelineLayer", TimelineLayerCategory.Maid },
             { "NodeVisibilityTimelineLayer", TimelineLayerCategory.Maid },
             { "EyesTimelineLayer", TimelineLayerCategory.Maid },
             { "ShapeKeyTimelineLayer", TimelineLayerCategory.Maid },

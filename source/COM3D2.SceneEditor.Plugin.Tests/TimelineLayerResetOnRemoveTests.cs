@@ -22,8 +22,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             "ModelBoneTimelineLayer",
             "ModelShapeKeyTimelineLayer",
             "ModelMaterialTimelineLayer",
-            // 倍率はこのレイヤーからしか編集できないため、断面の無い削除でも元の大きさへ戻す
-            "MaidScaleTimelineLayer",
+            // 値はこのレイヤーと体型タブからしか編集できないため、断面の無い削除でも既定値へ戻す
+            "BodySliderTimelineLayer",
             // 上書きはこのレイヤーとノード表示タブからしか作れないため、断面の無い削除でも全解除する
             "NodeVisibilityTimelineLayer",
         };

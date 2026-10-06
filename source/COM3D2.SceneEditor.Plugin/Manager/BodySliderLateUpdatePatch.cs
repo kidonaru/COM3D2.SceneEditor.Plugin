@@ -5,10 +5,10 @@ using HarmonyLib;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイドスケールを TBody.LateUpdate の前後で戻す・掛ける。掛ける位置の理由は MaidScaleController 参照。
+    /// 体型スライダーを TBody.LateUpdate の前後で戻す・掛ける。掛ける位置の理由は BodySliderController 参照。
     /// TBody.OnLateUpdate などのイベントは 2.0 / 2.5 で型と寿命が違うため使わない
     /// </summary>
-    public static class MaidScaleLateUpdatePatch
+    public static class BodySliderLateUpdatePatch
     {
         // Harmony インスタンスは他のパッチと独立させ、有効・無効判定を他パッチの状態から切り離す
         private static Harmony _harmony = null;
@@ -32,28 +32,28 @@ namespace COM3D2.SceneEditor.Plugin
                     throw new Exception("TBody.LateUpdate が見つかりません");
                 }
 
-                var prefix = AccessTools.Method(typeof(MaidScaleLateUpdatePatch), nameof(LateUpdatePrefix));
-                var postfix = AccessTools.Method(typeof(MaidScaleLateUpdatePatch), nameof(LateUpdatePostfix));
+                var prefix = AccessTools.Method(typeof(BodySliderLateUpdatePatch), nameof(LateUpdatePrefix));
+                var postfix = AccessTools.Method(typeof(BodySliderLateUpdatePatch), nameof(LateUpdatePostfix));
 
-                _harmony = new Harmony(PluginInfo.PluginFullName + ".MaidScale");
+                _harmony = new Harmony(PluginInfo.PluginFullName + ".BodySlider");
                 _harmony.Patch(original, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
                 MTEUtils.LogDebug("TBody.LateUpdate のフックに成功しました");
             }
             catch (Exception e)
             {
-                // 失敗してもゲームは通常どおり動く。メイドスケールの見た目だけが効かない
-                MTEUtils.LogError("TBody.LateUpdate のフックに失敗しました。メイドスケールは無効です");
+                // 失敗してもゲームは通常どおり動く。体型スライダーの見た目だけが効かない
+                MTEUtils.LogError("TBody.LateUpdate のフックに失敗しました。体型スライダーは無効です");
                 MTEUtils.LogException(e);
                 _harmony = null;
             }
         }
 
-        private static MaidScaleController controller
+        private static BodySliderController controller
         {
             get
             {
                 var manager = MaidManipulateManager.instance;
-                return manager != null ? manager.maidScaleController : null;
+                return manager != null ? manager.bodySliderController : null;
             }
         }
 
@@ -62,10 +62,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
-                var scaleController = controller;
-                if (scaleController != null)
+                var bodySliderController = controller;
+                if (bodySliderController != null)
                 {
-                    scaleController.OnBodyLateUpdateBegin(__instance);
+                    bodySliderController.OnBodyLateUpdateBegin(__instance);
                 }
             }
             catch (Exception e)
@@ -83,10 +83,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return;
                 }
-                var scaleController = controller;
-                if (scaleController != null)
+                var bodySliderController = controller;
+                if (bodySliderController != null)
                 {
-                    scaleController.OnBodyLateUpdateEnd(__instance);
+                    bodySliderController.OnBodyLateUpdateEnd(__instance);
                 }
             }
             catch (Exception e)

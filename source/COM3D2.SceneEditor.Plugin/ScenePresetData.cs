@@ -243,59 +243,122 @@ namespace COM3D2.SceneEditor.Plugin
         public Vector3 offset;
     }
 
-    /// <summary>メイドスケールの骨 1 本分 (v38)</summary>
+    /// <summary>旧メイドスケールの骨 1 本分 (v38〜40)。読込専用</summary>
     public class ScenePresetMaidScaleBone
     {
-        /// <summary>MaidScaleBones の骨名</summary>
         [XmlAttribute]
         public string name;
 
         [XmlAttribute]
-        public float scale = MaidScaleBones.DefaultScale;
+        public float scale = 1f;
     }
 
     /// <summary>
-    /// メイドスケール (v38)。倍率が 1 でない骨だけを持つ。
-    /// 全骨 1 でも要素自体は書き、旧プリセット (要素なし = null) と区別する
+    /// 旧メイドスケール (v38〜40)。v41 で体型スライダー (bodySlider) に置き換わったため読込専用。
+    /// bodySlider の無いプリセットだけ、適用時に ScenePresetBodySlider.FromLegacyMaidScale で変換する
     /// </summary>
     public class ScenePresetMaidScale
     {
         [XmlElement("bone")]
         public List<ScenePresetMaidScaleBone> bones = new List<ScenePresetMaidScaleBone>();
+    }
 
-        /// <summary>骨名と倍率の組から作る。倍率 1 と対象外の骨は書かない</summary>
-        public static ScenePresetMaidScale FromScales(IEnumerable<KeyValuePair<string, float>> scales)
+    /// <summary>体型スライダーの項目 1 件分 (v41)。x / y / z は項目の定義順の 3 成分 (スケールは width / depth / height)</summary>
+    public class ScenePresetBodySliderParam
+    {
+        /// <summary>BodySliderDefs の項目キー</summary>
+        [XmlAttribute]
+        public string name;
+
+        [XmlAttribute]
+        public float x;
+
+        [XmlAttribute]
+        public float y;
+
+        [XmlAttribute]
+        public float z;
+    }
+
+    /// <summary>
+    /// 体型スライダー (v41)。既定値でない項目だけを持つ。
+    /// 全項目が既定でも要素自体は書き、旧プリセット (要素なし = null) と区別する
+    /// </summary>
+    public class ScenePresetBodySlider
+    {
+        [XmlElement("param")]
+        public List<ScenePresetBodySliderParam> parameters = new List<ScenePresetBodySliderParam>();
+
+        /// <summary>項目キーと値の組から作る。既定値と定義に無い項目は書かない</summary>
+        public static ScenePresetBodySlider FromValues(IEnumerable<KeyValuePair<string, Vector3>> values)
         {
-            var result = new ScenePresetMaidScale();
-            foreach (var pair in scales)
+            var result = new ScenePresetBodySlider();
+            foreach (var pair in values)
             {
-                if (MaidScaleBones.Find(pair.Key) == null || MaidScaleBones.IsDefault(pair.Value))
+                var item = BodySliderDefs.Find(pair.Key);
+                if (item == null || item.IsDefault(pair.Value))
                 {
                     continue;
                 }
-                result.bones.Add(new ScenePresetMaidScaleBone
+                var clamped = item.Clamp(pair.Value);
+                result.parameters.Add(new ScenePresetBodySliderParam
                 {
                     name = pair.Key,
-                    scale = MaidScaleBones.Clamp(pair.Value),
+                    x = clamped.x,
+                    y = clamped.y,
+                    z = clamped.z,
                 });
             }
             return result;
         }
 
         /// <summary>
-        /// 骨の倍率。記録の無い骨は 1。同じ骨が複数あれば先のものを使う。
+        /// 項目の値。記録の無い項目は既定値。同じ項目が複数あれば先のものを使う。
         /// 手で書き換えた値に備えて範囲へ丸める
         /// </summary>
-        public float GetScale(string boneName)
+        public Vector3 GetValues(string key)
         {
-            foreach (var bone in bones)
+            var item = BodySliderDefs.Find(key);
+            if (item == null)
             {
-                if (bone != null && bone.name == boneName)
+                return Vector3.zero;
+            }
+            foreach (var param in parameters)
+            {
+                if (param != null && param.name == key)
                 {
-                    return MaidScaleBones.Clamp(bone.scale);
+                    return item.Clamp(new Vector3(param.x, param.y, param.z));
                 }
             }
-            return MaidScaleBones.DefaultScale;
+            return item.defaultValues;
+        }
+
+        /// <summary>旧メイドスケールを腕の左右別項目の均一倍率へ変える。旧データが無ければ null</summary>
+        public static ScenePresetBodySlider FromLegacyMaidScale(ScenePresetMaidScale legacy)
+        {
+            if (legacy == null)
+            {
+                return null;
+            }
+            var values = new List<KeyValuePair<string, Vector3>>();
+            foreach (var bone in legacy.bones)
+            {
+                string key;
+                if (bone == null || bone.name == null
+                    || !BodySliderDefs.legacyMaidScaleKeys.TryGetValue(bone.name, out key))
+                {
+                    continue;
+                }
+                values.Add(new KeyValuePair<string, Vector3>(
+                    key, new Vector3(bone.scale, bone.scale, bone.scale)));
+            }
+            return FromValues(values);
+        }
+
+        /// <summary>適用に使う体型スライダー。bodySlider を優先し、無ければ旧メイドスケールを変換する。どちらも無ければ null</summary>
+        public static ScenePresetBodySlider Resolve(ScenePresetMaid state)
+        {
+            return state.bodySlider ?? FromLegacyMaidScale(state.maidScale);
         }
     }
 
@@ -962,8 +1025,14 @@ namespace COM3D2.SceneEditor.Plugin
         [XmlElement("gravity")]
         public List<ScenePresetGravity> gravity;
 
-        /// <summary>メイドスケール (v38)。旧プリセットは null になり、適用時に倍率へ触らない</summary>
+        /// <summary>
+        /// 旧メイドスケール (v38〜40)。読込専用で、新規保存では書かない。
+        /// bodySlider の無いプリセットだけ、適用時に体型スライダーへ変換する
+        /// </summary>
         public ScenePresetMaidScale maidScale;
+
+        /// <summary>体型スライダー (v41)。旧プリセットは null になり、maidScale も無ければ適用時に触らない</summary>
+        public ScenePresetBodySlider bodySlider;
 
         /// <summary>
         /// ノード表示。旧プリセットは null になり、適用時に触らない。
@@ -1302,7 +1371,10 @@ namespace COM3D2.SceneEditor.Plugin
         //      旧形式は属性が無く OFF として読める
         // v40: liveEffect のステージライトに濃度 (intensity / intensityMin / intensityMax) を追加。
         //      旧形式は要素が無く未記録 (-1) で読め、適用時に色のアルファを濃度へ換算する
-        public static readonly int CurrentVersion = 40;
+        // v41: maid に bodySlider (体型スライダー。既定値でない項目だけを param 要素に持つ) を追加し、
+        //      maidScale は読込専用にした。全項目が既定でも空要素を書く。
+        //      bodySlider が無く maidScale がある旧形式は、腕の左右別項目の均一倍率へ変換して適用する
+        public static readonly int CurrentVersion = 41;
 
         [XmlAttribute]
         public int version = CurrentVersion;

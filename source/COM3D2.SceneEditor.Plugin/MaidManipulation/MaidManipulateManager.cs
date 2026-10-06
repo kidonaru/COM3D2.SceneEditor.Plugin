@@ -226,8 +226,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>髪・スカートの重力。着替えで作り直された揺れものへ焼き直すため常駐させる</summary>
         public MaidGravityController gravityController = new MaidGravityController();
 
-        /// <summary>腕の骨の拡縮 (メイドスケール)。TBody.LateUpdate の直後に複製骨へ掛けるため常駐させる</summary>
-        public MaidScaleController maidScaleController = new MaidScaleController();
+        /// <summary>体型スライダー。TBody.LateUpdate の直後に複製骨へ掛けるため常駐させる</summary>
+        public BodySliderController bodySliderController = new BodySliderController();
 
         private bool _isEditMode;
 
@@ -688,8 +688,8 @@ namespace COM3D2.SceneEditor.Plugin
             lookController.Release(maid);
             // 重力も持ち越さない（ストックの Maid は使い回される）
             gravityController.Release(maid);
-            // 腕の拡縮も持ち越さない（ストックの Maid は使い回される）
-            maidScaleController.Release(maid);
+            // 体型スライダーも持ち越さない（ストックの Maid は使い回される）
+            bodySliderController.Release(maid);
             // ノード表示の上書きも持ち越さない（ストックの Maid は使い回される）
             MaidNodeVisibilityController.Release(maid);
             // 指の開き/握り/ロックも持ち越さない（ストックの Maid は使い回される）
@@ -736,7 +736,7 @@ namespace COM3D2.SceneEditor.Plugin
             muneYureController.Destroy();
             lookController.Destroy();
             gravityController.Destroy();
-            maidScaleController.Destroy();
+            bodySliderController.Destroy();
             MaidNodeVisibilityController.Destroy();
             MaidMotionState.Clear();
             MaidPoseFileManager.ClearClips();

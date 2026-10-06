@@ -179,9 +179,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void 現行バージョンは38()
+        public void 現行バージョンは明るさの換算後()
         {
-            Assert.Equal(38, TimelineData.CurrentVersion);
+            Assert.True(TimelineData.CurrentVersion >= TimelineXml.PngBrightnessScaleVersion);
         }
     }
 }

@@ -6,18 +6,18 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイドスケールレイヤーのメニュー項目 → 骨の倍率スライダー。
-    /// 行の描画と履歴への記録は MaidScaleRowDrawer に任せる
+    /// 体型レイヤーのメニュー項目 → 項目のスライダー。
+    /// 行の描画と履歴への記録は BodySliderRowDrawer に任せる
     /// </summary>
-    public class MaidScaleItemInspector : ITimelineItemInspector
+    public class BodySliderItemInspector : ITimelineItemInspector
     {
         private const float RowHeight = 20f;
-        private const float ScaleLabelWidth = 40f;
+        private const float ComponentLabelWidth = 40f;
 
-        /// <summary>メニュー項目名 (骨名) から対象骨を求める。対象外なら null</summary>
-        public static MaidScaleBone ResolveBone(string itemName)
+        /// <summary>メニュー項目名 (項目キー) から定義を求める。対象外なら null</summary>
+        public static BodySliderItem ResolveItem(string itemName)
         {
-            return MaidScaleBones.Find(itemName);
+            return BodySliderDefs.Find(itemName);
         }
 
         public void DrawItems(
@@ -36,25 +36,25 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            foreach (var item in items)
+            foreach (var menuItem in items)
             {
-                var bone = ResolveBone(item.name);
-                if (bone == null)
+                var item = ResolveItem(menuItem.name);
+                if (item == null)
                 {
-                    view.DrawLabel(item.displayName + " (未対応)", -1, RowHeight,
+                    view.DrawLabel(menuItem.displayName + " (未対応)", -1, RowHeight,
                         textColor: Color.gray);
                     continue;
                 }
 
-                // 複数選択時にどの骨の行か分かるよう見出しを出す
-                TimelineItemClipboardMenu.DrawHeading(view, bone.displayName, layer, item.name);
-                MaidScaleRowDrawer.Draw(view, maid, bone, "倍率", ScaleLabelWidth);
+                // 複数選択時にどの項目の行か分かるよう見出しを出す
+                TimelineItemClipboardMenu.DrawHeading(view, item.displayName, layer, menuItem.name);
+                BodySliderRowDrawer.DrawComponents(view, maid, item, ComponentLabelWidth);
             }
         }
 
         public string FindItemName(MTEP.ITimelineLayer layer)
         {
-            // メイドスケールに対応する SelectionManager の選択概念が無いため逆方向同期はしない
+            // 体型スライダーに対応する SelectionManager の選択概念が無いため逆方向同期はしない
             return null;
         }
     }

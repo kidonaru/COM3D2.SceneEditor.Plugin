@@ -27,15 +27,15 @@ namespace COM3D2.SceneEditor.Plugin
             モデル,
         }
 
-        /// <summary>ウィンドウ内の内部タブ。腕スケールはメイドだけで出す</summary>
+        /// <summary>ウィンドウ内の内部タブ。体型はメイドだけで出す</summary>
         private enum BoneTabType
         {
             編集,
             プリセット,
-            腕スケール,
+            体型,
         }
 
-        /// <summary>モデルを対象にしているときのタブ。腕スケールはメイド専用なので出さない</summary>
+        /// <summary>モデルを対象にしているときのタブ。体型はメイド専用なので出さない</summary>
         private static readonly BoneTabType[] MODEL_TABS =
         {
             BoneTabType.編集,
@@ -45,7 +45,10 @@ namespace COM3D2.SceneEditor.Plugin
         private static readonly string[] MODEL_TAB_LABELS =
             Array.ConvertAll(MODEL_TABS, tab => tab.ToString());
 
-        private const float MaidScaleLabelWidth = 60f;
+        private const float BodySliderLabelWidth = 50f;
+
+        /// <summary>体型タブで開いているグループ (BodySliderDefs.groupNames の添字)</summary>
+        private int _bodySliderGroupIndex = 0;
 
         private BoneTabType _tabType = BoneTabType.編集;
 
@@ -222,10 +225,10 @@ namespace COM3D2.SceneEditor.Plugin
                 SwitchTargetType(BoneEditTargetType.Model);
                 return true;
             }
-            if (layerType == typeof(MTEP.MaidScaleTimelineLayer))
+            if (layerType == typeof(MTEP.BodySliderTimelineLayer))
             {
                 SwitchTargetType(BoneEditTargetType.Maid);
-                _tabType = BoneTabType.腕スケール;
+                _tabType = BoneTabType.体型;
                 return true;
             }
             return false;
@@ -315,7 +318,7 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 編集 / プリセット / 腕スケールタブとその中身。対象種別で描き分ける箇所は
+        /// 編集 / プリセット / 体型タブとその中身。対象種別で描き分ける箇所は
         /// 各メソッドが activeSlotKey / GetActiveStore / GetActiveRootObject で吸収する
         /// </summary>
         private void DrawContentTabs(Maid target)
@@ -334,9 +337,9 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawPresetContent(target);
             }
-            else if (_tabType == BoneTabType.腕スケール)
+            else if (_tabType == BoneTabType.体型)
             {
-                DrawMaidScaleContent(target);
+                DrawBodySliderContent(target);
             }
             else
             {
@@ -357,8 +360,8 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            var layerType = _tabType == BoneTabType.腕スケール
-                ? typeof(MTEP.MaidScaleTimelineLayer)
+            var layerType = _tabType == BoneTabType.体型
+                ? typeof(MTEP.BodySliderTimelineLayer)
                 : typeof(MTEP.MotionTimelineLayer);
             TimelineLayerGate.Begin(view, layerType, target, ROW_HEIGHT);
         }
@@ -375,17 +378,24 @@ namespace COM3D2.SceneEditor.Plugin
             return MODEL_TABS[DrawInnerTabs(MODEL_TAB_LABELS, index, TAB_WIDTH)];
         }
 
-        /// <summary>腕 6 本の倍率 (メイドスケール)</summary>
-        private void DrawMaidScaleContent(Maid target)
+        /// <summary>
+        /// 体型スライダー (ModsSlider 相当)。項目が多いのでグループの内部タブで切り替える。
+        /// 値は MaidVoicePitch の体型スライダーの結果に掛け合わせる (スケールは乗算、位置は加算)
+        /// </summary>
+        private void DrawBodySliderContent(Maid target)
         {
+            _bodySliderGroupIndex = DrawInnerTabs(BodySliderDefs.groupNames, _bodySliderGroupIndex, TAB_WIDTH);
+            var group = BodySliderDefs.groupNames[_bodySliderGroupIndex];
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
-            foreach (var bone in MaidScaleBones.bones)
+            foreach (var item in BodySliderDefs.ItemsInGroup(group))
             {
-                MaidScaleRowDrawer.Draw(view, target, bone, bone.displayName, MaidScaleLabelWidth);
+                BodySliderRowDrawer.DrawHeader(view, target, item, ROW_HEIGHT);
+                BodySliderRowDrawer.DrawComponents(view, target, item, BodySliderLabelWidth);
             }
-            MaidScaleRowDrawer.DrawResetAll(view, target, ResetButtonWidth, ROW_HEIGHT);
+            BodySliderRowDrawer.DrawResetAll(view, target, ResetButtonWidth, ROW_HEIGHT);
 
             view.EndScrollView();
         }
