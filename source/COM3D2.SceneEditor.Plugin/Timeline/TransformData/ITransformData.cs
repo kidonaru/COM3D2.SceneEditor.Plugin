@@ -199,6 +199,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// </summary>
     public class LaneColorInfo
     {
+        /// <summary>source が Color 以外の帯の既定色。白いキーフレームと同化しないようシアンにする</summary>
+        public static readonly Color DefaultColor = new Color(0f, 0.75f, 0.85f);
+
         public LaneColorSource source;
         /// <summary>source が Color のときの ColorValueInfoMap のキー</summary>
         public string colorKey;
@@ -207,7 +210,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>source が Bool のときの values の添字 (どれか 1 つが ON なら ON)</summary>
         public int[] valueIndices;
         /// <summary>source が Color 以外のときの帯の色</summary>
-        public Color color = Color.white;
+        public Color color = DefaultColor;
 
         /// <summary>ON/OFF の帯は中間値に意味が無いので、キー間を補間せず区間開始値で塗る</summary>
         public bool isStep => source == LaneColorSource.Bool || source == LaneColorSource.Visible;

@@ -106,7 +106,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             Assert.True(info.isStep);
             trans.visible = true;
-            Assert.Equal(Color.white, trans.GetLaneColor(info));
+            Assert.Equal(LaneColorInfo.DefaultColor, trans.GetLaneColor(info));
             trans.visible = false;
             Assert.Equal(Color.clear, trans.GetLaneColor(info));
         }
@@ -123,7 +123,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var info = trans.GetLaneColorInfo();
 
             Assert.False(info.isStep);
-            Assert.Equal(new Color(1f, 1f, 1f, expectedAlpha), trans.GetLaneColor(info));
+            var expected = LaneColorInfo.DefaultColor;
+            expected.a = expectedAlpha;
+            Assert.Equal(expected, trans.GetLaneColor(info));
         }
 
         public static IEnumerable<object[]> LaneCases()
@@ -141,7 +143,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
         [Theory]
         [MemberData(nameof(LaneCases))]
-        public void 各型の帯は対象の値を白で出す(TransformDataBase trans, int valueIndex, bool isStep)
+        public void 各型の帯は対象の値を既定色で出す(TransformDataBase trans, int valueIndex, bool isStep)
         {
             trans.Initialize("test");
             var info = trans.GetLaneColorInfo();
@@ -150,7 +152,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             trans.values[valueIndex].value = 0f;
             Assert.Equal(0f, trans.GetLaneColor(info).a);
             trans.values[valueIndex].value = 1f;
-            Assert.Equal(Color.white, trans.GetLaneColor(info));
+            Assert.Equal(LaneColorInfo.DefaultColor, trans.GetLaneColor(info));
         }
 
         [Fact]
@@ -176,7 +178,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var color = trans.GetLaneColor(trans.GetLaneColorInfo());
 
-            Assert.Equal(expectedOn ? Color.white : Color.clear, color);
+            Assert.Equal(expectedOn ? LaneColorInfo.DefaultColor : Color.clear, color);
         }
     }
 }

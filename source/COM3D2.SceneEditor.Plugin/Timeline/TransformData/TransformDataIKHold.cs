@@ -66,7 +66,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private static readonly LaneColorInfo LaneInfo =
-            LaneColorInfo.FromBool(Color.white, (int)Index.IsHold);
+            LaneColorInfo.FromBool(LaneColorInfo.DefaultColor, (int)Index.IsHold);
 
         public override LaneColorInfo GetLaneColorInfo()
         {

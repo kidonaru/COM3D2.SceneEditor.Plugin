@@ -1199,7 +1199,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return info != null ? info.name : colorKey;
         }
 
-        private static readonly LaneColorInfo VisibleLaneColorInfo = LaneColorInfo.FromVisible(Color.white);
+        private static readonly LaneColorInfo VisibleLaneColorInfo = LaneColorInfo.FromVisible(LaneColorInfo.DefaultColor);
 
         /// <summary>色マップ (型ごとに static readonly) の参照をキーに、既定の帯定義を使い回す</summary>
         private static readonly Dictionary<Dictionary<string, ColorValueInfo>, LaneColorInfo> ColorLaneInfoCache

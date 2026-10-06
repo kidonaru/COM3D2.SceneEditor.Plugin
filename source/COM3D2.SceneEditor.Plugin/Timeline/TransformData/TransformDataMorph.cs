@@ -41,7 +41,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         private static readonly LaneColorInfo LaneInfo =
-            LaneColorInfo.FromValueAlpha(Color.white, (int)Index.MorphValue);
+            LaneColorInfo.FromValueAlpha(LaneColorInfo.DefaultColor, (int)Index.MorphValue);
 
         public override LaneColorInfo GetLaneColorInfo()
         {
