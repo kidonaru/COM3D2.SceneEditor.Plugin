@@ -1,4 +1,5 @@
 using COM3D2.MotionTimelineEditor;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -13,6 +14,36 @@ namespace COM3D2.SceneEditor.Plugin
 
         private static BodySliderController controller
             => MaidManipulateManager.instance.bodySliderController;
+
+        /// <summary>
+        /// 項目の見出し。左のチェックで体型レイヤーへの登録 (BoneMenu に出してキーにするか) を切り替える。
+        /// タイムライン未ロードか、メイドがタイムラインの管理外なら押せない
+        /// </summary>
+        public static void DrawHeader(GUIView view, Maid maid, BodySliderItem item, float rowHeight)
+        {
+            var timeline = MTEP.TimelineManager.instance.timeline;
+            var maidCache = maid != null ? MTEP.MaidManager.instance.GetMaidCache(maid) : null;
+            var slotNo = maidCache != null ? maidCache.slotNo : -1;
+            var canRegister = timeline != null && slotNo >= 0;
+            var isRegistered = canRegister && timeline.HasMaidBodySliderKey(slotNo, item.key);
+
+            view.BeginHorizontal();
+            {
+                view.DrawToggle(null, isRegistered, GUIView.TrackedCheckWidth, rowHeight, canRegister, newValue =>
+                {
+                    if (newValue)
+                    {
+                        timeline.AddMaidBodySliderKey(slotNo, item.key);
+                    }
+                    else
+                    {
+                        timeline.RemoveMaidBodySliderKey(slotNo, item.key);
+                    }
+                });
+                view.DrawLabel(item.displayName, -1, rowHeight);
+            }
+            view.EndLayout();
+        }
 
         public static void DrawComponents(GUIView view, Maid maid, BodySliderItem item, float labelWidth)
         {

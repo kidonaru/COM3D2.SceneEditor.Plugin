@@ -392,7 +392,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var item in BodySliderDefs.ItemsInGroup(group))
             {
-                view.DrawLabel(item.displayName, -1, ROW_HEIGHT);
+                BodySliderRowDrawer.DrawHeader(view, target, item, ROW_HEIGHT);
                 BodySliderRowDrawer.DrawComponents(view, target, item, BodySliderLabelWidth);
             }
             BodySliderRowDrawer.DrawResetAll(view, target, ResetButtonWidth, ROW_HEIGHT);
