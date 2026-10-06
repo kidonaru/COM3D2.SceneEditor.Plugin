@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using UnityEngine;
 
@@ -59,10 +58,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             refreshRequired = true;
         }
 
-        public List<PsylliumHand> hands;
+        public List<PsylliumHand> hands = new List<PsylliumHand>();
         public bool refreshRequired;
     
         private int _handCurrentIndex;
+
+        // Refresh 中に振るバーの通し番号。最後にバッチ配列の本数になる
+        private int _barCount;
+        private readonly PsylliumBatchBuffer _batchBuffer = new PsylliumBatchBuffer();
+        private readonly List<PsylliumBatchRenderer> _batchRenderers = new List<PsylliumBatchRenderer>();
 
         public int groupIndex
         {
@@ -104,7 +108,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Initialize()
         {
-            hands = GetComponentsInChildren<PsylliumHand>().ToList();
+            // 手はもう子の GameObject ではないので集め直さない。再表示 (OnEnable) で配置が失われるため
+            if (hands == null)
+            {
+                hands = new List<PsylliumHand>();
+            }
             UpdateName();
         }
 
@@ -142,21 +150,25 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void UpdateTransform()
         {
+            var buffer = _batchBuffer;
 #if COM3D2
             ParallelHelper.ForEach(hands, hand =>
             {
                 hand.PreUpdateTransform();
+                hand.WriteBars(buffer);
             });
 #else
             foreach (var hand in hands)
             {
                 hand.PreUpdateTransform();
+                hand.WriteBars(buffer);
             }
 #endif
 
-            foreach (var hand in hands)
+            var count = Mathf.Min(_batchRenderers.Count, buffer.batchCount);
+            for (int i = 0; i < count; i++)
             {
-                hand.UpdateTransform();
+                _batchRenderers[i].Apply(buffer.positions[i], buffer.ups[i]);
             }
         }
 
@@ -176,12 +188,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     return null;
                 }
 
-                var obj = new GameObject("PsylliumHand");
-                obj.transform.SetParent(this.transform, false);
-
-                var psyllium = obj.AddComponent<PsylliumHand>();
-                psyllium.Setup(controller, this);
-                hands.Add(psyllium);
+                hands.Add(new PsylliumHand(controller, this));
             }
 
             return hands[index];
@@ -194,19 +201,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void RemoveUnusedHands()
         {
-            while (hands.Count > _handCurrentIndex + 1)
+            var keepCount = _handCurrentIndex + 1;
+            if (hands.Count > keepCount)
             {
-                var psyllium = hands[hands.Count - 1];
-                hands.RemoveAt(hands.Count - 1);
-
-                if (Application.isPlaying)
-                {
-                    Destroy(psyllium.gameObject);
-                }
-                else
-                {
-                    DestroyImmediate(psyllium.gameObject);
-                }
+                hands.RemoveRange(keepCount, hands.Count - keepCount);
             }
         }
 
@@ -221,6 +219,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             transform.localEulerAngles = areaConfig.rotation;
 
             _handCurrentIndex = -1;
+            _barCount = 0;
 
             var areaSize = areaConfig.size;
             var halfAreaSize = areaSize * 0.5f;
@@ -252,11 +251,46 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             RemoveUnusedHands();
+            _batchBuffer.SetBarCount(_barCount);
+            SyncBatchRenderers();
             UpdateTransform();
 
             Random.InitState((int) (Time.realtimeSinceStartup * 1000));
 
             refreshRequired = false;
+        }
+
+        /// <summary>バッチ配列の数に合わせて描画用の子 GameObject を増減する</summary>
+        private void SyncBatchRenderers()
+        {
+            var needed = _batchBuffer.batchCount;
+            while (_batchRenderers.Count < needed)
+            {
+                var obj = new GameObject("PsylliumBatch");
+                obj.layer = gameObject.layer;
+                obj.transform.SetParent(transform, false);
+
+                var batchRenderer = obj.AddComponent<PsylliumBatchRenderer>();
+                batchRenderer.Setup(controller);
+                _batchRenderers.Add(batchRenderer);
+            }
+
+            while (_batchRenderers.Count > needed)
+            {
+                var last = _batchRenderers[_batchRenderers.Count - 1];
+                _batchRenderers.RemoveAt(_batchRenderers.Count - 1);
+                // Destroy はフレーム末まで遅れるため、このフレームに古い配列で描かれないよう先に隠す
+                last.gameObject.SetActive(false);
+
+                if (Application.isPlaying)
+                {
+                    Destroy(last.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(last.gameObject);
+                }
+            }
         }
 
         private bool RefreshSeat(Vector3 position, Quaternion rotation, float halfHandSpacing)
@@ -272,7 +306,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 hand.UpdatePsylliums(basePosition + spacing, randomValues.leftCount,
                     randomValues.patternIndex, randomValues.timeIndex, randomValues.timeShiftParam,
                     randomValues.leftColorIndexes, randomValues.leftRandomPositionIndex,
-                    randomValues.leftRandomRotationIndex, true);
+                    randomValues.leftRandomRotationIndex, true, _barCount);
+                _barCount += randomValues.leftCount;
             }
             if (randomValues.rightCount > 0)
             {
@@ -282,7 +317,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 hand.UpdatePsylliums(basePosition - spacing, randomValues.rightCount,
                     randomValues.patternIndex, randomValues.timeIndex, randomValues.timeShiftParam,
                     randomValues.rightColorIndexes, randomValues.rightRandomPositionIndex,
-                    randomValues.rightRandomRotationIndex, false);
+                    randomValues.rightRandomRotationIndex, false, _barCount);
+                _barCount += randomValues.rightCount;
             }
             return true;
         }

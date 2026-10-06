@@ -38,7 +38,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public List<PsylliumArea> areas = new List<PsylliumArea>();
         public List<PsylliumPattern> patterns = new List<PsylliumPattern>();
         public Material[] materials;
-        public Mesh[] meshes;
+        public Mesh batchMesh;
         public float time;
         public PsylliumRefreshKind refreshKind;
 
@@ -141,12 +141,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             Initialize();
         }
 
-        private Material CreateMaterial(string materialName)
+        private Material CreateMaterial(string shaderName)
         {
 #if COM3D2
-            var material = bundleManager.LoadMaterial(materialName);
+            var shader = bundleManager.LoadShader(shaderName);
+            if (shader == null)
+            {
+                return null;
+            }
+
+            var material = new Material(shader);
+            // Unity 5.6 のマテリアルは手書きできないため新シェーダー用の .mat は作らず、
+            // テクスチャは旧マテリアルのものを流用する
+            var textureSource = bundleManager.LoadMaterial("Psyllium");
+            if (textureSource != null)
+            {
+                material.mainTexture = textureSource.mainTexture;
+                Destroy(textureSource);
+            }
 #else
-            var material = new Material(Shader.Find("MTE/" + materialName));
+            var material = new Material(Shader.Find("MTE/" + shaderName));
             material.SetTexture("_MainTex", Resources.Load<Texture2D>("psyllium"));
 #endif
             return material;
@@ -163,15 +177,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (materials == null || materials.Length == 0)
             {
                 materials = new Material[2];
-                materials[0] = CreateMaterial("Psyllium");
-                materials[1] = CreateMaterial("PsylliumAdd");
+                materials[0] = CreateMaterial("PsylliumBatch");
+                materials[1] = CreateMaterial("PsylliumBatchAdd");
             }
 
-            if (meshes == null || meshes.Length == 0)
+            if (batchMesh == null)
             {
-                meshes = new Mesh[2];
-                meshes[0] = new Mesh();
-                meshes[1] = new Mesh();
+                batchMesh = new Mesh();
             }
 
             UpdateName();
@@ -255,6 +267,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             foreach (var material in materials)
             {
+                if (material == null) continue;
                 material.SetColor(Uniforms._Color1a, barConfig.color1a);
                 material.SetColor(Uniforms._Color1b, barConfig.color1b);
                 material.SetColor(Uniforms._Color1c, barConfig.color1c);
@@ -276,66 +289,26 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             internal static readonly int _CutoffAlpha = Shader.PropertyToID("_CutoffAlpha");
         }
 
-        // UpdateMesh 用の作業配列。頂点 8 個固定なので使い回す（メインスレッドから逐次呼ぶ前提。
-        // Mesh のセッターは配列をコピーするので、書き込み後に再利用してよい）
-        private readonly Vector3[] _meshVertices = new Vector3[8];
-        private readonly Vector2[] _meshUv = new Vector2[8];
-        private readonly Vector2[] _meshUv2 = new Vector2[8];
-        private static readonly int[] MeshTriangles = new int[] {
-            0, 1, 2,
-            1, 3, 2,
-            1, 4, 3,
-            4, 5, 3,
-            4, 6, 5,
-            6, 7, 5,
-        };
+        // エリアのローカル座標で客席全体を十分に覆う大きさ。
+        // 頂点はバー 1 本の形を重ねただけで、実際の位置はシェーダーが配列から決めるため
+        private const float BatchBoundsSize = 1000f;
 
         public void UpdateMeshs()
         {
-            UpdateMesh(0);
-            UpdateMesh(1);
-        }
+            Vector3[] vertices;
+            Vector2[] uv;
+            Vector2[] uv2;
+            int[] triangles;
+            PsylliumBatchMesh.Build(
+                barConfig.width * 0.5f * barConfig.baseScale,
+                barConfig.positionY * barConfig.baseScale,
+                barConfig.height * barConfig.baseScale,
+                barConfig.radius * barConfig.baseScale,
+                barConfig.topThreshold,
+                PsylliumBatchBuffer.Capacity,
+                out vertices, out uv, out uv2, out triangles);
 
-        public void UpdateMesh(int colorIndex)
-        {
-            var halfWidth = barConfig.width * 0.5f * barConfig.baseScale;
-            var barHeight = barConfig.height * barConfig.baseScale;
-            var barRadius = barConfig.radius * barConfig.baseScale;
-            var positionY = barConfig.positionY * barConfig.baseScale;
-            var barTopThreshold = barConfig.topThreshold;
-
-            var vertices = _meshVertices;
-            vertices[0] = new Vector3(-halfWidth, positionY, 0);
-            vertices[1] = new Vector3(-halfWidth, positionY, 0);
-            vertices[2] = new Vector3( halfWidth, positionY, 0);
-            vertices[3] = new Vector3( halfWidth, positionY, 0);
-            vertices[4] = new Vector3(-halfWidth, positionY + barHeight, 0);
-            vertices[5] = new Vector3( halfWidth, positionY + barHeight, 0);
-            vertices[6] = new Vector3(-halfWidth, positionY + barHeight, 0);
-            vertices[7] = new Vector3( halfWidth, positionY + barHeight, 0);
-
-            var uv = _meshUv;
-            uv[0] = new Vector2(0, 0);
-            uv[1] = new Vector2(0, barTopThreshold);
-            uv[2] = new Vector2(1, 0);
-            uv[3] = new Vector2(1, barTopThreshold);
-            uv[4] = new Vector2(0, 1 - barTopThreshold);
-            uv[5] = new Vector2(1, 1 - barTopThreshold);
-            uv[6] = new Vector2(0, 1);
-            uv[7] = new Vector2(1, 1);
-
-            // uv2.y は colorIndex（シェーダー側で色セットの選択に使う）
-            var uv2 = _meshUv2;
-            uv2[0] = new Vector2(-barRadius, colorIndex);
-            uv2[1] = new Vector2(0, colorIndex);
-            uv2[2] = new Vector2(-barRadius, colorIndex);
-            uv2[3] = new Vector2(0, colorIndex);
-            uv2[4] = new Vector2(0, colorIndex);
-            uv2[5] = new Vector2(0, colorIndex);
-            uv2[6] = new Vector2(barRadius, colorIndex);
-            uv2[7] = new Vector2(barRadius, colorIndex);
-
-            var mesh = meshes[colorIndex];
+            var mesh = batchMesh;
             mesh.Clear();
 
             mesh.subMeshCount = 2;
@@ -343,8 +316,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             mesh.uv = uv;
             mesh.uv2 = uv2;
 
-            mesh.SetTriangles(MeshTriangles, 0);
-            mesh.SetTriangles(MeshTriangles, 1);
+            mesh.SetTriangles(triangles, 0);
+            mesh.SetTriangles(triangles, 1);
+
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * BatchBoundsSize);
         }
 
         public PsylliumArea AddArea()
