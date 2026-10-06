@@ -229,6 +229,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>腕の骨の拡縮 (メイドスケール)。TBody.LateUpdate の直後に複製骨へ掛けるため常駐させる</summary>
         public MaidScaleController maidScaleController = new MaidScaleController();
 
+        /// <summary>体型スライダー。TBody.LateUpdate の直後に複製骨へ掛けるため常駐させる</summary>
+        public BodySliderController bodySliderController = new BodySliderController();
+
         private bool _isEditMode;
 
         /// <summary>isEditMode の遷移処理を実行中か。遷移中の再入を弾くために持つ</summary>
@@ -690,6 +693,8 @@ namespace COM3D2.SceneEditor.Plugin
             gravityController.Release(maid);
             // 腕の拡縮も持ち越さない（ストックの Maid は使い回される）
             maidScaleController.Release(maid);
+            // 体型スライダーも持ち越さない（ストックの Maid は使い回される）
+            bodySliderController.Release(maid);
             // ノード表示の上書きも持ち越さない（ストックの Maid は使い回される）
             MaidNodeVisibilityController.Release(maid);
             // 指の開き/握り/ロックも持ち越さない（ストックの Maid は使い回される）
@@ -737,6 +742,7 @@ namespace COM3D2.SceneEditor.Plugin
             lookController.Destroy();
             gravityController.Destroy();
             maidScaleController.Destroy();
+            bodySliderController.Destroy();
             MaidNodeVisibilityController.Destroy();
             MaidMotionState.Clear();
             MaidPoseFileManager.ClearClips();

@@ -67,6 +67,7 @@ namespace COM3D2.SceneEditor.Plugin
                 camera.targetTexture = renderTexture;
                 // OnGUI の中で撮るため、GUI の間だけ外したメイドスケールを掛け直す
                 MaidManipulateManager.instance.maidScaleController.BeginCapture();
+                MaidManipulateManager.instance.bodySliderController.BeginCapture();
                 camera.Render();
 
                 RenderTexture.active = renderTexture;
@@ -81,6 +82,7 @@ namespace COM3D2.SceneEditor.Plugin
             finally
             {
                 MaidManipulateManager.instance.maidScaleController.EndCapture();
+                MaidManipulateManager.instance.bodySliderController.EndCapture();
                 if (filterWasEnabled)
                 {
                     cullingFilter.enabled = true;

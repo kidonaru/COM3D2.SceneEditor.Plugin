@@ -114,6 +114,7 @@ namespace COM3D2.SceneEditor.Plugin
                 CameraShakeManager.instance.BeginCapture();
                 // 撮影ボタンは OnGUI の中で呼ぶため、GUI の間だけ外したメイドスケールを掛け直す
                 MaidManipulateManager.instance.maidScaleController.BeginCapture();
+                MaidManipulateManager.instance.bodySliderController.BeginCapture();
 
                 camera.targetTexture = renderTexture;
                 foreach (var extra in extraCameras)
@@ -140,6 +141,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 CameraShakeManager.instance.EndCapture();
                 MaidManipulateManager.instance.maidScaleController.EndCapture();
+                MaidManipulateManager.instance.bodySliderController.EndCapture();
                 RestoreOverlays(hiddenOverlays);
                 camera.targetTexture = savedTargetTexture;
                 for (var i = 0; i < extraCameras.Count; i++)

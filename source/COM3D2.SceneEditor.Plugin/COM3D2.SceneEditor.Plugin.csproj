@@ -205,6 +205,7 @@
     <Compile Include="MaidManipulation\MaidScaleState.cs" />
     <Compile Include="MaidManipulation\BodySliderDefs.cs" />
     <Compile Include="MaidManipulation\BodySliderState.cs" />
+    <Compile Include="MaidManipulation\BodySliderController.cs" />
     <Compile Include="MaidManipulation\MaidPlacementPreset.cs" />
     <Compile Include="MaidManipulation\MaidPoseFileManager.cs" />
     <Compile Include="MaidManipulation\MaidPoseFlipper.cs" />
@@ -286,6 +287,7 @@
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />
     <Compile Include="Manager\MaidScaleLateUpdatePatch.cs" />
+    <Compile Include="Manager\BodySliderLateUpdatePatch.cs" />
     <Compile Include="Manager\SkirtHookDriftPatch.cs" />
     <Compile Include="Manager\PngBlendModes.cs" />
     <Compile Include="Manager\PngDecalProjection.cs" />

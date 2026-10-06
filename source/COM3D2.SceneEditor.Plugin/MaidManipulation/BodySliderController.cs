@@ -1,0 +1,487 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace COM3D2.SceneEditor.Plugin
+{
+    /// <summary>
+    /// 体型スライダーの状態を持ち、スキニングへ反映する。
+    /// メッシュは TBodySkin ごとの複製骨にスキニングされ、本体の骨のスケールはコピーされないため、
+    /// 全スロットの複製骨 (SkinnedMeshRenderer.bones とその祖先) へ直接掛ける。
+    /// 掛けるのは TBody.LateUpdate の直後 (BodySliderLateUpdatePatch)。
+    /// それより前だと MOD (MaidVoicePitch の ForeArmFix など) が書き戻し、
+    /// 描画直前 (Camera.onPreCull) ではスキニングの計算に間に合わない。
+    /// スケールは今の値への乗算、位置は今の値への加算なので、MaidVoicePitch の体型スライダーの結果に重なる。
+    /// 次フレームの Update と TBody.LateUpdate の直前で元へ戻す。
+    /// GUI を描く間だけは外して掛け直す (SuspendApplied / ResumeApplied)。
+    /// 本体の骨には触らないので、IK・ハンドル・アタッチ位置は影響を受けない
+    /// </summary>
+    public class BodySliderController
+    {
+        /// <summary>1 回分の書き込み記録。戻すときに使う。書いた成分だけ has* が立つ</summary>
+        private struct AppliedBone
+        {
+            public Transform bone;
+            public bool hasScale;
+            public Vector3 originalScale;
+            public Vector3 writtenScale;
+            public bool hasPosition;
+            public Vector3 originalPosition;
+            public Vector3 writtenPosition;
+        }
+
+        /// <summary>メイド 1 体分の状態と複製骨のキャッシュ</summary>
+        private class Entry
+        {
+            public readonly BodySliderState state = new BodySliderState();
+
+            /// <summary>骨名 → 掛ける量。isOpsDirty のとき、掛ける直前に作り直す</summary>
+            public readonly Dictionary<string, BodySliderBoneOp> ops = new Dictionary<string, BodySliderBoneOp>();
+
+            /// <summary>
+            /// state を変えてから ops を作り直していない。再生中は項目ごとに毎フレーム SetValues が来るので、
+            /// 作り直しは掛ける直前の 1 回にまとめる
+            /// </summary>
+            public bool isOpsDirty;
+
+            /// <summary>骨名 → 全スロットの複製骨</summary>
+            public readonly Dictionary<string, List<Transform>> bones
+                = new Dictionary<string, List<Transform>>();
+
+            /// <summary>キャッシュを作った時点のスロット obj の並び。変わったら作り直す</summary>
+            public readonly List<GameObject> slotObjects = new List<GameObject>();
+
+            public bool isCacheValid;
+
+            /// <summary>前回掛けた分。次に掛ける前か Update で戻す</summary>
+            public readonly List<AppliedBone> applied = new List<AppliedBone>();
+
+            /// <summary>GUI の間だけ外している。ResumeApplied で掛け直す</summary>
+            public bool isSuspended;
+        }
+
+        private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
+
+        /// <summary>キャッシュの検証で毎回作らないよう使い回す</summary>
+        private readonly List<GameObject> _slotObjectBuffer = new List<GameObject>();
+
+        private readonly List<Maid> _deadMaids = new List<Maid>();
+
+        /// <summary>SuspendApplied から ResumeApplied までの間 (GUI の描画中) か</summary>
+        private bool _isGuiSuspended;
+
+        /// <summary>GUI の中の撮影のために BeginCapture で掛け直したか (EndCapture の外し直し判定)</summary>
+        private bool _isResumedForCapture;
+
+        public bool HasState(Maid maid)
+        {
+            return maid != null && _entries.ContainsKey(maid);
+        }
+
+        /// <summary>記録が無いメイドは既定値として扱う</summary>
+        public Vector3 GetValues(Maid maid, string key)
+        {
+            Entry entry;
+            if (maid == null || !_entries.TryGetValue(maid, out entry))
+            {
+                var item = BodySliderDefs.Find(key);
+                return item != null ? item.defaultValues : Vector3.zero;
+            }
+            return entry.state.Get(key);
+        }
+
+        public void SetValues(Maid maid, string key, Vector3 values)
+        {
+            var item = BodySliderDefs.Find(key);
+            if (maid == null || item == null)
+            {
+                return;
+            }
+
+            Entry entry;
+            if (!_entries.TryGetValue(maid, out entry))
+            {
+                // 既定値を書くだけなら状態を作らない (常駐コストを増やさない)
+                if (item.IsDefault(values))
+                {
+                    return;
+                }
+                entry = new Entry();
+                _entries[maid] = entry;
+            }
+
+            entry.state.Set(key, values);
+            entry.isOpsDirty = true;
+
+            // 全項目が既定値に戻ったら状態ごと捨てる (HasState を「変更中か」に揃える)
+            if (entry.state.isDefault)
+            {
+                Restore(entry);
+                _entries.Remove(maid);
+            }
+        }
+
+        /// <summary>全項目を既定値へ戻す</summary>
+        public void ResetAll(Maid maid)
+        {
+            Release(maid);
+        }
+
+        /// <summary>既定値でない項目の一覧 (プリセットとスナップショット用のコピー)</summary>
+        public List<KeyValuePair<string, Vector3>> GetNonDefaultValues(Maid maid)
+        {
+            var result = new List<KeyValuePair<string, Vector3>>();
+            Entry entry;
+            if (maid != null && _entries.TryGetValue(maid, out entry))
+            {
+                result.AddRange(entry.state.nonDefaultValues);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 全メイドの前回分を戻す。プラグインの Update から毎フレーム呼び、
+        /// ゲームのロジックにはなるべく拡縮していない骨を見せる。
+        /// 解除済みのメイドの状態もここで捨てる
+        /// </summary>
+        public void RestoreApplied()
+        {
+            if (_entries.Count == 0)
+            {
+                return;
+            }
+
+            _deadMaids.Clear();
+            foreach (var pair in _entries)
+            {
+                Restore(pair.Value);
+                if (pair.Key == null || pair.Key.body0 == null)
+                {
+                    _deadMaids.Add(pair.Key);
+                }
+            }
+            foreach (var maid in _deadMaids)
+            {
+                _entries.Remove(maid);
+            }
+        }
+
+        /// <summary>
+        /// GUI が骨を読み書きする間だけ、掛けた分を外す。ResumeApplied と対で呼ぶ。
+        /// ボーンウィンドウに倍率込みのスケールを表示・記録・焼き込みさせないため
+        /// </summary>
+        public void SuspendApplied()
+        {
+            _isGuiSuspended = true;
+            SuspendEntries();
+        }
+
+        /// <summary>
+        /// SuspendApplied で外した分を掛け直す。GUI が書き換えた値はその値を元として掛ける。
+        /// OnGUI の後に描くフレーム末の撮影 (camera.Render) にも体型スライダーを写すため。
+        /// GUI の中で状態ごと捨てたメイドは _entries に無いので掛け直さない
+        /// </summary>
+        public void ResumeApplied()
+        {
+            _isGuiSuspended = false;
+            _isResumedForCapture = false;
+            ResumeEntries();
+        }
+
+        /// <summary>
+        /// 手動描画 (camera.Render) の直前に体型スライダーを写す。EndCapture と対で呼ぶ。
+        /// 撮影ボタンやサムネイルは OnGUI の中で同期的に描くため、
+        /// GUI の間に外した分をその描画の間だけ掛け直す。GUI の外では何もしない
+        /// </summary>
+        public void BeginCapture()
+        {
+            if (!_isGuiSuspended || _isResumedForCapture)
+            {
+                return;
+            }
+            _isResumedForCapture = true;
+            ResumeEntries();
+        }
+
+        /// <summary>BeginCapture で掛け直した分を外し、GUI の残りには素の値を見せる</summary>
+        public void EndCapture()
+        {
+            if (!_isResumedForCapture)
+            {
+                return;
+            }
+            _isResumedForCapture = false;
+            SuspendEntries();
+        }
+
+        private void SuspendEntries()
+        {
+            foreach (var entry in _entries.Values)
+            {
+                if (entry.applied.Count == 0)
+                {
+                    continue;
+                }
+                Restore(entry);
+                entry.isSuspended = true;
+            }
+        }
+
+        private void ResumeEntries()
+        {
+            foreach (var entry in _entries.Values)
+            {
+                if (!entry.isSuspended)
+                {
+                    continue;
+                }
+                entry.isSuspended = false;
+                Apply(entry);
+            }
+        }
+
+        /// <summary>メイド解除時。ストックの Maid は使い回されるので状態を持ち越さない</summary>
+        public void Release(Maid maid)
+        {
+            Entry entry;
+            if (maid == null || !_entries.TryGetValue(maid, out entry))
+            {
+                return;
+            }
+            Restore(entry);
+            _entries.Remove(maid);
+        }
+
+        public void Destroy()
+        {
+            foreach (var entry in _entries.Values)
+            {
+                Restore(entry);
+            }
+            _entries.Clear();
+        }
+
+        /// <summary>TBody.LateUpdate の直前。前フレームに掛けた分が残っていれば戻す</summary>
+        public void OnBodyLateUpdateBegin(TBody body)
+        {
+            var entry = FindEntry(body);
+            if (entry != null)
+            {
+                Restore(entry);
+            }
+        }
+
+        /// <summary>
+        /// TBody.LateUpdate の直後。CopyTrans と MOD の書き込みが済み、
+        /// スキニングの計算より前なので、ここで掛けた値が描画に効く
+        /// </summary>
+        public void OnBodyLateUpdateEnd(TBody body)
+        {
+            var entry = FindEntry(body);
+            if (entry == null)
+            {
+                return;
+            }
+
+            // Update が回らないフレームでも積み上げないよう、前回分を必ず戻してから掛ける
+            Restore(entry);
+
+            // 着替え・ボディ読込中は複製骨が破棄・再生成されるので触らない
+            if (!body.isLoadedBody || body.maid.IsAllProcPropBusy)
+            {
+                entry.isCacheValid = false;
+                return;
+            }
+
+            RefreshBonesIfNeeded(body, entry);
+            Apply(entry);
+        }
+
+        /// <summary>キャッシュ済みの複製骨へ、今の値 × 倍率 / 今の値 + 差分を書き、戻すための記録を残す</summary>
+        private static void Apply(Entry entry)
+        {
+            if (entry.isOpsDirty)
+            {
+                entry.state.BuildBoneOps(entry.ops);
+                entry.isOpsDirty = false;
+            }
+
+            foreach (var opPair in entry.ops)
+            {
+                List<Transform> bones;
+                if (!entry.bones.TryGetValue(opPair.Key, out bones))
+                {
+                    continue;
+                }
+                var op = opPair.Value;
+                foreach (var bone in bones)
+                {
+                    if (bone == null)
+                    {
+                        continue;
+                    }
+                    var record = new AppliedBone { bone = bone };
+                    if (op.hasScale)
+                    {
+                        record.hasScale = true;
+                        record.originalScale = bone.localScale;
+                        record.writtenScale = Vector3.Scale(record.originalScale, op.scale);
+                        bone.localScale = record.writtenScale;
+                    }
+                    if (op.hasOffset)
+                    {
+                        record.hasPosition = true;
+                        record.originalPosition = bone.localPosition;
+                        record.writtenPosition = record.originalPosition + op.offset;
+                        bone.localPosition = record.writtenPosition;
+                    }
+                    entry.applied.Add(record);
+                }
+            }
+        }
+
+        /// <summary>自分が書いた値のまま残っている成分だけを戻し、破棄済みの骨は飛ばす</summary>
+        private static void Restore(Entry entry)
+        {
+            var applied = entry.applied;
+            for (var i = 0; i < applied.Count; i++)
+            {
+                var record = applied[i];
+                if (record.bone == null)
+                {
+                    continue;
+                }
+                if (record.hasScale
+                    && BodySliderState.ShouldRestore(record.bone.localScale, record.writtenScale))
+                {
+                    record.bone.localScale = record.originalScale;
+                }
+                if (record.hasPosition
+                    && BodySliderState.ShouldRestore(record.bone.localPosition, record.writtenPosition))
+                {
+                    record.bone.localPosition = record.originalPosition;
+                }
+            }
+            applied.Clear();
+        }
+
+        private Entry FindEntry(TBody body)
+        {
+            if (_entries.Count == 0 || body == null || body.maid == null)
+            {
+                return null;
+            }
+            Entry entry;
+            return _entries.TryGetValue(body.maid, out entry) ? entry : null;
+        }
+
+        private void RefreshBonesIfNeeded(TBody body, Entry entry)
+        {
+            CollectSlotObjects(body, _slotObjectBuffer);
+            if (entry.isCacheValid && IsSameSlotObjects(entry.slotObjects, _slotObjectBuffer))
+            {
+                return;
+            }
+
+            entry.slotObjects.Clear();
+            entry.slotObjects.AddRange(_slotObjectBuffer);
+            RebuildBones(entry);
+            entry.isCacheValid = true;
+        }
+
+        /// <summary>全スロットの obj を集める。2.5 はサブスロット (goSlot[i, j]) も含める</summary>
+        private static void CollectSlotObjects(TBody body, List<GameObject> result)
+        {
+            result.Clear();
+            // SlotID.end は番兵で goSlot に実体が無い。goSlot[int] は例外を握らないため上限を切る
+            var count = Mathf.Min((int)TBody.SlotID.end, body.goSlot.Count);
+            for (var i = 0; i < count; i++)
+            {
+#if COM3D25
+                var childCount = body.goSlot.CountChildren(i);
+                for (var j = 0; j < childCount; j++)
+                {
+                    var slot = body.goSlot[i, j];
+                    result.Add(slot != null ? slot.obj : null);
+                }
+#else
+                var slot = body.GetSlot(i);
+                result.Add(slot != null ? slot.obj : null);
+#endif
+            }
+        }
+
+        private static bool IsSameSlotObjects(List<GameObject> a, List<GameObject> b)
+        {
+            if (a.Count != b.Count)
+            {
+                return false;
+            }
+            for (var i = 0; i < a.Count; i++)
+            {
+                if (a[i] != b[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 各スロットの SkinnedMeshRenderer が実際に参照している骨と、そのスロット obj までの祖先から対象骨を集める。
+        /// CRC ボディは上腕・前腕を直接参照せず子のツイスト骨だけを参照し、
+        /// 位置の項目の骨 (Bip01 Spine など) も多くは祖先にしか現れないため、祖先までたどる。
+        /// 名前で子孫を探すと、別スロットの骨や持ち物の中の同名ノードを拾うおそれがある。
+        /// スロット obj 配下にない骨 (本体の骨を直接参照している場合) は書かない
+        /// </summary>
+        private static void RebuildBones(Entry entry)
+        {
+            entry.bones.Clear();
+
+            // 一度たどった骨から上は同じ経路になるので、ここで打ち切る
+            var visited = new HashSet<Transform>();
+
+            foreach (var slotObject in entry.slotObjects)
+            {
+                if (slotObject == null)
+                {
+                    continue;
+                }
+                var slotRoot = slotObject.transform;
+                foreach (var renderer in slotObject.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    var bones = renderer.bones;
+                    if (bones == null)
+                    {
+                        continue;
+                    }
+                    foreach (var bone in bones)
+                    {
+                        if (bone == null || !bone.IsChildOf(slotRoot))
+                        {
+                            continue;
+                        }
+
+                        for (var t = bone; t != null && t != slotRoot && visited.Add(t); t = t.parent)
+                        {
+                            if (BodySliderDefs.IsTargetBone(t.name))
+                            {
+                                AddBone(entry, t);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void AddBone(Entry entry, Transform bone)
+        {
+            List<Transform> list;
+            if (!entry.bones.TryGetValue(bone.name, out list))
+            {
+                list = new List<Transform>();
+                entry.bones[bone.name] = list;
+            }
+            list.Add(bone);
+        }
+    }
+}
