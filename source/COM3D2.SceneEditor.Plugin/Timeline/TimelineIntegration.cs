@@ -325,6 +325,8 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.MaidScaleTimelineLayer), MTEP.MaidScaleTimelineLayer.Create);
             timelineManager.RegisterLayer(
+                typeof(MTEP.BodySliderTimelineLayer), MTEP.BodySliderTimelineLayer.Create);
+            timelineManager.RegisterLayer(
                 typeof(MTEP.NodeVisibilityTimelineLayer), MTEP.NodeVisibilityTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.AnimationTimelineLayer), MTEP.AnimationTimelineLayer.Create);
@@ -368,6 +370,8 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.GravityTimelineLayer), new GravityItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.MaidScaleTimelineLayer), new MaidScaleItemInspector());
+            TimelineItemInspectorRegistry.Register(
+                typeof(MTEP.BodySliderTimelineLayer), new BodySliderItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.NodeVisibilityTimelineLayer), new NodeVisibilityItemInspector());
             TimelineItemInspectorRegistry.Register(
@@ -507,6 +511,9 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterTransform(
                 MTEP.TransformType.MaidScale,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataMaidScale>);
+            timelineManager.RegisterTransform(
+                MTEP.TransformType.BodySlider,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataBodySlider>);
             timelineManager.RegisterTransform(
                 MTEP.TransformType.NodeVisibility,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataNodeVisibility>);

@@ -273,6 +273,7 @@
     <Compile Include="Manager\History\UndressSnapshot.cs" />
     <Compile Include="Manager\History\GravitySnapshot.cs" />
     <Compile Include="Manager\History\MaidScaleSnapshot.cs" />
+    <Compile Include="Manager\History\BodySliderSnapshot.cs" />
     <Compile Include="Manager\History\NodeVisibilitySnapshot.cs" />
     <Compile Include="Manager\History\ObjectSnapshot.cs" />
     <Compile Include="Manager\History\IKSnapshot.cs" />
@@ -394,6 +395,7 @@
     <Compile Include="EyesPosRowDrawer.cs" />
     <Compile Include="GravityRowDrawer.cs" />
     <Compile Include="MaidScaleRowDrawer.cs" />
+    <Compile Include="BodySliderRowDrawer.cs" />
     <Compile Include="NodeVisibilityRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="FaceShapeKeyFilter.cs" />
@@ -482,6 +484,7 @@
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MaidScaleItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\BodySliderItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\NodeVisibilityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
@@ -639,6 +642,7 @@
     <Compile Include="Timeline\TimelineLayer\EyesTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\GravityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MaidScaleTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\BodySliderTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\NodeVisibilityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
@@ -700,6 +704,7 @@
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
     <Compile Include="Timeline\TransformData\TransformDataMaidScale.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataBodySlider.cs" />
     <Compile Include="Timeline\TransformData\TransformDataNodeVisibility.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModel.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelBone.cs" />

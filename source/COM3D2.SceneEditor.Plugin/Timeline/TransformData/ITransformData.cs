@@ -11,6 +11,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         BGColor,
         BGGroundColor,
         BGModel,
+        BodySlider,
         Bloom,
         Camera,
         CameraShake,

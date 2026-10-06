@@ -51,6 +51,8 @@
         TimelineItem,
         /// <summary>メイドスケール (腕の骨の倍率)</summary>
         MaidScale,
+        /// <summary>体型スライダー (ModsSlider 相当の骨のスケール・位置)</summary>
+        BodySlider,
         /// <summary>ノード表示 (体の部位ごとの表示/非表示の上書き)</summary>
         NodeVisibility,
     }
