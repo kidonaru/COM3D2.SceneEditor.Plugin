@@ -93,6 +93,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
+        public void OnBodySliderKeyAdded(string key)
+        {
+        }
+
+        public void OnBodySliderKeyRemoved(string key)
+        {
+        }
+
         /// <summary>PrependDefaultFirstRows が補う 0F の既定値の行を持つ。keyFrames には入れないので保存されない</summary>
         private FrameData _defaultFirstFrame = null;
 

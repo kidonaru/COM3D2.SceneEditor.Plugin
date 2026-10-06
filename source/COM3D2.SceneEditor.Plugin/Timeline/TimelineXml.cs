@@ -79,6 +79,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string shapeKey;
     }
 
+    /// <summary>体型項目のタイムライン登録 1 件 (SE 独自)。登録した項目だけが体型レイヤーの BoneMenu に出てキーになる</summary>
+    public class TimelineMaidBodySliderKeyXml
+    {
+        [XmlElement("MaidSlotNo")]
+        public int maidSlotNo;
+        [XmlElement("Key")]
+        public string key;
+    }
+
     public class TimelineExtendBoneXml
     {
         [XmlElement("MaidSlotNo")]
@@ -268,6 +277,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlArray("MaidShapeKeys")]
         [XmlArrayItem("MaidShapeKey")]
         public List<TimelineMaidShapeKeyXml> maidShapeKeys = new List<TimelineMaidShapeKeyXml>();
+
+        // 体型項目の登録は SE 独自。登録の無いタイムラインの XML を変えないよう、空なら書き出さない
+        [XmlArray("MaidBodySliderKeys")]
+        [XmlArrayItem("MaidBodySliderKey")]
+        public List<TimelineMaidBodySliderKeyXml> maidBodySliderKeys = new List<TimelineMaidBodySliderKeyXml>();
+        [XmlIgnore] public bool maidBodySliderKeysSpecified { get { return maidBodySliderKeys != null && maidBodySliderKeys.Count > 0; } set { } }
 
         [XmlArray("ExtendBones")]
         [XmlArrayItem("ExtendBone")]
@@ -1465,6 +1480,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            // 版を問わず毎回行う。登録を外すとキーも消えるので、キーがあるのに未登録なのは旧 XML だけ
+            RegisterKeyedBodySliderItems(this);
+
             ConvertPlugin();
         }
 
@@ -1617,6 +1635,48 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (convertedCount > 0)
             {
                 MTEUtils.LogDebug("Convert maid scale to body slider count={0}", convertedCount);
+            }
+        }
+
+        /// <summary>
+        /// 体型レイヤーにキーのある項目を、そのスロットの登録 (maidBodySliderKeys) へ足す。
+        /// 登録を持たない旧 XML (登録の導入前、または MaidScale から移行したもの) でも、キーのある項目が BoneMenu に出るようにする
+        /// </summary>
+        public static void RegisterKeyedBodySliderItems(TimelineXml xml)
+        {
+            var registered = new HashSet<string>();
+            foreach (var entry in xml.maidBodySliderKeys)
+            {
+                registered.Add(entry.maidSlotNo + "/" + entry.key);
+            }
+
+            foreach (var layer in xml.layers)
+            {
+                if (layer.className != BodySliderLayerNameAtV39)
+                {
+                    continue;
+                }
+                foreach (var keyFrame in layer.keyFrames)
+                {
+                    if (keyFrame.bones == null)
+                    {
+                        continue;
+                    }
+                    foreach (var bone in keyFrame.bones)
+                    {
+                        var transform = bone.transform;
+                        if (transform == null || BodySliderDefs.Find(transform.name) == null
+                            || !registered.Add(layer.slotNo + "/" + transform.name))
+                        {
+                            continue;
+                        }
+                        xml.maidBodySliderKeys.Add(new TimelineMaidBodySliderKeyXml
+                        {
+                            maidSlotNo = layer.slotNo,
+                            key = transform.name,
+                        });
+                    }
+                }
             }
         }
 
