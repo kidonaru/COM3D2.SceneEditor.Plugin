@@ -406,6 +406,9 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 着替え完了・めくれで揺れものが作り直されたら重力を焼き直す
             gravityController.Update();
+
+            // 着替え・ボディ再ロードで初期化されたノード表示を書き直す
+            MaidNodeVisibilityController.Update();
         }
 
         /// <summary>
@@ -687,6 +690,8 @@ namespace COM3D2.SceneEditor.Plugin
             gravityController.Release(maid);
             // 腕の拡縮も持ち越さない（ストックの Maid は使い回される）
             maidScaleController.Release(maid);
+            // ノード表示の上書きも持ち越さない（ストックの Maid は使い回される）
+            MaidNodeVisibilityController.Release(maid);
             // 指の開き/握り/ロックも持ち越さない（ストックの Maid は使い回される）
             fingerBlendController.Release(maid);
             // 表情の強制上書き (まばたき停止) も持ち越さない。呼出時に既定で ON にしているため
@@ -732,6 +737,7 @@ namespace COM3D2.SceneEditor.Plugin
             lookController.Destroy();
             gravityController.Destroy();
             maidScaleController.Destroy();
+            MaidNodeVisibilityController.Destroy();
             MaidMotionState.Clear();
             MaidPoseFileManager.ClearClips();
         }

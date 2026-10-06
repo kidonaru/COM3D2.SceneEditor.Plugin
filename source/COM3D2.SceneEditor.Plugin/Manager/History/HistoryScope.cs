@@ -51,6 +51,8 @@
         TimelineItem,
         /// <summary>メイドスケール (腕の骨の倍率)</summary>
         MaidScale,
+        /// <summary>ノード表示 (体の部位ごとの表示/非表示の上書き)</summary>
+        NodeVisibility,
     }
 
     public static class HistoryScopeUtils

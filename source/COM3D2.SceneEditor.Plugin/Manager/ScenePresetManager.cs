@@ -23,6 +23,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>保存先にできないフォルダか（SceneCapture 仮想フォルダとその配下）</summary>
         public bool isReadonlyDir;
 
+        /// <summary>検索結果のタイルで SceneCapture 由来の項目に付けるタグ</summary>
+        public const string SCENE_CAPTURE_TAG = "SC";
+
+        /// <summary>SC タグの背景色。PNG 配置の「写真」タグと見分けられる色にする</summary>
+        public static readonly Color SCENE_CAPTURE_TAG_COLOR = new Color(0.6f, 0.4f, 0.1f);
+
         // 自動ロード指定 (ホームアイコン)。実体は Config の自動ロードキー 1 件のみで、
         // ON にすると他の指定は外れる
         public override bool isFavorite
@@ -300,6 +306,9 @@ namespace COM3D2.SceneEditor.Plugin
                     // 読み込み専用: 削除ボタンと自動ロード指定を出さない
                     child.canDelete = false;
                     child.canFavorite = false;
+                    // サムネが無く見分けにくいため、検索結果のタイルで印を出す
+                    child.tag = ScenePresetItem.SCENE_CAPTURE_TAG;
+                    child.tagColor = ScenePresetItem.SCENE_CAPTURE_TAG_COLOR;
                 }
             }
         }
@@ -1124,6 +1133,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             state.gravity = CaptureGravity(maid);
             state.maidScale = CaptureMaidScale(maid);
+            state.nodeVisibility = ScenePresetNodeVisibility.FromOverrides(
+                MaidNodeVisibilityController.GetOverrides(maid));
 
             CaptureIKHold(maid, state);
             CaptureLook(maid, state);
@@ -1217,6 +1228,7 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     category = category.id,
                     enabled = controller.GetEnabled(maid, category),
+                    local = controller.GetLocal(maid, category),
                     offset = controller.GetOffset(maid, category),
                 });
             }
@@ -2185,6 +2197,14 @@ namespace COM3D2.SceneEditor.Plugin
             }
             try
             {
+                ApplyNodeVisibility(maid, state);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+            try
+            {
                 ApplyIKHold(maid, state);
             }
             catch (Exception e)
@@ -2865,15 +2885,16 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
+                controller.SetLocal(maid, category, entry.local);
                 controller.SetOffset(maid, category, entry.offset);
                 controller.SetEnabled(maid, category, entry.enabled);
             }
         }
 
-        /// <summary>重力が既定値（無効・オフセット 0）か</summary>
+        /// <summary>重力が既定値（無効・ワールド・オフセット 0）か</summary>
         private static bool IsDefaultGravity(ScenePresetGravity entry)
         {
-            return !entry.enabled && entry.offset == Vector3.zero;
+            return !entry.enabled && !entry.local && entry.offset == Vector3.zero;
         }
 
         /// <summary>
@@ -2894,6 +2915,20 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 controller.SetScale(maid, bone.boneName, state.maidScale.GetScale(bone.boneName));
             }
+        }
+
+        /// <summary>
+        /// ノード表示を復元する。旧プリセット (nodeVisibility 無し) では変更しない。
+        /// 着替えの途中なら上書きを記録だけして、完了時に書かせる
+        /// </summary>
+        private static void ApplyNodeVisibility(Maid maid, ScenePresetMaid state)
+        {
+            if (state.nodeVisibility == null)
+            {
+                return;
+            }
+            MaidNodeVisibilityController.SetOverrides(maid, state.nodeVisibility.ToOverrides());
+            MaidNodeVisibilityController.Flush(maid);
         }
 
         /// <summary>

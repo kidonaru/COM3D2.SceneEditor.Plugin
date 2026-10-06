@@ -195,7 +195,11 @@
     <Compile Include="MaidManipulation\MaidManipulateManager.cs" />
     <Compile Include="MaidManipulation\MaidMotionState.cs" />
     <Compile Include="MaidManipulation\MaidMuneYureController.cs" />
+    <Compile Include="MaidManipulation\GravityLocalSpace.cs" />
     <Compile Include="MaidManipulation\MaidGravityController.cs" />
+    <Compile Include="MaidManipulation\MaidNodeVisibilityNodes.cs" />
+    <Compile Include="MaidManipulation\NodeVisibilityState.cs" />
+    <Compile Include="MaidManipulation\MaidNodeVisibilityController.cs" />
     <Compile Include="MaidManipulation\MaidScaleBones.cs" />
     <Compile Include="MaidManipulation\MaidScaleController.cs" />
     <Compile Include="MaidManipulation\MaidScaleState.cs" />
@@ -266,6 +270,7 @@
     <Compile Include="Manager\History\UndressSnapshot.cs" />
     <Compile Include="Manager\History\GravitySnapshot.cs" />
     <Compile Include="Manager\History\MaidScaleSnapshot.cs" />
+    <Compile Include="Manager\History\NodeVisibilitySnapshot.cs" />
     <Compile Include="Manager\History\ObjectSnapshot.cs" />
     <Compile Include="Manager\History\IKSnapshot.cs" />
     <Compile Include="Manager\History\BackgroundSnapshot.cs" />
@@ -385,6 +390,7 @@
     <Compile Include="EyesPosRowDrawer.cs" />
     <Compile Include="GravityRowDrawer.cs" />
     <Compile Include="MaidScaleRowDrawer.cs" />
+    <Compile Include="NodeVisibilityRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="FaceShapeKeyFilter.cs" />
     <Compile Include="MaidFaceWindow.cs" />
@@ -415,6 +421,7 @@
     <Compile Include="AboutPopupWindow.cs" />
     <Compile Include="SavePresetPopupWindow.cs" />
     <Compile Include="ScenePresetNaming.cs" />
+    <Compile Include="ScenePresetSearch.cs" />
     <Compile Include="SaveLayoutPopupWindow.cs" />
     <Compile Include="SavePosePopupWindow.cs" />
     <Compile Include="SaveFacePresetPopupWindow.cs" />
@@ -471,6 +478,7 @@
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\MaidScaleItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\NodeVisibilityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />
@@ -596,8 +604,9 @@
     <Compile Include="Timeline\TangentData.cs" />
     <Compile Include="Timeline\TangentUnification.cs" />
     <Compile Include="Timeline\TangentPair.cs" />
-    <Compile Include="Timeline\UnityScripts\Psyllium.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumArea.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumBatchData.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumBatchRenderer.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumConfig.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumController.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumHand.cs" />
@@ -626,6 +635,7 @@
     <Compile Include="Timeline\TimelineLayer\EyesTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\GravityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\MaidScaleTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\NodeVisibilityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
@@ -686,6 +696,7 @@
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
     <Compile Include="Timeline\TransformData\TransformDataMaidScale.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataNodeVisibility.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModel.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelShapeKey.cs" />

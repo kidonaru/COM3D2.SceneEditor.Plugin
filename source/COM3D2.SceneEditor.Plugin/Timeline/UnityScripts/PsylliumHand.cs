@@ -1,19 +1,16 @@
-﻿using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
-    [ExecuteInEditMode]
-    public class PsylliumHand : MonoBehaviour
+    /// <summary>
+    /// 観客 1 人の片手。GameObject は持たず、持っているバーの位置をエリアのバッチ配列へ書き込む
+    /// </summary>
+    public class PsylliumHand
     {
         public const int MAX_PSYLLIUM_COUNT = 3;
 
-        public PsylliumController controller;
-        public PsylliumArea area;
+        public readonly PsylliumController controller;
+        public readonly PsylliumArea area;
         public int patternIndex;
         public int timeIndex;
         public float timeShiftParam;
@@ -22,6 +19,20 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public Vector3 basePosition;
         public Quaternion placementRotation = Quaternion.identity;
         public bool isLeftHand;
+
+        /// <summary>エリア内でのバーの通し番号の先頭。バッチ配列の書き込み位置になる</summary>
+        public int barStartIndex;
+        public int barCount;
+
+        private Vector3[] _barPositions = new Vector3[MAX_PSYLLIUM_COUNT];
+        private Quaternion[] _barRotations = new Quaternion[MAX_PSYLLIUM_COUNT];
+        private int[] _colorIndexes = new int[MAX_PSYLLIUM_COUNT];
+
+        public PsylliumHand(PsylliumController controller, PsylliumArea area)
+        {
+            this.controller = controller;
+            this.area = area;
+        }
 
         public PsylliumBarConfig barConfig
         {
@@ -64,39 +75,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        public List<Psyllium> psylliums = new List<Psyllium>();
-
-        void OnEnable()
-        {
-            Initialize();
-        }
-
-        void Reset()
-        {
-            Initialize();
-        }
-
-        public void Initialize()
-        {
-            psylliums = GetComponentsInChildren<Psyllium>().ToList();
-        }
-
-        public void Setup(PsylliumController controller, PsylliumArea area)
-        {
-            this.controller = controller;
-            this.area = area;
-        }
-
         private Vector3 _calculatedPosition;
-        private Quaternion _calculatedRotation;
+        private Quaternion _calculatedRotation = Quaternion.identity;
 
+        /// <summary>別スレッドから呼ぶ。Unity のネイティブ API を使わないこと</summary>
         public void PreUpdateTransform()
         {
-            if (controller == null || area == null || pattern == null)
+            if (controller == null || area == null)
             {
                 return;
             }
 
+            var pattern = this.pattern;
+            if (pattern == null)
+            {
+                // パターンが無い手は揺らさず配置位置に置く
+                _calculatedPosition = basePosition;
+                _calculatedRotation = placementRotation;
+                return;
+            }
+
+            var patternConfig = pattern.patternConfig;
             var timeShift = patternConfig.timeShiftMin + (patternConfig.timeShiftMax - patternConfig.timeShiftMin) * timeShiftParam;
             var timeIndex = this.timeIndex + (int)(controller.time * timeShift);
 
@@ -113,10 +112,18 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _calculatedRotation = rotation;
         }
 
-        public void UpdateTransform()
+        /// <summary>別スレッドから呼ぶ。PreUpdateTransform の結果からバーの位置をバッチ配列へ書く</summary>
+        public void WriteBars(PsylliumBatchBuffer buffer)
         {
-            transform.localPosition = _calculatedPosition;
-            transform.localRotation = _calculatedRotation;
+            for (int j = 0; j < barCount; j++)
+            {
+                Vector4 position, up;
+                PsylliumBarMath.ComputeLocal(
+                    _calculatedPosition, _calculatedRotation,
+                    _barPositions[j], _barRotations[j], _colorIndexes[j],
+                    out position, out up);
+                buffer.Write(barStartIndex + j, position, up);
+            }
         }
 
         public void UpdatePsylliums(
@@ -128,7 +135,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             int[] colorIndexes,
             int randomPositionIndex,
             int randomRotationIndex,
-            bool isLeftHand)
+            bool isLeftHand,
+            int barStartIndex)
         {
             this.basePosition = handPos;
             this.isLeftHand = isLeftHand;
@@ -137,8 +145,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             this.timeShiftParam = timeShiftParam;
             this.randomPositionIndex = randomPositionIndex;
             this.randomRotationIndex = randomRotationIndex;
+            this.barStartIndex = barStartIndex;
 
-            CreatePsylliums(count);
+            EnsureBarCapacity(count);
+            barCount = count;
 
             for (int j = 0; j < count; j++)
             {
@@ -155,44 +165,22 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         barRotation.x, -barRotation.y, -barRotation.z, barRotation.w);
                 }
 
-                var psyllium = psylliums[j];
-                if (psyllium == null) return;
-
-                psyllium.Setup(controller, colorIndexes[j]);
-
-                psyllium.transform.localPosition = barPosition;
-                psyllium.transform.localRotation = barRotation;
+                _barPositions[j] = barPosition;
+                _barRotations[j] = barRotation;
+                _colorIndexes[j] = colorIndexes[j];
             }
         }
 
-        private void CreatePsylliums(int count)
+        private void EnsureBarCapacity(int count)
         {
-            while (psylliums.Count < count)
+            if (_barPositions.Length >= count)
             {
-                var obj = new GameObject("Psyllium");
-                obj.transform.SetParent(this.transform, false);
-
-                var psyllium = obj.AddComponent<Psyllium>();
-                psyllium.controller = controller;
-                psylliums.Add(psyllium);
+                return;
             }
 
-            for (int i = psylliums.Count - 1; i >= count; i--)
-            {
-                var psyllium = psylliums[i];
-                psylliums.RemoveAt(i);
-
-#if UNITY_EDITOR
-                if (!Application.isPlaying)
-                {
-                    DestroyImmediate(psyllium.gameObject);
-                }
-                else
-#endif
-                {
-                    Destroy(psyllium.gameObject);
-                }
-            }
+            _barPositions = new Vector3[count];
+            _barRotations = new Quaternion[count];
+            _colorIndexes = new int[count];
         }
     }
 }

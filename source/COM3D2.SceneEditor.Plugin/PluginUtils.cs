@@ -2,6 +2,7 @@ using System.IO;
 using System.Reflection;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 
 namespace COM3D2.SceneEditor.Plugin
 {
@@ -42,18 +43,40 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>配下の全 Renderer を包むバウンズ。Renderer が無ければ位置のみの小さなバウンズ</summary>
         public static Bounds CalcObjectBounds(GameObject go)
         {
-            var renderers = go.GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0)
+            var bounds = new Bounds();
+            var found = false;
+            foreach (var renderer in go.GetComponentsInChildren<Renderer>())
+            {
+                if (HasPlaceholderBounds(renderer))
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    bounds = renderer.bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            if (!found)
             {
                 return new Bounds(go.transform.position, Vector3.one * 0.5f);
             }
-
-            var bounds = renderers[0].bounds;
-            for (var i = 1; i < renderers.Length; i++)
-            {
-                bounds.Encapsulate(renderers[i].bounds);
-            }
             return bounds;
+        }
+
+        /// <summary>
+        /// 実際の形と無関係な巨大 bounds を持つ Renderer か。
+        /// サイリウムのバッチは位置をシェーダーで決めるため、選択・フォーカスの判定に使えない
+        /// </summary>
+        public static bool HasPlaceholderBounds(Renderer renderer)
+        {
+            return renderer.GetComponent<MTEP.PsylliumBatchRenderer>() != null;
         }
     }
 }

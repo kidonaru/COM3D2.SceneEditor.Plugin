@@ -5,7 +5,7 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 重力カテゴリ 1 件分の行描画 (有効トグル・リセット・XYZ スライダー)。
+    /// 重力カテゴリ 1 件分の行描画 (有効トグル・リセット・ローカルトグル・XYZ スライダー)。
     /// 重力ウィンドウと TimelineItemInspector (重力レイヤーの項目表示) で共有する。
     /// 値の読み書きは MaidGravityController を通し、操作は履歴に記録する
     /// </summary>
@@ -40,6 +40,15 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
             view.EndLayout();
+
+            // タイムラインのインスペクタは幅が狭いので、有効・リセットとは別の行にする
+            view.DrawToggle("ローカル（Bip01）", gravityController.GetLocal(target, category),
+                -1, rowHeight,
+                value =>
+                {
+                    RecordEdit(target, category, "ローカル");
+                    gravityController.SetLocal(target, category, value);
+                });
 
             var offset = gravityController.GetOffset(target, category);
             DrawAxisSlider(view, target, category, "X", offset.x,

@@ -19,7 +19,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// 髪・スカートの重力（揺れものにかかる力の向き）をメイド別・カテゴリ別に保持する。
     /// 力の適用そのものはゲーム側の GravityTransformControl に任せ、
-    /// このクラスは「コンポーネントの生成」と「着替えで作り直された際の焼き直し」を担う。
+    /// このクラスは「コンポーネントの生成」「着替えで作り直された際の焼き直し」と、
+    /// ローカル指定（Bip01 基準）のカテゴリを体の回転に合わせて毎フレーム書き直すことを担う。
     /// 揺れもの実装のバージョン差 (DynamicSkirtBone / DynamicYureBone / KCES2 など) は
     /// GravityTransformControl の中に閉じているため、ここでは分岐しない
     /// </summary>
@@ -27,6 +28,12 @@ namespace COM3D2.SceneEditor.Plugin
     {
         /// <summary>力の倍率。フォトモード・MeidoPhotoStudio と同じ値</summary>
         private const float FORCE_RATE = 0.1f;
+
+        /// <summary>
+        /// ローカル指定で書き直す最小の変化（offset 空間の距離の 2 乗）。0.005 は向きにして約 0.3°。
+        /// ゲーム側は値が変わるたびに揺れものの UpdateParameters を呼ぶ
+        /// </summary>
+        private const float LOCAL_REFRESH_EPSILON_SQR = 0.005f * 0.005f;
 
         /// <summary>
         /// 生成する GameObject 名のプレフィックス。
@@ -116,6 +123,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             public readonly Dictionary<string, Vector3> offsets = new Dictionary<string, Vector3>();
 
+            /// <summary>カテゴリごとのローカル（Bip01 基準）フラグ。無ければ OFF（ワールド）</summary>
+            public readonly Dictionary<string, bool> locals = new Dictionary<string, bool>();
+
+            /// <summary>Bip01 を取り直すために持つ（辞書のキーと同じメイド）</summary>
+            public Maid maid;
+
+            /// <summary>ローカル指定の回転の元。ボディ再ロードで破棄されたら取り直す</summary>
+            public Transform bip01;
+
             /// <summary>
             /// 前フレームの着替え中フラグ。
             /// 立ち上がりでボーンを基準値へ戻し、立ち下がりで揺れものを取り直す。
@@ -196,6 +212,29 @@ namespace COM3D2.SceneEditor.Plugin
             ApplyCategory(entry, category);
         }
 
+        /// <summary>記録が無いメイドは既定 OFF（ワールド）として扱う</summary>
+        public bool GetLocal(Maid maid, GravityCategory category)
+        {
+            var entry = GetEntry(maid);
+            bool value;
+            if (entry == null || !entry.locals.TryGetValue(category.id, out value))
+            {
+                return false;
+            }
+            return value;
+        }
+
+        public void SetLocal(Maid maid, GravityCategory category, bool value)
+        {
+            var entry = GetOrCreateEntry(maid);
+            if (entry == null)
+            {
+                return;
+            }
+            entry.locals[category.id] = value;
+            ApplyCategory(entry, category);
+        }
+
         /// <summary>
         /// 揺れものの作り直しに追従する。
         /// 着替え (AllProcProp) の完了時は対象スロットごと入れ替わるため取り直しが必須で、
@@ -250,6 +289,19 @@ namespace COM3D2.SceneEditor.Plugin
                     if (control != null)
                     {
                         control.OnChangeMekure();
+                    }
+                }
+
+                // ローカル指定は体の向きに追従させるため毎フレーム確かめる。
+                // 無効なカテゴリはゲーム側が力を 0 にするので書かない（有効化時に SetEnabled が書く）
+                if (!entry.wasBusy && maid.body0.isLoadedBody)
+                {
+                    foreach (var category in categories)
+                    {
+                        if (IsLocal(entry, category) && GetEnabled(maid, category))
+                        {
+                            ApplyCategory(entry, category);
+                        }
                     }
                 }
             }
@@ -326,7 +378,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return entry;
             }
 
-            entry = new Entry { wasBusy = maid.IsAllProcPropBusy };
+            entry = new Entry { maid = maid, wasBusy = maid.IsAllProcPropBusy };
             CreateControls(maid, entry);
             _entries[maid] = entry;
             return entry;
@@ -432,7 +484,14 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 offset = Vector3.zero;
             }
-            control.transform.localPosition = offset;
+            var local = IsLocal(entry, category);
+            var force = local ? ToLocalForce(entry, offset) : offset;
+            // ローカル指定はタイムライン適用と Update の追従で毎フレーム通る。
+            // 骨盤の細かな揺れのたびにゲーム側の UpdateParameters を走らせないよう、わずかな変化は書かない
+            if (!local || (force - control.transform.localPosition).sqrMagnitude >= LOCAL_REFRESH_EPSILON_SQR)
+            {
+                control.transform.localPosition = force;
+            }
 
             bool enabled;
             if (!entry.enabled.TryGetValue(category.id, out enabled))
@@ -442,6 +501,38 @@ namespace COM3D2.SceneEditor.Plugin
             // setter は isValid が false のとき true にならないため、
             // 揺れものが無い間は OFF のまま扱われる（取り直し後に改めて有効化される）
             control.isEnabled = enabled;
+        }
+
+        private static bool IsLocal(Entry entry, GravityCategory category)
+        {
+            bool local;
+            return entry.locals.TryGetValue(category.id, out local) && local;
+        }
+
+        /// <summary>
+        /// offset を Bip01 の回転に合わせて回す。
+        /// Bip01 が取れない間（ボディ再ロード中など）はワールドとして扱い、取れた次のフレームで書き直す
+        /// </summary>
+        private static Vector3 ToLocalForce(Entry entry, Vector3 offset)
+        {
+            var bip01 = GetBip01(entry);
+            if (bip01 == null)
+            {
+                return offset;
+            }
+            return GravityLocalSpace.ToForce(bip01.rotation, offset);
+        }
+
+        private static Transform GetBip01(Entry entry)
+        {
+            // 破棄済みの Transform は == null が true になるので取り直す
+            // ボディ未ロードの間は GetBone が骨の親を null のまま辿って例外を投げるので探さない
+            if (entry.bip01 == null && entry.maid != null && entry.maid.body0 != null
+                && entry.maid.body0.isLoadedBody)
+            {
+                entry.bip01 = entry.maid.body0.GetBone("Bip01");
+            }
+            return entry.bip01;
         }
 
         private void DestroyEntry(Entry entry)
