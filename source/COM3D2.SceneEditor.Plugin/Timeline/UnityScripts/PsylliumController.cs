@@ -151,8 +151,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
 
             var material = new Material(shader);
-            // Unity 5.6 のマテリアルは手書きできないため新シェーダー用の .mat は作らず、
-            // テクスチャは旧マテリアルのものを流用する
+            // Unity 5.6 ではマテリアルを手書きできないため、テクスチャは旧 Psyllium マテリアルから借りる
             var textureSource = bundleManager.LoadMaterial("Psyllium");
             if (textureSource != null)
             {
@@ -181,14 +180,35 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 materials[1] = CreateMaterial("PsylliumBatchAdd");
             }
 
+            UpdateName();
+            UpdateMaterials();
+
+            // 形状の変更は RefreshKind.Mesh で届くので、再表示 (OnEnable) のたびには作り直さない
             if (batchMesh == null)
             {
                 batchMesh = new Mesh();
+                UpdateMeshs();
+            }
+        }
+
+        void OnDestroy()
+        {
+            // Material と Mesh は GameObject と一緒には消えないため、コントローラーの破棄に合わせて消す
+            if (batchMesh != null)
+            {
+                Destroy(batchMesh);
             }
 
-            UpdateName();
-            UpdateMaterials();
-            UpdateMeshs();
+            if (materials != null)
+            {
+                foreach (var material in materials)
+                {
+                    if (material != null)
+                    {
+                        Destroy(material);
+                    }
+                }
+            }
         }
 
 #if UNITY_EDITOR

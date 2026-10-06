@@ -20,7 +20,9 @@ Shader "MTE/PsylliumBatch"
         {
             "Queue" = "AlphaTest"
             "IgnoreProjector" = "True"
-            "RenderType" = "TransparentCutout"
+            // 内蔵の置換シェーダー (DepthNormals 等) は配列を読まずにバーをエリア原点へ重ねて描くため、
+            // 置換対象の RenderType から外す
+            "RenderType" = "PsylliumBatch"
             "DisableBatching" = "True"
         }
 

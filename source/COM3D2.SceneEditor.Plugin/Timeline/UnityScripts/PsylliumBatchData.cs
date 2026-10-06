@@ -11,6 +11,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     {
         /// <summary>
         /// シェーダー配列の要素数。Unity の配列プロパティの上限 (1023) に合わせる。
+        /// PsylliumBatchVert.cginc の PSYLLIUM_BATCH_CAPACITY と必ず同じ値にすること。
         /// 配列長は最初の SetVectorArray で固定されるため、常にこの長さで渡す
         /// </summary>
         public const int Capacity = 1023;

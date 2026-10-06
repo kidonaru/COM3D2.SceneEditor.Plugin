@@ -63,7 +63,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     
         private int _handCurrentIndex;
 
-        // Refresh 中に振るバーの通し番号。最後にバッチ配列の本数になる
+        // Refresh 中に割り当てるバーの通し番号。最後にバッチ配列の本数になる
         private int _barCount;
         private readonly PsylliumBatchBuffer _batchBuffer = new PsylliumBatchBuffer();
         private readonly List<PsylliumBatchRenderer> _batchRenderers = new List<PsylliumBatchRenderer>();
@@ -108,7 +108,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void Initialize()
         {
-            // 手はもう子の GameObject ではないので集め直さない。再表示 (OnEnable) で配置が失われるため
+            // 手は GameObject を持たないため、集め直さず null のときだけ空リストにする
             if (hands == null)
             {
                 hands = new List<PsylliumHand>();

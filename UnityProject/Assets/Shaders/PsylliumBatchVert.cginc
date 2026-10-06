@@ -5,6 +5,7 @@
 
 #include "UnityCG.cginc"
 
+// PsylliumBatchBuffer.Capacity (C#) と必ず同じ値にすること
 #define PSYLLIUM_BATCH_CAPACITY 1023
 
 sampler2D _MainTex;
@@ -32,7 +33,7 @@ struct v2f
 {
     float4 pos : SV_POSITION;
     float2 uv : TEXCOORD0;
-    float2 uv2 : TEXCOORD1; // uv2.y = 色番号 (frag は旧シェーダーと同じ読み方)
+    float2 uv2 : TEXCOORD1; // y = 色番号 (frag で色セットの選択に使う)
 };
 
 v2f vert(appdata v)

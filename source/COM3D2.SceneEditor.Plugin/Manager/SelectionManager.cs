@@ -300,7 +300,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             foreach (var renderer in UnityEngine.Object.FindObjectsOfType<Renderer>())
             {
-                if (!renderer.enabled || renderer.gameObject.layer == PluginUtils.NGUILayer)
+                if (!renderer.enabled || renderer.gameObject.layer == PluginUtils.NGUILayer ||
+                    PluginUtils.HasPlaceholderBounds(renderer))
                 {
                     continue;
                 }
