@@ -129,8 +129,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
-                // 前フレームの TBody.LateUpdate の直後に掛けた体型スライダーを戻す。
-                // ゲームのロジック (体型・IK) にはなるべく掛けていない骨を見せる
+                // 前フレームに掛けた体型スライダーを戻す (理由は BodySliderController.RestoreApplied)
                 MaidManipulateManager.instance.bodySliderController.RestoreApplied();
 
                 if (!config.pluginEnabled)

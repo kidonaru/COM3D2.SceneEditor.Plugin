@@ -62,10 +62,10 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
-                var scaleController = controller;
-                if (scaleController != null)
+                var bodySliderController = controller;
+                if (bodySliderController != null)
                 {
-                    scaleController.OnBodyLateUpdateBegin(__instance);
+                    bodySliderController.OnBodyLateUpdateBegin(__instance);
                 }
             }
             catch (Exception e)
@@ -83,10 +83,10 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     return;
                 }
-                var scaleController = controller;
-                if (scaleController != null)
+                var bodySliderController = controller;
+                if (bodySliderController != null)
                 {
-                    scaleController.OnBodyLateUpdateEnd(__instance);
+                    bodySliderController.OnBodyLateUpdateEnd(__instance);
                 }
             }
             catch (Exception e)

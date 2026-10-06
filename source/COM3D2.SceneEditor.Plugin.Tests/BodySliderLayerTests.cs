@@ -84,6 +84,51 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.Equal(new[] { "THISCL", "THIPOS", "HANDSCL_R" }, names.ToArray());
         }
 
+        private static MTEP.BoneData CreateRow(int frameNo, string key, Vector3 values)
+        {
+            var frame = new MTEP.FrameData(null, frameNo);
+            var trans = CreateKey(key);
+            trans.vector = values;
+            var bone = frame.CreateBone(trans);
+            frame.SetBone(bone);
+            return bone;
+        }
+
+        [Fact]
+        public void 最初のキーが0Fより後の項目には0Fの既定値の行を補う()
+        {
+            var rowsMap = new Dictionary<string, List<MTEP.BoneData>>
+            {
+                { "UPARMSCL_L", new List<MTEP.BoneData> { CreateRow(60, "UPARMSCL_L", new Vector3(2f, 2f, 2f)) } },
+                { "THIPOS", new List<MTEP.BoneData> { CreateRow(30, "THIPOS", new Vector3(10f, 0f, 0f)) } },
+            };
+
+            MTEP.BodySliderTimelineLayer.PrependDefaultFirstRows(rowsMap, new MTEP.FrameData(null, 0));
+
+            var arm = rowsMap["UPARMSCL_L"];
+            Assert.Equal(2, arm.Count);
+            Assert.Equal(0, arm[0].frameNo);
+            Assert.Equal(Vector3.one, ((MTEP.TransformDataBodySlider)arm[0].transform).vector);
+            Assert.Equal(60, arm[1].frameNo);
+            Assert.Equal(Vector3.zero, ((MTEP.TransformDataBodySlider)rowsMap["THIPOS"][0].transform).vector);
+        }
+
+        [Fact]
+        public void 先頭フレームにキーのある項目と未知の項目には行を補わない()
+        {
+            var rowsMap = new Dictionary<string, List<MTEP.BoneData>>
+            {
+                { "THISCL", new List<MTEP.BoneData> { CreateRow(0, "THISCL", new Vector3(1.5f, 1f, 1f)), CreateRow(60, "THISCL", Vector3.one) } },
+                { "UNKNOWN", new List<MTEP.BoneData> { CreateRow(60, "UNKNOWN", Vector3.one) } },
+            };
+
+            MTEP.BodySliderTimelineLayer.PrependDefaultFirstRows(rowsMap, new MTEP.FrameData(null, 0));
+
+            Assert.Equal(2, rowsMap["THISCL"].Count);
+            Assert.Equal(1.5f, ((MTEP.TransformDataBodySlider)rowsMap["THISCL"][0].transform).vector.x);
+            Assert.Single(rowsMap["UNKNOWN"]);
+        }
+
         [Fact]
         public void 値もキーも無ければキーにしない()
         {

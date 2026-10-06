@@ -38,7 +38,7 @@ namespace COM3D2.SceneEditor.Plugin
                     onChanged = newValue =>
                     {
                         RecordEdit(maid, item.displayName);
-                        // ドラッグ中に他の成分が変わっていることはないが、書き込み直前の値から作り直す
+                        // 他の成分は書き込み直前の値を引き継ぐ
                         var current = controller.GetValues(maid, item.key);
                         current[index] = newValue;
                         controller.SetValues(maid, item.key, current);

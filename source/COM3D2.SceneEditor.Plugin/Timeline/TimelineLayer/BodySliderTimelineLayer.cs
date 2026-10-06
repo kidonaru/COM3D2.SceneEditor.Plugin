@@ -10,7 +10,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
     /// 体型スライダー (BodySliderController) をキー化するレイヤー。
     /// 項目名は BodySliderDefs のキーで、値 3 個を Tangent 補間する。
     /// キーにするのは既定値でない項目と、このレイヤーに既にキーのある項目だけ
-    /// (全 38 項目を毎回キーにすると XML とキー一覧が膨らむため)。
+    /// (全項目を毎回キーにすると XML とキー一覧が膨らむため)。
     /// 骨への書き込みはコントローラーが TBody.LateUpdate の直後に行い、このレイヤーは値を渡すだけ
     /// </summary>
     [TimelineLayerDesc("体型", 19, TimelineLayerCategory.Maid)]
@@ -93,6 +93,47 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return result;
         }
 
+        /// <summary>PrependDefaultFirstRows が補う 0F の既定値の行を持つ。keyFrames には入れないので保存されない</summary>
+        private FrameData _defaultFirstFrame = null;
+
+        protected override void BuildTimelineBonesMap()
+        {
+            base.BuildTimelineBonesMap();
+
+            if (_defaultFirstFrame == null)
+            {
+                _defaultFirstFrame = CreateFrame(0);
+            }
+            PrependDefaultFirstRows(_timelineBonesMap, _defaultFirstFrame);
+        }
+
+        /// <summary>
+        /// 最初のキーが 0F より後の項目に、0F の既定値の行を補う。
+        /// キーは既定値でない項目だけに打つので、途中のフレームで初めて変えた項目は 0F の行を持たない。
+        /// 基底は最初のキーより前の区間を何もしないため、補わないとその区間の値が直前の再生・シーク次第で変わる
+        /// </summary>
+        public static void PrependDefaultFirstRows(Dictionary<string, List<BoneData>> rowsMap, FrameData firstFrame)
+        {
+            foreach (var pair in rowsMap)
+            {
+                var rows = pair.Value;
+                if (rows.Count == 0 || rows[0].frameNo <= firstFrame.frameNo || BodySliderDefs.Find(pair.Key) == null)
+                {
+                    continue;
+                }
+
+                var bone = firstFrame.GetBone(pair.Key);
+                if (bone == null)
+                {
+                    // Initialize が項目の既定値で作る
+                    var trans = TimelineManager.CreateTransform<TransformDataBodySlider>(pair.Key);
+                    bone = firstFrame.CreateBone(trans);
+                    firstFrame.SetBone(bone);
+                }
+                rows.Insert(0, bone);
+            }
+        }
+
         protected override void ApplyMotion(MotionData motion, float t, bool indexUpdated, MotionPlayData playData)
         {
             var maid = this.maid;
@@ -159,7 +200,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 nonDefaultKeys.Add(pair.Key);
             }
 
-            foreach (var key in BuildKeyNames(nonDefaultKeys, _playDataMap.Keys))
+            // _playDataMap はキーを全部消した項目も残すので、行のある項目だけを持つ _timelineBonesMap で判定する
+            foreach (var key in BuildKeyNames(nonDefaultKeys, _timelineBonesMap.Keys))
             {
                 var trans = CreateTransformData<TransformDataBodySlider>(key);
                 trans.vector = bodySliderController.GetValues(maid, key);
