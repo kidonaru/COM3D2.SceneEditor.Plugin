@@ -29,6 +29,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         IKHold,
         Light,
         LookAtTarget,
+        /// <summary>旧メイドスケール。version 39 で BodySlider へ変換する。読込互換のためだけに残す</summary>
         MaidScale,
         Model,
         ModelBone,

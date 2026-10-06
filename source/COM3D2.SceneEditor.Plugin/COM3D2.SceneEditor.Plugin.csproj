@@ -200,9 +200,6 @@
     <Compile Include="MaidManipulation\MaidNodeVisibilityNodes.cs" />
     <Compile Include="MaidManipulation\NodeVisibilityState.cs" />
     <Compile Include="MaidManipulation\MaidNodeVisibilityController.cs" />
-    <Compile Include="MaidManipulation\MaidScaleBones.cs" />
-    <Compile Include="MaidManipulation\MaidScaleController.cs" />
-    <Compile Include="MaidManipulation\MaidScaleState.cs" />
     <Compile Include="MaidManipulation\BodySliderDefs.cs" />
     <Compile Include="MaidManipulation\BodySliderState.cs" />
     <Compile Include="MaidManipulation\BodySliderController.cs" />
@@ -272,7 +269,6 @@
     <Compile Include="Manager\History\FaceSnapshot.cs" />
     <Compile Include="Manager\History\UndressSnapshot.cs" />
     <Compile Include="Manager\History\GravitySnapshot.cs" />
-    <Compile Include="Manager\History\MaidScaleSnapshot.cs" />
     <Compile Include="Manager\History\BodySliderSnapshot.cs" />
     <Compile Include="Manager\History\NodeVisibilitySnapshot.cs" />
     <Compile Include="Manager\History\ObjectSnapshot.cs" />
@@ -287,7 +283,6 @@
     <Compile Include="Manager\History\SnapshotFactory.cs" />
     <Compile Include="Manager\ScreenshotHotkeyPatch.cs" />
     <Compile Include="Manager\ScreenshotManager.cs" />
-    <Compile Include="Manager\MaidScaleLateUpdatePatch.cs" />
     <Compile Include="Manager\BodySliderLateUpdatePatch.cs" />
     <Compile Include="Manager\SkirtHookDriftPatch.cs" />
     <Compile Include="Manager\PngBlendModes.cs" />
@@ -394,7 +389,6 @@
     <Compile Include="TimelineLookRowDrawer.cs" />
     <Compile Include="EyesPosRowDrawer.cs" />
     <Compile Include="GravityRowDrawer.cs" />
-    <Compile Include="MaidScaleRowDrawer.cs" />
     <Compile Include="BodySliderRowDrawer.cs" />
     <Compile Include="NodeVisibilityRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
@@ -483,7 +477,6 @@
     <Compile Include="Timeline\ItemInspector\ITimelineItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\EyesItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
-    <Compile Include="Timeline\ItemInspector\MaidScaleItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BodySliderItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\NodeVisibilityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
@@ -641,7 +634,6 @@
     <Compile Include="Timeline\TimelineLayer\DressTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\EyesTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\GravityTimelineLayer.cs" />
-    <Compile Include="Timeline\TimelineLayer\MaidScaleTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BodySliderTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\NodeVisibilityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
@@ -703,7 +695,6 @@
     <Compile Include="Timeline\TransformData\TransformDataIKHold.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLight.cs" />
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
-    <Compile Include="Timeline\TransformData\TransformDataMaidScale.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBodySlider.cs" />
     <Compile Include="Timeline\TransformData\TransformDataNodeVisibility.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModel.cs" />

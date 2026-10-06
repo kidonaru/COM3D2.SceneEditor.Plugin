@@ -129,9 +129,8 @@ namespace COM3D2.SceneEditor.Plugin
         {
             try
             {
-                // 前フレームの TBody.LateUpdate の直後に掛けた腕の拡縮を戻す。
-                // ゲームのロジック (体型・IK) にはなるべく拡縮していない骨を見せる
-                MaidManipulateManager.instance.maidScaleController.RestoreApplied();
+                // 前フレームの TBody.LateUpdate の直後に掛けた体型スライダーを戻す。
+                // ゲームのロジック (体型・IK) にはなるべく掛けていない骨を見せる
                 MaidManipulateManager.instance.bodySliderController.RestoreApplied();
 
                 if (!config.pluginEnabled)
@@ -436,9 +435,6 @@ namespace COM3D2.SceneEditor.Plugin
                 // ゲーム側のスカート物理の累積誤差を抑える。UI の有効状態に関係なく常時効かせる
                 SkirtHookDriftPatch.Init();
 
-                // メイドスケールを TBody.LateUpdate の直後に掛ける。UI の有効状態に関係なく常時効かせる
-                MaidScaleLateUpdatePatch.Init();
-
                 // 体型スライダーを TBody.LateUpdate の直後に掛ける。UI の有効状態に関係なく常時効かせる
                 BodySliderLateUpdatePatch.Init();
 
@@ -529,9 +525,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 if (isEnable)
                 {
-                    var scaleController = MaidManipulateManager.instance.maidScaleController;
                     var bodySliderController = MaidManipulateManager.instance.bodySliderController;
-                    scaleController.SuspendApplied();
                     bodySliderController.SuspendApplied();
                     try
                     {
@@ -540,7 +534,6 @@ namespace COM3D2.SceneEditor.Plugin
                     finally
                     {
                         bodySliderController.ResumeApplied();
-                        scaleController.ResumeApplied();
                     }
                 }
             }
