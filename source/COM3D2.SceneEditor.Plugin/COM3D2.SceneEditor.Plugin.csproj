@@ -606,6 +606,7 @@
     <Compile Include="Timeline\TangentPair.cs" />
     <Compile Include="Timeline\UnityScripts\Psyllium.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumArea.cs" />
+    <Compile Include="Timeline\UnityScripts\PsylliumBatchData.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumConfig.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumController.cs" />
     <Compile Include="Timeline\UnityScripts\PsylliumHand.cs" />
