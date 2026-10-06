@@ -30,6 +30,12 @@ namespace COM3D2.SceneEditor.Plugin
         public Maid maid;
         public Entry[] entries;
 
+        /// <summary>
+        /// 連動 OFF (Config.spineDragLinked) のときに entries の代わりに回すボーン。
+        /// null の点は常に entries を回す。上体の点だけが掴んだボーン 1 本ぶんを持つ
+        /// </summary>
+        public Entry[] soloEntries;
+
         /// <summary>追従先。回転対象と別のボーンを指すこともある</summary>
         public Transform followBone;
 
@@ -71,6 +77,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         private Vector3 _mouseDownPos;
         private Vector3[] _baseAngles;
+
+        /// <summary>このドラッグで回すボーン。途中で連動を切り替えても変わらないよう開始時点で固定する</summary>
+        private Entry[] _dragEntries;
 
         /// <summary>移動モードで掴んだ時点の moveBone のスクリーン座標。奥行き (z) を保つために使う</summary>
         private Vector3 _moveScreenPoint;
@@ -129,13 +138,22 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
+        /// <summary>今ドラッグを始めたら回すボーン。掴めるかの判定と実際に回す組をそろえるため 1 箇所で決める</summary>
+        private Entry[] ResolveRotateEntries()
+        {
+            return soloEntries != null && !ConfigManager.instance.config.spineDragLinked
+                ? soloEntries
+                : entries;
+        }
+
         private bool HasTwistEntry()
         {
-            if (entries == null)
+            var rotateEntries = ResolveRotateEntries();
+            if (rotateEntries == null)
             {
                 return false;
             }
-            foreach (var entry in entries)
+            foreach (var entry in rotateEntries)
             {
                 if (entry.twistWeight != 0f)
                 {
@@ -196,16 +214,18 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void BeginRotate()
         {
-            _baseAngles = new Vector3[entries.Length];
-            for (var i = 0; i < entries.Length; i++)
+            _dragEntries = ResolveRotateEntries();
+
+            _baseAngles = new Vector3[_dragEntries.Length];
+            for (var i = 0; i < _dragEntries.Length; i++)
             {
-                _baseAngles[i] = entries[i].bone.localEulerAngles;
+                _baseAngles[i] = _dragEntries[i].bone.localEulerAngles;
             }
 
             var targetBones = new List<Transform>();
-            for (var i = 0; i < entries.Length; i++)
+            for (var i = 0; i < _dragEntries.Length; i++)
             {
-                targetBones.Add(entries[i].bone);
+                targetBones.Add(_dragEntries[i].bone);
             }
             if (extraHistoryBones != null)
             {
@@ -358,15 +378,15 @@ namespace COM3D2.SceneEditor.Plugin
             var forward = cameraTransform.TransformDirection(Vector3.forward);
 
             // 親を回すと子の位置が動くため、全ボーンを基準姿勢へ戻してから順に回す（MM と同じ手順）
-            for (var i = 0; i < entries.Length; i++)
+            for (var i = 0; i < _dragEntries.Length; i++)
             {
-                entries[i].bone.localEulerAngles = _baseAngles[i];
+                _dragEntries[i].bone.localEulerAngles = _baseAngles[i];
             }
 
-            for (var i = 0; i < entries.Length; i++)
+            for (var i = 0; i < _dragEntries.Length; i++)
             {
-                var bone = entries[i].bone;
-                var weight = entries[i].tiltWeight;
+                var bone = _dragEntries[i].bone;
+                var weight = _dragEntries[i].tiltWeight;
 
                 bone.RotateAround(bone.position,
                     new Vector3(right.x, 0f, right.z), delta.y / pitchDivisor * weight);
@@ -390,15 +410,15 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ローカル X 軸まわりのひねり（MouseDrag3 ido==5/6 と同型）</summary>
         private void ApplyTwist(Vector3 delta)
         {
-            for (var i = 0; i < entries.Length; i++)
+            for (var i = 0; i < _dragEntries.Length; i++)
             {
-                var weight = entries[i].twistWeight;
+                var weight = _dragEntries[i].twistWeight;
                 if (weight == 0f)
                 {
                     continue;
                 }
 
-                entries[i].bone.localRotation = Quaternion.Euler(_baseAngles[i])
+                _dragEntries[i].bone.localRotation = Quaternion.Euler(_baseAngles[i])
                     * Quaternion.AngleAxis(delta.x / twistDivisor * weight, Vector3.right);
             }
         }

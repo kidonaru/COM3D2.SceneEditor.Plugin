@@ -86,6 +86,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ドラッグ点を張り付けているメイド。変わったときだけ作り直す</summary>
         private Maid _maid = null;
 
+        /// <summary>上体のドラッグ点が回すボーンか（連動トグルを出すかの判定に使う）</summary>
+        public static bool IsSpineBone(string boneName)
+        {
+            return System.Array.IndexOf(SpineBoneNames, boneName) >= 0;
+        }
+
         public void SetTarget(Maid maid)
         {
             if (_maid == maid)
@@ -269,13 +275,19 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var entries = new MaidBoneRotateDragPoint.Entry[spineBones.Length];
+            var tiltWeightSum = 0f;
+            var twistWeightSum = 0f;
             for (var i = 0; i < spineBones.Length; i++)
             {
                 entries[i] = new MaidBoneRotateDragPoint.Entry(
                     spineBones[i], SpineTiltWeights[i], SpineTwistWeights[i]);
+                tiltWeightSum += SpineTiltWeights[i];
+                twistWeightSum += SpineTwistWeights[i];
             }
 
-            // 4 点すべてが同じ entries を共有し、どの点を掴んでも全ボーンが連動して曲がる
+            // 4 点すべてが同じ entries を共有し、どの点を掴んでも全ボーンが連動して曲がる。
+            // 連動 OFF 用の soloEntries は重みを 4 本の合計にし、連動時と同程度に上体の先端が曲がるようにする
+            // (Spine1 は連動時ひねり重み 0 だが、単独では回せるよう合計を持たせる)
             foreach (var bone in spineBones)
             {
                 var go = CreateDragPointObject("MIE_SpineDragPoint_" + bone.name, SpineDragPointScale);
@@ -283,6 +295,10 @@ namespace COM3D2.SceneEditor.Plugin
                 var point = go.AddComponent<MaidBoneRotateDragPoint>();
                 point.maid = maid;
                 point.entries = entries;
+                point.soloEntries = new[]
+                {
+                    new MaidBoneRotateDragPoint.Entry(bone, tiltWeightSum, twistWeightSum),
+                };
                 point.followBone = bone;
                 point.pitchDivisor = 1f;
                 point.yawDivisor = -1.5f;

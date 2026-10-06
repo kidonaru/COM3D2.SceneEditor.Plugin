@@ -121,6 +121,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool inspectorVisible = false;
         // 拡縮の XYZ 連動 (1 軸の編集を比率で全軸へ反映)
         public bool inspectorScaleLinked = false;
+        // 上体の白丸ドラッグで背骨 4 ボーンを連動して曲げるか。OFF なら掴んだボーンだけを回す
+        public bool spineDragLinked = true;
 
         // メイド配置機能
         // 配置プリセット。XML へ永続化するため MaidPlacementPreset.PresetType の序数で持つ

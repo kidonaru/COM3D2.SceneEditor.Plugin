@@ -405,10 +405,29 @@ namespace COM3D2.SceneEditor.Plugin
             }
             BoneSliderRowDrawer.Draw(_view, maid, selectedDef, LabelWidth);
 
+            if (MaidDragPointController.IsSpineBone(selectedDef.boneName))
+            {
+                DrawSpineDragLinkedToggle();
+            }
+
             if (selectedDef.canMove)
             {
                 DrawPoseBonePositionRow(maid, selectedDef, selectedBone);
             }
+        }
+
+        /// <summary>
+        /// 上体の白丸ドラッグで背骨 4 ボーンを連動させるか。上体の点をクリックすると
+        /// ここが開くため、背骨ボーンの選択中だけ出す。ポーズではなく操作設定なので履歴に積まない
+        /// </summary>
+        private void DrawSpineDragLinkedToggle()
+        {
+            _view.DrawToggle("背骨を連動して曲げる", config.spineDragLinked, 200, RowHeight,
+                on =>
+                {
+                    config.spineDragLinked = on;
+                    config.dirty = true;
+                });
         }
 
         /// <summary>
