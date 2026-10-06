@@ -1058,14 +1058,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            // 集合の列挙順に依らないよう、スロット順・定義順で書く (保存ファイルと TimelineXmlDiff の比較を安定させる)
             xml.maidBodySliderKeys = new List<TimelineMaidBodySliderKeyXml>();
-            foreach (var pair in maidBodySliderKeysMap)
+            foreach (var maidSlotNo in maidBodySliderKeysMap.Keys.OrderBy(slotNo => slotNo))
             {
-                foreach (var key in pair.Value)
+                foreach (var key in BodySliderTimelineLayer.OrderByDefinition(maidBodySliderKeysMap[maidSlotNo]))
                 {
                     xml.maidBodySliderKeys.Add(new TimelineMaidBodySliderKeyXml
                     {
-                        maidSlotNo = pair.Key,
+                        maidSlotNo = maidSlotNo,
                         key = key,
                     });
                 }

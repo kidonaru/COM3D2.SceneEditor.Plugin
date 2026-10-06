@@ -21,7 +21,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public override bool hasSlotNo => true;
 
-        /// <summary>登録した項目を定義順に並べたもの。InitMenuItems で作り直す</summary>
+        /// <summary>登録した項目を定義順に並べたもの。登録が変わると InitMenuItems が作り直す</summary>
         private List<string> _allBoneNames = null;
         public override List<string> allBoneNames
         {
@@ -51,8 +51,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             _allMenuItems.Clear();
 
-            _allBoneNames = null;
-            foreach (var key in allBoneNames)
+            _allBoneNames = OrderByDefinition(timeline.GetMaidBodySliderKeys(slotNo));
+            foreach (var key in _allBoneNames)
             {
                 _allMenuItems.Add(new BoneMenuItem(key, BodySliderDefs.Find(key).displayName));
             }
@@ -177,7 +177,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// 値はこのレイヤーと体型タブからしか編集できないので、削除・アンロード時は既定値へ戻す。
+        /// 削除・アンロード時に、このレイヤーが動かす項目 (登録項目とキーのある項目) だけを既定値へ戻す。
+        /// 未登録の項目は体型タブで入れた値のまま残す (タイムラインに関係なく効く値のため)。
         /// 誕生時の断面がある場合は、この後の断面の復元が上書きする
         /// </summary>
         public override void ResetOnRemove()
@@ -187,7 +188,36 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 return;
             }
-            bodySliderController.ResetAll(maid);
+
+            var keys = new HashSet<string>(allBoneNames);
+            keys.UnionWith(_timelineBonesMap.Keys);
+            foreach (var key in keys)
+            {
+                var item = BodySliderDefs.Find(key);
+                if (item != null)
+                {
+                    bodySliderController.SetValues(maid, key, item.defaultValues);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 未登録の項目のキーは捨てる。ペーストやテンプレートで入ると、BoneMenu に出ずチェックを外しても消せないキーになる
+        /// </summary>
+        public override void UpdateBones(int frameNo, IEnumerable<BoneData> bones)
+        {
+            var registeredBones = new List<BoneData>();
+            foreach (var bone in bones)
+            {
+                if (allBoneNames.Contains(bone.name))
+                {
+                    registeredBones.Add(bone);
+                }
+            }
+            if (registeredBones.Count > 0)
+            {
+                base.UpdateBones(frameNo, registeredBones);
+            }
         }
 
         public override void OnPoseEditEnd()

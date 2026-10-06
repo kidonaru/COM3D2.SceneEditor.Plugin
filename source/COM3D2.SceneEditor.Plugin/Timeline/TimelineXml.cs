@@ -1665,10 +1665,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     foreach (var bone in keyFrame.bones)
                     {
                         var transform = bone.transform;
-                        if (transform == null || BodySliderDefs.Find(transform.name) == null
-                            || !registered.Add(layer.slotNo + "/" + transform.name))
+                        if (transform == null || BodySliderDefs.Find(transform.name) == null)
                         {
                             continue;
+                        }
+                        if (!registered.Add(layer.slotNo + "/" + transform.name))
+                        {
+                            continue; // 登録済み
                         }
                         xml.maidBodySliderKeys.Add(new TimelineMaidBodySliderKeyXml
                         {
