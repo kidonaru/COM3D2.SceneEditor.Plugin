@@ -5,7 +5,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
     /// 重力キー 1 件分。MaidGravityController のカテゴリ (髪 / スカート) ごとに
-    /// 有効フラグとオフセット (-1〜1)、ローカル（Bip01 基準）フラグを持つ。
+    /// 有効フラグとオフセット (-1〜1)、ローカル（髪は頭、スカートは骨盤の向きに追従）フラグを持つ。
     /// 有効・ローカルは補間せず区間開始時に適用し、オフセットは Tangent 補間する
     /// </summary>
     public class TransformDataGravity : TransformDataBase
@@ -131,7 +131,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             set => enabledValue.boolValue = value;
         }
 
-        /// <summary>offset を Bip01 の回転に追従させるか。有効フラグと同じく補間せず区間開始時に適用する</summary>
+        /// <summary>offset をカテゴリの基準ボーン（頭・骨盤）の回転に追従させるか。有効フラグと同じく補間せず区間開始時に適用する</summary>
         public bool local
         {
             get => localValue.boolValue;

@@ -42,7 +42,7 @@ namespace COM3D2.SceneEditor.Plugin
             view.EndLayout();
 
             // タイムラインのインスペクタは幅が狭いので、有効・リセットとは別の行にする
-            view.DrawToggle("ローカル（Bip01）", gravityController.GetLocal(target, category),
+            view.DrawToggle(category.localLabel, gravityController.GetLocal(target, category),
                 -1, rowHeight,
                 value =>
                 {

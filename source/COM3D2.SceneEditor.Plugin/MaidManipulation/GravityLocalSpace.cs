@@ -3,34 +3,36 @@ using UnityEngine;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// 重力のローカル座標（Bip01 基準）の計算。
-    /// 立ちポーズでワールドと一致し、体を倒すと重力も体に合わせて回るよう、
-    /// Bip01 の回転から基準姿勢の回転を除いた分だけ offset を回す
+    /// 重力のローカル座標（カテゴリの基準ボーン基準）の計算。
+    /// 立ちポーズでワールドと一致し、基準ボーンを傾けると重力も合わせて回るよう、
+    /// 基準ボーンの回転から基準姿勢の回転を除いた分だけ offset を回す
     /// </summary>
     public static class GravityLocalSpace
     {
-        /// <summary>
-        /// メイドのルート回転が単位のときの Bip01 の基準姿勢（ワールド回転）。
-        /// エディットの標準の立ちポーズ maid_stand01.anm の 0 秒を旧ボディで実測した値。
-        /// 骨盤の傾きはポーズごとに違うため、ほかの立ちポーズではその分だけワールドからずれる
-        /// </summary>
-        public static readonly Quaternion Bip01BaseRotation =
-            new Quaternion(-0.5415668f, 0.5415668f, 0.4546487f, 0.4546487f);
+        // 基準姿勢は、メイドのルート回転が単位のときの各ボーンのワールド回転。
+        // エディットの標準の立ちポーズ maid_stand01.anm の 0 秒を旧ボディで実測した値（CRC ボディも同じ値）。
+        // 傾きはポーズごとに違うため、ほかの立ちポーズではその分だけワールドからずれる
 
-        // Quaternion.Inverse はネイティブ呼び出しでテストから使えないため、単位クォータニオンの共役で逆回転を作る
-        private static readonly Quaternion Bip01BaseInverse = new Quaternion(
-            -Bip01BaseRotation.x, -Bip01BaseRotation.y, -Bip01BaseRotation.z, Bip01BaseRotation.w);
+        /// <summary>髪の基準ボーン（Bip01 Head）の基準姿勢</summary>
+        public static readonly Quaternion HeadBaseRotation =
+            new Quaternion(0.5777411f, -0.4202374f, -0.5255319f, 0.4619873f);
 
-        /// <summary>基準姿勢からの体の回転</summary>
-        public static Quaternion GetBodyRotation(Quaternion bip01Rotation)
+        /// <summary>スカートの基準ボーン（Bip01 Pelvis）の基準姿勢</summary>
+        public static readonly Quaternion PelvisBaseRotation =
+            new Quaternion(0.5018583f, -0.4970104f, -0.5237849f, 0.4762020f);
+
+        /// <summary>基準姿勢からのボーンの回転</summary>
+        public static Quaternion GetBoneRotation(Quaternion boneRotation, Quaternion baseRotation)
         {
-            return bip01Rotation * Bip01BaseInverse;
+            // Quaternion.Inverse はネイティブ呼び出しでテストから使えないため、単位クォータニオンの共役で逆回転を作る
+            var baseInverse = new Quaternion(-baseRotation.x, -baseRotation.y, -baseRotation.z, baseRotation.w);
+            return boneRotation * baseInverse;
         }
 
-        /// <summary>offset を体の回転に合わせて回し、ゲーム側の ±1 クランプで向きが崩れない範囲へ収める</summary>
-        public static Vector3 ToForce(Quaternion bip01Rotation, Vector3 offset)
+        /// <summary>offset をボーンの回転に合わせて回し、ゲーム側の ±1 クランプで向きが崩れない範囲へ収める</summary>
+        public static Vector3 ToForce(Quaternion boneRotation, Quaternion baseRotation, Vector3 offset)
         {
-            return FitToUnitBox(GetBodyRotation(bip01Rotation) * offset);
+            return FitToUnitBox(GetBoneRotation(boneRotation, baseRotation) * offset);
         }
 
         /// <summary>

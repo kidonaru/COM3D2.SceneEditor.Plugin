@@ -14,13 +14,22 @@ namespace COM3D2.SceneEditor.Plugin
         public string name;
 
         public TBody.SlotID[] slotIds;
+
+        /// <summary>ローカル指定で回転を追従させるボーン</summary>
+        public string baseBoneName;
+
+        /// <summary>ローカル指定のトグルの表示名。OnGUI のたびに連結しないよう定義時に組み立てる</summary>
+        public string localLabel;
+
+        /// <summary>baseBoneName の基準姿勢。この回転のときローカルとワールドが一致する</summary>
+        public Quaternion baseRotation;
     }
 
     /// <summary>
     /// 髪・スカートの重力（揺れものにかかる力の向き）をメイド別・カテゴリ別に保持する。
     /// 力の適用そのものはゲーム側の GravityTransformControl に任せ、
     /// このクラスは「コンポーネントの生成」「着替えで作り直された際の焼き直し」と、
-    /// ローカル指定（Bip01 基準）のカテゴリを体の回転に合わせて毎フレーム書き直すことを担う。
+    /// ローカル指定のカテゴリを基準ボーン（髪は頭、スカートは骨盤）の回転に合わせて毎フレーム書き直すことを担う。
     /// 揺れもの実装のバージョン差 (DynamicSkirtBone / DynamicYureBone / KCES2 など) は
     /// GravityTransformControl の中に閉じているため、ここでは分岐しない
     /// </summary>
@@ -57,6 +66,9 @@ namespace COM3D2.SceneEditor.Plugin
                             id = "hair",
                             name = "髪",
                             slotIds = BuildHairSlots(),
+                            baseBoneName = "Bip01 Head",
+                            localLabel = "ローカル（頭）",
+                            baseRotation = GravityLocalSpace.HeadBaseRotation,
                         },
                         new GravityCategory
                         {
@@ -69,6 +81,9 @@ namespace COM3D2.SceneEditor.Plugin
                                 TBody.SlotID.mizugi,
                                 TBody.SlotID.panz,
                             },
+                            baseBoneName = "Bip01 Pelvis",
+                            localLabel = "ローカル（骨盤）",
+                            baseRotation = GravityLocalSpace.PelvisBaseRotation,
                         },
                     };
                 }
@@ -123,14 +138,14 @@ namespace COM3D2.SceneEditor.Plugin
 
             public readonly Dictionary<string, Vector3> offsets = new Dictionary<string, Vector3>();
 
-            /// <summary>カテゴリごとのローカル（Bip01 基準）フラグ。無ければ OFF（ワールド）</summary>
+            /// <summary>カテゴリごとのローカル（基準ボーン基準）フラグ。無ければ OFF（ワールド）</summary>
             public readonly Dictionary<string, bool> locals = new Dictionary<string, bool>();
 
-            /// <summary>Bip01 を取り直すために持つ（辞書のキーと同じメイド）</summary>
+            /// <summary>基準ボーンを取り直すために持つ（辞書のキーと同じメイド）</summary>
             public Maid maid;
 
-            /// <summary>ローカル指定の回転の元。ボディ再ロードで破棄されたら取り直す</summary>
-            public Transform bip01;
+            /// <summary>カテゴリごとのローカル指定の回転の元。ボディ再ロードで破棄されたら取り直す</summary>
+            public readonly Dictionary<string, Transform> baseBones = new Dictionary<string, Transform>();
 
             /// <summary>
             /// 前フレームの着替え中フラグ。
@@ -485,9 +500,9 @@ namespace COM3D2.SceneEditor.Plugin
                 offset = Vector3.zero;
             }
             var local = IsLocal(entry, category);
-            var force = local ? ToLocalForce(entry, offset) : offset;
+            var force = local ? ToLocalForce(entry, category, offset) : offset;
             // ローカル指定はタイムライン適用と Update の追従で毎フレーム通る。
-            // 骨盤の細かな揺れのたびにゲーム側の UpdateParameters を走らせないよう、わずかな変化は書かない
+            // 頭・骨盤の細かな揺れのたびにゲーム側の UpdateParameters を走らせないよう、わずかな変化は書かない
             if (!local || (force - control.transform.localPosition).sqrMagnitude >= LOCAL_REFRESH_EPSILON_SQR)
             {
                 control.transform.localPosition = force;
@@ -510,29 +525,38 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// offset を Bip01 の回転に合わせて回す。
-        /// Bip01 が取れない間（ボディ再ロード中など）はワールドとして扱い、取れた次のフレームで書き直す
+        /// offset をカテゴリの基準ボーンの回転に合わせて回す。
+        /// 基準ボーンが取れない間（ボディ再ロード中など）はワールドとして扱い、取れた次のフレームで書き直す
         /// </summary>
-        private static Vector3 ToLocalForce(Entry entry, Vector3 offset)
+        private static Vector3 ToLocalForce(Entry entry, GravityCategory category, Vector3 offset)
         {
-            var bip01 = GetBip01(entry);
-            if (bip01 == null)
+            var bone = GetBaseBone(entry, category);
+            if (bone == null)
             {
                 return offset;
             }
-            return GravityLocalSpace.ToForce(bip01.rotation, offset);
+            return GravityLocalSpace.ToForce(bone.rotation, category.baseRotation, offset);
         }
 
-        private static Transform GetBip01(Entry entry)
+        private static Transform GetBaseBone(Entry entry, GravityCategory category)
         {
+            Transform bone;
             // 破棄済みの Transform は == null が true になるので取り直す
-            // ボディ未ロードの間は GetBone が骨の親を null のまま辿って例外を投げるので探さない
-            if (entry.bip01 == null && entry.maid != null && entry.maid.body0 != null
-                && entry.maid.body0.isLoadedBody)
+            if (entry.baseBones.TryGetValue(category.id, out bone) && bone != null)
             {
-                entry.bip01 = entry.maid.body0.GetBone("Bip01");
+                return bone;
             }
-            return entry.bip01;
+            // ボディ未ロードの間は GetBone が骨の親を null のまま辿って例外を投げるので探さない
+            if (entry.maid == null || entry.maid.body0 == null || !entry.maid.body0.isLoadedBody)
+            {
+                return null;
+            }
+            bone = entry.maid.body0.GetBone(category.baseBoneName);
+            if (bone != null)
+            {
+                entry.baseBones[category.id] = bone;
+            }
+            return bone;
         }
 
         private void DestroyEntry(Entry entry)
