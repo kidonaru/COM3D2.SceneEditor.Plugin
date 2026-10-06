@@ -1457,6 +1457,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            if (version < BodySliderVersion)
+            {
+                foreach (var layer in layers)
+                {
+                    ConvertMaidScaleLayer(layer);
+                }
+            }
+
             ConvertPlugin();
         }
 
@@ -1559,6 +1567,66 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
+        /// <summary>
+        /// メイドスケールレイヤー (腕 6 本の均一倍率) を体型レイヤーへ変える (version 39)。
+        /// 倍率 s は腕の左右別項目の (s, s, s) にし、タンジェントと smooth ビットは 3 成分へ写す。
+        /// 対象外の骨名のキーは捨てる
+        /// </summary>
+        public static void ConvertMaidScaleLayer(TimelineLayerXml layer)
+        {
+            if (layer.className != MaidScaleLayerNameAtV38)
+            {
+                return;
+            }
+            layer.className = BodySliderLayerNameAtV39;
+
+            var convertedCount = 0;
+            foreach (var keyFrame in layer.keyFrames)
+            {
+                if (keyFrame.bones == null)
+                {
+                    continue;
+                }
+
+                keyFrame.bones.RemoveAll(bone =>
+                {
+                    var transform = bone.transform;
+                    if (transform == null || transform.type != TransformType.MaidScale)
+                    {
+                        return false;
+                    }
+
+                    string key;
+                    if (!BodySliderDefs.legacyMaidScaleKeys.TryGetValue(transform.name, out key))
+                    {
+                        return true;
+                    }
+
+                    transform.name = key;
+                    transform.type = TransformType.BodySlider;
+                    transform.values = Triple(transform.values, MaidScaleDefaultAtV38);
+                    transform.inTangents = Triple(transform.inTangents, 0f);
+                    transform.outTangents = Triple(transform.outTangents, 0f);
+                    transform.inSmoothBit = (transform.inSmoothBit & 1L) != 0 ? 7L : 0L;
+                    transform.outSmoothBit = (transform.outSmoothBit & 1L) != 0 ? 7L : 0L;
+                    convertedCount++;
+                    return false;
+                });
+            }
+
+            if (convertedCount > 0)
+            {
+                MTEUtils.LogDebug("Convert maid scale to body slider count={0}", convertedCount);
+            }
+        }
+
+        /// <summary>1 値の配列を同じ値の 3 値へ広げる。値が無ければ fallback で埋める</summary>
+        private static float[] Triple(float[] source, float fallback)
+        {
+            var value = source != null && source.Length > 0 ? source[0] : fallback;
+            return new[] { value, value, value };
+        }
+
         /// <summary>旧 (COM3D2 版) リムライト/パラフィンの値数。テストからも参照する</summary>
         public const int OldRimlightValueCount = 28;
         public const int OldParaffinValueCount = 24;
@@ -1581,6 +1649,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         private const float PngBrightnessMaxAtV37 = 255f;
         /// <summary>PNG 配置キーの明るさを倍率へ変えたバージョン。テンプレートの移行判定にも使う</summary>
         public const int PngBrightnessScaleVersion = 38;
+
+        // version 39 で変換する前 (v38) のメイドスケールレイヤーの名前と倍率の既定値。
+        // クラスは削除済みなので、型名ではなく文字列で持つ
+        private const string MaidScaleLayerNameAtV38 = "MaidScaleTimelineLayer";
+        private const string BodySliderLayerNameAtV39 = "BodySliderTimelineLayer";
+        private const float MaidScaleDefaultAtV38 = 1f;
+        /// <summary>メイドスケールレイヤーを体型レイヤーへ変えたバージョン</summary>
+        public const int BodySliderVersion = 39;
 
         /// <summary>旧リムライト/パラフィンの Depth 系 3 値 (DepthMin/DepthMax/DepthFade) は
         /// COM3D2.5 版で廃止され、リムライトは同じ位置がマスク設定 3 値

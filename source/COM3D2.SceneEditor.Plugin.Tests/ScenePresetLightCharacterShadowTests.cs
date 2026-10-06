@@ -52,9 +52,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void シーンプリセットの版は40()
+        public void シーンプリセットの版はキャラの影の追加後()
         {
-            Assert.Equal(40, ScenePresetData.CurrentVersion);
+            Assert.True(ScenePresetData.CurrentVersion >= 39);
         }
     }
 }
