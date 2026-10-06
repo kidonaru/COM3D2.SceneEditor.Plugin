@@ -203,6 +203,8 @@
     <Compile Include="MaidManipulation\MaidScaleBones.cs" />
     <Compile Include="MaidManipulation\MaidScaleController.cs" />
     <Compile Include="MaidManipulation\MaidScaleState.cs" />
+    <Compile Include="MaidManipulation\BodySliderDefs.cs" />
+    <Compile Include="MaidManipulation\BodySliderState.cs" />
     <Compile Include="MaidManipulation\MaidPlacementPreset.cs" />
     <Compile Include="MaidManipulation\MaidPoseFileManager.cs" />
     <Compile Include="MaidManipulation\MaidPoseFlipper.cs" />
