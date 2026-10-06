@@ -387,6 +387,9 @@ namespace COM3D2.SceneEditor.Plugin
             _bodySliderGroupIndex = DrawInnerTabs(BodySliderDefs.groupNames, _bodySliderGroupIndex, TAB_WIDTH);
             var group = BodySliderDefs.groupNames[_bodySliderGroupIndex];
 
+            view.DrawHorizontalLine(Color.gray);
+            view.AddSpace(5);
+
             // 最後の要素なので高さ -1（残り全部）でウィンドウの伸縮に追従させる
             view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
