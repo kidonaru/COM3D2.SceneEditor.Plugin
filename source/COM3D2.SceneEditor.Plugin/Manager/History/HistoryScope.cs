@@ -53,6 +53,8 @@
         BodySlider,
         /// <summary>ノード表示 (体の部位ごとの表示/非表示の上書き)</summary>
         NodeVisibility,
+        /// <summary>顔の影 (head スロットの影を受ける・落とすの上書き)</summary>
+        FaceShadow,
     }
 
     public static class HistoryScopeUtils

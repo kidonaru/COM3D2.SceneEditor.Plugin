@@ -30,6 +30,7 @@ namespace COM3D2.SceneEditor.Plugin
             オプション,
             視線,
             シェイプキー,
+            影,
             プリセット,
         }
 
@@ -199,6 +200,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawShapeKeyContent(view, target, gateState);
             }
+            else if (_tab == FaceTab.影)
+            {
+                DrawShadowContent(view, target);
+            }
             else
             {
                 DrawMorphList(view, target);
@@ -207,7 +212,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// タブの値が記録されるタイムラインレイヤー。視線タブは瞳レイヤー、シェイプキータブは
-        /// シェイプキーレイヤー、それ以外 (表情・プリセット) は表情レイヤー。
+        /// シェイプキーレイヤー、それ以外 (表情・影・プリセット) は表情レイヤー。
         /// プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
         /// </summary>
         private static Type GetTimelineLayerType(FaceTab tab)
@@ -218,6 +223,19 @@ namespace COM3D2.SceneEditor.Plugin
                 case FaceTab.シェイプキー: return typeof(MTEP.ShapeKeyTimelineLayer);
                 default: return typeof(MTEP.MorphTimelineLayer);
             }
+        }
+
+        /// <summary>
+        /// 顔 (head スロット) の影の上書き。顔と体を別のライトで照らすのは、追加ライトの「対象」の顔のみ／体のみで行う
+        /// </summary>
+        private void DrawShadowContent(GUIView view, Maid target)
+        {
+            foreach (var item in FaceShadowItems.items)
+            {
+                FaceShadowRowDrawer.Draw(view, target, item, ROW_HEIGHT);
+            }
+            view.DrawLabel("顔と体を別のライトで照らすには、ライトの「対象」を顔のみ／体のみにします", -1, ROW_HEIGHT,
+                textColor: Color.gray);
         }
 
         /// <summary>モーフ一覧を描くタブか。視線・シェイプキー・プリセットは対象カテゴリを持たない</summary>

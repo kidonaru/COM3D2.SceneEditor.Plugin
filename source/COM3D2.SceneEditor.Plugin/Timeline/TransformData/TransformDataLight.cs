@@ -128,9 +128,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 {
                     index = (int)Index.LightTarget,
                     name = "対象",
-                    // 0=全て / 1=キャラのみ / 2=背景のみ (LightTargetMode)。実体は int なので丸めて渡す
+                    // 0=全て / 1=キャラのみ / 2=背景のみ / 3=顔のみ / 4=体のみ (LightTargetMode)。実体は int なので丸めて渡す
                     min = 0f,
-                    max = 2f,
+                    max = 4f,
                     step = 1f,
                     defaultValue = 0f,
                 }

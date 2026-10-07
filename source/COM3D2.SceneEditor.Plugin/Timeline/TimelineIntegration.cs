@@ -511,6 +511,9 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.NodeVisibility,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataNodeVisibility>);
             timelineManager.RegisterTransform(
+                MTEP.TransformType.FaceShadow,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataFaceShadow>);
+            timelineManager.RegisterTransform(
                 MTEP.TransformType.IKHold,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataIKHold>);
             timelineManager.RegisterTransform(

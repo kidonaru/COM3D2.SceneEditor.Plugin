@@ -470,6 +470,10 @@ namespace COM3D2.SceneEditor.Plugin
                 // タイムラインより後に登録する (Transform への適用は描画直前に行う)
                 managerRegistry.RegisterManager(CameraShakeManager.instance);
 
+                // 顔のレイヤー・影はライトの照射対象と顔の影のキー (タイムライン・UI) で決まり、
+                // 影の複製は顔の影落としを見て作るため、その間に登録する
+                managerRegistry.RegisterManager(MaidFaceRendererManager.instance);
+
                 // ライトの照射対象・影はタイムラインと UI が書くため、それより後に登録して LateUpdate で判定する
                 managerRegistry.RegisterManager(CharacterShadowProxyManager.instance);
 

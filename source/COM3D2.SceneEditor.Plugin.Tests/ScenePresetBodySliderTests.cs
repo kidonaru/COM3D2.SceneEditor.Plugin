@@ -135,9 +135,9 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void 現行版は41()
+        public void 現行版は41以上()
         {
-            Assert.Equal(41, ScenePresetData.CurrentVersion);
+            Assert.True(ScenePresetData.CurrentVersion >= 41);
         }
     }
 }

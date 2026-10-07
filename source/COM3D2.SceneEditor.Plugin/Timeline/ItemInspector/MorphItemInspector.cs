@@ -43,6 +43,13 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
+                var faceShadow = FaceShadowItems.Find(itemName);
+                if (faceShadow != null)
+                {
+                    FaceShadowRowDrawer.Draw(view, maid, faceShadow, RowHeight);
+                    continue;
+                }
+
                 var def = MaidFaceMorphController.FindDef(item.name);
                 if (def == null)
                 {

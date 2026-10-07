@@ -703,6 +703,8 @@ namespace COM3D2.SceneEditor.Plugin
             bodySliderController.Release(maid);
             // ノード表示の上書きも持ち越さない（ストックの Maid は使い回される）
             MaidNodeVisibilityController.Release(maid);
+            // 顔の影の上書きと Face レイヤーへの移動も持ち越さない（ストックの Maid は使い回される）
+            MaidFaceRendererManager.instance.Release(maid);
             // 指の開き/握り/ロックも持ち越さない（ストックの Maid は使い回される）
             fingerBlendController.Release(maid);
             // 表情の強制上書き (まばたき停止) も持ち越さない。呼出時に既定で ON にしているため
@@ -749,6 +751,7 @@ namespace COM3D2.SceneEditor.Plugin
             gravityController.Destroy();
             bodySliderController.Destroy();
             MaidNodeVisibilityController.Destroy();
+            MaidFaceRendererManager.instance.Destroy();
             MaidMotionState.Clear();
             MaidPoseFileManager.ClearClips();
         }
