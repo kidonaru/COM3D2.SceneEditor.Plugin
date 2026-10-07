@@ -287,6 +287,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         private void OnMouseDown()
         {
+            // SceneView のためだけに実体があるときは、ゲーム画面からは掴ませない
+            if (!MaidManipulateManager.instance.isGameViewDragPointVisible)
+            {
+                return;
+            }
             BeginDrag(GetGameCamera(), Input.mousePosition);
         }
 

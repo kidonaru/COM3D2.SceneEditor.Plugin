@@ -158,8 +158,14 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            // ゲーム画面側は編集モード外では白丸を出さない (SceneView はボーン表示 ON なら常に出す)
+            // ゲーム画面側は編集モード外では白丸を出さない
             if (isMainCamera && !MaidManipulateManager.instance.isGameViewDragPointVisible)
+            {
+                return;
+            }
+
+            // SceneView はツールバーのギズモ表示に従う (実体は GameView のボーン表示だけで作られることもある)
+            if (isSceneCamera && !ConfigManager.instance.config.sceneViewShowGizmo)
             {
                 return;
             }

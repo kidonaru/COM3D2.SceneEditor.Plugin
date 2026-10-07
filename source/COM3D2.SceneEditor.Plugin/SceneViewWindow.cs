@@ -477,7 +477,8 @@ namespace COM3D2.SceneEditor.Plugin
                     // ドラッグ点 (IK・顔・上体・骨盤) のタップはボーンピック・通常選択より優先する。
                     // SceneView は Unity のマウスメッセージが届かないため、ここで直接掴む。
                     // 素通しだけだと SelectAtRay がメイド選択に化けて IK 選択を消してしまう
-                    var dragPoint = selectionManager.FindDragPointAtRay(camera, rtPoint);
+                    var dragPoint = config.sceneViewShowGizmo
+                        ? selectionManager.FindDragPointAtRay(camera, rtPoint) : null;
                     if (dragPoint != null)
                     {
                         if (dragPoint.BeginDrag(camera, rtPoint))
@@ -535,7 +536,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             if (camera == null || !IsSceneViewActiveAt(guiPos) ||
-                !MaidManipulateManager.instance.isBoneVisible)
+                !config.sceneViewShowGizmo)
             {
                 MaidDragPointRing.SetSceneHovered(null);
                 // 次に領域へ入ったら位置が同じでも引き直す

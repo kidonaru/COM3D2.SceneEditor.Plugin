@@ -431,6 +431,8 @@ namespace COM3D2.SceneEditor.Plugin
             boneLineRenderer = host.AddComponent<BoneLineRenderer>();
             boneLineRenderer.viewCamera = camera;
             boneLineRenderer.isHostActive = IsGizmoHostActive;
+            // GameView の骨格線はボーン表示 (isBoneVisible) に従う
+            boneLineRenderer.isBoneEditingInView = () => MaidManipulateManager.instance.isBoneEditing;
 
             // 床グリッドはメインカメラの深度が要るのでメインカメラ側で描く
             worldGridRenderer = camera.gameObject.AddComponent<GridRenderer>();
