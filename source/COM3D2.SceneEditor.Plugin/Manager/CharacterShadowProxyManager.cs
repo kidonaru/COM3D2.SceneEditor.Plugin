@@ -60,6 +60,8 @@ namespace COM3D2.SceneEditor.Plugin
         private GameObject _root;
         private bool _isCameraHooked = false;
         private int _lastSourceCheckFrame = -1;
+        /// <summary>最後に見た MaidFaceRendererManager.castVersion</summary>
+        private int _lastFaceCastVersion = -1;
 
         /// <summary>今ある複製の数 (実機検証用)</summary>
         public int proxyCount
@@ -104,6 +106,11 @@ namespace COM3D2.SceneEditor.Plugin
                 _lastSourceCheckFrame = frame;
             }
 
+            // 顔の影落とし (MaidFaceRendererManager) が変わったら、顔を複製に含めるかが変わるので作り直す
+            var faceCastVersion = MaidFaceRendererManager.instance.castVersion;
+            var faceCastChanged = faceCastVersion != _lastFaceCastVersion;
+            _lastFaceCastVersion = faceCastVersion;
+
             CollectCharacters(_characters);
             RemoveAbsentEntries();
 
@@ -125,7 +132,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                if (entry.isDirty || IsStale(entry)
+                if (entry.isDirty || faceCastChanged || IsStale(entry)
                     || (checkSources && (HasMaterialChanged(entry) || HasSourceChanged(maid, entry))))
                 {
                     Rebuild(maid, entry);
