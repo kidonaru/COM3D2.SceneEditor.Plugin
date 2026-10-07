@@ -124,7 +124,7 @@ namespace COM3D2.SceneEditor.Plugin
         public float spotAngle;
         public bool enabled = true;
 
-        /// <summary>照射対象 (LightTargetMode の数値: 0=全て / 1=キャラのみ / 2=背景のみ)。旧プリセットは 0</summary>
+        /// <summary>照射対象 (LightTargetMode の数値: 0=全て / 1=キャラのみ / 2=背景のみ / 3=顔のみ / 4=体のみ)。旧プリセットは 0</summary>
         [XmlAttribute]
         public int target = (int)LightTargetMode.All;
 
@@ -1374,7 +1374,10 @@ namespace COM3D2.SceneEditor.Plugin
         // v41: maid に bodySlider (体型スライダー。既定値でない項目だけを param 要素に持つ) を追加し、
         //      maidScale は読込専用にした。全項目が既定でも空要素を書く。
         //      bodySlider が無く maidScale がある旧形式は、腕の左右別項目の均一倍率へ変換して適用する
-        public static readonly int CurrentVersion = 41;
+        // v42: 追加ライトの照射対象 (target) に 3=顔のみ / 4=体のみ を追加。旧 SE は「全て」として読む。
+        //      maid に faceShadow (顔の影の上書き。上書きのある項目だけ item 要素に持つ) を追加。
+        //      上書きが無くても空要素を書く。旧形式は null で読め、適用時に触らない
+        public static readonly int CurrentVersion = 42;
 
         [XmlAttribute]
         public int version = CurrentVersion;

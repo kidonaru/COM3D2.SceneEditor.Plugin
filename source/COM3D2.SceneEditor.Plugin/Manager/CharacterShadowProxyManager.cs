@@ -153,11 +153,12 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var characterMask = LightTarget.CharacterMask;
+            var faceMask = LightTarget.FaceMask;
             foreach (var light in StudioLightManager.instance.lights)
             {
                 if (light != null && CharacterShadowProxyRules.IsCasterLight(
                     light.enabled && light.gameObject.activeInHierarchy,
-                    light.shadows, light.cullingMask, characterMask, shadowMask))
+                    light.shadows, light.cullingMask, characterMask, faceMask, shadowMask))
                 {
                     return true;
                 }

@@ -7,16 +7,17 @@ namespace COM3D2.SceneEditor.Plugin
     public static class CharacterShadowProxyRules
     {
         /// <summary>
-        /// 複製を必要とするライトか。「背景のみ」でキャラを照らさないライトだけが対象で、
-        /// ほかの照射対象ではキャラ本体が影を落とすので複製は要らない
+        /// 複製を必要とするライトか。キャラの一部または全部を照らさないモード (背景のみ・顔のみ・体のみ) だけが対象。
+        /// 照らさない側は本体が影を落とさないので、複製に落とさせる。照らす側の複製は本体と同じ影を重ねるだけ
         /// </summary>
         public static bool IsCasterLight(
-            bool isLightActive, LightShadows shadows, int cullingMask, int characterMask, int shadowMask)
+            bool isLightActive, LightShadows shadows, int cullingMask, int characterMask, int faceMask, int shadowMask)
         {
             return isLightActive
                 && shadows != LightShadows.None
                 && LightTarget.HasCharacterShadow(cullingMask, shadowMask)
-                && LightTarget.FromCullingMask(cullingMask, characterMask, shadowMask) == LightTargetMode.Background;
+                && LightTarget.UsesCharacterShadow(
+                    LightTarget.FromCullingMask(cullingMask, characterMask, faceMask, shadowMask));
         }
 
         /// <summary>複製する部位か。顔 (Face7) のように元から影を落とさない部位は複製しない</summary>

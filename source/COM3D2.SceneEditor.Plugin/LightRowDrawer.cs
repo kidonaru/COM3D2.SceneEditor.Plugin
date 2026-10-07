@@ -70,7 +70,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 items = Enum.GetValues(typeof(LightTargetMode)).Cast<LightTargetMode>().ToList(),
                 getName = (mode, _) => GetLightTargetName(mode),
-                contentSize = new Vector2(120, 100),
+                // 高さは項目数ぶんのポップアップ高さで頭打ちになるので、上限だけ広めに取る
+                contentSize = new Vector2(120, 200),
             };
 
         /// <summary>追従先メイドのコンボ</summary>
@@ -250,8 +251,8 @@ namespace COM3D2.SceneEditor.Plugin
             // 濃さと距離は影を落とすときだけ意味を持つ
             if (light.shadows != LightShadows.None)
             {
-                // キャラの影はキャラを照らさない「背景のみ」のときだけ意味を持つ
-                if (LightTarget.FromCullingMask(light.cullingMask) == LightTargetMode.Background)
+                // キャラの影はキャラの一部か全部を照らさないモード (背景のみ・顔のみ・体のみ) のときだけ意味を持つ
+                if (LightTarget.UsesCharacterShadow(LightTarget.FromCullingMask(light.cullingMask)))
                 {
                     DrawCharacterShadowRow(view, rowHeight, light);
                 }
@@ -610,6 +611,10 @@ namespace COM3D2.SceneEditor.Plugin
                     return "キャラのみ";
                 case LightTargetMode.Background:
                     return "背景のみ";
+                case LightTargetMode.Face:
+                    return "顔のみ";
+                case LightTargetMode.Body:
+                    return "体のみ";
                 default:
                     return "全て";
             }

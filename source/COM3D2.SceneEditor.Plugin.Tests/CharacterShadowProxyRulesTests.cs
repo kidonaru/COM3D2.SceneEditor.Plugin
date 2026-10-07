@@ -8,19 +8,32 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     {
         private const int CharacterMask = (1 << 10) | (1 << 11) | (1 << 12);
         private const int ShadowMask = 1 << 3;
+        private const int FaceMask = 1 << 11;
+
+        [Theory]
+        [InlineData(LightTargetMode.Background, true)]
+        [InlineData(LightTargetMode.Face, true)]
+        [InlineData(LightTargetMode.Body, true)]
+        [InlineData(LightTargetMode.Character, false)]
+        [InlineData(LightTargetMode.All, false)]
+        public void キャラの影を使うのは背景のみと顔のみと体のみ(LightTargetMode mode, bool expected)
+        {
+            Assert.Equal(expected, CharacterShadowProxyRules.IsCasterLight(
+                true, LightShadows.Soft, Mask(mode, true), CharacterMask, FaceMask, ShadowMask));
+        }
 
         private static int Mask(LightTargetMode mode, bool characterShadow)
         {
-            return LightTarget.ToCullingMask(mode, characterShadow, CharacterMask, ShadowMask);
+            return LightTarget.ToCullingMask(mode, characterShadow, CharacterMask, FaceMask, ShadowMask);
         }
 
         [Fact]
         public void 背景のみ_影あり_キャラの影ONのライトは複製を要する()
         {
             Assert.True(CharacterShadowProxyRules.IsCasterLight(
-                true, LightShadows.Soft, Mask(LightTargetMode.Background, true), CharacterMask, ShadowMask));
+                true, LightShadows.Soft, Mask(LightTargetMode.Background, true), CharacterMask, FaceMask, ShadowMask));
             Assert.True(CharacterShadowProxyRules.IsCasterLight(
-                true, LightShadows.Hard, Mask(LightTargetMode.Background, true), CharacterMask, ShadowMask));
+                true, LightShadows.Hard, Mask(LightTargetMode.Background, true), CharacterMask, FaceMask, ShadowMask));
         }
 
         [Theory]
@@ -30,20 +43,20 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         {
             // 影ビットは残っているが、キャラ本体が影を落とすので複製は要らない
             Assert.False(CharacterShadowProxyRules.IsCasterLight(
-                true, LightShadows.Soft, Mask(mode, true), CharacterMask, ShadowMask));
+                true, LightShadows.Soft, Mask(mode, true), CharacterMask, FaceMask, ShadowMask));
         }
 
         [Fact]
         public void 無効_影なし_キャラの影OFF_影用レイヤーなしは複製を要さない()
         {
             var mask = Mask(LightTargetMode.Background, true);
-            Assert.False(CharacterShadowProxyRules.IsCasterLight(false, LightShadows.Soft, mask, CharacterMask, ShadowMask));
-            Assert.False(CharacterShadowProxyRules.IsCasterLight(true, LightShadows.None, mask, CharacterMask, ShadowMask));
+            Assert.False(CharacterShadowProxyRules.IsCasterLight(false, LightShadows.Soft, mask, CharacterMask, FaceMask, ShadowMask));
+            Assert.False(CharacterShadowProxyRules.IsCasterLight(true, LightShadows.None, mask, CharacterMask, FaceMask, ShadowMask));
             Assert.False(CharacterShadowProxyRules.IsCasterLight(
-                true, LightShadows.Soft, Mask(LightTargetMode.Background, false), CharacterMask, ShadowMask));
+                true, LightShadows.Soft, Mask(LightTargetMode.Background, false), CharacterMask, FaceMask, ShadowMask));
             Assert.False(CharacterShadowProxyRules.IsCasterLight(
-                true, LightShadows.Soft, LightTarget.ToCullingMask(LightTargetMode.Background, true, CharacterMask, 0),
-                CharacterMask, 0));
+                true, LightShadows.Soft, LightTarget.ToCullingMask(LightTargetMode.Background, true, CharacterMask, FaceMask, 0),
+                CharacterMask, FaceMask, 0));
         }
 
         [Theory]
