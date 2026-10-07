@@ -160,8 +160,8 @@ namespace COM3D2.SceneEditor.Plugin
                         presetName => SavePreset(target, presetName));
                 }
 
-                // 指関節ごとのドラッグ点を出すトグル。表示条件は体のドラッグ点と
-                // 同じ（編集モード＋ボーン表示 ON）なので、OFF 中に押しても点は出ない
+                // 指関節ごとのドラッグ点を出すトグル。点は編集モード中に、GameView のボーン表示か
+                // SceneView のギズモ表示が ON のビューにだけ出る
                 view.DrawToggle("個別編集", maidManager.isFingerEditMode, 80, ROW_HEIGHT,
                     value => maidManager.isFingerEditMode = value);
 

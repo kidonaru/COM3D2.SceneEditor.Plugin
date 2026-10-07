@@ -455,16 +455,16 @@ namespace COM3D2.SceneEditor.Plugin
             SavePlacement();
         }
 
-        /// <summary>
-        /// ツールバーの帯 (ウィンドウローカル座標)。入力の除外判定にも使うため、描画結果ではなく
-        /// 常に計算で求める (マウスが入った最初のフレームのクリックもシーンへ通さないため)
-        /// </summary>
         private static readonly ToolbarIcons.Kind[] ToggleKinds =
         {
             ToolbarIcons.Kind.Bg, ToolbarIcons.Kind.Maid, ToolbarIcons.Kind.Model,
             ToolbarIcons.Kind.PostEffect, ToolbarIcons.Kind.Gizmo,
         };
 
+        /// <summary>
+        /// ツールバーの帯 (ウィンドウローカル座標)。入力の除外判定にも使うため、描画結果ではなく
+        /// 常に計算で求める (マウスが入った最初のフレームのクリックもシーンへ通さないため)
+        /// </summary>
         private Rect GetToolbarLocalRect()
         {
             // 項目: 撮影 / 比率 / 表示トグル 5 つ。マージンは項目間の 6 箇所分

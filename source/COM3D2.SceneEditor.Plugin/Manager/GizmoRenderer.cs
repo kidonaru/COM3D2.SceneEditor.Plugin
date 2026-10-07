@@ -267,13 +267,13 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 実際に描画・ドラッグを許すか。ツールバーのギズモ表示 (drawEnabled) に、
-        /// followsBoneVisibility のビューでは編集モード＋「ボーン表示」(isBoneEditing) を AND する。
+        /// followsBoneVisibility のビューでは編集モード＋「ボーン表示」(isGameViewBoneEditing) を AND する。
         /// ボーン表示は編集モード外でも既定で ON のため、isBoneVisible 単独では編集モード外で
         /// 外部プラグインのギズモ (GizmoHost.IsGizmoVisible) まで出てしまう
         /// </summary>
         public bool isDrawEnabled =>
             drawEnabled
-            && (!followsBoneVisibility || MaidManipulateManager.instance.isBoneEditing);
+            && (!followsBoneVisibility || MaidManipulateManager.instance.isGameViewBoneEditing);
 
         public bool isDragging => _activeDragGizmo != null && _activeDragGizmo.isDragging;
 
@@ -371,12 +371,12 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// メイドルートのギズモを出してよいか。
         /// followsBoneVisibility のビュー (GameView) ではボーンギズモ・白丸ドラッグ点と同じく
-        /// 編集モード＋ボーン表示 (isBoneEditing) 中だけ出す。
+        /// 編集モード＋ボーン表示 (isGameViewBoneEditing) 中だけ出す。
         /// SceneView では常に出す。編集モード外で掴んでも RecordGizmoDragHistory 経由の
         /// HistoryManager.BeforeEdit が AutoEditMode.Enter を呼ぶため、レイヤーの書き戻しで巻き戻ることはない
         /// </summary>
         private bool canShowMaidRoot =>
-            !followsBoneVisibility || MaidManipulateManager.instance.isBoneEditing;
+            !followsBoneVisibility || MaidManipulateManager.instance.isGameViewBoneEditing;
 
         /// <summary>
         /// メイドルートのギズモを隠すか (canShowMaidRoot の対象判定つき)。

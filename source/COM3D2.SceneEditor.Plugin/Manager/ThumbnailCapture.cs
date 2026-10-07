@@ -54,7 +54,9 @@ namespace COM3D2.SceneEditor.Plugin
             var savedTargetTexture = camera.targetTexture;
             var savedActive = RenderTexture.active;
             // サムネイルは一覧で見分けるための画像なので、GameView の非表示トグルを無視して全部写す
-            // (無効な MonoBehaviour には OnPreCull が届かない)
+            // (無効な MonoBehaviour には OnPreCull が届かない)。
+            // ただしエフェクト OFF のポストエフェクトは PostEffects.Plugin 側で止めていて、
+            // 同期の Render 前には戻せないため写らない
             var cullingFilter = GameViewManager.instance.cullingFilter;
             var filterWasEnabled = cullingFilter != null && cullingFilter.enabled;
             Texture2D texture = null;

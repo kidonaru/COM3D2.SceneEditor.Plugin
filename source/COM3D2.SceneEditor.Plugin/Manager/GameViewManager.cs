@@ -241,6 +241,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
             isWindowMode = false;
+            // モード外 (エディタ無効) ではゲーム本来の見え方へ戻す。以降の後始末で例外が出ても
+            // 解除は済むよう先に送り、記録に関係なく送る (モード外では LateUpdate の再送が無い)
+            PostEffectsClient.SetSuspended(false);
+            _sentPostEffectSuspended = false;
             isMaximized = false;
             isDirectRender = false;
             isUIVisible = false;
@@ -254,8 +258,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 camera.targetTexture = null;
             }
-            // モード外 (エディタ無効) ではゲーム本来の見え方へ戻す
-            SetPostEffectSuspended(false);
             DetachGizmoRenderer();
             // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
             cameraManager.SyncToMainCamera();
@@ -432,7 +434,7 @@ namespace COM3D2.SceneEditor.Plugin
             boneLineRenderer.viewCamera = camera;
             boneLineRenderer.isHostActive = IsGizmoHostActive;
             // GameView の骨格線はボーン表示 (isBoneVisible) に従う
-            boneLineRenderer.isBoneEditingInView = () => MaidManipulateManager.instance.isBoneEditing;
+            boneLineRenderer.isBoneEditingInView = () => MaidManipulateManager.instance.isGameViewBoneEditing;
 
             // 床グリッドはメインカメラの深度が要るのでメインカメラ側で描く
             worldGridRenderer = camera.gameObject.AddComponent<GridRenderer>();

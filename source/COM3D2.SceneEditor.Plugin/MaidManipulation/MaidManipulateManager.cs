@@ -290,7 +290,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// ボーン表示 (GameView のギズモ)。メニューバー・BoneEditWindow・GameView・タイムライン操作ウィンドウの
         /// トグルが同じ値を読み書きし、Config に保存する。GameView にだけ効き、SceneView は
         /// ツールバーのギズモ表示 (config.sceneViewShowGizmo) で決まる。
-        /// GameView で実際に出すかは編集モードとの AND (isBoneEditing) で決まる。
+        /// GameView で実際に出すかは編集モードとの AND (isGameViewBoneEditing) で決まる。
         /// GameView のオブジェクト用ギズモ (GizmoRenderer.followsBoneVisibility) も同じ条件に従う
         /// </summary>
         public bool isBoneVisible
@@ -345,7 +345,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// 編集モード外はポーズを触れない (レイヤーが値を書き戻す) ため、ボーン表示が ON でも出さない。
         /// ブレンドのレイヤー調整中も同じく触れないので出さない
         /// </summary>
-        public bool isBoneEditing => isEditMode && isBoneVisible && !isBlendLayerSelected;
+        public bool isGameViewBoneEditing => isEditMode && isBoneVisible && !isBlendLayerSelected;
 
         /// <summary>
         /// SceneView でボーンギズモ・骨格線・指の白丸を出すか。ボーン表示 (isBoneVisible) ではなく
@@ -355,7 +355,7 @@ namespace COM3D2.SceneEditor.Plugin
             isEditMode && config.sceneViewShowGizmo && SceneViewWindow.instance.isShowWnd && !isBlendLayerSelected;
 
         /// <summary>どちらかのビューがボーン系を出すか。ギズモ・白丸の実体は両ビュー共有のため、作る判定はこれで行う</summary>
-        public bool isAnyBoneEditing => isBoneEditing || isSceneViewBoneEditing;
+        public bool isAnyBoneEditing => isGameViewBoneEditing || isSceneViewBoneEditing;
 
         /// <summary>
         /// ゲーム画面 (GameView) 上で白丸ドラッグ点を描画・操作してよいか。
@@ -364,7 +364,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// 描画 (MaidDragPointRing) と Unity マウスメッセージ経由の掴み (各点の OnMouseDown) は
         /// この 1 つの判定に揃える (描画だけ隠れて掴める、のような食い違いを作らない)
         /// </summary>
-        public bool isGameViewDragPointVisible => isBoneEditing;
+        public bool isGameViewDragPointVisible => isGameViewBoneEditing;
 
         /// <summary>
         /// 白丸ドラッグ点の実体 (コライダ付き GameObject) を作っておくか。
@@ -396,7 +396,7 @@ namespace COM3D2.SceneEditor.Plugin
             var movableMaid = IsVisible(activeMaid) ? activeMaid : null;
 
             // ボーンギズモはどちらかのビューで出すときだけ付ける (isAnyBoneEditing)。
-            // GameView 側の描画は GizmoRenderer.isDrawEnabled が isBoneEditing で絞る。
+            // GameView 側の描画は GizmoRenderer.isDrawEnabled が isGameViewBoneEditing で絞る。
             // 非表示の間はギズモコンポーネントを付けたままにしない
             // (呼出済みの全メイドへ常時アタッチされ、描画・ログのコストが残るため)
             boneGizmoController.SetTarget(isAnyBoneEditing ? movableMaid : null);

@@ -21,7 +21,7 @@ namespace COM3D2.SceneEditor.Plugin
 
     /// <summary>
     /// エフェクト表示トグルから、ポストエフェクトの一時停止とライブ演出の非表示を決める。
-    /// OFF でも編集中 (カレント) のエフェクト系レイヤーの種類だけは見せる (旧ポスプロ同期の挙動)
+    /// OFF でも編集中 (カレント) のエフェクト系レイヤーの種類だけは見せる
     /// </summary>
     public static class ViewEffectVisibility
     {
@@ -49,14 +49,6 @@ namespace COM3D2.SceneEditor.Plugin
                 hideStageLaser = hide,
                 hidePsyllium = hide,
             };
-        }
-
-        public static bool SameAs(ViewEffectState a, ViewEffectState b)
-        {
-            return a.suspendPostEffect == b.suspendPostEffect
-                && a.hideStageLight == b.hideStageLight
-                && a.hideStageLaser == b.hideStageLaser
-                && a.hidePsyllium == b.hidePsyllium;
         }
     }
 }

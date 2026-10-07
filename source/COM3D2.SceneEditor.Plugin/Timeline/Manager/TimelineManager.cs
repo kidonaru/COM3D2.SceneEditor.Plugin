@@ -2511,8 +2511,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // その時点でシーンのオブジェクトは破棄済みで後始末が空振りするだけなので抜ける。
             // シーン遷移でのタイムライン破棄は OnChangedSceneLevel の ClearTimeline が担う。
             // 直前の timeline.OnPluginDisable() はこの経路でも元から通っており、
-            // 中身 (レイヤーへの配信) は
-            // null 条件演算子で守られているのでガードの外に置いたままにする
+            // レイヤーへの配信だけで後始末が空振りしても害がないのでガードの外に置いたままにする
             if (SceneEditorHack.isTitleScene)
             {
                 return;

@@ -66,7 +66,10 @@ namespace COM3D2.SceneEditor.Plugin
             hideStageLight = state.hideStageLight;
             hideStageLaser = state.hideStageLaser;
             hidePsyllium = state.hidePsyllium;
-            InvalidateCache();
+            // カレントレイヤーの切り替えで毎回呼ばれるため、背景・メイド・モデルのキャッシュは残す
+            _stageLightCacheValid = false;
+            _stageLaserCacheValid = false;
+            _psylliumCacheValid = false;
         }
 
         private void OnPreCull()

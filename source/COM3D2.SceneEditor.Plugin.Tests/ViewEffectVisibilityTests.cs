@@ -3,8 +3,7 @@ using Xunit;
 namespace COM3D2.SceneEditor.Plugin.Tests
 {
     /// <summary>
-    /// エフェクト表示 OFF のとき何を隠すか。旧ポスプロ同期の「編集中のレイヤーは常に反映」を
-    /// 種類単位で引き継いでいることを固定する
+    /// エフェクト表示 OFF のとき何を隠すか。編集中 (カレント) のレイヤーの種類だけは隠さないことを固定する
     /// </summary>
     public class ViewEffectVisibilityTests
     {
@@ -68,16 +67,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(state.hideStageLight);
             Assert.True(state.hideStageLaser);
             Assert.True(state.hidePsyllium);
-        }
-
-        [Fact]
-        public void SameAsは全フラグを比べる()
-        {
-            var a = ViewEffectVisibility.Resolve(false, EffectLayerKind.None);
-            var b = ViewEffectVisibility.Resolve(false, EffectLayerKind.StageLight);
-
-            Assert.True(ViewEffectVisibility.SameAs(a, a));
-            Assert.False(ViewEffectVisibility.SameAs(a, b));
         }
     }
 }
