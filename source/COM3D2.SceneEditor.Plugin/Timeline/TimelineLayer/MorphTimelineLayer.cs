@@ -108,6 +108,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// </summary>
         private readonly HashSet<string> _beforeFirstKeyFaceShadows = new HashSet<string>();
 
+        /// <summary>
+        /// キーが最終フレームの 1 個だけの顔の影で、キーの値を書き済みの項目。
+        /// キーの打ち直しで消し、変わったキーの値を書き直す
+        /// </summary>
+        private readonly HashSet<string> _singleKeyAppliedFaceShadows = new HashSet<string>();
+
+        /// <summary>区間適用 (ApplyMotion) で最後に書いた顔の影のキーの値</summary>
+        private readonly Dictionary<string, bool> _lastKeyedFaceShadows = new Dictionary<string, bool>();
+
         private Dictionary<string, float> _applyMorphMap = new Dictionary<string, float>();
 
         /// <summary>現在まばたきを上書きしているメイド。未上書きなら null</summary>
@@ -313,7 +322,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _isForceOverride = true;
 
             base.ApplyPlayData();
-            ClearFaceShadowsBeforeFirstKey(maid);
+            ApplyFaceShadowsOutsideMotions(maid);
 
             // 強制上書き OFF はゲーム側のまばたきを許可する値として実体へ反映する。
             // 解除 (ユーザー設定への復元) ではないので、レイヤーが生きている間は上書きを維持する
@@ -324,29 +333,55 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         }
 
         /// <summary>
-        /// 基底は最初のキーより前 (current == null) を何もしないため、後ろの区間で付けた顔の影の上書きが
-        /// シークで戻しても残る。その区間に入ったときの 1 回だけ上書きを外す
-        /// (毎フレーム外すと、その区間で UI から付けた上書きまで消える)。キーの無い項目は対象外
+        /// 基底の区間適用 (ApplyMotion) が扱わない顔の影の状態を書く。キーの無い項目は対象外。
+        /// - 最初のキーより前: 基底は何もしないため、後ろの区間で付けた上書きがシークで戻しても残る。
+        ///   その区間に入ったときの 1 回だけ上書きを外す (毎フレーム外すと、その区間で UI から付けた上書きまで消える)
+        /// - キーが最終フレームの 1 個だけ: 区間 (MotionData) が作られず ApplyMotion が呼ばれないので、
+        ///   そのフレームに入ったときの 1 回だけキーの値を書く
         /// </summary>
-        private void ClearFaceShadowsBeforeFirstKey(Maid maid)
+        private void ApplyFaceShadowsOutsideMotions(Maid maid)
         {
+            var frameNo = timelineManager.currentFrameNo;
             foreach (var item in FaceShadowItems.items)
             {
+                List<BoneData> rows;
+                if (!_timelineBonesMap.TryGetValue(item.name, out rows) || rows.Count == 0)
+                {
+                    continue;
+                }
+
                 MotionPlayData playData;
-                if (!_playDataMap.TryGetValue(item.name, out playData) || playData.motions.Count == 0)
+                var hasMotions = _playDataMap.TryGetValue(item.name, out playData) && playData.motions.Count > 0;
+                var isBeforeFirstKey = hasMotions ? playData.current == null : frameNo < rows[0].frameNo;
+                if (isBeforeFirstKey)
                 {
+                    _singleKeyAppliedFaceShadows.Remove(item.name);
+                    _lastKeyedFaceShadows.Remove(item.name);
+                    if (_beforeFirstKeyFaceShadows.Add(item.name))
+                    {
+                        faceRenderer.ClearOverride(maid, item.name);
+                    }
                     continue;
                 }
-                if (playData.current != null)
+                _beforeFirstKeyFaceShadows.Remove(item.name);
+
+                if (hasMotions)
                 {
-                    _beforeFirstKeyFaceShadows.Remove(item.name);
+                    _singleKeyAppliedFaceShadows.Remove(item.name);
                     continue;
                 }
-                if (_beforeFirstKeyFaceShadows.Add(item.name))
+                var key = rows[0].transform as TransformDataFaceShadow;
+                if (key != null && _singleKeyAppliedFaceShadows.Add(item.name))
                 {
-                    faceRenderer.ClearOverride(maid, item.name);
+                    SetFaceShadow(maid, item.name, key.isEnabled);
                 }
             }
+        }
+
+        protected override void BuildPlayData()
+        {
+            base.BuildPlayData();
+            _singleKeyAppliedFaceShadows.Clear();
         }
 
         private static void SetFaceShadow(Maid maid, string item, bool enabled)
@@ -432,10 +467,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var startShadow = motion.start as TransformDataFaceShadow;
             if (startShadow != null)
             {
-                // 毎フレーム書くと、その区間で影タブから付けた上書きまで戻るため、区間に入ったときだけ書く
-                if (indexUpdated)
+                // ON/OFF に中間値は無いのでステップ適用する。終端で end 側を採らないと、最後のキーの値が効かない。
+                // 毎フレーム書くと、その区間で影タブから付けた上書きまで戻るため、
+                // 区間に入ったときと、キーの値が切り替わったときだけ書く
+                var endShadow = motion.end as TransformDataFaceShadow;
+                var value = t < StepEndThreshold || endShadow == null ? startShadow.isEnabled : endShadow.isEnabled;
+                bool lastValue;
+                if (indexUpdated || !_lastKeyedFaceShadows.TryGetValue(motion.name, out lastValue) || lastValue != value)
                 {
-                    SetFaceShadow(maid, motion.name, startShadow.isEnabled);
+                    _lastKeyedFaceShadows[motion.name] = value;
+                    SetFaceShadow(maid, motion.name, value);
                 }
                 return;
             }
