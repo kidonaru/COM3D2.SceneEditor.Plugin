@@ -9,8 +9,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>
     /// メイドの顔 (head スロット) の Renderer に、影の上書き (受ける・落とす) と Face レイヤーへの移動を書く。
     /// ゲームは通常顔も Charactor に置くため、「顔のみ／体のみ」の追加ライトがある間だけ顔を Face へ移す。
-    /// 元の値は Renderer ごとに初めて書くときに退避し、上書きも移動も無くなったら戻す。
-    /// タイムライン (ライトの照射対象・顔の影のキー) と UI の後、影の複製の前に LateUpdate で書く
+    /// 元の値は Renderer ごとに初めて書くときに退避し、上書きも移動も無くなったら戻す
     /// </summary>
     public class MaidFaceRendererManager : ManagerBase
     {
@@ -18,6 +17,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>ゲーム側ライトを探し直す間隔 (フレーム)。毎フレームの全走査を避ける</summary>
         private const int LightScanInterval = 60;
+
+        /// <summary>head 配下の Renderer の増減を確かめる間隔 (フレーム)</summary>
+        private const int RendererCheckInterval = 60;
 
         /// <summary>Renderer の 3 値。元の値と、前回書いた値の両方に使う</summary>
         private struct RendererValues
@@ -37,16 +39,13 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        private class Original
+        private class RendererState
         {
-            /// <summary>初めて触ったときのゲームの値</summary>
+            /// <summary>ゲームの値。他者が値を変えたらその値に置き直す</summary>
             public RendererValues original;
-            /// <summary>前回書いた値 (書いていない値は元の値)。他者が変えた値を取り消さないために持つ</summary>
+            /// <summary>前回書いた値 (書いていない値は元の値)。他者が変えたかを見分けるために持つ</summary>
             public RendererValues written;
         }
-
-        /// <summary>head 配下の Renderer の増減を確かめる間隔 (フレーム)。影の複製と同じ</summary>
-        private const int RendererCheckInterval = 60;
 
         private class Entry
         {
@@ -54,14 +53,11 @@ namespace COM3D2.SceneEditor.Plugin
             /// <summary>Renderer を集めたときの head スロットの実体。入れ替わったら集め直す</summary>
             public GameObject headObj;
             public readonly List<Renderer> renderers = new List<Renderer>();
-            public readonly Dictionary<Renderer, Original> originals = new Dictionary<Renderer, Original>();
+            public readonly Dictionary<Renderer, RendererState> states = new Dictionary<Renderer, RendererState>();
             public bool wasBusy;
             /// <summary>head 配下の Renderer の数を最後に確かめたフレーム</summary>
             public int lastRendererCheckFrame = -1;
         }
-
-        /// <summary>HasRendererCountChanged の作業用。毎回の確保を避ける</summary>
-        private static readonly List<Renderer> _rendererScratch = new List<Renderer>();
 
         private static MaidFaceRendererManager _instance;
         public static MaidFaceRendererManager instance
@@ -78,22 +74,27 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
         private readonly List<Maid> _maids = new List<Maid>();
-        private readonly List<Maid> _removeScratch = new List<Maid>();
 
-        /// <summary>Face ビットを足したゲーム側ライトと元の cullingMask</summary>
+        /// <summary>
+        /// 顔の shadowCastingMode を書いたメイド。影の複製 (CharacterShadowProxyManager) は 60 フレームごとにしか
+        /// 顔ぶれを取り直さないため、これを見てそのメイドの複製だけをすぐ作り直す
+        /// </summary>
+        private readonly HashSet<Maid> _castChangedMaids = new HashSet<Maid>();
+
+        /// <summary>Face ビットを足したゲーム側ライトと、Face ビットを足す前の cullingMask</summary>
         private readonly Dictionary<Light, int> _compensatedLights = new Dictionary<Light, int>();
         private int _lastLightScanFrame = -1;
 
         private int _charactorLayer = -1;
         private int _faceLayer = -1;
 
-        public bool isFaceLayerActive { get; private set; }
+        // 毎回の確保を避ける作業用
+        private readonly List<Maid> _removeScratch = new List<Maid>();
+        private readonly List<Renderer> _rendererScratch = new List<Renderer>();
+        private readonly List<Light> _lightScratch = new List<Light>();
 
-        /// <summary>
-        /// 顔の shadowCastingMode を書くたびに増える。影の複製 (CharacterShadowProxyManager) は 60 フレームごとにしか
-        /// 顔ぶれを取り直さないため、これの変化で即座に作り直す
-        /// </summary>
-        public int castVersion { get; private set; }
+        /// <summary>顔を Face レイヤーへ移しているか (実機検証用)</summary>
+        public bool isFaceLayerActive { get; private set; }
 
         private MaidFaceRendererManager()
         {
@@ -190,11 +191,24 @@ namespace COM3D2.SceneEditor.Plugin
                 : renderer.receiveShadows;
         }
 
+        /// <summary>前回の問い合わせ以降に、このメイドの顔の影落としを書いたか。問い合わせると記録を消す</summary>
+        public bool ConsumeCastChanged(Maid maid)
+        {
+            return _castChangedMaids.Remove(maid);
+        }
+
         public override void LateUpdate()
         {
             var moveToFace = _charactorLayer >= 0 && _faceLayer >= 0 && HasFaceLayerLight();
             isFaceLayerActive = moveToFace;
-            UpdateLightCompensation(moveToFace);
+            if (moveToFace)
+            {
+                CompensateLights();
+            }
+            else
+            {
+                RestoreLights();
+            }
 
             CollectMaids(_maids);
             foreach (var maid in _maids)
@@ -232,19 +246,19 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            RestoreAll(entry);
+            RestoreAll(maid, entry);
             _entries.Remove(maid);
         }
 
         /// <summary>すべてのメイドの顔とゲーム側ライトを元へ戻す</summary>
         public void Destroy()
         {
-            foreach (var entry in _entries.Values)
+            foreach (var pair in _entries)
             {
-                RestoreAll(entry);
+                RestoreAll(pair.Key, pair.Value);
             }
             _entries.Clear();
-            UpdateLightCompensation(false);
+            RestoreLights();
             isFaceLayerActive = false;
         }
 
@@ -303,56 +317,77 @@ namespace COM3D2.SceneEditor.Plugin
 
             var head = SlotBoneManager.GetSlotObject(maid, HeadSlotName);
             var frame = Time.frameCount;
-            if (head != entry.headObj || entry.wasBusy
-                || (frame - entry.lastRendererCheckFrame >= RendererCheckInterval && HasRendererCountChanged(entry)))
+            var isCheckDue = frame - entry.lastRendererCheckFrame >= RendererCheckInterval;
+            if (isCheckDue)
+            {
+                entry.lastRendererCheckFrame = frame;
+            }
+            if (head != entry.headObj || entry.wasBusy || (isCheckDue && HasRendererCountChanged(entry)))
             {
                 entry.headObj = head;
                 entry.wasBusy = false;
                 CollectRenderers(entry);
             }
-            if (frame - entry.lastRendererCheckFrame >= RendererCheckInterval)
-            {
-                entry.lastRendererCheckFrame = frame;
-            }
 
+            var receiveOverridden = entry.overrides.ContainsKey(FaceShadowItems.Receive);
+            var castOverridden = entry.overrides.ContainsKey(FaceShadowItems.Cast);
             foreach (var renderer in entry.renderers)
             {
                 if (renderer == null)
                 {
                     continue;
                 }
-                Original state;
-                if (!entry.originals.TryGetValue(renderer, out state))
+                RendererState state;
+                if (!entry.states.TryGetValue(renderer, out state))
                 {
-                    var current = RendererValues.From(renderer);
-                    state = new Original { original = current, written = current };
-                    entry.originals.Add(renderer, state);
+                    var values = RendererValues.From(renderer);
+                    state = new RendererState { original = values, written = values };
+                    entry.states.Add(renderer, state);
                 }
 
-                // 決めた値が前回書いた値から変わったときだけ書く。上書きの無い項目は元の値 = 前回の値なので書かない
-                var layer = FaceRendererRules.ResolveLayer(state.original.layer, moveToFace, _charactorLayer, _faceLayer);
-                if (FaceRendererRules.ShouldWrite(layer, state.written.layer))
+                // 他者が前回書いた値から変えていたら、その値を元の値として取り込み、取り消さない。
+                // レイヤーは常に取り込む (VR の一人称モードが頭を隠すために Face へ移す)
+                var layer = renderer.gameObject.layer;
+                if (FaceRendererRules.ShouldAdoptExternal(layer, state.written.layer, false))
                 {
-                    renderer.gameObject.layer = layer;
-                    state.written.layer = layer;
+                    state.original.layer = layer;
                 }
-                var receive = FaceRendererRules.ResolveReceive(state.original.receiveShadows, entry.overrides);
-                if (FaceRendererRules.ShouldWrite(receive, state.written.receiveShadows))
+                var desiredLayer = FaceRendererRules.ResolveLayer(
+                    state.original.layer, moveToFace, _charactorLayer, _faceLayer);
+                if (FaceRendererRules.ShouldWrite(desiredLayer, layer))
                 {
-                    renderer.receiveShadows = receive;
-                    state.written.receiveShadows = receive;
+                    renderer.gameObject.layer = desiredLayer;
                 }
-                var cast = FaceRendererRules.ResolveCast(state.original.castingMode, entry.overrides);
-                if (FaceRendererRules.ShouldWrite(cast, state.written.castingMode))
+                state.written.layer = desiredLayer;
+
+                var receive = renderer.receiveShadows;
+                if (FaceRendererRules.ShouldAdoptExternal(receive, state.written.receiveShadows, receiveOverridden))
                 {
-                    renderer.shadowCastingMode = cast;
-                    state.written.castingMode = cast;
-                    castVersion++;
+                    state.original.receiveShadows = receive;
                 }
+                var desiredReceive = FaceRendererRules.ResolveReceive(state.original.receiveShadows, entry.overrides);
+                if (FaceRendererRules.ShouldWrite(desiredReceive, receive))
+                {
+                    renderer.receiveShadows = desiredReceive;
+                }
+                state.written.receiveShadows = desiredReceive;
+
+                var cast = renderer.shadowCastingMode;
+                if (FaceRendererRules.ShouldAdoptExternal(cast, state.written.castingMode, castOverridden))
+                {
+                    state.original.castingMode = cast;
+                }
+                var desiredCast = FaceRendererRules.ResolveCast(state.original.castingMode, entry.overrides);
+                if (FaceRendererRules.ShouldWrite(desiredCast, cast))
+                {
+                    renderer.shadowCastingMode = desiredCast;
+                    _castChangedMaids.Add(maid);
+                }
+                state.written.castingMode = desiredCast;
             }
         }
 
-        private static bool HasRendererCountChanged(Entry entry)
+        private bool HasRendererCountChanged(Entry entry)
         {
             if (entry.headObj == null)
             {
@@ -364,10 +399,9 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// head スロットの Renderer を集め直す。破棄された Renderer の退避は捨てるが、残っている Renderer の退避は残す
-        /// (着替え中に同じ Renderer の退避を捨てると、SE が書いた値を元の値と取り違える)。
-        /// 残った Renderer の「前回書いた値」は今の値にそろえる。着替えでゲームが値を戻していても、上書きを 1 回書き直すため
+        /// (着替え中に同じ Renderer の退避を捨てると、SE が書いた値を元の値と取り違える)
         /// </summary>
-        private static void CollectRenderers(Entry entry)
+        private void CollectRenderers(Entry entry)
         {
             entry.renderers.Clear();
             if (entry.headObj != null)
@@ -375,27 +409,24 @@ namespace COM3D2.SceneEditor.Plugin
                 entry.headObj.GetComponentsInChildren(true, entry.renderers);
             }
 
-            var dead = new List<Renderer>();
-            foreach (var pair in entry.originals)
+            _rendererScratch.Clear();
+            foreach (var renderer in entry.states.Keys)
             {
-                var renderer = pair.Key;
                 if (renderer == null || !entry.renderers.Contains(renderer))
                 {
-                    dead.Add(renderer);
-                    continue;
+                    _rendererScratch.Add(renderer);
                 }
-                pair.Value.written = RendererValues.From(renderer);
             }
-            foreach (var renderer in dead)
+            foreach (var renderer in _rendererScratch)
             {
-                entry.originals.Remove(renderer);
+                entry.states.Remove(renderer);
             }
         }
 
         /// <summary>元の値へ戻す。前回書いた後に他者が書き換えた値は残す</summary>
-        private void RestoreAll(Entry entry)
+        private void RestoreAll(Maid maid, Entry entry)
         {
-            foreach (var pair in entry.originals)
+            foreach (var pair in entry.states)
             {
                 var renderer = pair.Key;
                 if (renderer == null)
@@ -412,10 +443,10 @@ namespace COM3D2.SceneEditor.Plugin
                 if (renderer.shadowCastingMode != cast)
                 {
                     renderer.shadowCastingMode = cast;
-                    castVersion++;
+                    _castChangedMaids.Add(maid);
                 }
             }
-            entry.originals.Clear();
+            entry.states.Clear();
             entry.renderers.Clear();
             entry.headObj = null;
         }
@@ -434,14 +465,14 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     if (FaceRendererRules.IsDefault(entry.overrides, moveToFace))
                     {
-                        RestoreAll(entry);
+                        RestoreAll(pair.Key, entry);
                         _removeScratch.Add(pair.Key);
                     }
                     continue;
                 }
 
                 // 非表示などで一時的にいないメイドは、戻ってきたときのために上書きだけ残す。退避は戻して捨てる
-                RestoreAll(entry);
+                RestoreAll(pair.Key, entry);
                 if (entry.overrides.Count == 0)
                 {
                     _removeScratch.Add(pair.Key);
@@ -455,29 +486,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 顔を移している間、Charactor を照らすのに Face を照らさないゲーム側ライトへ Face ビットを足す。
-        /// 移さなくなったら足したライトだけを戻す
+        /// ゲームや他プラグインが書き戻しても次のフレームで足し直す
         /// </summary>
-        private void UpdateLightCompensation(bool moveToFace)
+        private void CompensateLights()
         {
-            if (!moveToFace)
-            {
-                if (_compensatedLights.Count > 0)
-                {
-                    var face = 1 << _faceLayer;
-                    foreach (var pair in _compensatedLights)
-                    {
-                        // 足した後にゲームが別のマスクへ変えていたら、その値を残す
-                        if (pair.Key != null && pair.Key.cullingMask == (pair.Value | face))
-                        {
-                            pair.Key.cullingMask = pair.Value;
-                        }
-                    }
-                    _compensatedLights.Clear();
-                }
-                _lastLightScanFrame = -1;
-                return;
-            }
-
             var charactorMask = 1 << _charactorLayer;
             var faceMask = 1 << _faceLayer;
             var frame = Time.frameCount;
@@ -501,17 +513,36 @@ namespace COM3D2.SceneEditor.Plugin
                 }
             }
 
-            // ゲームが書き戻しても次のフレームで足し直す
-            foreach (var light in _compensatedLights.Keys)
+            _lightScratch.Clear();
+            _lightScratch.AddRange(_compensatedLights.Keys);
+            foreach (var light in _lightScratch)
             {
                 if (light != null && (light.cullingMask & faceMask) == 0)
                 {
+                    // 書き戻された今のマスクを、戻すときの値として覚え直す
+                    _compensatedLights[light] = light.cullingMask;
                     light.cullingMask |= faceMask;
                 }
             }
         }
 
-        private readonly List<Light> _lightScratch = new List<Light>();
+        /// <summary>Face ビットを足したライトを戻す。足した後に他者が別のマスクへ変えていたら、その値を残す</summary>
+        private void RestoreLights()
+        {
+            if (_compensatedLights.Count > 0)
+            {
+                var faceMask = 1 << _faceLayer;
+                foreach (var pair in _compensatedLights)
+                {
+                    if (pair.Key != null && pair.Key.cullingMask == (pair.Value | faceMask))
+                    {
+                        pair.Key.cullingMask = pair.Value;
+                    }
+                }
+                _compensatedLights.Clear();
+            }
+            _lastLightScanFrame = -1;
+        }
 
         private void RemoveDestroyedLights()
         {

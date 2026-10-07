@@ -32,26 +32,32 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             isEnabled = item != null && item.gameDefault;
         }
 
-        private readonly static Dictionary<string, CustomValueInfo> CustomValueInfoMap = new Dictionary<string, CustomValueInfo>
+        // 既定値は項目ごとのゲームの値 (影を受ける = ON、影を落とす = OFF)。Inspector の既定値へ戻す操作で使われる
+        private readonly static Dictionary<string, CustomValueInfo> ReceiveInfoMap = CreateInfoMap(true);
+        private readonly static Dictionary<string, CustomValueInfo> CastInfoMap = CreateInfoMap(false);
+
+        private static Dictionary<string, CustomValueInfo> CreateInfoMap(bool defaultEnabled)
         {
+            return new Dictionary<string, CustomValueInfo>
             {
-                "isEnabled",
-                new CustomValueInfo
                 {
-                    index = (int)Index.IsEnabled,
-                    name = "有効",
-                    min = 0f,
-                    max = 1f,
-                    step = 1f,
-                    // 項目ごとに既定が違う (影を受ける = ON、影を落とす = OFF)。情報は型ごとに 1 つなので受ける側に合わせる
-                    defaultValue = 1f,
-                }
-            },
-        };
+                    "isEnabled",
+                    new CustomValueInfo
+                    {
+                        index = (int)Index.IsEnabled,
+                        name = "有効",
+                        min = 0f,
+                        max = 1f,
+                        step = 1f,
+                        defaultValue = defaultEnabled ? 1f : 0f,
+                    }
+                },
+            };
+        }
 
         public override Dictionary<string, CustomValueInfo> GetCustomValueInfoMap()
         {
-            return CustomValueInfoMap;
+            return name == FaceShadowItems.Cast ? CastInfoMap : ReceiveInfoMap;
         }
 
         private static readonly LaneColorInfo LaneInfo =

@@ -52,13 +52,20 @@ namespace COM3D2.SceneEditor.Plugin
             return overrides.Count == 0 && !moveToFace;
         }
 
-        /// <summary>
-        /// 書き込むか。決めた値が前回書いた値から変わったときだけ書く。
-        /// 毎フレーム実体と比べて書くと、他者 (VR の LayerCheck・他プラグイン) が後から変えた値を取り消し続ける
-        /// </summary>
-        public static bool ShouldWrite<T>(T desired, T lastWritten)
+        /// <summary>書き込むか。決めた値が今の値と違うときだけ書く</summary>
+        public static bool ShouldWrite<T>(T desired, T current)
         {
-            return !EqualityComparer<T>.Default.Equals(desired, lastWritten);
+            return !EqualityComparer<T>.Default.Equals(desired, current);
+        }
+
+        /// <summary>
+        /// 他者 (VR の LayerCheck・他プラグイン) が前回書いた値から変えた値を、新しい元の値として取り込むか。
+        /// 取り込まないと、元の値から決めた値で他者の値を取り消し続ける。
+        /// 上書きのある影設定は取り込まず、上書きを書き直す (着替えでゲームが値を戻しても上書きを保つ)
+        /// </summary>
+        public static bool ShouldAdoptExternal<T>(T current, T lastWritten, bool overridden)
+        {
+            return !overridden && !EqualityComparer<T>.Default.Equals(current, lastWritten);
         }
 
         /// <summary>戻す値。今の値が前回書いた値のままなら元の値、他者が書き換えていればその値を残す</summary>

@@ -110,11 +110,25 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
-        public void 前回書いた値と同じなら書かない()
+        public void 今の値と同じなら書かない()
         {
-            // 他者が書き換えても、こちらの決めた値が変わらない限り取り消さない
             Assert.False(FaceRendererRules.ShouldWrite(Face, Face));
             Assert.True(FaceRendererRules.ShouldWrite(Charactor, Face));
+        }
+
+        [Fact]
+        public void 他者が前回書いた値から変えていれば新しい元の値として取り込む()
+        {
+            // VR の LayerCheck が Charactor の顔を Face へ移した等。以後その値を元の値として扱い、書き戻さない
+            Assert.True(FaceRendererRules.ShouldAdoptExternal(Face, Charactor, false));
+            Assert.False(FaceRendererRules.ShouldAdoptExternal(Charactor, Charactor, false));
+        }
+
+        [Fact]
+        public void 上書きのある項目は他者の値を取り込まず上書きを書き直す()
+        {
+            // 着替えでゲームが影受けを戻しても、ユーザーの上書きを優先する
+            Assert.False(FaceRendererRules.ShouldAdoptExternal(true, false, true));
         }
 
         [Fact]

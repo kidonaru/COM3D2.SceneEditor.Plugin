@@ -26,6 +26,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
         }
 
         [Fact]
+        public void 既定値へ戻す値も項目ごとのゲームの既定値()
+        {
+            Assert.Equal(1f, CreateTransform(FaceShadowItems.Receive).GetCustomValueInfoMap()["isEnabled"].defaultValue);
+            Assert.Equal(0f, CreateTransform(FaceShadowItems.Cast).GetCustomValueInfoMap()["isEnabled"].defaultValue);
+        }
+
+        [Fact]
         public void 新しいキーの既定はゲームの既定値()
         {
             Assert.True(CreateTransform(FaceShadowItems.Receive).isEnabled);
