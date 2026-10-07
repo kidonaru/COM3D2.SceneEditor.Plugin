@@ -275,6 +275,7 @@
     <Compile Include="Manager\History\GravitySnapshot.cs" />
     <Compile Include="Manager\History\BodySliderSnapshot.cs" />
     <Compile Include="Manager\History\NodeVisibilitySnapshot.cs" />
+    <Compile Include="Manager\History\FaceShadowSnapshot.cs" />
     <Compile Include="Manager\History\ObjectSnapshot.cs" />
     <Compile Include="Manager\History\IKSnapshot.cs" />
     <Compile Include="Manager\History\BackgroundSnapshot.cs" />
@@ -395,6 +396,7 @@
     <Compile Include="GravityRowDrawer.cs" />
     <Compile Include="BodySliderRowDrawer.cs" />
     <Compile Include="NodeVisibilityRowDrawer.cs" />
+    <Compile Include="FaceShadowRowDrawer.cs" />
     <Compile Include="FaceMorphRowDrawer.cs" />
     <Compile Include="FaceShapeKeyFilter.cs" />
     <Compile Include="MaidFaceWindow.cs" />
@@ -483,6 +485,7 @@
     <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BodySliderItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\NodeVisibilityItemInspector.cs" />
+    <Compile Include="Timeline\ItemInspector\FaceShadowItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />
@@ -640,6 +643,7 @@
     <Compile Include="Timeline\TimelineLayer\GravityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BodySliderTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\NodeVisibilityTimelineLayer.cs" />
+    <Compile Include="Timeline\TimelineLayer\FaceShadowTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />
@@ -701,6 +705,7 @@
     <Compile Include="Timeline\TransformData\TransformDataLookAtTarget.cs" />
     <Compile Include="Timeline\TransformData\TransformDataBodySlider.cs" />
     <Compile Include="Timeline\TransformData\TransformDataNodeVisibility.cs" />
+    <Compile Include="Timeline\TransformData\TransformDataFaceShadow.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModel.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelBone.cs" />
     <Compile Include="Timeline\TransformData\TransformDataModelShapeKey.cs" />

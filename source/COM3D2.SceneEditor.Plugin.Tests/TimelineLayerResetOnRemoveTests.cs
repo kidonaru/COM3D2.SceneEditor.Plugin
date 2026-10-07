@@ -26,6 +26,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             "BodySliderTimelineLayer",
             // 上書きはこのレイヤーとノード表示タブからしか作れないため、断面の無い削除でも全解除する
             "NodeVisibilityTimelineLayer",
+            // 上書きはこのレイヤーと表情ウィンドウの影タブからしか作れないため、断面の無い削除でも全解除する
+            "FaceShadowTimelineLayer",
         };
 
         private static bool HasOwnResetOnRemove(Type type)
