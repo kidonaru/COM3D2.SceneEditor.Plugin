@@ -41,31 +41,33 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>画面分割グリッド担当。ポストエフェクトを避けるため gizmo カメラに付ける</summary>
         public GridRenderer displayGridRenderer { get; private set; }
 
-        /// <summary>メインカメラの描画から背景・モデル・PNG を隠すフィルタ。通常表示と撮影の両方に効く</summary>
+        /// <summary>メインカメラの描画から背景・メイド・モデル・ライブ演出を隠すフィルタ。通常表示と撮影の両方に効く</summary>
         public ViewCullingFilter cullingFilter { get; private set; }
 
-        // GameView ツールバーの表示トグル。隠したまま忘れて次回起動しないよう保存せず、
-        // エディタ有効化のたびに全表示へ戻す
-        private bool _showBg = true;
-        private bool _showModel = true;
-        private bool _showPng = true;
-
+        // GameView の表示トグル。タイムライン操作ウィンドウのトグルも同じ値を読み書きする
         public bool showBg
         {
-            get => _showBg;
-            set { _showBg = value; ApplyCullingSettings(); }
+            get => config.gameViewShowBg;
+            set { config.gameViewShowBg = value; config.dirty = true; ApplyCullingSettings(); }
+        }
+
+        public bool showMaid
+        {
+            get => config.gameViewShowMaid;
+            set { config.gameViewShowMaid = value; config.dirty = true; ApplyCullingSettings(); }
         }
 
         public bool showModel
         {
-            get => _showModel;
-            set { _showModel = value; ApplyCullingSettings(); }
+            get => config.gameViewShowModel;
+            set { config.gameViewShowModel = value; config.dirty = true; ApplyCullingSettings(); }
         }
 
-        public bool showPng
+        /// <summary>ポストエフェクトとライブ演出。反映は LateUpdate の UpdateEffectVisibility</summary>
+        public bool showEffect
         {
-            get => _showPng;
-            set { _showPng = value; ApplyCullingSettings(); }
+            get => config.gameViewShowEffect;
+            set { config.gameViewShowEffect = value; config.dirty = true; }
         }
 
         private void ApplyCullingSettings()
@@ -74,10 +76,65 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            cullingFilter.hideBg = !_showBg;
-            cullingFilter.hideModel = !_showModel;
-            cullingFilter.hidePng = !_showPng;
+            cullingFilter.hideBg = !config.gameViewShowBg;
+            cullingFilter.hideMaid = !config.gameViewShowMaid;
+            cullingFilter.hideModel = !config.gameViewShowModel;
             cullingFilter.InvalidateCache();
+        }
+
+        // PostEffects.Plugin へ最後に送れた一時停止の値。送れていない間は再送する
+        private bool _sentPostEffectSuspended = false;
+
+        /// <summary>
+        /// エフェクト表示とタイムラインのカレントレイヤーから、ライブ演出の非表示と
+        /// ポストエフェクトの一時停止を当てる。カレントは毎フレーム変わりうるため LateUpdate で呼ぶ
+        /// </summary>
+        private void UpdateEffectVisibility()
+        {
+            var state = ViewEffectVisibility.Resolve(config.gameViewShowEffect, GetCurrentEffectLayerKind());
+            if (cullingFilter != null)
+            {
+                cullingFilter.ApplyEffectState(state);
+            }
+            SetPostEffectSuspended(state.suspendPostEffect);
+        }
+
+        private void SetPostEffectSuspended(bool suspended)
+        {
+            if (_sentPostEffectSuspended == suspended)
+            {
+                return;
+            }
+            if (PostEffectsClient.SetSuspended(suspended))
+            {
+                _sentPostEffectSuspended = suspended;
+            }
+        }
+
+        /// <summary>
+        /// カレントレイヤーの種類。ライブ演出を種類単位で隠すため型で判定する
+        /// (ライブ演出のレイヤーを増やしたら、ここと ViewCullingFilter に種類を足す)
+        /// </summary>
+        private static EffectLayerKind GetCurrentEffectLayerKind()
+        {
+            var layer = MTEP.TimelineManager.instance.currentLayer;
+            if (layer is MTEP.PostEffectTimelineLayer)
+            {
+                return EffectLayerKind.PostEffect;
+            }
+            if (layer is MTEP.StageLightTimelineLayer)
+            {
+                return EffectLayerKind.StageLight;
+            }
+            if (layer is MTEP.StageLaserTimelineLayer)
+            {
+                return EffectLayerKind.StageLaser;
+            }
+            if (layer is MTEP.PsylliumTimelineLayer)
+            {
+                return EffectLayerKind.Psyllium;
+            }
+            return EffectLayerKind.None;
         }
 
         private readonly List<Camera> _hiddenUICameras = new List<Camera>();
@@ -154,7 +211,10 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            _showBg = _showModel = _showPng = true;
+            // ホスト側に前回の一時停止が残っていても揃うよう、記録に関係なく一度解除を送る
+            // (記録だけが初期値に戻る再読込などでずれないようにする)
+            PostEffectsClient.SetSuspended(false);
+            _sentPostEffectSuspended = false;
 
             var camera = mainCamera;
             if (camera == null)
@@ -194,6 +254,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 camera.targetTexture = null;
             }
+            // モード外 (エディタ無効) ではゲーム本来の見え方へ戻す
+            SetPostEffectSuspended(false);
             DetachGizmoRenderer();
             // RT を付け替えた直後にオーバーレイカメラも揃える (RT 破棄前に参照を外す)
             cameraManager.SyncToMainCamera();
@@ -456,6 +518,8 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
+
+            UpdateEffectVisibility();
 
             var camera = mainCamera;
             if (camera == null)

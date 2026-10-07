@@ -51,8 +51,10 @@ namespace COM3D2.SceneEditor.Plugin
 
         // OnGUI のたびにクロージャを作らないよう使い回す
         private static readonly Action<bool> SetShowBg = value => gameViewManager.showBg = value;
+        private static readonly Action<bool> SetShowMaid = value => gameViewManager.showMaid = value;
         private static readonly Action<bool> SetShowModel = value => gameViewManager.showModel = value;
-        private static readonly Action<bool> SetShowPng = value => gameViewManager.showPng = value;
+        private static readonly Action<bool> SetShowEffect = value => gameViewManager.showEffect = value;
+        private static readonly Action<bool> SetShowGizmo = value => MaidManipulateManager.instance.isBoneVisible = value;
 
         public int windowIndex { get; set; }
         public bool isShowWnd { get; set; }
@@ -457,14 +459,21 @@ namespace COM3D2.SceneEditor.Plugin
         /// ツールバーの帯 (ウィンドウローカル座標)。入力の除外判定にも使うため、描画結果ではなく
         /// 常に計算で求める (マウスが入った最初のフレームのクリックもシーンへ通さないため)
         /// </summary>
+        private static readonly ToolbarIcons.Kind[] ToggleKinds =
+        {
+            ToolbarIcons.Kind.Bg, ToolbarIcons.Kind.Maid, ToolbarIcons.Kind.Model,
+            ToolbarIcons.Kind.PostEffect, ToolbarIcons.Kind.Gizmo,
+        };
+
         private Rect GetToolbarLocalRect()
         {
-            // 項目: 撮影 / 比率 / 背景 / モデル / PNG。マージンは項目間の 4 箇所分
-            var width = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 4 + ASPECT_COMBO_WIDTH
-                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Screenshot))
-                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg))
-                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model))
-                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Png));
+            // 項目: 撮影 / 比率 / 表示トグル 5 つ。マージンは項目間の 6 箇所分
+            var width = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * (1 + ToggleKinds.Length) + ASPECT_COMBO_WIDTH
+                + ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(ToolbarIcons.Kind.Screenshot));
+            foreach (var kind in ToggleKinds)
+            {
+                width += ViewToolbarDrawer.GetItemWidth(ToolbarIcons.GetTexture(kind));
+            }
             return new Rect(0, HEADER_HEIGHT, width, ViewToolbarDrawer.TOOLBAR_HEIGHT);
         }
 
@@ -490,7 +499,7 @@ namespace COM3D2.SceneEditor.Plugin
             return GUIScale.LocalToScreen(_windowRect.position, GetToolbarLocalRect()).Contains(guiPos);
         }
 
-        /// <summary>撮影・表示比率・背景 / モデル / PNG 表示のトグル列。シーン描画に重ねる</summary>
+        /// <summary>撮影・表示比率・背景 / メイド / モデル / エフェクト / ギズモのトグル列。シーン描画に重ねる</summary>
         private void DrawToolbar()
         {
             var rect = GetToolbarLocalRect();
@@ -511,10 +520,15 @@ namespace COM3D2.SceneEditor.Plugin
 
             ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg), "背景",
                 gameViewManager.showBg, SetShowBg);
+            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Maid), "メイド",
+                gameViewManager.showMaid, SetShowMaid);
             ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model), "モデル",
                 gameViewManager.showModel, SetShowModel);
-            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Png), "PNG",
-                gameViewManager.showPng, SetShowPng);
+            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.PostEffect), "エフェクト",
+                gameViewManager.showEffect, SetShowEffect);
+            // ギズモはメニューバーの「ボーン表示」と同じ状態 (GameView だけに効く)
+            ViewToolbarDrawer.DrawToggle(view, ToolbarIcons.GetTexture(ToolbarIcons.Kind.Gizmo), "ギズモ",
+                MaidManipulateManager.instance.isBoneVisible, SetShowGizmo);
 
             view.EndLayout();
 
