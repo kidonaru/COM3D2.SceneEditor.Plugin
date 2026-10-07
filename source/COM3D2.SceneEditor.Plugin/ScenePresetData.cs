@@ -417,7 +417,7 @@ namespace COM3D2.SceneEditor.Plugin
     /// <summary>顔の影の上書き 1 件</summary>
     public class ScenePresetFaceShadowItem
     {
-        /// <summary>FaceShadowItems の名前 (receiveShadows / castShadows)</summary>
+        /// <summary>FaceShadowItems の名前 (faceReceiveShadows / faceCastShadows)</summary>
         [XmlAttribute]
         public string name;
 

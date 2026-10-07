@@ -18,8 +18,10 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class FaceShadowItems
     {
-        public const string Receive = "receiveShadows";
-        public const string Cast = "castShadows";
+        // 表情レイヤーのボーン名を兼ねる。モーフ名と衝突させないため強制上書き (faceForceOverride) と同じ接頭辞にする。
+        // XML の Bone 名なので変更しないこと
+        public const string Receive = "faceReceiveShadows";
+        public const string Cast = "faceCastShadows";
 
         public static readonly List<FaceShadowItem> items = new List<FaceShadowItem>
         {

@@ -45,21 +45,35 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             var overrides = new Dictionary<string, bool> { { FaceShadowItems.Cast, true } };
             var keyed = new List<string> { FaceShadowItems.Receive };
 
-            var keys = MTEP.FaceShadowTimelineLayer.BuildKeys(overrides, keyed, item => false);
+            var names = new List<string>();
+            MTEP.MorphTimelineLayer.SelectFaceShadowBones(overrides.ContainsKey, keyed.Contains, names);
 
-            Assert.Equal(2, keys.Count);
-            Assert.Equal(FaceShadowItems.Receive, keys[0].Key);
-            Assert.False(keys[0].Value);   // 上書きは無いが、キーがあるので今の値
-            Assert.Equal(FaceShadowItems.Cast, keys[1].Key);
-            Assert.True(keys[1].Value);
+            Assert.Equal(new[] { FaceShadowItems.Receive, FaceShadowItems.Cast }, names);
         }
 
         [Fact]
-        public void 上書きもキーも無ければキーにしない()
+        public void 上書きもキーも無ければキーにせず前回の結果も消す()
         {
-            var keys = MTEP.FaceShadowTimelineLayer.BuildKeys(
-                new Dictionary<string, bool>(), new List<string>(), item => true);
-            Assert.Empty(keys);
+            var names = new List<string> { FaceShadowItems.Cast };
+            MTEP.MorphTimelineLayer.SelectFaceShadowBones(item => false, item => false, names);
+            Assert.Empty(names);
+        }
+
+        [Fact]
+        public void 項目名は表情レイヤーのボーン名として強制上書きと同じ接頭辞を持つ()
+        {
+            // 表情レイヤーのモーフ名と衝突させないため。XML の Bone 名なので変更しないこと
+            Assert.Equal("faceReceiveShadows", FaceShadowItems.Receive);
+            Assert.Equal("faceCastShadows", FaceShadowItems.Cast);
+        }
+
+        [Fact]
+        public void 顔の影の項目だけを顔の影のボーンとして扱う()
+        {
+            Assert.True(MTEP.MorphTimelineLayer.IsFaceShadowBone(FaceShadowItems.Receive));
+            Assert.True(MTEP.MorphTimelineLayer.IsFaceShadowBone(FaceShadowItems.Cast));
+            Assert.False(MTEP.MorphTimelineLayer.IsFaceShadowBone(MTEP.FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME));
+            Assert.False(MTEP.MorphTimelineLayer.IsFaceShadowBone("eyeclose"));
         }
     }
 }

@@ -20,7 +20,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             { "GravityTimelineLayer", TimelineLayerCategory.Maid },
             { "BodySliderTimelineLayer", TimelineLayerCategory.Maid },
             { "NodeVisibilityTimelineLayer", TimelineLayerCategory.Maid },
-            { "FaceShadowTimelineLayer", TimelineLayerCategory.Maid },
             { "EyesTimelineLayer", TimelineLayerCategory.Maid },
             { "ShapeKeyTimelineLayer", TimelineLayerCategory.Maid },
             { "VoiceTimelineLayer", TimelineLayerCategory.Maid },

@@ -71,7 +71,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
 
             var text = Serialize(maid);
             Assert.Contains("<faceShadow>", text);
-            Assert.Contains("name=\"castShadows\"", text);
+            Assert.Contains("name=\"faceCastShadows\"", text);
 
             var read = Deserialize(text);
             Assert.True(read.faceShadow.ToOverrides()[FaceShadowItems.Cast]);

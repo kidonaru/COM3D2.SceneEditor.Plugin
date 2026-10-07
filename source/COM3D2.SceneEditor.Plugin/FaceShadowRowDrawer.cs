@@ -4,7 +4,7 @@ namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
     /// 顔の影の項目 1 件分の行 (トグル・解除ボタン)。表情ウィンドウの影タブと
-    /// TimelineItemInspector (顔の影レイヤーの項目表示) で共有する。
+    /// TimelineItemInspector (表情レイヤーの表情設定の項目表示) で共有する。
     /// トグルには今の値を出し、SE が上書きしている項目は名前に「*」を付ける
     /// </summary>
     public static class FaceShadowRowDrawer

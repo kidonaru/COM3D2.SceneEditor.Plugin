@@ -140,11 +140,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override bool TryFocusTimelineLayer(Type layerType)
         {
-            if (layerType == typeof(MTEP.FaceShadowTimelineLayer))
-            {
-                _tab = FaceTab.影;
-                return true;
-            }
             if (layerType == typeof(MTEP.EyesTimelineLayer))
             {
                 _tab = FaceTab.視線;
@@ -152,8 +147,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
             if (layerType == typeof(MTEP.MorphTimelineLayer))
             {
-                // 表情レイヤーへ記録するタブは複数あるので、別レイヤーのタブ (視線・シェイプキー・影) から戻すときだけ先頭へ移す
-                if (_tab == FaceTab.視線 || _tab == FaceTab.シェイプキー || _tab == FaceTab.影)
+                // 表情レイヤーへ記録するタブは複数あるので、別レイヤーのタブ (視線・シェイプキー) から戻すときだけ先頭へ移す
+                if (_tab == FaceTab.視線 || _tab == FaceTab.シェイプキー)
                 {
                     _tab = FaceTab.目;
                 }
@@ -217,7 +212,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// タブの値が記録されるタイムラインレイヤー。視線タブは瞳レイヤー、シェイプキータブは
-        /// シェイプキーレイヤー、影タブは顔の影レイヤー、それ以外 (表情・プリセット) は表情レイヤー。
+        /// シェイプキーレイヤー、それ以外 (表情・影・プリセット) は表情レイヤー。
         /// プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
         /// </summary>
         private static Type GetTimelineLayerType(FaceTab tab)
@@ -226,7 +221,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 case FaceTab.視線: return typeof(MTEP.EyesTimelineLayer);
                 case FaceTab.シェイプキー: return typeof(MTEP.ShapeKeyTimelineLayer);
-                case FaceTab.影: return typeof(MTEP.FaceShadowTimelineLayer);
                 default: return typeof(MTEP.MorphTimelineLayer);
             }
         }

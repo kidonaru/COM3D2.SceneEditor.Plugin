@@ -327,8 +327,6 @@ namespace COM3D2.SceneEditor.Plugin
             timelineManager.RegisterLayer(
                 typeof(MTEP.NodeVisibilityTimelineLayer), MTEP.NodeVisibilityTimelineLayer.Create);
             timelineManager.RegisterLayer(
-                typeof(MTEP.FaceShadowTimelineLayer), MTEP.FaceShadowTimelineLayer.Create);
-            timelineManager.RegisterLayer(
                 typeof(MTEP.AnimationTimelineLayer), MTEP.AnimationTimelineLayer.Create);
             timelineManager.RegisterLayer(
                 typeof(MTEP.BGTimelineLayer), MTEP.BGTimelineLayer.Create);
@@ -372,8 +370,6 @@ namespace COM3D2.SceneEditor.Plugin
                 typeof(MTEP.BodySliderTimelineLayer), new BodySliderItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.NodeVisibilityTimelineLayer), new NodeVisibilityItemInspector());
-            TimelineItemInspectorRegistry.Register(
-                typeof(MTEP.FaceShadowTimelineLayer), new FaceShadowItemInspector());
             TimelineItemInspectorRegistry.Register(
                 typeof(MTEP.DressTimelineLayer), new DressItemInspector());
             TimelineItemInspectorRegistry.Register(

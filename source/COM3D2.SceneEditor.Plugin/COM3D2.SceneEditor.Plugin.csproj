@@ -485,7 +485,6 @@
     <Compile Include="Timeline\ItemInspector\GravityItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BodySliderItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\NodeVisibilityItemInspector.cs" />
-    <Compile Include="Timeline\ItemInspector\FaceShadowItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\ShapeKeyItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\UndressItemInspector.cs" />
     <Compile Include="Timeline\ItemInspector\BGModelItemInspector.cs" />
@@ -643,7 +642,6 @@
     <Compile Include="Timeline\TimelineLayer\GravityTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\BodySliderTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\NodeVisibilityTimelineLayer.cs" />
-    <Compile Include="Timeline\TimelineLayer\FaceShadowTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\ITimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayer.cs" />
     <Compile Include="Timeline\TimelineLayer\LightTimelineLayerBase.cs" />

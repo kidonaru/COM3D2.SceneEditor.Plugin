@@ -4,7 +4,7 @@ using COM3D2.SceneEditor.Plugin;
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
     /// <summary>
-    /// 顔の影キー 1 件分。項目名は FaceShadowItems の名前 (receiveShadows / castShadows) で、有効フラグを持つ。
+    /// 顔の影キー 1 件分。項目名は FaceShadowItems の名前 (faceReceiveShadows / faceCastShadows) で、有効フラグを持つ。
     /// 補間せず区間開始時に適用する
     /// </summary>
     public class TransformDataFaceShadow : TransformDataBase
