@@ -113,6 +113,7 @@ namespace COM3D2.SceneEditor.Plugin
                 cullingFilter.hideBg = !config.sceneViewShowBg;
                 cullingFilter.hideMaid = !config.sceneViewShowMaid;
                 cullingFilter.hideModel = !config.sceneViewShowModel;
+                cullingFilter.ApplyEffectState(ViewEffectVisibility.HideAll(!config.sceneViewShowEffect));
                 cullingFilter.InvalidateCache();
             }
             if (gizmoRenderer != null)

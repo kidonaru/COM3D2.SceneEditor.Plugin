@@ -254,21 +254,22 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>背景/メイド/モデル/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
+        /// <summary>背景/メイド/モデル/エフェクト/ギズモ表示・パース・オートフォーカスのトグル列。シーン描画に重ねて表示する</summary>
         protected override void DrawToolbar()
         {
             var bgIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Bg);
             var maidIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Maid);
             var modelIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Model);
+            var effectIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.PostEffect);
             var gizmoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Gizmo);
             var orthoIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Ortho);
             var autoFocusIcon = ToolbarIcons.GetTexture(ToolbarIcons.Kind.Focus);
             var spaceOption = GizmoRenderer.CreateToolRowOption();
 
-            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 6 箇所分
-            var totalWidth = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 6 +
+            // 帯の幅を先に求め、半透明の背景を敷いてからボタンを描く。マージンは項目間の 7 箇所分
+            var totalWidth = FRAME * 2 + ViewToolbarDrawer.ITEM_MARGIN * 7 +
                 ViewToolbarDrawer.GetItemWidth(bgIcon) + ViewToolbarDrawer.GetItemWidth(maidIcon) +
-                ViewToolbarDrawer.GetItemWidth(modelIcon) +
+                ViewToolbarDrawer.GetItemWidth(modelIcon) + ViewToolbarDrawer.GetItemWidth(effectIcon) +
                 ViewToolbarDrawer.GetItemWidth(gizmoIcon) + ViewToolbarDrawer.GetItemWidth(orthoIcon) +
                 ViewToolbarDrawer.GetItemWidth(autoFocusIcon) +
                 GizmoToolRowDrawer.GetSpaceButtonWidth(spaceOption, ViewToolbarDrawer.ITEM_HEIGHT);
@@ -286,6 +287,8 @@ namespace COM3D2.SceneEditor.Plugin
                 value => config.sceneViewShowMaid = value);
             DrawToolbarToggle(view, modelIcon, "モデル", config.sceneViewShowModel,
                 value => config.sceneViewShowModel = value);
+            DrawToolbarToggle(view, effectIcon, "エフェクト", config.sceneViewShowEffect,
+                value => config.sceneViewShowEffect = value);
             DrawToolbarToggle(view, gizmoIcon, "ギズモ", config.sceneViewShowGizmo,
                 value => config.sceneViewShowGizmo = value);
             DrawToolbarToggle(view, orthoIcon, "平行投影", config.sceneViewOrthographic,
