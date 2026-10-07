@@ -73,7 +73,7 @@ OFF のとき、次の 2 つを GameView から外す。タイムライン操作
 
 - メニューバーの「ボーン表示」（`MaidManipulateManager.isBoneVisible`）と同じ状態。どちらで切り替えても両方に反映される。BoneEditWindow の切り替えも同じ状態を共有する
 - 効くのは GameView だけ。GameView では今まで通り「編集モード中かつボーン表示 ON」で骨格線・ボーンギズモ・白丸ドラッグ点・オブジェクトギズモが出る
-- Config に保存する（`boneVisible`、既定 true）。起動時に `isBoneVisible` へ反映する
+- Config に保存する（`gameViewShowGizmo`、既定 true）。起動時に `isBoneVisible` へ反映する
 - **SceneView を `isBoneVisible` から切り離す**: SceneView の骨格線・ボーンギズモ・白丸ドラッグ点（表示とホバー判定）は「編集モード中かつ SceneView ツールバーのギズモ ON」で決める
   - その結果、ボーン表示 OFF でも SceneView ではボーンを選んで回せる。ボーン編集できる条件（`isBoneEditing`）はビューごとに判定する
   - ボーン表示 OFF にした瞬間に打ち切るドラッグは GameView 側のものだけにする
@@ -122,7 +122,7 @@ PNG は Inspector の各 PNG の「表示」で切り替えられるため、Gam
 ## SceneEditor 側の変更
 
 - `MTEUtils/PostEffectsClient.cs`（共有 submodule）: `SetSuspended` / `IsSuspended` を任意メソッドとして解決する（`LoadStartupPreset` と同じく、旧版ホストでは null のまま接続は有効）。submodule 側で commit し、親リポの参照を進める
-- `Config.cs`: `gameViewShowBg` / `gameViewShowMaid` / `gameViewShowModel` / `gameViewShowEffect` / `boneVisible` を追加
+- `Config.cs`: `gameViewShowBg` / `gameViewShowMaid` / `gameViewShowModel` / `gameViewShowEffect` / `gameViewShowGizmo` を追加
 - `Manager/GameViewManager.cs`: `showBg` / `showMaid` / `showModel` / `showEffect` を Config 読み書きのプロパティにし、`ApplyCullingSettings` で反映する。エフェクトはライブ演出のフィルタと PostEffects の一時停止の両方を当てる。`EnterWindowMode` で全表示へ戻す処理をやめ、フィルタ作成後に保存値を当てる。ウィンドウモード終了・プラグイン無効化時は PostEffects の一時停止を解除する
 - `Manager/ViewCullingFilter.cs`: `hideStageLight` / `hideStageLaser` / `hidePsyllium` の追加、`hidePng` の削除
 - `Config.cs` / `SceneViewWindow.cs` / `Manager/SceneViewManager.cs`: `sceneViewShowEffect` の追加、SceneView ツールバーへのエフェクトトグル追加とライブ演出 3 フラグへの反映
