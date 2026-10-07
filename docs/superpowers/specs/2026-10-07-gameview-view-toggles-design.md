@@ -2,7 +2,7 @@
 
 ## 目的
 
-SceneView / GameView / タイムライン操作ウィンドウのツールバーにある表示 ON/OFF の役割を整理する。GameView のツールバーを「GameView（メインカメラ）の表示だけを制御する場所」として揃え、状態を Config に保存する。
+SceneView / GameView / タイムライン操作ウィンドウのツールバーにある表示 ON/OFF の役割を整理する。GameView とタイムライン操作ウィンドウのトグルを「GameView（メインカメラ）の表示だけを制御する」同じ状態に揃え、Config に保存する。SceneView は SceneView 自身のトグルだけで決まる。
 
 ## 決定事項
 
@@ -11,7 +11,8 @@ SceneView / GameView / タイムライン操作ウィンドウのツールバー
 | GameView ツールバーのトグル | 背景 / メイド / モデル / エフェクト / ギズモ の 5 つ。PNG は削除 |
 | 効く範囲 | メインカメラだけ（通常表示・スクリーンショット・連番出力）。SceneView・サブカメラには効かない |
 | 保存 | すべて Config に保存し、エディタ有効化時に全表示へ戻す処理はやめる |
-| タイムライン操作ウィンドウ | 変更しない。メイド表示 / モデル表示 / 背景表示は今まで通り全カメラに効き、GameView とは別の状態 |
+| タイムライン操作ウィンドウ | メイド表示 / モデル表示 / 背景表示は GameView の メイド / モデル / 背景 と同じ状態（メインカメラだけ・Config 保存）。操作対象メイドだけを消す仕様は廃止。ポスプロ同期は変更しない |
+| 地面色の背景連動 | タイムライン設定の「地面色表示を背景表示と連動」を削除（地面の表示は背景ウィンドウで制御する） |
 | SceneView ツールバー | 背景 / メイド / モデル / エフェクト / ギズモ。エフェクトを追加し、ギズモ表示がボーン表示も兼ねるようになる（後述） |
 
 ## 各トグルの仕様
@@ -52,6 +53,28 @@ OFF のとき、次の 2 つを GameView から外す。タイムラインの「
   - その結果、ボーン表示 OFF でも SceneView ではボーンを選んで回せる。ボーン編集できる条件（`isBoneEditing`）はビューごとに判定する
   - ボーン表示 OFF にした瞬間に打ち切るドラッグは GameView 側のものだけにする
 
+### タイムライン操作ウィンドウ
+
+- `メイド表示` / `モデル表示` / `背景表示` は `GameViewManager.showMaid` / `showModel` / `showBg` を読み書きする。GameView ツールバーと同じ状態で、どちらで切り替えても両方に反映される。全カメラに効く今の仕組み（退避・SetActive）はやめる
+- `メイド表示` は全メイドをまとめて切り替える。今の「操作対象のメイドだけを (100,0,0) へ退避」はタイムラインからは行わない。Inspector の各メイドの表示切替（退避方式、`SetVisibleByUser`）はそのまま残す
+- `モデル表示`: `StudioModelManager.Visible` を削除する（タイムライン操作ウィンドウ以外に使用箇所なし）
+- `背景表示`: `TimelineData.isBackgroundVisible` と `SceneEditorHack.SetBackgroundVisible` を削除する。BG レイヤー適用時の当て直し（`BGTimelineLayer`）とプラグイン無効化時の表示戻し（`TimelineData`）も不要になる
+- `ポスプロ同期` は変更しない
+- 背景・メイド・モデルの見た目がタイムライン XML に依存しなくなる（GameView の Config 状態で決まる）
+
+### 地面色の背景連動（削除）
+
+- タイムライン設定の「地面色表示を背景表示と連動」（`TimelineData.isGroundLinkedToBackground`）を削除する。地面の表示は背景ウィンドウ `地面` タブ・地面色レイヤーのキーの `表示` だけで決まる
+- `BGColorTimelineLayer` の「連動 ON かつ背景非表示なら地面も消す」処理を削除する
+- 「個別設定を初期化」の対象からも外れる
+
+### タイムライン XML の互換
+
+- `TimelineXml.isBackgroundVisible` / `isGroundLinkedToBackground` はフィールドごと削除する。XmlSerializer は未知要素を読み飛ばすため、旧 XML はエラーにならず値が捨てられる。version は上げない
+- 旧 XML で背景非表示・連動 ON だったものは、背景・地面が表示される（背景は GameView の背景トグル次第）
+- SE で保存した XML を MTE で読むと要素が無いため既定値（背景表示 ON・連動 OFF）として読まれる
+- `W:\COM3D2_5\work\CLAUDE.md` の「タイムライン XML の互換方向」に追記する
+
 ### PNG（削除）
 
 PNG は Inspector の各 PNG の「表示」で切り替えられるため、GameView のトグルは削除する。合わせて GameView 専用だった次の処理も削除する。
@@ -79,19 +102,26 @@ PNG は Inspector の各 PNG の「表示」で切り替えられるため、Gam
 - `GameViewWindow.cs`: ツールバーを 背景 / メイド / モデル / エフェクト / ギズモ に並べ替える（アイコンは既存の `Bg` / `Maid` / `Model` / `PostEffect` / `Gizmo`）。ツールバー幅の計算も合わせる。ギズモトグルは `isBoneVisible` を切り替える
 - `MaidManipulation/MaidManipulateManager.cs` ほか（`BoneLineRenderer` / `BoneEditManager` / `SceneViewWindow` / `MaidDragPointRing` / `GizmoRenderer`）: SceneView 側の骨格線・ボーンギズモ・白丸の判定を `isBoneVisible` から SceneView のギズモ表示へ切り替える
 - `PngPlacementManager.cs`: PNG 非表示処理の削除
+- `TimelineControlWindow.cs`: メイド表示 / モデル表示 / 背景表示を `GameViewManager` の状態へ付け替える
+- `Timeline/TimelineData.cs` / `Timeline/TimelineXml.cs` / `Timeline/Hack/SceneEditorHack.cs` / `Timeline/TimelineLayer/BGTimelineLayer.cs` / `Timeline/TimelineLayer/BGColorTimelineLayer.cs` / `Timeline/Manager/StudioModelManager.cs` / `Timeline/Manager/TimelineManager.cs`（コメント）: 背景表示・地面連動・モデル表示の削除
+- `TimelineSettingWindow.cs`: 「地面色表示を背景表示と連動」の削除
 
 ## ドキュメント
 
 - `docs-site/guide/windows.md`: GameView ツールバーの表を 5 項目に更新。「非表示は保存されず…」を「保存され、次回も引き継がれます」に。エフェクトの範囲（PostEffects.Plugin のポストエフェクトとライブ演出、ゲーム本来の Bloom / DoF は残る、サムネイルの写り方）を書く
 - `docs-site/guide/scene-view.md`: エフェクト（ライブ演出だけが対象、ポストエフェクトは SceneView には元から出ない）を追加。ギズモ表示がボーン表示も兼ね、メニューバーのボーン表示の影響を受けないことを書く
 - `docs-site/guide/maid-editing.md`: ボーン表示が GameView だけに効くことを書く
-- `docs-site/timeline/control.md`: タイムラインの表示トグルは全カメラに効き、GameView のトグルとは別の状態であることを書く
+- `docs-site/timeline/control.md`: メイド表示 / モデル表示 / 背景表示が GameView のトグルと同じ状態で、GameView だけに効き Config に保存されること。「背景表示はタイムラインに保存されます」を削除
+- `docs-site/timeline/settings.md`: 「地面色表示を背景表示と連動」の行と、「個別設定を初期化」の説明から背景表示・地面連動を削除
+- `docs-site/timeline/layers-background.md`: 地面連動の注記を削除
 
 ## リスク
 
 - 非表示を保存するため、隠したまま撮影する恐れがある。ツールバーのアイコン点灯（点灯 = 表示）で判別する
 - `ViewCullingFilter` は 60 フレームごとにキャッシュを作り直すため、増えたライブ演出の Renderer が最大 1 秒ほど GameView に映ることがある（既存トグルと同じ制約）
 - PostEffects.Plugin と SceneEditor の両方のリリースが要る。旧版 PostEffects.Plugin では一時停止できない
+- タイムラインのメイド表示で操作対象だけを消す使い方はできなくなる（Inspector の各メイドの表示切替で代替）
+- 旧タイムライン XML の背景非表示・地面連動の設定は失われる
 - メイドを隠すとき、`CharacterShadowProxyManager`（キャラの影の複製）がメインカメラでどう見えるかを実機で確認する
 
 ## 確認
@@ -99,6 +129,8 @@ PNG は Inspector の各 PNG の「表示」で切り替えられるため、Gam
 - 両プラグインを COM3D2 / COM3D25 の両構成で MSBuild ビルドする
 - 実機（デイリー画面でエディタ有効化）で次を確認する
   - 各トグル OFF で GameView だけから消え、SceneView には映る
+  - タイムライン操作ウィンドウと GameView のトグルが連動する
+  - 背景非表示・地面連動 ON の旧タイムライン XML がエラーなく読める
   - SceneView のエフェクト OFF でライブ演出が SceneView だけから消え、GameView には映る
   - エディタの無効化・再有効化、ゲーム再起動後も状態が残る
   - エフェクト OFF でパラフィン・リムライト等も消え、ON で元の値に戻る。タイムライン再生中も OFF が保たれる
