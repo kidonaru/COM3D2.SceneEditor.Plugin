@@ -127,13 +127,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 if (bgGround != null)
                 {
-                    var visible = start.visible;
-                    if (timeline.isGroundLinkedToBackground && !timeline.isBackgroundVisible)
-                    {
-                        visible = false;
-                    }
-
-                    bgGround.visible = visible;
+                    bgGround.visible = start.visible;
                 }
             }
             catch (Exception e)

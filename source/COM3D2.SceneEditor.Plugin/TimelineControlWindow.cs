@@ -686,25 +686,32 @@ namespace COM3D2.SceneEditor.Plugin
                 timelineConfig.dirty = true;
             }, AUTO_KEY_ON_COLOR);
 
-            // Maid.Visible は GameObject ごと消してメイド一覧から外してしまうため、SE の退避方式で切り替える。
-            // ゲーム側のフラグも見るのは、旧方式で消えたままのメイドを OFF と出して ON で戻せるようにするため
-            var seMaidManager = MaidManipulateManager.instance;
-            var targetMaid = maidManager.maid;
-            var isMaidVisible = seMaidManager.IsVisible(targetMaid)
-                && targetMaid.Visible && targetMaid.gameObject.activeSelf;
-            DrawIconToggle(view, ToolbarIcons.Kind.Maid, "メイド表示", isMaidVisible, true, newValue =>
+            // 表示トグルは GameView のツールバーと同じ状態 (GameView だけに効き、設定に保存される)
+            var gameViewManager = GameViewManager.instance;
+            DrawIconToggle(view, ToolbarIcons.Kind.Bg, "背景表示", gameViewManager.showBg, true, newValue =>
             {
-                seMaidManager.SetVisibleByUser(targetMaid, newValue);
+                gameViewManager.showBg = newValue;
             });
 
-            DrawIconToggle(view, ToolbarIcons.Kind.Model, "モデル表示", modelManager.Visible, true, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.Maid, "メイド表示", gameViewManager.showMaid, true, newValue =>
             {
-                modelManager.Visible = newValue;
+                gameViewManager.showMaid = newValue;
             });
 
-            DrawIconToggle(view, ToolbarIcons.Kind.Bg, "背景表示", timeline.isBackgroundVisible, true, newValue =>
+            DrawIconToggle(view, ToolbarIcons.Kind.Model, "モデル表示", gameViewManager.showModel, true, newValue =>
             {
-                timeline.isBackgroundVisible = newValue;
+                gameViewManager.showModel = newValue;
+            });
+
+            // OFF でも編集中のエフェクト系レイヤーの種類だけは出す (ViewEffectVisibility)
+            DrawIconToggle(view, ToolbarIcons.Kind.PostEffect, "エフェクト表示", gameViewManager.showEffect, true, newValue =>
+            {
+                gameViewManager.showEffect = newValue;
+            });
+
+            DrawIconToggle(view, ToolbarIcons.Kind.Gizmo, "ギズモ表示", MaidManipulateManager.instance.isBoneVisible, true, newValue =>
+            {
+                MaidManipulateManager.instance.isBoneVisible = newValue;
             });
 
             if (timelineManager.hasCameraLayer)
@@ -739,15 +746,6 @@ namespace COM3D2.SceneEditor.Plugin
                         cameraLayer.ApplyCurrentFrame(false);
                     }
                 }
-            }
-
-            if (timelineManager.hasPostEffectSyncLayer)
-            {
-                DrawIconToggle(view, ToolbarIcons.Kind.PostEffect, "ポスプロ同期", timelineConfig.isPostEffectSync, timelineManager.hasNonCurrentPostEffectSyncLayer, newValue =>
-                {
-                    timelineConfig.isPostEffectSync = newValue;
-                    timelineConfig.dirty = true;
-                });
             }
         }
 

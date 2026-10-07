@@ -77,8 +77,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                     studioHack.ChangeBackground(bgName);
                 }
 
-                studioHack.SetBackgroundVisible(timeline.isBackgroundVisible);
-
                 if (bgObject != null)
                 {
                     bgObject.transform.localPosition = start.position;

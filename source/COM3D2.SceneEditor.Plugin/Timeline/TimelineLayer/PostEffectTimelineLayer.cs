@@ -110,12 +110,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            if (!isCurrent && !config.isPostEffectSync)
-            {
-                postEffectManager.DisableAllEffects();
-                return;
-            }
-
             var stopwatch = new StopwatchDebug();
             ApplyPlayDataByType(TransformType.DepthOfField);
             //stopwatch.ProcessEnd("  DepthOfField");
