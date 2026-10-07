@@ -30,6 +30,7 @@ namespace COM3D2.SceneEditor.Plugin
             オプション,
             視線,
             シェイプキー,
+            影,
             プリセット,
         }
 
@@ -139,6 +140,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         public override bool TryFocusTimelineLayer(Type layerType)
         {
+            if (layerType == typeof(MTEP.FaceShadowTimelineLayer))
+            {
+                _tab = FaceTab.影;
+                return true;
+            }
             if (layerType == typeof(MTEP.EyesTimelineLayer))
             {
                 _tab = FaceTab.視線;
@@ -146,8 +152,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
             if (layerType == typeof(MTEP.MorphTimelineLayer))
             {
-                // 表情レイヤーへ記録するタブは複数あるので、別レイヤーのタブ (視線・シェイプキー) から戻すときだけ先頭へ移す
-                if (_tab == FaceTab.視線 || _tab == FaceTab.シェイプキー)
+                // 表情レイヤーへ記録するタブは複数あるので、別レイヤーのタブ (視線・シェイプキー・影) から戻すときだけ先頭へ移す
+                if (_tab == FaceTab.視線 || _tab == FaceTab.シェイプキー || _tab == FaceTab.影)
                 {
                     _tab = FaceTab.目;
                 }
@@ -199,6 +205,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 DrawShapeKeyContent(view, target, gateState);
             }
+            else if (_tab == FaceTab.影)
+            {
+                DrawShadowContent(view, target);
+            }
             else
             {
                 DrawMorphList(view, target);
@@ -207,7 +217,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// タブの値が記録されるタイムラインレイヤー。視線タブは瞳レイヤー、シェイプキータブは
-        /// シェイプキーレイヤー、それ以外 (表情・プリセット) は表情レイヤー。
+        /// シェイプキーレイヤー、影タブは顔の影レイヤー、それ以外 (表情・プリセット) は表情レイヤー。
         /// プリセット適用もモーフ値を直接書くのでスライダーと同じ扱い
         /// </summary>
         private static Type GetTimelineLayerType(FaceTab tab)
@@ -216,8 +226,22 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 case FaceTab.視線: return typeof(MTEP.EyesTimelineLayer);
                 case FaceTab.シェイプキー: return typeof(MTEP.ShapeKeyTimelineLayer);
+                case FaceTab.影: return typeof(MTEP.FaceShadowTimelineLayer);
                 default: return typeof(MTEP.MorphTimelineLayer);
             }
+        }
+
+        /// <summary>
+        /// 顔 (head スロット) の影の上書き。顔と体を別のライトで照らすのは、追加ライトの「対象」の顔のみ／体のみで行う
+        /// </summary>
+        private void DrawShadowContent(GUIView view, Maid target)
+        {
+            foreach (var item in FaceShadowItems.items)
+            {
+                FaceShadowRowDrawer.Draw(view, target, item, ROW_HEIGHT);
+            }
+            view.DrawLabel("顔と体を別のライトで照らすには、ライトの「対象」を顔のみ／体のみにします", -1, ROW_HEIGHT,
+                textColor: Color.gray);
         }
 
         /// <summary>モーフ一覧を描くタブか。視線・シェイプキー・プリセットは対象カテゴリを持たない</summary>
