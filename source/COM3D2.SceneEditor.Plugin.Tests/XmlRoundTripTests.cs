@@ -91,6 +91,10 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 "StartFadeTime",
                 "EndFadeTime",
 
+                // 背景表示は GameView の設定 (Config) へ移し、地面色の背景連動は廃止した
+                "IsBackgroundVisible",
+                "IsGroundLinkedToBackground",
+
                 // v37 でモデルのアタッチはモデルキーへ移した。モデル単位の値は読込互換専用で書き出さない
                 "AttachPoint",
                 "AttachMaidSlotNo",

@@ -73,6 +73,14 @@ namespace COM3D2.SceneEditor.Plugin
         public int gameViewCustomWidth = 1080;
         public int gameViewCustomHeight = 1920;
 
+        // GameView の表示トグル (メインカメラの描画だけに効く)。タイムライン操作ウィンドウのトグルも同じ値を使う。
+        // gameViewShowGizmo はメニューバーの「ボーン表示」の実体 (MaidManipulateManager.isBoneVisible)
+        public bool gameViewShowBg = true;
+        public bool gameViewShowMaid = true;
+        public bool gameViewShowModel = true;
+        public bool gameViewShowEffect = true;
+        public bool gameViewShowGizmo = true;
+
         // メニューバーウィンドウ (-1 は未初期化。初回は画面左上に配置)
         public int menuBarPosX = -1;
         public int menuBarPosY = -1;
@@ -89,6 +97,8 @@ namespace COM3D2.SceneEditor.Plugin
         public bool sceneViewShowMaid = true;
         public bool sceneViewShowModel = true;
         public bool sceneViewShowGizmo = true;
+        // SceneView のエフェクトはライブ演出だけ (SceneView カメラにはポストエフェクトが掛からない)
+        public bool sceneViewShowEffect = true;
         public bool sceneViewOrthographic = false;
         // 選択・配置に連動した自動フォーカス。OFF でも Inspector のフォーカスボタンと F キーは効く
         public bool sceneViewAutoFocus = true;

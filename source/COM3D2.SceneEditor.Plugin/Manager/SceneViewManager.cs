@@ -113,6 +113,7 @@ namespace COM3D2.SceneEditor.Plugin
                 cullingFilter.hideBg = !config.sceneViewShowBg;
                 cullingFilter.hideMaid = !config.sceneViewShowMaid;
                 cullingFilter.hideModel = !config.sceneViewShowModel;
+                cullingFilter.ApplyEffectState(ViewEffectVisibility.HideAll(!config.sceneViewShowEffect));
                 cullingFilter.InvalidateCache();
             }
             if (gizmoRenderer != null)
@@ -156,6 +157,8 @@ namespace COM3D2.SceneEditor.Plugin
 
             gizmoRenderer = _cameraGo.AddComponent<GizmoRenderer>();
             boneLineRenderer = _cameraGo.AddComponent<BoneLineRenderer>();
+            // SceneView の骨格線はツールバーのギズモ表示に従う (ボーン表示は GameView 専用)
+            boneLineRenderer.isBoneEditingInView = () => MaidManipulateManager.instance.isSceneViewBoneEditing;
             // 画面分割グリッドは構図合わせ用なので、drawDisplayGrid は既定の false のままにする
             gridRenderer = _cameraGo.AddComponent<GridRenderer>();
             cullingFilter = _cameraGo.AddComponent<ViewCullingFilter>();

@@ -220,7 +220,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             transform.localRotation = start.rotation;
             transform.localScale = start.scale;
 
-            modelManager.SetModelVisible(model, start.visible && modelManager.Visible);
+            modelManager.SetModelVisible(model, start.visible);
             model.visible = start.visible;
         }
 

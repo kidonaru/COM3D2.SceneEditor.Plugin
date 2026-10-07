@@ -91,7 +91,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void Dispose()
         {
             base.Dispose();
-            RestoreLiveEffectSyncVisibility(stageLightManager);
 
             StageLightManager.onControllerAdded -= OnControllerAdded;
             StageLightManager.onControllerRemoved -= OnControllerRemoved;
@@ -124,11 +123,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             var maid = this.maid;
             if (maid == null || maid.body0 == null || !maid.body0.isLoadedBody)
-            {
-                return;
-            }
-
-            if (!UpdateLiveEffectSyncVisibility(stageLightManager))
             {
                 return;
             }

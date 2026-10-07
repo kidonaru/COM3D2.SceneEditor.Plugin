@@ -33,7 +33,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 useMuneKeyL = true,
                 useMuneKeyR = true,
                 isLoopAnm = false,
-                isGroundLinkedToBackground = true,
                 singleFrameType = SingleFrameType.Advance,
                 isSingleFrameAnm = true,
                 isEasingAppliedToNextKeyframe = true,
@@ -53,7 +52,6 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.True(dst.useMuneKeyL);
             Assert.True(dst.useMuneKeyR);
             Assert.False(dst.isLoopAnm);
-            Assert.True(dst.isGroundLinkedToBackground);
             Assert.Equal(SingleFrameType.Advance, dst.singleFrameType);
             Assert.True(dst.isSingleFrameAnm);
             Assert.True(dst.isEasingAppliedToNextKeyframe);

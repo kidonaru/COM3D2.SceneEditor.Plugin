@@ -247,6 +247,7 @@
     <Compile Include="Manager\ScenePresetProviderRegistry.cs" />
     <Compile Include="Manager\SceneCapturePresetLoader.cs" />
     <Compile Include="Manager\ViewCullingFilter.cs" />
+    <Compile Include="Manager\ViewEffectVisibility.cs" />
     <Compile Include="Manager\SceneViewManager.cs" />
     <Compile Include="Manager\SelectionManager.cs" />
     <Compile Include="Manager\HistoryManager.cs" />

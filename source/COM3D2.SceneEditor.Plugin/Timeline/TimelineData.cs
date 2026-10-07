@@ -378,44 +378,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public bool isLoopAnm = true;
 
-        private bool _isBackgroundVisible = true;
-        public bool isBackgroundVisible
-        {
-            get => _isBackgroundVisible;
-            set
-            {
-                if (_isBackgroundVisible == value)
-                {
-                    return;
-                }
-
-                _isBackgroundVisible = value;
-                studioHack.SetBackgroundVisible(value);
-
-                // 地面色を背景表示に連動させる設定のときだけ、地面色レイヤーを再適用する
-                if (isGroundLinkedToBackground)
-                {
-                    var bgColorLayer = timelineManager.GetLayer<BGColorTimelineLayer>();
-                    bgColorLayer?.ApplyCurrentFrame(true);
-                }
-            }
-        }
-
-        private bool _isGroundLinkedToBackground = false;
-        public bool isGroundLinkedToBackground
-        {
-            get => _isGroundLinkedToBackground;
-            set
-            {
-                if (_isGroundLinkedToBackground == value)
-                {
-                    return;
-                }
-
-                _isGroundLinkedToBackground = value;
-            }
-        }
-
         public float startOffsetTime = 0.5f;
 
         private Maid.EyeMoveType _eyeMoveType = Maid.EyeMoveType.無し;
@@ -681,8 +643,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             useMuneKeyL = DefaultTimeline.useMuneKeyL;
             useMuneKeyR = DefaultTimeline.useMuneKeyR;
             isLoopAnm = DefaultTimeline.isLoopAnm;
-            isBackgroundVisible = DefaultTimeline.isBackgroundVisible;
-            isGroundLinkedToBackground = DefaultTimeline.isGroundLinkedToBackground;
             startOffsetTime = DefaultTimeline.startOffsetTime;
         }
 
@@ -692,8 +652,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 layer.OnPluginDisable();
             }
-
-            studioHack?.SetBackgroundVisible(true);
         }
 
         public void OnCopyModel(StudioModelStat sourceModel, StudioModelStat newModel)
@@ -928,8 +886,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             useMuneKeyR = xml.useMuneKeyR;
             eyeMoveType = xml.eyeMoveType;
             isLoopAnm = xml.isLoopAnm;
-            isBackgroundVisible = xml.isBackgroundVisible;
-            isGroundLinkedToBackground = xml.isGroundLinkedToBackground;
             startOffsetTime = xml.startOffsetTime;
             singleFrameType = xml.singleFrameType;
             isSingleFrameAnm = xml.isSingleFrameAnm;
@@ -1098,8 +1054,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.useMuneKeyR = useMuneKeyR;
             xml.eyeMoveType = eyeMoveType;
             xml.isLoopAnm = isLoopAnm;
-            xml.isBackgroundVisible = isBackgroundVisible;
-            xml.isGroundLinkedToBackground = isGroundLinkedToBackground;
             xml.startOffsetTime = startOffsetTime;
             xml.singleFrameType = singleFrameType;
             xml.isSingleFrameAnm = isSingleFrameAnm;

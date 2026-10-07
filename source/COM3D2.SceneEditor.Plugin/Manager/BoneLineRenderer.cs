@@ -35,6 +35,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>ツールバー等からの描画切替。false の間は描画もピックもしない</summary>
         public bool drawEnabled = true;
 
+        /// <summary>このビューでボーンを出すか。生成側 (SceneViewManager / GameViewManager) が設定する</summary>
+        public Func<bool> isBoneEditingInView = () => false;
+
         private Camera _camera;
 
         /// <summary>
@@ -83,7 +86,7 @@ namespace COM3D2.SceneEditor.Plugin
             && SceneEditorPlugin.instance.isEnable
             && isHostActive()
             && boneEditManager.editMode
-            && MaidManipulateManager.instance.isBoneEditing;
+            && isBoneEditingInView();
 
         private void OnPostRender()
         {

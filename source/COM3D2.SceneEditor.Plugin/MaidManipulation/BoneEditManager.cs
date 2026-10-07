@@ -152,9 +152,9 @@ namespace COM3D2.SceneEditor.Plugin
             // SelectionManager は「ボーンヒットはメイドルートへ丸める」規約なので経由しない。
             // ただしポーズ定義を持つボーン (Bip01 系) は Inspector がひねり/曲げ表示に切り替わり、
             // 編集経路もモーション停止を伴うスライダー側になるためギズモは出さない。
-            // 骨格線と同じく編集モード＋ボーン表示 (isBoneEditing) 中だけ出す
+            // 骨格線と同じくどちらかのビューでボーンを出している間だけ。GameView 側の描画は isDrawEnabled が絞る
             GizmoRenderer.externalTargetProvider = () =>
-                editMode && MaidManipulateManager.instance.isBoneEditing
+                editMode && MaidManipulateManager.instance.isAnyBoneEditing
                     && selectedBone != null && !selectionManager.hasBoneSelection
                     ? selectedBone.gameObject : null;
 

@@ -246,14 +246,5 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 BackgroundUtils.ChangeBgByName(bgName);
             }
         }
-
-        public void SetBackgroundVisible(bool visible)
-        {
-            var bgObject = GameMain.Instance.BgMgr.current_bg_object;
-            if (bgObject != null)
-            {
-                bgObject.SetActive(visible);
-            }
-        }
     }
 }

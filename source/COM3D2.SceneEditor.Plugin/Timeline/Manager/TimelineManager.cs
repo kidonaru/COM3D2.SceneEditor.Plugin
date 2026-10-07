@@ -118,30 +118,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             get => FindLayers(typeof(CameraTimelineLayer)).Count > 0;
         }
 
-        /// <summary>ポスプロ同期の対象 (ポストエフェクト・ライブ演出) のレイヤーがあるか</summary>
-        public bool hasPostEffectSyncLayer
-        {
-            get => layers.Exists(IsPostEffectSyncTarget);
-        }
-
-        /// <summary>
-        /// カレント以外に同期対象があるか。カレントレイヤーは同期設定に関係なく反映されるため、
-        /// これが false ならポスプロ同期を切り替えても見た目が変わらない
-        /// </summary>
-        public bool hasNonCurrentPostEffectSyncLayer
-        {
-            get
-            {
-                var current = currentLayer;
-                return layers.Exists(layer => layer != current && IsPostEffectSyncTarget(layer));
-            }
-        }
-
-        private static bool IsPostEffectSyncTarget(ITimelineLayer layer)
-        {
-            return layer.isPostEffectLayer || layer.isLiveEffectLayer;
-        }
-
         private bool _isMotionEditing = false;
         public bool isMotionEditing
         {
@@ -2535,8 +2511,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             // その時点でシーンのオブジェクトは破棄済みで後始末が空振りするだけなので抜ける。
             // シーン遷移でのタイムライン破棄は OnChangedSceneLevel の ClearTimeline が担う。
             // 直前の timeline.OnPluginDisable() はこの経路でも元から通っており、
-            // 中身 (レイヤーへの配信と studioHack?.SetBackgroundVisible) は
-            // null 条件演算子で守られているのでガードの外に置いたままにする
+            // レイヤーへの配信だけで後始末が空振りしても害がないのでガードの外に置いたままにする
             if (SceneEditorHack.isTitleScene)
             {
                 return;

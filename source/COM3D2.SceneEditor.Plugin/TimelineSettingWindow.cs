@@ -272,10 +272,6 @@ namespace COM3D2.SceneEditor.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            DrawGroundLinkSection(view);
-
-            view.DrawHorizontalLine(Color.gray);
-
             DrawImageOutputSection(view);
 
             view.DrawHorizontalLine(Color.gray);
@@ -425,15 +421,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.OpenDirectory(MTEP.PluginUtils.GetImageOutputDirPath(timeline.anmName));
             }
-        }
-
-        /// <summary>地面色と背景表示の連動</summary>
-        private void DrawGroundLinkSection(GUIView view)
-        {
-            view.DrawToggle("地面色表示を背景表示と連動", timeline.isGroundLinkedToBackground, -1, ROW_HEIGHT, newValue =>
-            {
-                timeline.isGroundLinkedToBackground = newValue;
-            });
         }
 
         /// <summary>共通設定 (タイムライン全体で共有する設定) の描画</summary>
