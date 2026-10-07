@@ -12,7 +12,7 @@ SceneView / GameView / タイムライン操作ウィンドウのツールバー
 | 効く範囲 | メインカメラだけ（通常表示・スクリーンショット・連番出力）。SceneView・サブカメラには効かない |
 | 保存 | すべて Config に保存し、エディタ有効化時に全表示へ戻す処理はやめる |
 | タイムライン操作ウィンドウ | 変更しない。メイド表示 / モデル表示 / 背景表示は今まで通り全カメラに効き、GameView とは別の状態 |
-| SceneView ツールバー | トグル構成は変えない。ギズモ表示がボーン表示も兼ねるようになる（後述） |
+| SceneView ツールバー | 背景 / メイド / モデル / エフェクト / ギズモ。エフェクトを追加し、ギズモ表示がボーン表示も兼ねるようになる（後述） |
 
 ## 各トグルの仕様
 
@@ -36,6 +36,12 @@ OFF のとき、次の 2 つを GameView から外す。タイムラインの「
    - すべて MeshRenderer で描かれ、3 マネージャの GameObject 配下にまとまっている
    - `ViewCullingFilter` に `hideLiveEffect` を追加し、3 マネージャ配下の Renderer を集めて既存の仕組み（60 フレームごとのキャッシュ再構築）で止める
    - サムネイルには写る（フィルタが無効になるため）
+
+### SceneView のエフェクト
+
+- SceneView ツールバーにエフェクトのトグルを追加する（アイコンは `PostEffect`、ギズモの前に置く）。Config に `sceneViewShowEffect`（既定 true）を追加し、他の SceneView トグルと同じく `SceneViewManager.ApplyViewSettings` で反映する
+- 対象はライブ演出だけ。SceneView カメラの `ViewCullingFilter.hideLiveEffect` で止める。GameView のエフェクトとは別の状態
+- ポストエフェクトは SceneView カメラに元から掛かっていないため対象外（ON でもポストエフェクトは表示されない）
 
 ### ギズモ
 
@@ -69,6 +75,7 @@ PNG は Inspector の各 PNG の「表示」で切り替えられるため、Gam
 - `Config.cs`: `gameViewShowBg` / `gameViewShowMaid` / `gameViewShowModel` / `gameViewShowEffect` / `boneVisible` を追加
 - `Manager/GameViewManager.cs`: `showBg` / `showMaid` / `showModel` / `showEffect` を Config 読み書きのプロパティにし、`ApplyCullingSettings` で反映する。エフェクトはライブ演出のフィルタと PostEffects の一時停止の両方を当てる。`EnterWindowMode` で全表示へ戻す処理をやめ、フィルタ作成後に保存値を当てる。ウィンドウモード終了・プラグイン無効化時は PostEffects の一時停止を解除する
 - `Manager/ViewCullingFilter.cs`: `hideLiveEffect` の追加、`hidePng` の削除
+- `Config.cs` / `SceneViewWindow.cs` / `Manager/SceneViewManager.cs`: `sceneViewShowEffect` の追加、SceneView ツールバーへのエフェクトトグル追加と `hideLiveEffect` への反映
 - `GameViewWindow.cs`: ツールバーを 背景 / メイド / モデル / エフェクト / ギズモ に並べ替える（アイコンは既存の `Bg` / `Maid` / `Model` / `PostEffect` / `Gizmo`）。ツールバー幅の計算も合わせる。ギズモトグルは `isBoneVisible` を切り替える
 - `MaidManipulation/MaidManipulateManager.cs` ほか（`BoneLineRenderer` / `BoneEditManager` / `SceneViewWindow` / `MaidDragPointRing` / `GizmoRenderer`）: SceneView 側の骨格線・ボーンギズモ・白丸の判定を `isBoneVisible` から SceneView のギズモ表示へ切り替える
 - `PngPlacementManager.cs`: PNG 非表示処理の削除
@@ -76,7 +83,7 @@ PNG は Inspector の各 PNG の「表示」で切り替えられるため、Gam
 ## ドキュメント
 
 - `docs-site/guide/windows.md`: GameView ツールバーの表を 5 項目に更新。「非表示は保存されず…」を「保存され、次回も引き継がれます」に。エフェクトの範囲（PostEffects.Plugin のポストエフェクトとライブ演出、ゲーム本来の Bloom / DoF は残る、サムネイルの写り方）を書く
-- `docs-site/guide/scene-view.md`: ギズモ表示がボーン表示も兼ね、メニューバーのボーン表示の影響を受けないことを書く
+- `docs-site/guide/scene-view.md`: エフェクト（ライブ演出だけが対象、ポストエフェクトは SceneView には元から出ない）を追加。ギズモ表示がボーン表示も兼ね、メニューバーのボーン表示の影響を受けないことを書く
 - `docs-site/guide/maid-editing.md`: ボーン表示が GameView だけに効くことを書く
 - `docs-site/timeline/control.md`: タイムラインの表示トグルは全カメラに効き、GameView のトグルとは別の状態であることを書く
 
@@ -92,6 +99,7 @@ PNG は Inspector の各 PNG の「表示」で切り替えられるため、Gam
 - 両プラグインを COM3D2 / COM3D25 の両構成で MSBuild ビルドする
 - 実機（デイリー画面でエディタ有効化）で次を確認する
   - 各トグル OFF で GameView だけから消え、SceneView には映る
+  - SceneView のエフェクト OFF でライブ演出が SceneView だけから消え、GameView には映る
   - エディタの無効化・再有効化、ゲーム再起動後も状態が残る
   - エフェクト OFF でパラフィン・リムライト等も消え、ON で元の値に戻る。タイムライン再生中も OFF が保たれる
   - ボーン表示 OFF でも SceneView ではギズモ ON ならボーンが出て操作でき、SceneView のギズモ OFF で消える
