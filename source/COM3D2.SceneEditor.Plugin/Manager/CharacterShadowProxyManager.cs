@@ -125,10 +125,7 @@ namespace COM3D2.SceneEditor.Plugin
                     continue;
                 }
 
-                // 顔の影落とし (MaidFaceRendererManager) が変わったら、顔を複製に含めるかが変わるので作り直す。
-                // 条件の短絡で記録が残らないよう、先に問い合わせる
-                var faceCastChanged = MaidFaceRendererManager.instance.ConsumeCastChanged(maid);
-                if (entry.isDirty || faceCastChanged || IsStale(entry)
+                if (entry.isDirty || IsStale(entry)
                     || (checkSources && (HasMaterialChanged(entry) || HasSourceChanged(maid, entry))))
                 {
                     Rebuild(maid, entry);

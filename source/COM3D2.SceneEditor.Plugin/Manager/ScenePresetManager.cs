@@ -1136,8 +1136,6 @@ namespace COM3D2.SceneEditor.Plugin
                 maidManager.bodySliderController.GetNonDefaultValues(maid));
             state.nodeVisibility = ScenePresetNodeVisibility.FromOverrides(
                 MaidNodeVisibilityController.GetOverrides(maid));
-            state.faceShadow = ScenePresetFaceShadow.FromOverrides(
-                MaidFaceRendererManager.instance.GetOverrides(maid));
 
             CaptureIKHold(maid, state);
             CaptureLook(maid, state);
@@ -2197,14 +2195,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             try
             {
-                ApplyFaceShadow(maid, state);
-            }
-            catch (Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
-            try
-            {
                 ApplyIKHold(maid, state);
             }
             catch (Exception e)
@@ -2930,16 +2920,6 @@ namespace COM3D2.SceneEditor.Plugin
             }
             MaidNodeVisibilityController.SetOverrides(maid, state.nodeVisibility.ToOverrides());
             MaidNodeVisibilityController.Flush(maid);
-        }
-
-        /// <summary>顔の影を復元する。旧プリセット (faceShadow 無し) では変更しない</summary>
-        private static void ApplyFaceShadow(Maid maid, ScenePresetMaid state)
-        {
-            if (state.faceShadow == null)
-            {
-                return;
-            }
-            MaidFaceRendererManager.instance.SetOverrides(maid, state.faceShadow.ToOverrides());
         }
 
         /// <summary>

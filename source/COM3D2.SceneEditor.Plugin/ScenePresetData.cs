@@ -414,57 +414,6 @@ namespace COM3D2.SceneEditor.Plugin
         }
     }
 
-    /// <summary>顔の影の上書き 1 件</summary>
-    public class ScenePresetFaceShadowItem
-    {
-        /// <summary>FaceShadowItems の名前 (faceReceiveShadows / faceCastShadows)</summary>
-        [XmlAttribute]
-        public string name;
-
-        [XmlAttribute]
-        public bool enabled;
-    }
-
-    /// <summary>
-    /// 顔の影。SE が上書きしている項目だけを持つ。
-    /// 上書きが無くても要素自体は書き、旧プリセット (要素なし = null、適用時に触らない) と区別する
-    /// </summary>
-    public class ScenePresetFaceShadow
-    {
-        [XmlElement("item")]
-        public List<ScenePresetFaceShadowItem> items = new List<ScenePresetFaceShadowItem>();
-
-        /// <summary>上書きから作る。対象外の項目は書かない</summary>
-        public static ScenePresetFaceShadow FromOverrides(IEnumerable<KeyValuePair<string, bool>> overrides)
-        {
-            var result = new ScenePresetFaceShadow();
-            foreach (var pair in overrides)
-            {
-                if (FaceShadowItems.Find(pair.Key) == null)
-                {
-                    continue;
-                }
-                result.items.Add(new ScenePresetFaceShadowItem { name = pair.Key, enabled = pair.Value });
-            }
-            return result;
-        }
-
-        /// <summary>上書きへ戻す。手で書き換えた値に備え、対象外は捨て、同じ項目は先のものを使う</summary>
-        public Dictionary<string, bool> ToOverrides()
-        {
-            var result = new Dictionary<string, bool>();
-            foreach (var item in items)
-            {
-                if (item == null || FaceShadowItems.Find(item.name) == null || result.ContainsKey(item.name))
-                {
-                    continue;
-                }
-                result[item.name] = item.enabled;
-            }
-            return result;
-        }
-    }
-
     /// <summary>PNG 配置 1 枚分の状態</summary>
     public class ScenePresetPngObject
     {
@@ -1091,9 +1040,6 @@ namespace COM3D2.SceneEditor.Plugin
         /// </summary>
         public ScenePresetNodeVisibility nodeVisibility;
 
-        /// <summary>顔の影 (v42)。旧プリセットは null になり、適用時に触らない</summary>
-        public ScenePresetFaceShadow faceShadow;
-
         /// <summary>
         /// IK 固定の接地パラメータ。null なら IK 未記録 (v4 以前) で、適用時に固定へ触らない。
         /// 非 null のときは ikHolds が空でも「全固定 OFF」として適用する
@@ -1428,9 +1374,7 @@ namespace COM3D2.SceneEditor.Plugin
         // v41: maid に bodySlider (体型スライダー。既定値でない項目だけを param 要素に持つ) を追加し、
         //      maidScale は読込専用にした。全項目が既定でも空要素を書く。
         //      bodySlider が無く maidScale がある旧形式は、腕の左右別項目の均一倍率へ変換して適用する
-        // v42: 追加ライトの照射対象 (target) に 3=顔のみ / 4=体のみ を追加。旧 SE は「全て」として読む。
-        //      maid に faceShadow (顔の影の上書き。上書きのある項目だけ item 要素に持つ) を追加。
-        //      上書きが無くても空要素を書く。旧形式は null で読め、適用時に触らない
+        // v42: 追加ライトの照射対象 (target) に 3=顔のみ / 4=体のみ を追加。旧 SE は「全て」として読む
         public static readonly int CurrentVersion = 42;
 
         [XmlAttribute]

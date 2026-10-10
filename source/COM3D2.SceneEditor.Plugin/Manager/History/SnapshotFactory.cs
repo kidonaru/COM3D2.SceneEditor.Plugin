@@ -36,8 +36,6 @@ namespace COM3D2.SceneEditor.Plugin
                     return BodySliderSnapshot.Capture(maid);
                 case HistoryScope.NodeVisibility:
                     return NodeVisibilitySnapshot.Capture(maid);
-                case HistoryScope.FaceShadow:
-                    return FaceShadowSnapshot.Capture(maid);
                 case HistoryScope.PngPlacement:
                     return PngPlacementSnapshot.Capture();
             }
