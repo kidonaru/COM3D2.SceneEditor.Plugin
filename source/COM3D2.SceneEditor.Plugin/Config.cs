@@ -137,6 +137,9 @@ namespace COM3D2.SceneEditor.Plugin
         // メイド配置機能
         // 配置プリセット。XML へ永続化するため MaidPlacementPreset.PresetType の序数で持つ
         public int maidPlacementMode = 0;
+        // シーンプリセットの読込時にメイドを呼出・解除して切り替えるか。
+        // OFF なら呼出済みのメイドへ割り当てるだけにする
+        public bool maidAutoSwitch = true;
 
         // メイド系ウィンドウ (-1 は未初期化)
         public int maidCallPosX = -1;

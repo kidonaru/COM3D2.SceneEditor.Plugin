@@ -149,6 +149,13 @@ namespace COM3D2.SceneEditor.Plugin
         {
             DrawPlacementRow(view);
 
+            view.DrawToggle("読込時にメイドを自動で切り替える", config.maidAutoSwitch, -1, ROW_HEIGHT,
+                on =>
+                {
+                    config.maidAutoSwitch = on;
+                    config.dirty = true;
+                });
+
             DrawStockMaidList(view);
         }
 

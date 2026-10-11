@@ -1384,7 +1384,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// プリセットを現在のシーンへ適用する。
         /// メイドは guid で割り当て、足りない分はストックから呼び出す。
-        /// どのスロットにも割り当てられなかった呼出済みメイドは解除する
+        /// どのスロットにも割り当てられなかった呼出済みメイドは解除する。
+        /// メイドの自動切替が OFF なら呼出も解除もせず、呼出済みメイドにだけ割り当てる
         /// </summary>
         /// <param name="skipScenery">
         /// 背景・カメラ・ライトを適用済みとして飛ばす。
@@ -1418,12 +1419,13 @@ namespace COM3D2.SceneEditor.Plugin
             // メイドを読み込まないときは呼出も解除も行わず、現在のメイドをそのまま残す
             if (ShouldApplyMaids(data))
             {
-                var assignments = AssignMaids(data.maids);
+                var autoSwitch = config.maidAutoSwitch;
+                var assignments = AssignMaids(data.maids, autoSwitch);
                 _resolvedAssignments.AddRange(assignments);
 
                 // メイド未保存（カメラ・背景のみ等）のプリセットと「保存時に 0 体」は
                 // XML 上区別できないため、1 体以上保存されている場合だけ解除まで行う
-                if (data.maids != null && data.maids.Count > 0)
+                if (autoSwitch && data.maids != null && data.maids.Count > 0)
                 {
                     ReleaseUnassignedMaids(assignments);
                 }
@@ -1509,10 +1511,11 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// プリセットの各メイドスロットへ実メイドを割り当てる（1 体は 1 スロットのみ）。
         /// 優先順: 呼出済みの guid 一致 → ストックの guid 一致（呼出）→ 未割当ストックを上から（呼出）。
+        /// autoSwitch が false なら呼出を伴う段は飛ばす。
         /// 呼出枠不足などで割当できないスロットはスキップする
         /// </summary>
         private static List<KeyValuePair<Maid, ScenePresetMaid>> AssignMaids(
-            List<ScenePresetMaid> states)
+            List<ScenePresetMaid> states, bool autoSwitch)
         {
             var result = new List<KeyValuePair<Maid, ScenePresetMaid>>(states.Count);
             var assigned = new HashSet<Maid>();
@@ -1521,7 +1524,9 @@ namespace COM3D2.SceneEditor.Plugin
             var fallbackStates = new List<ScenePresetMaid>();
             foreach (var state in states)
             {
-                var maid = FindMaidByGuid(state.guid, assigned);
+                var maid = autoSwitch
+                    ? FindMaidByGuid(state.guid, assigned)
+                    : FindCalledMaidByGuid(state.guid, assigned);
                 if (maid != null)
                 {
                     assigned.Add(maid);
@@ -1538,7 +1543,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // guid 不明（旧形式）・不一致の分は、まず呼出済み（ロード中含む）の
                 // 未割当メイドを呼出順に充てる。既存メイドを差し置いて新規呼出しない
                 var maid = FindUnassignedCalledMaid(assigned);
-                if (maid == null)
+                if (maid == null && autoSwitch)
                 {
                     maid = CallNextUnassignedMaid(assigned);
                 }
@@ -1546,6 +1551,12 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     // 呼出枠・ストック不足は以降のスロットも失敗するため打ち切る。
                     // 警告は CallMaid 側で出るためここでは積まない
+                    if (!autoSwitch)
+                    {
+                        // CallMaid を通らず警告が出ないため、メイドが変わらない理由を追えるよう残す
+                        MTEUtils.Log("メイドの自動切替が OFF のため {0} 体を割り当てませんでした",
+                            states.Count - result.Count);
+                    }
                     break;
                 }
                 assigned.Add(maid);

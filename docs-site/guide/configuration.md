@@ -122,6 +122,7 @@
 | `gizmoTargetType` | `All` | ギズモの表示対象（`All` = すべて表示 / `Selected` = 選択中） |
 | `inspectorScaleLinked` | `false` | Inspector の拡縮を XYZ 連動で編集する |
 | `maidPlacementMode` | `0` | メイド呼出の配置プリセット（`0` = V字 / `1` = 横一列） |
+| `maidAutoSwitch` | `true` | シーンプリセットの読込時にメイドを呼出・解除して切り替える。`false` なら呼出済みのメイドへ割り当てるだけ |
 
 ## グリッド
 
