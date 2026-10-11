@@ -291,7 +291,54 @@ namespace COM3D2.SceneEditor.Plugin
         {
             var morph = GetFaceMorph(maid);
             var index = ResolveMorphIndex(morph, def.name);
-            return index < 0 ? 0f : morph.GetBlendValues(index);
+            return index < 0 ? 0f : GetStoredBlendValue(morph, index, def.name);
+        }
+
+        /// <summary>TMorph の生の値を、FixBlendValues_Face が足し込む前の値で読む</summary>
+        private static float GetStoredBlendValue(TMorph morph, int index, string morphName)
+        {
+            // 目閉じ系を GetBlendValues で読むと、FixBlendValues_Face がまばたき等を足し込んだ値になり、
+            // 保存値や目閉じ補正の書き戻しが実際より閉じる
+            if (IsEyeCloseMorph(morphName))
+            {
+                var field = GetBlendValuesBackupField(morph.GetType());
+                var backup = field != null ? field.GetValue(morph) as float[] : null;
+                if (backup != null && index < backup.Length)
+                {
+                    return backup[index];
+                }
+            }
+            return morph.GetBlendValues(index);
+        }
+
+        /// <summary>型ごとの BlendValuesBackup (private)。見つからない型は null をキャッシュする</summary>
+        private static readonly Dictionary<Type, System.Reflection.FieldInfo> _blendValuesBackupFields =
+            new Dictionary<Type, System.Reflection.FieldInfo>();
+
+        private static System.Reflection.FieldInfo GetBlendValuesBackupField(Type morphType)
+        {
+            System.Reflection.FieldInfo field;
+            if (_blendValuesBackupFields.TryGetValue(morphType, out field))
+            {
+                return field;
+            }
+
+            // typeof(TMorph) で取ると、同名のフィールドを自前で宣言する CRC 顔の TMorphSkin では
+            // 使われていない基底側を読んでしまうため、実体の型から基底へ向かって最初に見つかるものを使う
+            for (var type = morphType; type != null && field == null; type = type.BaseType)
+            {
+                field = type.GetField("BlendValuesBackup",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.DeclaredOnly);
+            }
+            _blendValuesBackupFields[morphType] = field;
+            return field;
+        }
+
+        /// <summary>FixBlendValues_Face がまばたき等を足し込む目閉じ系のモーフか</summary>
+        private static bool IsEyeCloseMorph(string name)
+        {
+            return name != null && name.StartsWith("eyeclose", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -465,7 +512,7 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             var index = ResolveMorphIndex(morph, morphName);
-            return index < 0 ? 0f : morph.GetBlendValues(index);
+            return index < 0 ? 0f : GetStoredBlendValue(morph, index, morphName);
         }
 
         private static float GetLimitValue(float value)

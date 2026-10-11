@@ -15,7 +15,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 if (_renderer == null)
                 {
-                    _renderer = ModelSubtree.FindComponent<Renderer>(transform);
+                    // 既定の探索だと非表示のモデルでレンダラーが見つからず、プリセットのマテリアルを適用・保存できない
+                    _renderer = ModelSubtree.FindComponent<Renderer>(transform, ignoreRootInactive: true);
                 }
                 return _renderer;
             }

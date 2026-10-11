@@ -88,7 +88,9 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public float currentTime
         {
-            get => timelineManager.currentTime;
+            // TimelineManager.currentTime をそのまま読むと、プリセット読込などでタイムラインを
+            // 閉じた後の遅延シークが NRE になる。未読込時は targetSeekTimeMs と同じく先頭として扱う
+            get => timeline != null ? timelineManager.currentTime : 0f;
         }
 
         public float duration => _duration;
@@ -500,7 +502,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var playingTimeMs = this.playingTimeMs;
                 if (Mathf.Abs(seekTimeMs - playingTimeMs) > 10f)
                 {
-                    if (currentLayer.isAnmPlaying)
+                    if (currentLayer != null && currentLayer.isAnmPlaying)
                     {
                         // シーク中もタイムラインは進むため、完了までに進む分だけ先へシークして
                         // Adjusting で追いつくのを待つ。設定値だけでは動画によって所要時間に

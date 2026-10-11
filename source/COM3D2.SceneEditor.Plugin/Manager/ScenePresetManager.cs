@@ -1276,12 +1276,18 @@ namespace COM3D2.SceneEditor.Plugin
                 lookY = controller.GetLookY(maid),
             };
 
-            // 追従は TBody のフラグではなくメイド目線 (タイムライン設定) で表す (v33)。
-            // タイムライン未読込なら未記録にし、適用時にメイド目線へ触らない
+            // 追従は TBody のフラグではなくメイド目線 (タイムライン設定) で表す (v33)
             var timeline = MTEP.TimelineManager.instance.timeline;
             if (timeline != null)
             {
                 look.eyeMoveType = timeline.eyeMoveType.ToString();
+            }
+            else if (maid.body0 != null)
+            {
+                // 未記録にすると、次の読込でメイド目線へ触らず直前の追従が残る
+                var body = maid.body0;
+                look.eyeMoveType = MaidLookBridge.ResolveEyeMoveType(
+                    body.boHeadToCam, body.boEyeToCam, body.boEyeSorashi).ToString();
             }
 
             var target = controller.GetTarget(maid);

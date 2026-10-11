@@ -32,14 +32,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             return _modelRoots.Contains(transform.gameObject);
         }
 
-        /// <summary>GetComponentInChildren と同じく、非アクティブな GameObject は探さない</summary>
-        public static T FindComponent<T>(Transform root) where T : Component
+        /// <summary>
+        /// GetComponentInChildren と同じく、非アクティブな GameObject は探さない。
+        /// ignoreRootInactive が true なら root 自身とその親の非表示は無視する
+        /// </summary>
+        public static T FindComponent<T>(Transform root, bool ignoreRootInactive = false) where T : Component
         {
-            if (root == null || !root.gameObject.activeInHierarchy)
+            if (root == null || (!ignoreRootInactive && !root.gameObject.activeInHierarchy))
             {
                 return null;
             }
+            return FindInSubtree<T>(root);
+        }
 
+        private static T FindInSubtree<T>(Transform root) where T : Component
+        {
             var component = root.GetComponent<T>();
             if (component != null)
             {
@@ -49,11 +56,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             for (var i = 0; i < root.childCount; i++)
             {
                 var child = root.GetChild(i);
-                if (IsModelRoot(child))
+                if (IsModelRoot(child) || !child.gameObject.activeSelf)
                 {
                     continue;
                 }
-                var found = FindComponent<T>(child);
+                var found = FindInSubtree<T>(child);
                 if (found != null)
                 {
                     return found;
