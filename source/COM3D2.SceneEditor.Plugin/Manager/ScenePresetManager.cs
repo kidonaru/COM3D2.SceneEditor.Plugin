@@ -1843,21 +1843,15 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 顔・瞳の追従を戻す。
         ///
-        /// v33 以降はメイド目線が追従フラグを決める。setter が UpdateHeadLook を呼び、
-        /// boHeadToCam / boEyeToCam / boEyeSorashi をまとめて揃える。
-        /// タイムライン全体の設定なので、複数メイドの復元では最後の値が残る
-        /// (同じタイムラインから保存した値は全員同じなので実害はない)
+        /// v33 以降はメイド目線が追従フラグを決める。タイムラインがあればその設定へ戻す
+        /// (setter が UpdateHeadLook でフラグをまとめて揃える。タイムライン全体の設定なので、
+        /// 複数メイドの復元では最後の値が残る。同じタイムラインから保存した値は全員同じなので実害はない)。
+        /// 無ければ対象メイドの TBody へ直接写す
         /// </summary>
         private static void ApplyEyeFollow(Maid maid, ScenePresetLook look)
         {
             if (!string.IsNullOrEmpty(look.eyeMoveType))
             {
-                var timeline = MTEP.TimelineManager.instance.timeline;
-                if (timeline == null)
-                {
-                    return;
-                }
-
                 Maid.EyeMoveType eyeMoveType;
                 // XML は外部入力のため、未知の名前は復元せず既定のままにする
                 if (!TryParseEnum(look.eyeMoveType, out eyeMoveType))
@@ -1866,7 +1860,17 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                timeline.eyeMoveType = eyeMoveType;
+                var timeline = MTEP.TimelineManager.instance.timeline;
+                if (timeline != null)
+                {
+                    timeline.eyeMoveType = eyeMoveType;
+                    return;
+                }
+
+                // タイムラインが無いときに復元を見送ると、プリセット読込は適用前に
+                // タイムラインを必ずアンロードするため、メイド目線が一度も戻らない
+                MaidLookBridge.ApplyEyeMoveType(maid, eyeMoveType);
+                maid.LockHeadAndEye(false);
                 return;
             }
 
