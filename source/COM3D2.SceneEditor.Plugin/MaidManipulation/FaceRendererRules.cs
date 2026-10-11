@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using UnityEngine.Rendering;
 
 namespace COM3D2.SceneEditor.Plugin
 {
-    /// <summary>顔 (head スロット) の Renderer に書く値の決め方 (MaidFaceRendererManager の判定部分)</summary>
+    /// <summary>顔 (head スロット) の Renderer に書くレイヤーの決め方 (MaidFaceRendererManager の判定部分)</summary>
     public static class FaceRendererRules
     {
         /// <summary>
@@ -13,22 +12,6 @@ namespace COM3D2.SceneEditor.Plugin
         public static int ResolveLayer(int originalLayer, bool moveToFace, int charactorLayer, int faceLayer)
         {
             return moveToFace && originalLayer == charactorLayer ? faceLayer : originalLayer;
-        }
-
-        public static bool ResolveReceive(bool original, IDictionary<string, bool> overrides)
-        {
-            bool value;
-            return overrides.TryGetValue(FaceShadowItems.Receive, out value) ? value : original;
-        }
-
-        public static ShadowCastingMode ResolveCast(ShadowCastingMode original, IDictionary<string, bool> overrides)
-        {
-            bool value;
-            if (!overrides.TryGetValue(FaceShadowItems.Cast, out value))
-            {
-                return original;
-            }
-            return value ? ShadowCastingMode.On : ShadowCastingMode.Off;
         }
 
         /// <summary>このライトのために顔を Face レイヤーへ移す必要があるか</summary>
@@ -46,12 +29,6 @@ namespace COM3D2.SceneEditor.Plugin
             return faceMask != 0 && (cullingMask & charactorMask) != 0 && (cullingMask & faceMask) == 0;
         }
 
-        /// <summary>上書きも移動も無く、Renderer をゲームの値へ戻してよいか</summary>
-        public static bool IsDefault(IDictionary<string, bool> overrides, bool moveToFace)
-        {
-            return overrides.Count == 0 && !moveToFace;
-        }
-
         /// <summary>書き込むか。決めた値が今の値と違うときだけ書く</summary>
         public static bool ShouldWrite<T>(T desired, T current)
         {
@@ -60,12 +37,11 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 他者 (VR の LayerCheck・他プラグイン) が前回書いた値から変えた値を、新しい元の値として取り込むか。
-        /// 取り込まないと、元の値から決めた値で他者の値を取り消し続ける。
-        /// 上書きのある影設定は取り込まず、上書きを書き直す (着替えでゲームが値を戻しても上書きを保つ)
+        /// 取り込まないと、元の値から決めた値で他者の値を取り消し続ける
         /// </summary>
-        public static bool ShouldAdoptExternal<T>(T current, T lastWritten, bool overridden)
+        public static bool ShouldAdoptExternal<T>(T current, T lastWritten)
         {
-            return !overridden && !EqualityComparer<T>.Default.Equals(current, lastWritten);
+            return !EqualityComparer<T>.Default.Equals(current, lastWritten);
         }
 
         /// <summary>戻す値。今の値が前回書いた値のままなら元の値、他者が書き換えていればその値を残す</summary>

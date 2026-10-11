@@ -1,15 +1,14 @@
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メイドの顔 (head スロット) の Renderer に、影の上書き (受ける・落とす) と Face レイヤーへの移動を書く。
+    /// メイドの顔 (head スロット) の Renderer を Face レイヤーへ移す。
     /// ゲームは通常顔も Charactor に置くため、「顔のみ／体のみ」の追加ライトがある間だけ顔を Face へ移す。
-    /// 元の値は Renderer ごとに初めて書くときに退避し、上書きも移動も無くなったら戻す
+    /// 元のレイヤーは Renderer ごとに初めて書くときに退避し、移さなくなったら戻す
     /// </summary>
     public class MaidFaceRendererManager : ManagerBase
     {
@@ -21,35 +20,16 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>head 配下の Renderer の増減を確かめる間隔 (フレーム)</summary>
         private const int RendererCheckInterval = 60;
 
-        /// <summary>Renderer の 3 値。元の値と、前回書いた値の両方に使う</summary>
-        private struct RendererValues
-        {
-            public int layer;
-            public bool receiveShadows;
-            public ShadowCastingMode castingMode;
-
-            public static RendererValues From(Renderer renderer)
-            {
-                return new RendererValues
-                {
-                    layer = renderer.gameObject.layer,
-                    receiveShadows = renderer.receiveShadows,
-                    castingMode = renderer.shadowCastingMode,
-                };
-            }
-        }
-
         private class RendererState
         {
-            /// <summary>ゲームの値。他者が値を変えたらその値に置き直す</summary>
-            public RendererValues original;
-            /// <summary>前回書いた値 (書いていない値は元の値)。他者が変えたかを見分けるために持つ</summary>
-            public RendererValues written;
+            /// <summary>ゲームのレイヤー。他者が値を変えたらその値に置き直す</summary>
+            public int originalLayer;
+            /// <summary>前回書いたレイヤー。他者が変えたかを見分けるために持つ</summary>
+            public int writtenLayer;
         }
 
         private class Entry
         {
-            public readonly Dictionary<string, bool> overrides = new Dictionary<string, bool>();
             /// <summary>Renderer を集めたときの head スロットの実体。入れ替わったら集め直す</summary>
             public GameObject headObj;
             public readonly List<Renderer> renderers = new List<Renderer>();
@@ -74,12 +54,6 @@ namespace COM3D2.SceneEditor.Plugin
 
         private readonly Dictionary<Maid, Entry> _entries = new Dictionary<Maid, Entry>();
         private readonly List<Maid> _maids = new List<Maid>();
-
-        /// <summary>
-        /// 顔の shadowCastingMode を書いたメイド。影の複製 (CharacterShadowProxyManager) は 60 フレームごとにしか
-        /// 顔ぶれを取り直さないため、これを見てそのメイドの複製だけをすぐ作り直す
-        /// </summary>
-        private readonly HashSet<Maid> _castChangedMaids = new HashSet<Maid>();
 
         /// <summary>Face ビットを足したゲーム側ライトと、Face ビットを足す前の cullingMask</summary>
         private readonly Dictionary<Light, int> _compensatedLights = new Dictionary<Light, int>();
@@ -108,93 +82,6 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 MTEUtils.LogError("Charactor / Face レイヤーが見つからないため、顔のみ・体のみのライトで顔を照らし分けられません");
             }
-        }
-
-        public bool TryGetOverride(Maid maid, string item, out bool enabled)
-        {
-            enabled = false;
-            Entry entry;
-            return maid != null && _entries.TryGetValue(maid, out entry) && entry.overrides.TryGetValue(item, out enabled);
-        }
-
-        public void SetOverride(Maid maid, string item, bool enabled)
-        {
-            if (maid == null || FaceShadowItems.Find(item) == null)
-            {
-                return;
-            }
-            GetOrCreateEntry(maid).overrides[item] = enabled;
-        }
-
-        public void ClearOverride(Maid maid, string item)
-        {
-            Entry entry;
-            if (maid != null && _entries.TryGetValue(maid, out entry))
-            {
-                entry.overrides.Remove(item);
-            }
-        }
-
-        public void ClearAll(Maid maid)
-        {
-            Entry entry;
-            if (maid != null && _entries.TryGetValue(maid, out entry))
-            {
-                entry.overrides.Clear();
-            }
-        }
-
-        public Dictionary<string, bool> GetOverrides(Maid maid)
-        {
-            Entry entry;
-            return maid != null && _entries.TryGetValue(maid, out entry)
-                ? new Dictionary<string, bool>(entry.overrides)
-                : new Dictionary<string, bool>();
-        }
-
-        public void SetOverrides(Maid maid, IDictionary<string, bool> overrides)
-        {
-            if (maid == null)
-            {
-                return;
-            }
-            var entry = GetOrCreateEntry(maid);
-            entry.overrides.Clear();
-            foreach (var pair in overrides)
-            {
-                if (FaceShadowItems.Find(pair.Key) != null)
-                {
-                    entry.overrides[pair.Key] = pair.Value;
-                }
-            }
-        }
-
-        /// <summary>今の値。上書きがあればその値、無ければ顔の Renderer の値 (読めなければゲームの既定)</summary>
-        public bool IsEnabled(Maid maid, string item)
-        {
-            bool value;
-            if (TryGetOverride(maid, item, out value))
-            {
-                return value;
-            }
-            var definition = FaceShadowItems.Find(item);
-            var fallback = definition != null && definition.gameDefault;
-            var head = maid != null && MaidNodeVisibilityController.IsBodyReady(maid)
-                ? SlotBoneManager.GetSlotObject(maid, HeadSlotName) : null;
-            var renderer = head != null ? head.GetComponentInChildren<Renderer>(true) : null;
-            if (renderer == null)
-            {
-                return fallback;
-            }
-            return item == FaceShadowItems.Cast
-                ? renderer.shadowCastingMode != ShadowCastingMode.Off
-                : renderer.receiveShadows;
-        }
-
-        /// <summary>前回の問い合わせ以降に、このメイドの顔の影落としを書いたか。問い合わせると記録を消す</summary>
-        public bool ConsumeCastChanged(Maid maid)
-        {
-            return _castChangedMaids.Remove(maid);
         }
 
         public override void LateUpdate()
@@ -238,7 +125,7 @@ namespace COM3D2.SceneEditor.Plugin
             Destroy();
         }
 
-        /// <summary>メイドがストックへ戻るとき。上書きを外し、顔をゲームの値へ戻す</summary>
+        /// <summary>メイドがストックへ戻るとき。顔をゲームのレイヤーへ戻す</summary>
         public void Release(Maid maid)
         {
             Entry entry;
@@ -246,7 +133,7 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 return;
             }
-            RestoreAll(maid, entry);
+            RestoreAll(entry);
             _entries.Remove(maid);
         }
 
@@ -255,7 +142,7 @@ namespace COM3D2.SceneEditor.Plugin
         {
             foreach (var pair in _entries)
             {
-                RestoreAll(pair.Key, pair.Value);
+                RestoreAll(pair.Value);
             }
             _entries.Clear();
             RestoreLights();
@@ -329,8 +216,6 @@ namespace COM3D2.SceneEditor.Plugin
                 CollectRenderers(entry);
             }
 
-            var receiveOverridden = entry.overrides.ContainsKey(FaceShadowItems.Receive);
-            var castOverridden = entry.overrides.ContainsKey(FaceShadowItems.Cast);
             foreach (var renderer in entry.renderers)
             {
                 if (renderer == null)
@@ -340,50 +225,25 @@ namespace COM3D2.SceneEditor.Plugin
                 RendererState state;
                 if (!entry.states.TryGetValue(renderer, out state))
                 {
-                    var values = RendererValues.From(renderer);
-                    state = new RendererState { original = values, written = values };
+                    var current = renderer.gameObject.layer;
+                    state = new RendererState { originalLayer = current, writtenLayer = current };
                     entry.states.Add(renderer, state);
                 }
 
-                // 他者が前回書いた値から変えていたら、その値を元の値として取り込み、取り消さない。
-                // レイヤーは常に取り込む (VR の一人称モードが頭を隠すために Face へ移す)
+                // 他者が前回書いた値から変えていたら、その値を元の値として取り込み、取り消さない
+                // (VR の一人称モードが頭を隠すために Face へ移す)
                 var layer = renderer.gameObject.layer;
-                if (FaceRendererRules.ShouldAdoptExternal(layer, state.written.layer, false))
+                if (FaceRendererRules.ShouldAdoptExternal(layer, state.writtenLayer))
                 {
-                    state.original.layer = layer;
+                    state.originalLayer = layer;
                 }
                 var desiredLayer = FaceRendererRules.ResolveLayer(
-                    state.original.layer, moveToFace, _charactorLayer, _faceLayer);
+                    state.originalLayer, moveToFace, _charactorLayer, _faceLayer);
                 if (FaceRendererRules.ShouldWrite(desiredLayer, layer))
                 {
                     renderer.gameObject.layer = desiredLayer;
                 }
-                state.written.layer = desiredLayer;
-
-                var receive = renderer.receiveShadows;
-                if (FaceRendererRules.ShouldAdoptExternal(receive, state.written.receiveShadows, receiveOverridden))
-                {
-                    state.original.receiveShadows = receive;
-                }
-                var desiredReceive = FaceRendererRules.ResolveReceive(state.original.receiveShadows, entry.overrides);
-                if (FaceRendererRules.ShouldWrite(desiredReceive, receive))
-                {
-                    renderer.receiveShadows = desiredReceive;
-                }
-                state.written.receiveShadows = desiredReceive;
-
-                var cast = renderer.shadowCastingMode;
-                if (FaceRendererRules.ShouldAdoptExternal(cast, state.written.castingMode, castOverridden))
-                {
-                    state.original.castingMode = cast;
-                }
-                var desiredCast = FaceRendererRules.ResolveCast(state.original.castingMode, entry.overrides);
-                if (FaceRendererRules.ShouldWrite(desiredCast, cast))
-                {
-                    renderer.shadowCastingMode = desiredCast;
-                    _castChangedMaids.Add(maid);
-                }
-                state.written.castingMode = desiredCast;
+                state.writtenLayer = desiredLayer;
             }
         }
 
@@ -423,8 +283,8 @@ namespace COM3D2.SceneEditor.Plugin
             }
         }
 
-        /// <summary>元の値へ戻す。前回書いた後に他者が書き換えた値は残す</summary>
-        private void RestoreAll(Maid maid, Entry entry)
+        /// <summary>元のレイヤーへ戻す。前回書いた後に他者が書き換えた値は残す</summary>
+        private static void RestoreAll(Entry entry)
         {
             foreach (var pair in entry.states)
             {
@@ -433,18 +293,8 @@ namespace COM3D2.SceneEditor.Plugin
                 {
                     continue;
                 }
-                var state = pair.Value;
                 renderer.gameObject.layer = FaceRendererRules.ResolveRestore(
-                    renderer.gameObject.layer, state.written.layer, state.original.layer);
-                renderer.receiveShadows = FaceRendererRules.ResolveRestore(
-                    renderer.receiveShadows, state.written.receiveShadows, state.original.receiveShadows);
-                var cast = FaceRendererRules.ResolveRestore(
-                    renderer.shadowCastingMode, state.written.castingMode, state.original.castingMode);
-                if (renderer.shadowCastingMode != cast)
-                {
-                    renderer.shadowCastingMode = cast;
-                    _castChangedMaids.Add(maid);
-                }
+                    renderer.gameObject.layer, pair.Value.writtenLayer, pair.Value.originalLayer);
             }
             entry.states.Clear();
             entry.renderers.Clear();
@@ -452,29 +302,17 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// 上書きが無く移動もしないエントリは、ゲームの値へ戻して捨てる。
-        /// いなくなったメイドのエントリも捨てる (Renderer は破棄済みか、Release 済み)
+        /// 移さないエントリと、いなくなったメイドのエントリは、ゲームの値へ戻して捨てる
+        /// (いなくなったメイドの Renderer は破棄済みか、Release 済み)
         /// </summary>
         private void RemoveIdleEntries(bool moveToFace)
         {
             _removeScratch.Clear();
             foreach (var pair in _entries)
             {
-                var entry = pair.Value;
-                if (_maids.Contains(pair.Key))
+                if (!moveToFace || !_maids.Contains(pair.Key))
                 {
-                    if (FaceRendererRules.IsDefault(entry.overrides, moveToFace))
-                    {
-                        RestoreAll(pair.Key, entry);
-                        _removeScratch.Add(pair.Key);
-                    }
-                    continue;
-                }
-
-                // 非表示などで一時的にいないメイドは、戻ってきたときのために上書きだけ残す。退避は戻して捨てる
-                RestoreAll(pair.Key, entry);
-                if (entry.overrides.Count == 0)
-                {
+                    RestoreAll(pair.Value);
                     _removeScratch.Add(pair.Key);
                 }
             }

@@ -440,11 +440,7 @@ namespace COM3D2.SceneEditor.Plugin
                 return;
             }
 
-            state.enabled = true;
-            state.weight = 1f;
-            state.time = 0f;
-            anim.Sample();
-            state.enabled = false;
+            MaidMotionState.ReplaceBaseWhileStopped(maid, anim, state, 0f);
 
             // 反映後のポーズをボーンスライダーの基準にする
             MaidBoneSliderController.CaptureBasePose(maid);

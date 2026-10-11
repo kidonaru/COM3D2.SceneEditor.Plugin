@@ -1136,8 +1136,6 @@ namespace COM3D2.SceneEditor.Plugin
                 maidManager.bodySliderController.GetNonDefaultValues(maid));
             state.nodeVisibility = ScenePresetNodeVisibility.FromOverrides(
                 MaidNodeVisibilityController.GetOverrides(maid));
-            state.faceShadow = ScenePresetFaceShadow.FromOverrides(
-                MaidFaceRendererManager.instance.GetOverrides(maid));
 
             CaptureIKHold(maid, state);
             CaptureLook(maid, state);
@@ -1845,21 +1843,15 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>
         /// 顔・瞳の追従を戻す。
         ///
-        /// v33 以降はメイド目線が追従フラグを決める。setter が UpdateHeadLook を呼び、
-        /// boHeadToCam / boEyeToCam / boEyeSorashi をまとめて揃える。
-        /// タイムライン全体の設定なので、複数メイドの復元では最後の値が残る
-        /// (同じタイムラインから保存した値は全員同じなので実害はない)
+        /// v33 以降はメイド目線が追従フラグを決める。タイムラインがあればその設定へ戻す
+        /// (setter が UpdateHeadLook でフラグをまとめて揃える。タイムライン全体の設定なので、
+        /// 複数メイドの復元では最後の値が残る。同じタイムラインから保存した値は全員同じなので実害はない)。
+        /// 無ければ対象メイドの TBody へ直接写す
         /// </summary>
         private static void ApplyEyeFollow(Maid maid, ScenePresetLook look)
         {
             if (!string.IsNullOrEmpty(look.eyeMoveType))
             {
-                var timeline = MTEP.TimelineManager.instance.timeline;
-                if (timeline == null)
-                {
-                    return;
-                }
-
                 Maid.EyeMoveType eyeMoveType;
                 // XML は外部入力のため、未知の名前は復元せず既定のままにする
                 if (!TryParseEnum(look.eyeMoveType, out eyeMoveType))
@@ -1868,7 +1860,17 @@ namespace COM3D2.SceneEditor.Plugin
                     return;
                 }
 
-                timeline.eyeMoveType = eyeMoveType;
+                var timeline = MTEP.TimelineManager.instance.timeline;
+                if (timeline != null)
+                {
+                    timeline.eyeMoveType = eyeMoveType;
+                    return;
+                }
+
+                // タイムラインが無いときに復元を見送ると、プリセット読込は適用前に
+                // タイムラインを必ずアンロードするため、メイド目線が一度も戻らない
+                MaidLookBridge.ApplyEyeMoveType(maid, eyeMoveType);
+                maid.LockHeadAndEye(false);
                 return;
             }
 
@@ -2190,14 +2192,6 @@ namespace COM3D2.SceneEditor.Plugin
             try
             {
                 ApplyNodeVisibility(maid, state);
-            }
-            catch (Exception e)
-            {
-                MTEUtils.LogException(e);
-            }
-            try
-            {
-                ApplyFaceShadow(maid, state);
             }
             catch (Exception e)
             {
@@ -2932,29 +2926,28 @@ namespace COM3D2.SceneEditor.Plugin
             MaidNodeVisibilityController.Flush(maid);
         }
 
-        /// <summary>顔の影を復元する。旧プリセット (faceShadow 無し) では変更しない</summary>
-        private static void ApplyFaceShadow(Maid maid, ScenePresetMaid state)
-        {
-            if (state.faceShadow == null)
-            {
-                return;
-            }
-            MaidFaceRendererManager.instance.SetOverrides(maid, state.faceShadow.ToOverrides());
-        }
-
         /// <summary>
-        /// IK 固定を復元する。旧プリセット (ikParams 無し) では変更しない。
+        /// IK 固定を復元する。旧プリセット (ikParams 無し) では固定の ON/OFF を変更しない。
         /// ポーズ復元後に呼ぶことで、固定 ON の箇所は復元したポーズの位置で固定される。
         /// 非表示中はポーズを復元していないため、固定も適用しない
         /// </summary>
         private static void ApplyIKHold(Maid maid, ScenePresetMaid state)
         {
-            if (state.ikParams == null || !state.visible)
+            if (!state.visible)
             {
                 return;
             }
 
             var ik = maidManager.ikHoldController;
+
+            // SetHold だけに任せると、既に固定 ON の箇所は取り直されず、
+            // タイムライン再生などで動いた古い目標へ手足が引き戻される (旧プリセットでも同じ)
+            ik.ResetAllTargetPositions(maid);
+
+            if (state.ikParams == null)
+            {
+                return;
+            }
 
             // 接地判定に使うため、パラメータを固定 ON より先に反映する
             state.ikParams.ApplyTo(ik.GetParams(maid));

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using COM3D2.SceneEditor.Plugin;
 using UnityEngine;
@@ -34,57 +33,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             }
         }
 
-        /// <summary>
-        /// キーにする顔の影の項目。allBoneNames には入れない。allBoneNames の件数はレイヤー削除時に戻す断面の
-        /// 積み増し (TimelineManager.MergeGrownLayerBaseline) の判定に使われ、上書きの有無で増減させると
-        /// 後から付けた上書きが断面に入り、レイヤー削除後も残るため
-        /// </summary>
-        private readonly List<string> _faceShadowBoneNames = new List<string>();
-        private readonly List<string> _faceShadowBoneNamesScratch = new List<string>();
-        private readonly Func<string, bool> _hasFaceShadowOverride;
-        private readonly Func<string, bool> _hasFaceShadowKey;
-
-        /// <summary>
-        /// キーにする顔の影の項目を results に並べる。上書きのある項目と、このレイヤーに既にキーのある項目。
-        /// 後者が無いと、途中で「解除」した項目のキーが作られず、前のキーの上書きが続く。並びは定義順
-        /// </summary>
-        public static void SelectFaceShadowBones(
-            Func<string, bool> isOverridden, Func<string, bool> isKeyed, List<string> results)
-        {
-            results.Clear();
-            foreach (var item in FaceShadowItems.items)
-            {
-                if (isOverridden(item.name) || isKeyed(item.name))
-                {
-                    results.Add(item.name);
-                }
-            }
-        }
-
-        public static bool IsFaceShadowBone(string boneName)
-        {
-            return FaceShadowItems.Find(boneName) != null;
-        }
-
-        /// <summary>顔の影の項目を取り直し、変わったらボーンメニューを作り直す (使っていない項目は行を出さない)</summary>
-        private void UpdateFaceShadowBoneNames()
-        {
-            SelectFaceShadowBones(_hasFaceShadowOverride, _hasFaceShadowKey, _faceShadowBoneNamesScratch);
-            if (_faceShadowBoneNamesScratch.SequenceEqual(_faceShadowBoneNames))
-            {
-                return;
-            }
-            _faceShadowBoneNames.Clear();
-            _faceShadowBoneNames.AddRange(_faceShadowBoneNamesScratch);
-            InitMenuItems();
-        }
-
-        private bool HasFaceShadowKey(string item)
-        {
-            List<BoneData> rows;
-            return _timelineBonesMap.TryGetValue(item, out rows) && rows.Count > 0;
-        }
-
         protected override EditTargetStore trackedStore
         {
             get
@@ -100,20 +48,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static TimelineFaceManager faceManager => TimelineFaceManager.instance;
 
-        private static MaidFaceRendererManager faceRenderer => MaidFaceRendererManager.instance;
-
-        /// <summary>
-        /// 最初のキーより前の区間にいる顔の影の項目。区間に入ったときだけ上書きを外すために持つ。
-        /// キーの打ち直しでは消さない (モーフのキー編集のたびに、影タブで付けた上書きが外れるため)
-        /// </summary>
-        private readonly HashSet<string> _beforeFirstKeyFaceShadows = new HashSet<string>();
-
-        /// <summary>顔の影のキーの値として最後に書いた値 (区間と、最終フレームだけのキーの両方)</summary>
-        private readonly Dictionary<string, bool> _lastKeyedFaceShadows = new Dictionary<string, bool>();
-
-        /// <summary>再生位置とキーのフレームの比較の誤差 (MotionPlayData と同じ)</summary>
-        private const float FrameTolerance = 0.001f;
-
         private Dictionary<string, float> _applyMorphMap = new Dictionary<string, float>();
 
         /// <summary>現在まばたきを上書きしているメイド。未上書きなら null</summary>
@@ -124,10 +58,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private MorphTimelineLayer(int slotNo) : base(slotNo)
         {
-            // 毎フレーム UpdateFaceShadowBoneNames で使うので、デリゲートは一度だけ作る
-            bool enabled;
-            _hasFaceShadowOverride = item => faceRenderer.TryGetOverride(maid, item, out enabled);
-            _hasFaceShadowKey = HasFaceShadowKey;
         }
 
         public static MorphTimelineLayer Create(int slotNo)
@@ -192,16 +122,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         {
             allMenuItems.Clear();
 
-            // 強制上書きと顔の影はモーフではないので、専用セットを先頭に置く
+            // 強制上書きはモーフではないので、専用セットを先頭に置く
             var settingSetMenuItem = new BoneSetMenuItem(
                 FaceMorphUtils.FORCE_OVERRIDE_SET_NAME, FaceMorphUtils.FORCE_OVERRIDE_SET_DISPLAY_NAME);
             settingSetMenuItem.AddChild(new BoneMenuItem(
                 FaceMorphUtils.FORCE_OVERRIDE_BONE_NAME, FaceMorphUtils.FORCE_OVERRIDE_DISPLAY_NAME));
-            // 顔の影は使っている項目だけ出す。キーの無い行が常にあると、キーフレームが欠け扱いの灰色になる
-            foreach (var name in _faceShadowBoneNames)
-            {
-                settingSetMenuItem.AddChild(new BoneMenuItem(name, "顔の影: " + FaceShadowItems.Find(name).displayName));
-            }
             allMenuItems.Add(settingSetMenuItem);
 
             var targetNames = new HashSet<string>(allBoneNames);
@@ -241,7 +166,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public override void LateUpdate()
         {
             base.LateUpdate();
-            UpdateFaceShadowBoneNames();
 
             if (!SceneEditorHack.isPoseEditing)
             {
@@ -319,7 +243,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             _isForceOverride = true;
 
             base.ApplyPlayData();
-            ApplyFaceShadowsOutsideMotions(maid);
 
             // 強制上書き OFF はゲーム側のまばたきを許可する値として実体へ反映する。
             // 解除 (ユーザー設定への復元) ではないので、レイヤーが生きている間は上書きを維持する
@@ -327,103 +250,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             // 強制上書き OFF 中もモーフ適用は続ける (まばたきに潰されるのは目まわりだけ)
             faceManager.SetMorphValue(maid, _applyMorphMap);
-        }
-
-        /// <summary>
-        /// 基底の区間適用 (ApplyMotion) が扱わない顔の影の状態を書く。
-        /// - 最初のキーより前: 基底は何もしないため、後ろの区間で付けた上書きがシークで戻しても残る。
-        ///   その区間に入ったときの 1 回だけ上書きを外す (毎フレーム外すと、その区間で UI から付けた上書きまで消える)
-        /// - キーが最終フレームの 1 個だけ: 区間 (MotionData) が作られず ApplyMotion が呼ばれないので、ここでキーの値を書く
-        /// </summary>
-        private void ApplyFaceShadowsOutsideMotions(Maid maid)
-        {
-            // 区間側 (MotionPlayData) と同じ再生位置で判定する
-            var frameNo = playingFrameNoFloat;
-            foreach (var item in FaceShadowItems.items)
-            {
-                List<BoneData> rows;
-                if (!_timelineBonesMap.TryGetValue(item.name, out rows) || rows.Count == 0)
-                {
-                    // キーが無くなった項目は記録を捨て、キーを打ち直したときに最初から判定させる
-                    _beforeFirstKeyFaceShadows.Remove(item.name);
-                    _lastKeyedFaceShadows.Remove(item.name);
-                    continue;
-                }
-
-                MotionPlayData playData;
-                var hasMotions = _playDataMap.TryGetValue(item.name, out playData) && playData.motions.Count > 0;
-                bool isBeforeFirstKey;
-                if (hasMotions)
-                {
-                    isBeforeFirstKey = playData.current == null;
-                }
-                else
-                {
-                    isBeforeFirstKey = frameNo < rows[0].frameNo - FrameTolerance;
-                }
-
-                if (isBeforeFirstKey)
-                {
-                    _lastKeyedFaceShadows.Remove(item.name);
-                    if (_beforeFirstKeyFaceShadows.Add(item.name))
-                    {
-                        faceRenderer.ClearOverride(maid, item.name);
-                    }
-                    continue;
-                }
-                _beforeFirstKeyFaceShadows.Remove(item.name);
-
-                var key = rows[0].transform as TransformDataFaceShadow;
-                if (!hasMotions && key != null)
-                {
-                    WriteKeyedFaceShadow(maid, item.name, key.isEnabled, false);
-                }
-            }
-        }
-
-        /// <summary>
-        /// キーの値を書く。毎フレーム書くと、影タブから付けた上書きまで戻るため、
-        /// 区間に入ったとき (force) と、キーの値が前回書いた値から切り替わったときだけ書く
-        /// </summary>
-        private void WriteKeyedFaceShadow(Maid maid, string item, bool value, bool force)
-        {
-            bool lastValue;
-            if (!force && _lastKeyedFaceShadows.TryGetValue(item, out lastValue) && lastValue == value)
-            {
-                return;
-            }
-            _lastKeyedFaceShadows[item] = value;
-            SetFaceShadow(maid, item, value);
-        }
-
-        private static void SetFaceShadow(Maid maid, string item, bool enabled)
-        {
-            bool current;
-            if (faceRenderer.TryGetOverride(maid, item, out current) && current == enabled)
-            {
-                return;
-            }
-            faceRenderer.SetOverride(maid, item, enabled);
-        }
-
-        /// <summary>
-        /// 削除・アンロード時は、このレイヤーがキーで書いた顔の影の上書きを外す。
-        /// キーの無い項目 (シーンプリセットや影タブで付けただけの上書き) は残す
-        /// </summary>
-        public override void ResetOnRemove()
-        {
-            var maid = this.maid;
-            if (maid == null)
-            {
-                return;
-            }
-            foreach (var item in FaceShadowItems.items)
-            {
-                if (HasFaceShadowKey(item.name))
-                {
-                    faceRenderer.ClearOverride(maid, item.name);
-                }
-            }
         }
 
         /// <summary>
@@ -449,13 +275,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            var faceShadow = motion.start as TransformDataFaceShadow;
-            if (faceShadow != null)
-            {
-                SetFaceShadow(maid, motion.name, faceShadow.isEnabled);
-                return;
-            }
-
             _applyMorphMap.Clear();
             base.ApplyTransformDirectCore(motion);
             faceManager.SetMorphValue(maid, _applyMorphMap);
@@ -472,18 +291,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var settingValue = t < StepEndThreshold
                     ? startSetting.forceOverride : endSetting.forceOverride;
                 _isForceOverride = FaceMorphUtils.ToForceOverride(settingValue);
-                return;
-            }
-
-            // 顔の影は型で見分ける (モーフ数ぶんの名前比較を毎フレーム回さない)
-            var startShadow = motion.start as TransformDataFaceShadow;
-            if (startShadow != null)
-            {
-                // 強制上書きと同じステップ適用 (終端は end 側)
-                var endShadow = motion.end as TransformDataFaceShadow;
-                var useEnd = t >= StepEndThreshold && endShadow != null;
-                var value = useEnd ? endShadow.isEnabled : startShadow.isEnabled;
-                WriteKeyedFaceShadow(maid, motion.name, value, indexUpdated);
                 return;
             }
 
@@ -572,14 +379,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 var trans = frame.GetOrCreateTransformData<TransformDataMorph>(name);
                 trans.morphValue = GetMorphValue(name);
             }
-
-            // 影タブで付けたばかりの上書きもキーにするため、ここで取り直す
-            UpdateFaceShadowBoneNames();
-            foreach (var name in _faceShadowBoneNames)
-            {
-                var faceShadow = frame.GetOrCreateTransformData<TransformDataFaceShadow>(name);
-                faceShadow.isEnabled = faceRenderer.IsEnabled(maid, name);
-            }
         }
 
         // DCM 連携は未移植のため出力しない
@@ -597,10 +396,6 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (FaceMorphUtils.IsForceOverrideBone(name))
             {
                 return TransformType.FaceSetting;
-            }
-            if (IsFaceShadowBone(name))
-            {
-                return TransformType.FaceShadow;
             }
             return TransformType.Morph;
         }

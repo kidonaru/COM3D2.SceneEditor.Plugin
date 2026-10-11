@@ -15,7 +15,6 @@ MotionTimelineEditor（MTE）で作成したタイムライン XML は SceneEdit
 - `メイド重力` の `ローカル` は以前の SceneEditor では読み飛ばされ、ワールドの向きとして表示されます
 - `メイドノード表示` レイヤーは SceneEditor 独自です。これを含む XML は MTE や以前の SceneEditor で読み込みに失敗します
 - `体型` レイヤーは SceneEditor 独自です。これを含む XML は MTE や以前の SceneEditor で読み込みに失敗します
-- `メイド表情` の `顔の影` キーは SceneEditor 独自です。これを含む XML は MTE や以前の SceneEditor で読み込みに失敗します
 - ライトキーの `対象` の `顔のみ` / `体のみ` は SceneEditor 独自です。以前の SceneEditor では `全て` として読まれます
 - カメラレイヤーの `手ブレ` 項目も SceneEditor 独自です。MTE では再現されません
 - タイムライン設定の `表情をタンジェント補間` も SceneEditor 独自です。この設定を持たない XML は OFF（線形補間）として読み込まれます。OFF のまま保存すると、表情キーのタンジェント値は書き出されません
