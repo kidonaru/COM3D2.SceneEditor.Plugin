@@ -206,6 +206,50 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
+        /// 停止中のベースを state へ差し替えて、指定フレームをポーズへ反映する。
+        /// 他のベース層 (MinLayer 未満) の state は無効化される。
+        /// 呼び出し元が停止済みであることを保証すること
+        /// </summary>
+        public static void ReplaceBaseWhileStopped(Maid maid, Animation anim, AnimationState state, float time)
+        {
+            // 旧ベースの無効化を省いて SampleWhileStopped だけにすると、層を残す停止では
+            // 旧ベースが有効なままサンプルに混ざり、以後の自動サンプルでも旧ポーズへ上書きされる
+            DisableOtherBaseStates(maid, anim, state);
+            SampleWhileStopped(maid, anim, state, time);
+        }
+
+        /// <summary>
+        /// 停止中のベースを clipName へ差し替える。ポーズはサンプルせず、
+        /// ボーンを書き戻し済みの呼び出し元 (履歴の復元) が使う。
+        /// 他のベース層 (MinLayer 未満) の state は無効化される
+        /// </summary>
+        public static void ReplaceBaseWithoutSample(Maid maid, string clipName, float time)
+        {
+            var anim = GetAnimation(maid);
+            if (anim == null || !IsBaseClip(anim, clipName))
+            {
+                return;
+            }
+            var state = anim[clipName];
+            DisableOtherBaseStates(maid, anim, state);
+            state.weight = 1f;
+            state.time = time;
+            RestoreBaseAfterSample(maid, state);
+        }
+
+        private static void DisableOtherBaseStates(Maid maid, Animation anim, AnimationState keep)
+        {
+            foreach (AnimationState other in anim)
+            {
+                if (other != keep && other.layer < MaidAnimationBlendController.MinLayer)
+                {
+                    other.enabled = false;
+                }
+            }
+            InvalidateIsPlayingCache(maid);
+        }
+
+        /// <summary>
         /// 停止サンプル後のベース state の後始末。
         /// ブレンド層を残している間はベースも有効なまま (速度 0) にする。
         /// 層だけ有効だと anim.isPlaying が立って Unity が毎フレーム自動サンプルし、

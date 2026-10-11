@@ -2923,18 +2923,27 @@ namespace COM3D2.SceneEditor.Plugin
         }
 
         /// <summary>
-        /// IK 固定を復元する。旧プリセット (ikParams 無し) では変更しない。
+        /// IK 固定を復元する。旧プリセット (ikParams 無し) では固定の ON/OFF を変更しない。
         /// ポーズ復元後に呼ぶことで、固定 ON の箇所は復元したポーズの位置で固定される。
         /// 非表示中はポーズを復元していないため、固定も適用しない
         /// </summary>
         private static void ApplyIKHold(Maid maid, ScenePresetMaid state)
         {
-            if (state.ikParams == null || !state.visible)
+            if (!state.visible)
             {
                 return;
             }
 
             var ik = maidManager.ikHoldController;
+
+            // SetHold だけに任せると、既に固定 ON の箇所は取り直されず、
+            // タイムライン再生などで動いた古い目標へ手足が引き戻される (旧プリセットでも同じ)
+            ik.ResetAllTargetPositions(maid);
+
+            if (state.ikParams == null)
+            {
+                return;
+            }
 
             // 接地判定に使うため、パラメータを固定 ON より先に反映する
             state.ikParams.ApplyTo(ik.GetParams(maid));

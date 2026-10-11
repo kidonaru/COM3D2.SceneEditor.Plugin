@@ -174,6 +174,9 @@ namespace COM3D2.SceneEditor.Plugin
                 MaidMotionState.PlayClip(maid, _clipName, _playbackTime);
                 return;
             }
+            // 再開先だけ揃えると、層を残す停止では Undo 対象の操作で有効になったベースが残り、
+            // 書き戻したボーンが自動サンプルで上書きされる
+            MaidMotionState.ReplaceBaseWithoutSample(maid, _clipName, _playbackTime);
             MaidMotionState.SetResumeClip(maid, _clipName);
         }
 
