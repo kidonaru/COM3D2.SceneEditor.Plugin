@@ -31,7 +31,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return controller;
             }
 
-            var meshRenderer = ModelSubtree.FindComponent<SkinnedMeshRenderer>(go.transform);
+            // 既定の探索だと非表示で生成されたモデルがシェイプキー無しで確定し、表示後も操作できない
+            var meshRenderer = ModelSubtree.FindComponent<SkinnedMeshRenderer>(go.transform, ignoreRootInactive: true);
             var blendShapeCache = meshRenderer != null ? LoadCacheByMenu(model.info.fileName, reload) : null;
             if (blendShapeCache == null)
             {

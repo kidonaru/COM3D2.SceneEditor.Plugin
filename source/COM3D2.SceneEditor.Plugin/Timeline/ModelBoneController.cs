@@ -36,7 +36,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 if (_meshRenderer == null)
                 {
-                    _meshRenderer = ModelSubtree.FindComponent<SkinnedMeshRenderer>(transform);
+                    // 既定の探索だと非表示で生成されたモデルのボーンが 0 本で確定し、表示後も編集・キー適用できない
+                    _meshRenderer = ModelSubtree.FindComponent<SkinnedMeshRenderer>(transform, ignoreRootInactive: true);
                 }
                 return _meshRenderer;
             }
