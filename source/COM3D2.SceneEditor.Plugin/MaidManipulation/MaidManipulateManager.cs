@@ -461,7 +461,7 @@ namespace COM3D2.SceneEditor.Plugin
         /// その場のメイドを編集・保存できる方を優先しており、代わりに
         /// プリセット適用時の解除・編集モードの停止・配置プリセットの対象にもなる
         /// </summary>
-        private void AdoptActiveMaids()
+        public void AdoptActiveMaids()
         {
             for (var i = 0; i < characterMgr.GetMaidCount(); i++)
             {

@@ -1385,7 +1385,8 @@ namespace COM3D2.SceneEditor.Plugin
         /// プリセットを現在のシーンへ適用する。
         /// メイドは guid で割り当て、足りない分はストックから呼び出す。
         /// どのスロットにも割り当てられなかった呼出済みメイドは解除する。
-        /// メイドの自動切替が OFF なら呼出も解除もせず、呼出済みメイドにだけ割り当てる
+        /// メイドの自動切替が OFF なら呼出も解除もせず、呼出済みメイドにだけ割り当てる。
+        /// ただし呼出済みメイドが 1 体も居なければ OFF でも呼び出す
         /// </summary>
         /// <param name="skipScenery">
         /// 背景・カメラ・ライトを適用済みとして飛ばす。
@@ -1419,7 +1420,14 @@ namespace COM3D2.SceneEditor.Plugin
             // メイドを読み込まないときは呼出も解除も行わず、現在のメイドをそのまま残す
             if (ShouldApplyMaids(data))
             {
-                var autoSwitch = config.maidAutoSwitch;
+                // UI 無効中は UpdateMaidLoading が回らず追跡が空のままのことがあり、
+                // 同期せずに 0 体判定するとゲーム側のメイドが居ても呼び出してしまう
+                maidManager.AdoptActiveMaids();
+                var autoSwitch = config.maidAutoSwitch || maidManager.calledMaids.Count == 0;
+                if (autoSwitch && !config.maidAutoSwitch)
+                {
+                    MTEUtils.Log("呼出済みのメイドが居ないため、自動切替 OFF でもプリセットのメイドを呼び出します");
+                }
                 var assignments = AssignMaids(data.maids, autoSwitch);
                 _resolvedAssignments.AddRange(assignments);
 
