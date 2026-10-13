@@ -65,6 +65,15 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>解く直前の肘 / 膝の骨軸 (ローカル X) まわりのひねり角。NaN なら復元しない</summary>
         private float _midTwistBeforeSolve = float.NaN;
 
+        /// <summary>解く直前に localPosition を控えたボーン。_localPositionsBeforeSolve と同じ並び</summary>
+        private Transform[] _positionCapturedBones = new Transform[0];
+
+        /// <summary>解く直前の _positionCapturedBones の localPosition</summary>
+        private Vector3[] _localPositionsBeforeSolve = new Vector3[0];
+
+        /// <summary>控えたボーンのうち今回の解で戻す数。0 なら戻さない</summary>
+        private int _capturedPositionCount;
+
         /// <summary>
         /// チェーンを構成するボーン (root/mid/tip、胸は mid なし)。操作履歴の記録対象用。
         /// root/tip はコンストラクタで非 null が保証される
@@ -102,8 +111,40 @@ namespace COM3D2.SceneEditor.Plugin
             // 肘 / 膝のヒンジ制限は Z 軸まわりの回転しか返さないため、先端側まで含めて解くと
             // 前腕 / すねのロール (骨軸まわりのひねり) が消える。解く前後で控えて掛け戻す
             // (ドラッグの自動更新と Solve のどちらも solver.Update を通るのでここで挟める)
+            _fabrik.solver.OnPreUpdate += CaptureLocalPositions;
             _fabrik.solver.OnPreUpdate += CaptureMidTwist;
+            // ひねりの掛け戻しより先に位置を戻す。逆順だと軸から外れた手首がひねりで振られ、
+            // 次のフレームの FABRIK が追いかけてドラッグ中に腕が回り続ける
+            _fabrik.solver.OnPostUpdate += RestoreLocalPositions;
             _fabrik.solver.OnPostUpdate += RestoreMidTwist;
+        }
+
+        /// <summary>解く直前のチェーン各ボーンの localPosition を控える。RestoreLocalPositions で戻す</summary>
+        private void CaptureLocalPositions()
+        {
+            var chainBones = _fabrik.solver.bones;
+            if (_localPositionsBeforeSolve.Length < chainBones.Length)
+            {
+                _positionCapturedBones = new Transform[chainBones.Length];
+                _localPositionsBeforeSolve = new Vector3[chainBones.Length];
+            }
+            for (var i = 0; i < chainBones.Length; i++)
+            {
+                _positionCapturedBones[i] = chainBones[i].transform;
+                _localPositionsBeforeSolve[i] = chainBones[i].transform.localPosition;
+            }
+            _capturedPositionCount = chainBones.Length;
+        }
+
+        /// <summary>控えたボーンへ、解く直前の localPosition を戻す</summary>
+        private void RestoreLocalPositions()
+        {
+            // solver.bones の並びで戻すと、控えた後にチェーンが張り替わったとき別のボーンへ書いてしまう
+            for (var i = 0; i < _capturedPositionCount; i++)
+            {
+                _positionCapturedBones[i].localPosition = _localPositionsBeforeSolve[i];
+            }
+            _capturedPositionCount = 0;
         }
 
         /// <summary>
@@ -312,7 +353,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (_fabrik != null)
             {
+                _fabrik.solver.OnPreUpdate -= CaptureLocalPositions;
                 _fabrik.solver.OnPreUpdate -= CaptureMidTwist;
+                _fabrik.solver.OnPostUpdate -= RestoreLocalPositions;
                 _fabrik.solver.OnPostUpdate -= RestoreMidTwist;
                 Object.Destroy(_fabrik);
                 _fabrik = null;
