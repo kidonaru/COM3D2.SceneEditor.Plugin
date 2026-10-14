@@ -5,7 +5,7 @@ using MTEP = COM3D2.MotionTimelineEditor.Plugin;
 namespace COM3D2.SceneEditor.Plugin
 {
     /// <summary>
-    /// メインカメラの構図スナップショット (メイド追従設定を含む)。
+    /// メインカメラの構図スナップショット (メイド追従設定・身長補正を含む)。
     /// SceneView カメラは「見え方」であり履歴の対象にしない
     /// </summary>
     public class CameraSnapshot : IStateSnapshot
@@ -58,10 +58,43 @@ namespace COM3D2.SceneEditor.Plugin
                     }
                 }
             }
+
+            var heightManager = CameraHeightManager.instance;
+            var slotNo = heightManager.state.liveSlotNo;
+            state.heightSlotNo = slotNo;
+            state.heightBase = heightManager.bases.Get(slotNo);
+
+            // 再生中の補間 (CameraHeightState の slotA/B/weight) で逆補正すると、
+            // 補間を持たないプリセットを同じメイドで読んだときに画面の位置へ戻らない
+            if (CanCorrectHeight(state))
+            {
+                float rootY;
+                var scale = GetPresetScale(state, out rootY);
+                var pos = state.targetPos;
+                pos.y = MTEP.CameraHeightCorrection.Uncorrect(pos.y, rootY, scale);
+                state.targetPos = pos;
+            }
             return state;
         }
 
-        public static void ApplyState(ScenePresetCamera state)
+        /// <summary>追従中のオフセットは追従点がもともと身長に合わせて動くため、補正しない</summary>
+        private static bool CanCorrectHeight(ScenePresetCamera state)
+        {
+            return !state.hasFollow && state.hasHeight;
+        }
+
+        private static float GetPresetScale(ScenePresetCamera state, out float rootY)
+        {
+            // タイムラインの基準身長で補正すると、タイムラインの有無や設定で保存時と構図が変わる
+            return CameraHeightManager.GetSlotScale(state.heightSlotNo, state.heightBase, out rootY);
+        }
+
+        /// <param name="applyHeight">
+        /// false なら身長補正をかけずに注視点を置き、身長補正の設定も戻さない。
+        /// メイドの呼出が終わる前に適用し、補正だけを後で ApplyHeight でかけるときに使う
+        /// </param>
+        /// <param name="isPreset">プリセットの適用なら true。履歴の Undo/Redo は false</param>
+        public static void ApplyState(ScenePresetCamera state, bool applyHeight = true, bool isPreset = false)
         {
             if (state == null)
             {
@@ -101,7 +134,7 @@ namespace COM3D2.SceneEditor.Plugin
             var aroundAngle = mainCamera.GetAroundAngle();
             if (!hasFollow)
             {
-                mainCamera.SetTargetPos(state.targetPos);
+                mainCamera.SetTargetPos(applyHeight ? CorrectTargetPos(state) : state.targetPos);
             }
             mainCamera.SetAroundAngle(new Vector2(hasYawOffset ? aroundAngle.x : state.yaw, state.pitch));
             mainCamera.SetDistance(state.distance);
@@ -114,11 +147,83 @@ namespace COM3D2.SceneEditor.Plugin
             // 揺れ自体は CameraShakeManager の LateUpdate が反映する (ここでは値を戻すだけ)
             CameraShakeManager.instance.shakeParams = state.shakeParams;
 
+            if (applyHeight)
+            {
+                RestoreHeightSetting(state, isPreset);
+            }
+
             if (hasFollow)
             {
                 // ロード済みなら即座に追従点基準へ置き直す (未ロードなら何もしない)
                 follow.Apply();
             }
+        }
+
+        /// <summary>
+        /// 身長補正の設定を戻す。プリセットは断面として扱うため、補正を持たない旧形式は基準メイドなしになる
+        /// </summary>
+        /// <param name="isPreset">プリセットの適用なら true。タイムライン未読込のときだけ基準身長を上書きする</param>
+        private static void RestoreHeightSetting(ScenePresetCamera state, bool isPreset)
+        {
+            var heightManager = CameraHeightManager.instance;
+            heightManager.state.SetLive(state.heightSlotNo);
+
+            // いないスロットへ入れると、後でそのスロットにメイドを呼んでも「設定済み」で取り込まれない
+            if (state.heightBase <= 0
+                || MTEP.MaidManager.instance.GetMaidCache(state.heightSlotNo) == null)
+            {
+                return;
+            }
+
+            // 履歴の Undo/Redo で上書きすると、基準身長を手入力した後に無関係なカメラ操作を戻しただけで記録時の値へ戻る。
+            // タイムライン読込中に上書きすると、設定済みの基準身長を変えるのは「取得」と手入力だけという作者の基準を守る規則が崩れる
+            if (isPreset && MTEP.TimelineManager.instance.timeline == null)
+            {
+                heightManager.bases.Set(state.heightSlotNo, state.heightBase);
+            }
+            else
+            {
+                heightManager.bases.SetIfUnset(state.heightSlotNo, state.heightBase);
+            }
+        }
+
+        private static Vector3 CorrectTargetPos(ScenePresetCamera state)
+        {
+            var pos = state.targetPos;
+            if (!CanCorrectHeight(state))
+            {
+                return pos;
+            }
+
+            float rootY;
+            var scale = GetPresetScale(state, out rootY);
+            pos.y = MTEP.CameraHeightCorrection.Correct(pos.y, rootY, scale);
+            return pos;
+        }
+
+        /// <summary>
+        /// ApplyState(state, false) で飛ばした身長補正 (設定の復元と注視点の補正) をかける。
+        /// 補正前の値 (state.targetPos) から計算するため、何度呼んでも二重にはかからない
+        /// </summary>
+        public static void ApplyHeight(ScenePresetCamera state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            RestoreHeightSetting(state, isPreset: true);
+            if (!CanCorrectHeight(state))
+            {
+                return;
+            }
+
+            var mainCamera = GameMain.Instance != null ? GameMain.Instance.MainCamera : null;
+            if (mainCamera == null)
+            {
+                return;
+            }
+            mainCamera.SetTargetPos(CorrectTargetPos(state));
         }
 
         public void AddBones(IEnumerable<Transform> targetBones)
@@ -146,6 +251,8 @@ namespace COM3D2.SceneEditor.Plugin
                 && _state.maidSlotNo == o._state.maidSlotNo
                 && _state.maidPointType == o._state.maidPointType
                 && _state.followRotation == o._state.followRotation
+                // 基準身長 (heightBase) は Undo の対象外なので比べない
+                && _state.heightSlotNo == o._state.heightSlotNo
                 && ApproximatelyVector3(
                     _state.shakePositionAmplitude, o._state.shakePositionAmplitude)
                 && ApproximatelyVector3(

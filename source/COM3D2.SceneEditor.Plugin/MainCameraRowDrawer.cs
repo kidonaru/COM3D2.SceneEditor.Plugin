@@ -25,7 +25,7 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// 注視点のワールド座標。Inspector の座標行と同じ表示形式で編集する。
-        /// 追従中は追従点からのオフセットを編集する (追従設定は履歴対象外のため記録しない)
+        /// 追従中は追従点からのオフセットを編集する
         /// </summary>
         public static void DrawTargetPosRow(
             GUIView view, CameraMain mainCamera, MTEP.MaidFollowMainCamera follow,
@@ -35,8 +35,16 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 Vector3RowDrawer.Draw(view, "オフセット", PositionDragSensitivity, labelWidth, rowHeight,
                     follow.state.offset,
-                    value => follow.state.offset = value,
-                    () => follow.state.offset = Vector3.zero);
+                    value =>
+                    {
+                        RecordCameraEdit("オフセット");
+                        follow.state.offset = value;
+                    },
+                    () =>
+                    {
+                        RecordCameraEdit("オフセット");
+                        follow.state.offset = Vector3.zero;
+                    });
                 return;
             }
 
@@ -75,8 +83,11 @@ namespace COM3D2.SceneEditor.Plugin
             if (follow != null && follow.isFollow && follow.state.followRotation)
             {
                 DrawAxisSlider(view, "横回転", AngleUtils.NormalizeAngle(follow.state.yawOffset),
-                    -180f, 180f, 0.1f, 0f, labelWidth, rowHeight,
-                    value => follow.state.yawOffset = value);
+                    -180f, 180f, 0.1f, 0f, labelWidth, rowHeight, value =>
+                    {
+                        RecordCameraEdit("横回転");
+                        follow.state.yawOffset = value;
+                    });
             }
             else
             {

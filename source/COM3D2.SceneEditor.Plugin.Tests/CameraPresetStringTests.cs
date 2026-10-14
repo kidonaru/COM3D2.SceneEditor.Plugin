@@ -29,7 +29,43 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 shakeRotationAmplitude = new Vector3(1f, 0.5f, 0.25f),
                 shakeFrequencyScale = 2.5f,
                 shakeSeed = 1234,
+                heightSlotNo = 1,
+                heightBase = 160,
             };
+        }
+
+        [Fact]
+        public void 身長補正も往復できる()
+        {
+            var restored = CameraWindow.ParseCameraPreset(
+                CameraWindow.SerializeCameraPreset(CreateState()));
+
+            Assert.Equal(1, restored.heightSlotNo);
+            Assert.Equal(160, restored.heightBase);
+        }
+
+        [Fact]
+        public void 身長補正を持たない19値の旧形式は補正なしとして読める()
+        {
+            var restored = CameraWindow.ParseCameraPreset(
+                "0.5000,1.2500,-2.0000,3.5000,30.00,-15.00,5.00,42.00,1,2,1," +
+                "0.0500,0.0300,0.0000,1.000,0.500,0.250,2.500,1234");
+
+            Assert.NotNull(restored);
+            Assert.Equal(new Vector3(0.05f, 0.03f, 0f), restored.shakePositionAmplitude);
+            Assert.Equal(1234, restored.shakeSeed);
+            Assert.False(restored.hasHeight);
+        }
+
+        [Fact]
+        public void 負の基準身長は未設定として読む()
+        {
+            var restored = CameraWindow.ParseCameraPreset(
+                "0,0,0,3.5,0,0,0,42,-1,0,0,0,0,0,0,0,0,1,0,0,-5");
+
+            Assert.NotNull(restored);
+            Assert.Equal(0, restored.heightSlotNo);
+            Assert.Equal(0, restored.heightBase);
         }
 
         [Fact]
@@ -73,6 +109,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             // 振幅が zero なら周波数倍率・シードは参照されないので、既定値のままでよい
             Assert.Equal(Vector3.zero, restored.shakePositionAmplitude);
             Assert.Equal(Vector3.zero, restored.shakeRotationAmplitude);
+            Assert.False(restored.hasHeight);
         }
 
         [Fact]
@@ -85,6 +122,7 @@ namespace COM3D2.SceneEditor.Plugin.Tests
             Assert.False(restored.hasFollow);
             Assert.Equal(Vector3.zero, restored.shakePositionAmplitude);
             Assert.Equal(Vector3.zero, restored.shakeRotationAmplitude);
+            Assert.False(restored.hasHeight);
         }
 
         [Fact]

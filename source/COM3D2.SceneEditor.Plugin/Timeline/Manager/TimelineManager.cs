@@ -431,6 +431,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             MTEUtils.Log("タイムライン切替のため操作履歴をクリアしました");
 
             _layerBaselineStore.Clear();
+            SE.CameraHeightManager.instance.state.ResetBlend();
             timelineSessionId++;
             currentLayerIndex = 0;
         }
@@ -464,6 +465,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 anmName = "テスト",
                 version = TimelineData.CurrentVersion
             };
+            _timeline.cameraHeightBases = SE.CameraHeightManager.instance.bases;
             _usingLayerInfoList = null;
             _unusingLayerInfoList = null;
 
@@ -520,6 +522,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
                 _timeline = new TimelineData();
                 _timeline.FromXml(xml);
+
+                // 作者の基準身長を優先して取り込み、以後はシーンの基準身長を共有する。
+                // 差し替えずに XML の値だけを持たせると、UI やプリセットで変えた基準身長が保存に載らない
+                var heightBases = SE.CameraHeightManager.instance.bases;
+                heightBases.MergeFrom(_timeline.cameraHeightBases);
+                _timeline.cameraHeightBases = heightBases;
 
                 // 旧フォーマットの easing 補間を Tangent へ近似変換 (Tangent 統一)
                 TangentUnification.ConvertTimeline(_timeline);
@@ -617,6 +625,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             {
                 _timeline.materialShaders = materialShaders;
             }
+            // 身長補正の基準身長は履歴の管理外。履歴の XML の値で上書きすると、Undo で作者の基準へ戻せなくなる
+            _timeline.cameraHeightBases = SE.CameraHeightManager.instance.bases;
 
             // 旧フォーマットの easing 補間を Tangent へ近似変換 (Tangent 統一)
             TangentUnification.ConvertTimeline(_timeline);

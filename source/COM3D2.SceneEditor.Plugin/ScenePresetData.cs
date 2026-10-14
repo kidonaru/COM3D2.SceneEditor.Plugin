@@ -34,6 +34,27 @@ namespace COM3D2.SceneEditor.Plugin
         public bool followRotation;
 
         /// <summary>
+        /// 身長補正の基準メイドのスロット番号。-1 で補正なし (v43)。
+        /// 追従していないときの targetPos は、このスロットの基準身長の空間の値 (補正前) になる
+        /// </summary>
+        [XmlAttribute]
+        public int heightSlotNo = -1;
+
+        [XmlIgnore] public bool heightSlotNoSpecified { get { return hasHeight; } set { } }
+
+        /// <summary>
+        /// 基準身長 (cm)。0 以下は未設定で補正しない (v43)。
+        /// 未設定でも基準メイドの選択は保存するため、heightSlotNo とは書き出す条件が違う
+        /// </summary>
+        [XmlAttribute]
+        public int heightBase;
+
+        [XmlIgnore] public bool heightBaseSpecified { get { return heightBase > 0; } set { } }
+
+        [XmlIgnore]
+        public bool hasHeight => heightSlotNo >= 0;
+
+        /// <summary>
         /// 手ブレの位置振幅 (m)。
         /// 手ブレ非対応の旧形式は 4 項目とも既定値で読まれるが、振幅 zero なら
         /// 周波数倍率・シードは参照されないので揺れなしとして成立する
@@ -1375,7 +1396,9 @@ namespace COM3D2.SceneEditor.Plugin
         //      maidScale は読込専用にした。全項目が既定でも空要素を書く。
         //      bodySlider が無く maidScale がある旧形式は、腕の左右別項目の均一倍率へ変換して適用する
         // v42: 追加ライトの照射対象 (target) に 3=顔のみ / 4=体のみ を追加。旧 SE は「全て」として読む
-        public static readonly int CurrentVersion = 42;
+        // v43: camera に身長補正 (heightSlotNo / heightBase) を追加。補正なしでは書き出さない。
+        //      追従なしの targetPos は基準身長の空間の値になる。旧形式は属性が無く補正なしで読める
+        public static readonly int CurrentVersion = 43;
 
         [XmlAttribute]
         public int version = CurrentVersion;

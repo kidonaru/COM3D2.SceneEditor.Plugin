@@ -487,6 +487,9 @@ namespace COM3D2.SceneEditor.Plugin
                 MTEP.TransformType.CameraShake,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataCameraShake>);
             timelineManager.RegisterTransform(
+                MTEP.TransformType.CameraHeight,
+                MTEP.TimelineManager.CreateTransform<MTEP.TransformDataCameraHeight>);
+            timelineManager.RegisterTransform(
                 MTEP.TransformType.ExtendBone,
                 MTEP.TimelineManager.CreateTransform<MTEP.TransformDataExtendBone>);
             timelineManager.RegisterTransform(

@@ -34,11 +34,12 @@ namespace COM3D2.SceneEditor.Plugin
 
         /// <summary>
         /// カメラプリセット文字列の値数。
-        /// 8 値は追従設定を持たない旧形式、11 値は手ブレを持たない旧形式
+        /// 8 値は追従設定を持たない旧形式、11 値は手ブレを持たない旧形式、19 値は身長補正を持たない旧形式
         /// </summary>
         private const int LegacyPresetValueCount = 8;
         private const int FollowPresetValueCount = 11;
-        private const int PresetValueCount = 19;
+        private const int ShakePresetValueCount = 19;
+        private const int PresetValueCount = 21;
 
         /// <summary>保存済みプリセットの右クリックメニュー項目</summary>
         private enum PresetMenuAction
@@ -97,6 +98,7 @@ namespace COM3D2.SceneEditor.Plugin
         // 追従設定のコンボは開閉状態を持つため、Main / SceneView で分ける
         private readonly MaidFollowRowDrawer _mainFollowRowDrawer = new MaidFollowRowDrawer();
         private readonly MaidFollowRowDrawer _sceneViewFollowRowDrawer = new MaidFollowRowDrawer();
+        private readonly CameraHeightRowDrawer _heightRowDrawer = new CameraHeightRowDrawer();
 
         // ---- サブカメラタブ ----
 
@@ -380,21 +382,23 @@ namespace COM3D2.SceneEditor.Plugin
             }
 
             MainCameraRowDrawer.RecordCameraEdit("プリセット " + slot);
-            CameraSnapshot.ApplyState(state);
+            CameraSnapshot.ApplyState(state, isPreset: true);
         }
 
         /// <summary>
         /// カメラ状態を
         /// "tx,ty,tz,dist,yaw,pitch,roll,fov,maidSlotNo,maidPointType,followRotation,
-        ///  shakePosX,shakePosY,shakePosZ,shakeRotX,shakeRotY,shakeRotZ,shakeFreq,shakeSeed"
-        /// 形式へ変換する (追従中は tx〜tz がオフセット、向き反映中は yaw がヨーオフセット)。
+        ///  shakePosX,shakePosY,shakePosZ,shakeRotX,shakeRotY,shakeRotZ,shakeFreq,shakeSeed,
+        ///  heightSlotNo,heightBase"
+        /// 形式へ変換する (追従中は tx〜tz がオフセット、向き反映中は yaw がヨーオフセット、
+        /// 追従なしで heightSlotNo があれば ty は基準身長の空間の値)。
         /// CameraPresetStringTests から往復を直接検証するため public にしてある
         /// </summary>
         public static string SerializeCameraPreset(ScenePresetCamera state)
         {
             return string.Format(CultureInfo.InvariantCulture,
                 "{0:F4},{1:F4},{2:F4},{3:F4},{4:F2},{5:F2},{6:F2},{7:F2},{8},{9},{10}," +
-                "{11:F4},{12:F4},{13:F4},{14:F3},{15:F3},{16:F3},{17:F3},{18}",
+                "{11:F4},{12:F4},{13:F4},{14:F3},{15:F3},{16:F3},{17:F3},{18},{19},{20}",
                 state.targetPos.x, state.targetPos.y, state.targetPos.z,
                 state.distance,
                 state.yaw, state.pitch,
@@ -408,13 +412,15 @@ namespace COM3D2.SceneEditor.Plugin
                 state.shakeRotationAmplitude.y,
                 state.shakeRotationAmplitude.z,
                 state.shakeFrequencyScale,
-                state.shakeSeed);
+                state.shakeSeed,
+                state.heightSlotNo, state.heightBase);
         }
 
         /// <summary>
         /// プリセット文字列を構図へ戻す。不正な文字列は null。
         /// 追従設定を持たない旧形式 (8 値) は未追従、
-        /// 手ブレを持たない旧形式 (11 値) は揺れなしとして読む。
+        /// 手ブレを持たない旧形式 (11 値) は揺れなし、
+        /// 身長補正を持たない旧形式 (19 値) は補正なしとして読む。
         /// CameraPresetStringTests から旧形式の読み込みを直接検証するため public にしてある
         /// </summary>
         public static ScenePresetCamera ParseCameraPreset(string value)
@@ -422,6 +428,7 @@ namespace COM3D2.SceneEditor.Plugin
             var parts = value.Split(',');
             if (parts.Length != LegacyPresetValueCount &&
                 parts.Length != FollowPresetValueCount &&
+                parts.Length != ShakePresetValueCount &&
                 parts.Length != PresetValueCount)
             {
                 return null;
@@ -461,7 +468,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             // 位置振幅は 11〜13、回転振幅は 14〜16、周波数 17、シード 18。
             // 範囲外は CameraShakeNoise が値をそのまま使うため、ここで丸める
-            if (parts.Length == PresetValueCount)
+            if (parts.Length >= ShakePresetValueCount)
             {
                 state.shakePositionAmplitude = ClampAmplitude(
                     values[11], values[12], values[13],
@@ -474,6 +481,12 @@ namespace COM3D2.SceneEditor.Plugin
                     MTEP.TransformDataCameraShake.MaxFrequencyScale);
                 state.shakeSeed = (int)Mathf.Clamp(
                     values[18], 0f, MTEP.TransformDataCameraShake.MaxSeed);
+            }
+
+            if (parts.Length >= PresetValueCount)
+            {
+                state.heightSlotNo = (int)values[19];
+                state.heightBase = Mathf.Max(0, (int)values[20]);
             }
             return state;
         }
@@ -519,9 +532,13 @@ namespace COM3D2.SceneEditor.Plugin
             var follow = MTEP.MaidFollowMainCamera.instance;
             if (follow != null)
             {
-                _mainFollowRowDrawer.Draw(_view, follow.state, LABEL_WIDTH, ROW_HEIGHT);
+                _mainFollowRowDrawer.Draw(_view, follow.state, LABEL_WIDTH, ROW_HEIGHT,
+                    () => MainCameraRowDrawer.RecordCameraEdit("追従"));
                 _view.DrawHorizontalLine();
             }
+
+            _heightRowDrawer.Draw(_view, LABEL_WIDTH, ROW_HEIGHT);
+            _view.DrawHorizontalLine();
 
             MainCameraRowDrawer.DrawTargetPosRow(_view, mainCamera, follow, LABEL_WIDTH, ROW_HEIGHT);
             _view.DrawHorizontalLine();

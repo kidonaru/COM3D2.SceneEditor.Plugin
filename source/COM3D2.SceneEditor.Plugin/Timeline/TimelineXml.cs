@@ -88,6 +88,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public string key;
     }
 
+    /// <summary>カメラの身長補正の基準身長 1 件 (SE 独自)。Height はゲーム内身長 (cm)</summary>
+    public class TimelineCameraHeightBaseXml
+    {
+        [XmlElement("MaidSlotNo")]
+        public int maidSlotNo;
+        [XmlElement("Height")]
+        public int height;
+    }
+
     public class TimelineExtendBoneXml
     {
         [XmlElement("MaidSlotNo")]
@@ -283,6 +292,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlArrayItem("MaidBodySliderKey")]
         public List<TimelineMaidBodySliderKeyXml> maidBodySliderKeys = new List<TimelineMaidBodySliderKeyXml>();
         [XmlIgnore] public bool maidBodySliderKeysSpecified { get { return maidBodySliderKeys != null && maidBodySliderKeys.Count > 0; } set { } }
+
+        // 身長補正の基準身長は SE 独自。空でも書き出すと、MTE 産の XML を保存し直しただけで内容が変わる
+        [XmlArray("CameraHeightBases")]
+        [XmlArrayItem("CameraHeightBase")]
+        public List<TimelineCameraHeightBaseXml> cameraHeightBases = new List<TimelineCameraHeightBaseXml>();
+        [XmlIgnore] public bool cameraHeightBasesSpecified { get { return cameraHeightBases != null && cameraHeightBases.Count > 0; } set { } }
 
         [XmlArray("ExtendBones")]
         [XmlArrayItem("ExtendBone")]

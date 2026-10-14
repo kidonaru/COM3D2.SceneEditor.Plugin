@@ -469,6 +469,7 @@ namespace COM3D2.SceneEditor.Plugin
                 // 手ブレの揺れ幅はカメラレイヤーが書いたパラメータから決まるため、
                 // タイムラインより後に登録する (Transform への適用は描画直前に行う)
                 managerRegistry.RegisterManager(CameraShakeManager.instance);
+                managerRegistry.RegisterManager(CameraHeightManager.instance);
 
                 // 影の複製 (CharacterShadowProxyManager) は移した後のレイヤーを見て作るため、その手前に登録する
                 managerRegistry.RegisterManager(MaidFaceRendererManager.instance);

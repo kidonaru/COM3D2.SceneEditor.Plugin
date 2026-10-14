@@ -6,12 +6,13 @@ namespace COM3D2.SceneEditor.Plugin.Tests
     public class CameraShakeLayerTests
     {
         [Fact]
-        public void カメラレイヤーはカメラと手ブレの2ボーンを持つ()
+        public void カメラレイヤーはカメラと手ブレと身長補正の3ボーンを持つ()
         {
             var layer = CameraTimelineLayer.Create(0);
-            Assert.Equal(2, layer.allBoneNames.Count);
+            Assert.Equal(3, layer.allBoneNames.Count);
             Assert.Contains(CameraTimelineLayer.CameraBoneName, layer.allBoneNames);
             Assert.Contains(CameraTimelineLayer.ShakeBoneName, layer.allBoneNames);
+            Assert.Contains(CameraTimelineLayer.HeightBoneName, layer.allBoneNames);
         }
 
         [Fact]
@@ -22,6 +23,8 @@ namespace COM3D2.SceneEditor.Plugin.Tests
                 layer.GetTransformType(CameraTimelineLayer.CameraBoneName));
             Assert.Equal(TransformType.CameraShake,
                 layer.GetTransformType(CameraTimelineLayer.ShakeBoneName));
+            Assert.Equal(TransformType.CameraHeight,
+                layer.GetTransformType(CameraTimelineLayer.HeightBoneName));
         }
 
         [Fact]

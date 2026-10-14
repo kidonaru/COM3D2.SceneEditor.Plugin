@@ -17,13 +17,16 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         private static Camera camera => PluginUtils.MainCamera;
         private static MaidFollowMainCamera mainFollow => MaidFollowMainCamera.instance;
+        private static SE.CameraHeightManager heightManager => SE.CameraHeightManager.instance;
 
         public static string CameraBoneName = "camera";
         public static string CameraDisplayName = "カメラ";
         public static string ShakeBoneName = "shake";
         public static string ShakeDisplayName = "手ブレ";
+        public static string HeightBoneName = "height";
+        public static string HeightDisplayName = "身長補正";
 
-        private List<string> _allBoneNames = new List<string> { CameraBoneName, ShakeBoneName };
+        private List<string> _allBoneNames = new List<string> { CameraBoneName, ShakeBoneName, HeightBoneName };
         public override List<string> allBoneNames => _allBoneNames;
 
         private CameraTimelineLayer(int slotNo) : base(slotNo)
@@ -46,6 +49,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
             allMenuItems.Add(new BoneMenuItem(CameraBoneName, CameraDisplayName));
             allMenuItems.Add(new BoneMenuItem(ShakeBoneName, ShakeDisplayName));
+            allMenuItems.Add(new BoneMenuItem(HeightBoneName, HeightDisplayName));
         }
 
         public override bool IsValidData()
@@ -83,8 +87,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 return;
             }
 
-            // 手ブレ → カメラの順に適用する (依存の向きを明示するため順序を固定する)
+            // 手ブレ → 身長補正 → カメラの順に適用する (依存の向きを明示するため順序を固定する)
             ApplyPlayDataByType(TransformType.CameraShake);
+            // 戻さないと、身長補正のキーを全部消した後も最後に適用したキーの補間が残る
+            heightManager.state.BeginApply();
+            ApplyPlayDataByType(TransformType.CameraHeight);
             ApplyPlayDataByType(TransformType.Camera);
         }
 
@@ -93,6 +100,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (motion.start.type == TransformType.CameraShake)
             {
                 ApplyShakeMotion(motion, t);
+                return;
+            }
+            if (motion.start.type == TransformType.CameraHeight)
+            {
+                ApplyHeightMotion(motion, t);
                 return;
             }
 
@@ -150,7 +162,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var follow = mainFollow;
             if (follow == null)
             {
-                uoCamera.SetTargetPos(position);
+                uoCamera.SetTargetPos(heightManager.CorrectTargetPos(position));
             }
             else
             {
@@ -166,7 +178,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
                 else
                 {
-                    uoCamera.SetTargetPos(position);
+                    uoCamera.SetTargetPos(heightManager.CorrectTargetPos(position));
                 }
             }
 
@@ -199,6 +211,15 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             SE.CameraShakeManager.instance.shakeParams = shakeParams;
         }
 
+        private static void ApplyHeightMotion(MotionData motion, float t)
+        {
+            var start = motion.start as TransformDataCameraHeight;
+            var end = motion.end as TransformDataCameraHeight;
+            var startSlotNo = start.maidSlotNo;
+            heightManager.state.ApplyKeys(
+                startSlotNo, end != null ? end.maidSlotNo : startSlotNo, t);
+        }
+
         /// <summary>
         /// 使用するシード。補間すると毎フレーム値が変わり、ハッシュのカオス性で周波数・位相が
         /// 不連続にジャンプして波形が壊れるため、区間の始点の値をそのまま使う
@@ -223,7 +244,7 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var rotZ = SE.CameraShakeManager.instance.GetCleanRotationZ(camera);
 
             var trans = CreateTransformData<TransformDataCamera>(CameraBoneName);
-            trans.position = target.position;
+            trans.position = heightManager.UncorrectTargetPos(target.position);
             trans.eulerAngles = new Vector3(angle.y, angle.x, rotZ);
             trans.distance = uoCamera.distance;
             trans.fov = camera.fieldOfView;
@@ -255,6 +276,12 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var shakeBone = frame.CreateBone(shakeTrans);
             frame.UpdateBone(shakeBone);
 
+            var heightTrans = CreateTransformData<TransformDataCameraHeight>(HeightBoneName);
+            heightTrans.maidSlotNo = heightManager.state.liveSlotNo;
+
+            var heightBone = frame.CreateBone(heightTrans);
+            frame.UpdateBone(heightBone);
+
             //MTEUtils.LogDebug("UpdateFromCurrentPose: position={0}, rotation={1}", _cameraManager.CurrentPosition,_cameraManager.CurrentRotation);
         }
 
@@ -268,6 +295,10 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             if (name == ShakeBoneName)
             {
                 return TransformType.CameraShake;
+            }
+            if (name == HeightBoneName)
+            {
+                return TransformType.CameraHeight;
             }
             return TransformType.Camera;
         }

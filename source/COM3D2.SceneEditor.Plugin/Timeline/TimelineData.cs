@@ -418,6 +418,27 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         /// <summary>表情レイヤーをタンジェント補間するか。旧 XML には要素が無く false で読まれ、新規作成は true</summary>
         public bool isTangentFace = true;
 
+        /// <summary>
+        /// 身長補正の基準身長。実行中は TimelineManager が CameraHeightManager のインスタンスを差し込んで共有する。
+        /// FromXml は別のインスタンスへ差し替えるため、読込後に差し込み直す
+        /// </summary>
+        public CameraHeightBases cameraHeightBases = new CameraHeightBases();
+
+        public int GetCameraHeightBase(int slotNo)
+        {
+            return cameraHeightBases.Get(slotNo);
+        }
+
+        public void SetCameraHeightBase(int slotNo, int height)
+        {
+            cameraHeightBases.Set(slotNo, height);
+        }
+
+        public void SetCameraHeightBaseIfUnset(int slotNo, int height)
+        {
+            cameraHeightBases.SetIfUnset(slotNo, height);
+        }
+
         public List<int> stageLaserCountList = new List<int>();
         public List<int> stageLightCountList = new List<int>();
 
@@ -858,6 +879,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 }
             }
 
+            // Clear にすると、TimelineManager が差し込んだ CameraHeightManager の基準身長まで消える
+            cameraHeightBases = new CameraHeightBases();
+            foreach (var baseXml in xml.cameraHeightBases)
+            {
+                SetCameraHeightBase(baseXml.maidSlotNo, baseXml.height);
+            }
+
             extendBoneNamesMap.Clear();
             foreach (var extendBone in xml.extendBones)
             {
@@ -1033,6 +1061,17 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                         key = key,
                     });
                 }
+            }
+
+            // 辞書の列挙順に依らないよう、スロット順で書く (保存ファイルと TimelineXmlDiff の比較を安定させる)
+            xml.cameraHeightBases = new List<TimelineCameraHeightBaseXml>();
+            foreach (var slotNo in cameraHeightBases.slotNos.OrderBy(x => x))
+            {
+                xml.cameraHeightBases.Add(new TimelineCameraHeightBaseXml
+                {
+                    maidSlotNo = slotNo,
+                    height = cameraHeightBases.Get(slotNo),
+                });
             }
 
             xml.extendBones = new List<TimelineExtendBoneXml>();

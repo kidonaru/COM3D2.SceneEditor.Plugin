@@ -629,7 +629,7 @@ namespace COM3D2.SceneEditor.Plugin
 
             if (loadCamera)
             {
-                CameraSnapshot.ApplyState(converted.camera);
+                CameraSnapshot.ApplyState(converted.camera, isPreset: true);
             }
             if (loadBackground)
             {
@@ -1473,7 +1473,9 @@ namespace COM3D2.SceneEditor.Plugin
         {
             if (ShouldApplyCamera(data))
             {
-                CameraSnapshot.ApplyState(data.camera);
+                // ここで補正・設定の復元をすると、メイドの呼出・配置前で基準メイドの身長とルートの高さが定まっておらず誤った値で補正され、
+                // メイドがいるスロットに限る基準身長の取り込みも空振りする
+                CameraSnapshot.ApplyState(data.camera, applyHeight: false);
             }
             // ライトは背景カテゴリに含めている (UI のトグルを 1 つにまとめているため)
             if (ShouldApplyBackground(data))
@@ -1759,6 +1761,10 @@ namespace COM3D2.SceneEditor.Plugin
             {
                 ApplyLooks();
                 RequestFocusOnAppliedMaid(data);
+            }
+            if (ShouldApplyCamera(data))
+            {
+                CameraSnapshot.ApplyHeight(data.camera);
             }
             // Maid 参照を適用の間だけ持つ。以降の解除・シーン遷移で寿命が切れるため残さない
             _resolvedAssignments.Clear();
