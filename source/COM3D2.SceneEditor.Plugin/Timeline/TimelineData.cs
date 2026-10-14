@@ -444,6 +444,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         public float imageOutputFrameRate = 30f;
         public string imageOutputFormat = "image_{frame:D6}";
         public Vector2 imageOutputSize = new Vector2(1920, 1080);
+        public int imageOutputScale = 1;
+        public GameViewAspectMode imageOutputAspectMode = GameViewAspectMode.Custom;
 
         public int maxFrameCount => maxFrameNo + 1;
 
@@ -930,6 +932,11 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             imageOutputFrameRate = xml.imageOutputFrameRate;
             imageOutputFormat = xml.imageOutputFormat;
             imageOutputSize = xml.imageOutputSize;
+            // 手編集の範囲外値をそのまま持つと、UI でどの倍率・比率も選択表示にならない
+            imageOutputScale = Mathf.Clamp(xml.imageOutputScale, 1, GameViewAspect.MAX_SCALE);
+            imageOutputAspectMode = Enum.IsDefined(typeof(GameViewAspectMode), xml.imageOutputAspectMode)
+                ? xml.imageOutputAspectMode
+                : GameViewAspectMode.Custom;
 
             layers = new List<ITimelineLayer>(xml.layers.Count);
             foreach (var layerXml in xml.layers)
@@ -1086,6 +1093,8 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             xml.imageOutputFrameRate = imageOutputFrameRate;
             xml.imageOutputFormat = imageOutputFormat;
             xml.imageOutputSize = imageOutputSize;
+            xml.imageOutputScale = imageOutputScale;
+            xml.imageOutputAspectMode = imageOutputAspectMode;
 
             stopwatch.ProcessEnd("TimelineData.ToXml");
 

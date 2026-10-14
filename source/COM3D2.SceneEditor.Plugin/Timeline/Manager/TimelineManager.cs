@@ -1213,19 +1213,21 @@ namespace COM3D2.MotionTimelineEditor.Plugin
 
         public void OutputImage()
         {
+            if (timeline == null)
+            {
+                return;
+            }
+
             var message = "連番画像出力を開始しますか？\n出力中は[Esc]キーで停止できます";
 
             // 出力先は OutputImageInternal が中身ごと削除して作り直すため、事前に知らせる
-            if (timeline != null)
+            var outputDir = PluginUtils.GetImageOutputDirPath(timeline.anmName);
+            if (Directory.Exists(outputDir))
             {
-                var outputDir = PluginUtils.GetImageOutputDirPath(timeline.anmName);
-                if (Directory.Exists(outputDir))
-                {
-                    message += "\n\n既存の出力先を中身ごと削除します\n" + outputDir;
-                }
+                message += "\n\n既存の出力先を中身ごと削除します\n" + outputDir;
             }
 
-            MTEUtils.ShowConfirmDialog(message, () =>
+            SE.ImageOutputPopupWindow.Show(timeline, message, () =>
             {
                 MTEUtils.Log("連番画像出力を開始しました");
                 GameMain.Instance.StartCoroutine(OutputImageInternal());
@@ -1291,11 +1293,14 @@ namespace COM3D2.MotionTimelineEditor.Plugin
                 yield break;
             }
 
-            int imageWidth, imageHeight, renderWidth, renderHeight;
-            ImageOutputLayout.ClampImageSize(timeline.imageOutputSize, out imageWidth, out imageHeight);
-            var screenAspect = (float)Screen.width / Screen.height;
-            ImageOutputLayout.GetRenderSize(screenAspect, timeline.imageOutputSize, out renderWidth, out renderHeight);
-            var cropRect = ImageOutputLayout.GetCropRect(renderWidth, renderHeight, imageWidth, imageHeight);
+            int renderWidth, renderHeight;
+            Rect cropRect;
+            ImageOutputLayout.GetLayout(
+                Screen.width, Screen.height, timeline.imageOutputScale,
+                timeline.imageOutputAspectMode, timeline.imageOutputSize, SystemInfo.maxTextureSize,
+                out renderWidth, out renderHeight, out cropRect);
+            var imageWidth = (int)cropRect.width;
+            var imageHeight = (int)cropRect.height;
 
             var formatParams = new Dictionary<string, object>
             {

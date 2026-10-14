@@ -25,6 +25,9 @@ namespace COM3D2.SceneEditor.Plugin
         /// <summary>カスタムサイズの上限。GPU の上限とは別に、入力ミスで巨大な撮影をしないための枠</summary>
         public const int MAX_CUSTOM_SIZE = 8192;
 
+        /// <summary>解像度倍率の上限。これ以上はメモリと撮影時間が現実的でない</summary>
+        public const int MAX_SCALE = 4;
+
         /// <summary>コンボの並び順</summary>
         public static readonly GameViewAspectMode[] modes =
         {

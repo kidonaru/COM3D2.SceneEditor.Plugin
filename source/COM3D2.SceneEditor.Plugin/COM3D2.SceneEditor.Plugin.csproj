@@ -422,6 +422,8 @@
     <Compile Include="ScenePresetData.cs" />
     <Compile Include="WindowLayoutData.cs" />
     <Compile Include="AboutPopupWindow.cs" />
+    <Compile Include="ImageOutputPopupWindow.cs" />
+    <Compile Include="ImageOutputSizeDrawer.cs" />
     <Compile Include="SavePresetPopupWindow.cs" />
     <Compile Include="ScenePresetNaming.cs" />
     <Compile Include="ScenePresetSearch.cs" />

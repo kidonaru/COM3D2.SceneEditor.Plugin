@@ -388,33 +388,10 @@ namespace COM3D2.SceneEditor.Plugin
                 hiddenButton = true,
             });
 
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("画像サイズ", 70, ROW_HEIGHT);
-
-                view.DrawFloatField(new GUIView.FloatFieldOption
-                {
-                    label = "幅",
-                    labelWidth = 30,
-                    fieldType = FloatFieldType.Int,
-                    value = timeline.imageOutputSize.x,
-                    width = 80,
-                    height = ROW_HEIGHT,
-                    onChanged = x => timeline.imageOutputSize.x = x,
-                });
-
-                view.DrawFloatField(new GUIView.FloatFieldOption
-                {
-                    label = "高さ",
-                    labelWidth = 30,
-                    fieldType = FloatFieldType.Int,
-                    value = timeline.imageOutputSize.y,
-                    width = 80,
-                    height = ROW_HEIGHT,
-                    onChanged = x => timeline.imageOutputSize.y = x,
-                });
-            }
-            view.EndLayout();
+            ImageOutputSizeDrawer.Draw(view,
+                ref timeline.imageOutputScale,
+                ref timeline.imageOutputAspectMode,
+                ref timeline.imageOutputSize);
 
             var enabled = MTEP.PluginUtils.IsExistsImageOutputDirPath(timeline.anmName);
             if (view.DrawButton("画像出力先を開く", 120, ROW_HEIGHT, enabled))

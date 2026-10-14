@@ -136,6 +136,7 @@ namespace COM3D2.SceneEditor.Plugin
             AddWindow(SaveFingerPresetPopupWindow.instance);
             AddWindow(SaveBonePresetPopupWindow.instance);
             AddWindow(AboutPopupWindow.instance);
+            AddWindow(ImageOutputPopupWindow.instance);
             AddWindow(DialogPopupWindow.instance);
         }
 

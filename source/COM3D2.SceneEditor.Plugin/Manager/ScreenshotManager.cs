@@ -20,8 +20,8 @@ namespace COM3D2.SceneEditor.Plugin
     /// </summary>
     public static class ScreenshotManager
     {
-        /// <summary>解像度倍率の上限。これ以上はメモリと撮影時間が現実的でない</summary>
-        public static readonly int MAX_SCALE = 4;
+        // 独自の値を持つと、連番出力 (GameViewAspect 側) と上限がずれる
+        public const int MAX_SCALE = GameViewAspect.MAX_SCALE;
 
         private static Config config => ConfigManager.instance.config;
 

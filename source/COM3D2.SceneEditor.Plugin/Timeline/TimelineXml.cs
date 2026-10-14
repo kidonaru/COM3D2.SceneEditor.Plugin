@@ -524,6 +524,13 @@ namespace COM3D2.MotionTimelineEditor.Plugin
         [XmlElement("ImageOutputSize")]
         public Vector2 imageOutputSize = new Vector2(1920, 1080);
 
+        [XmlElement("ImageOutputScale")]
+        public int imageOutputScale = 1;
+
+        // 既定を Screen にすると、要素の無い旧 XML の出力サイズが ImageOutputSize から画面サイズへ変わる
+        [XmlElement("ImageOutputAspectMode")]
+        public GameViewAspectMode imageOutputAspectMode = GameViewAspectMode.Custom;
+
         public TimelineXml()
         {
         }

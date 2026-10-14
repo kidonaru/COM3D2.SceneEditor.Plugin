@@ -1,4 +1,5 @@
 using UnityEngine;
+using COM3D2.SceneEditor.Plugin;
 
 namespace COM3D2.MotionTimelineEditor.Plugin
 {
@@ -46,6 +47,23 @@ namespace COM3D2.MotionTimelineEditor.Plugin
             var x = (renderWidth - outputWidth) * 0.5f;
             var y = (renderHeight - outputHeight) * 0.5f;
             return new Rect(x, y, outputWidth, outputHeight);
+        }
+
+        /// <summary>
+        /// 連番画像出力の描画サイズと切り出し矩形。出力サイズは cropRect のサイズ。
+        /// 倍率・比率・カスタムの意味はスクリーンショットと同じ (GameViewAspect.GetCaptureLayout)
+        /// </summary>
+        public static void GetLayout(
+            int screenWidth, int screenHeight, int scale,
+            GameViewAspectMode mode, Vector2 customSize, int maxTextureSize,
+            out int renderWidth, out int renderHeight, out Rect cropRect)
+        {
+            int customWidth, customHeight;
+            ClampImageSize(customSize, out customWidth, out customHeight);
+            GameViewAspect.GetCaptureLayout(
+                screenWidth, screenHeight, Mathf.Clamp(scale, 1, GameViewAspect.MAX_SCALE),
+                mode, customWidth, customHeight, maxTextureSize,
+                out renderWidth, out renderHeight, out cropRect);
         }
     }
 }
